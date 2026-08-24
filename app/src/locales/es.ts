@@ -211,6 +211,8 @@ export default {
     down: "sin cable",
     macs_one: "{{count}} MAC",
     macs_other: "{{count}} MACs",
+    learnedOn: "MACs aprendidas en {{port}}",
+    noMacs: "Sin MACs aprendidas en este puerto",
   },
   dawn: {
     title: "Malla DAWN",

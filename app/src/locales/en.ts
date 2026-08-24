@@ -211,6 +211,8 @@ export default {
     down: "no cable",
     macs_one: "{{count}} MAC",
     macs_other: "{{count}} MACs",
+    learnedOn: "MACs learned on {{port}}",
+    noMacs: "No learned MACs on this port",
   },
   dawn: {
     title: "DAWN mesh",
