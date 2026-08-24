@@ -154,3 +154,18 @@ export interface IoTProbe {
   ifaces: string[];
   clients: number;
 }
+
+export interface FwdRule {
+  section: string;
+  name: string;
+  src_dport: string;
+  dest_ip: string;
+  dest_port: string;
+  proto: string;
+}
+
+export interface FwdProbe {
+  has_wan: boolean;
+  firewall: boolean;
+  rules: FwdRule[];
+}

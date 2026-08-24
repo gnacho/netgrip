@@ -167,6 +167,18 @@ export default {
     failed: "Falló el cambio",
     reloadWarn: "Las radios se reinician brevemente al aplicar (los clientes se reconectan solos; en 5 GHz puede tardar ~1 min por DFS)",
   },
+  fwd: {
+    title: "Reenvío de puertos",
+    noWan: "Solo aplica en el gateway (requiere WAN y firewall)",
+    empty: "Sin reglas todavía",
+    extPort: "Puerto ext.",
+    intPort: "Puerto int.",
+    add: "Añadir regla",
+    delete: "Borrar regla",
+    applied: "Cambio aplicado",
+    rolledBack: "Falló el cambio y se restauró la configuración anterior",
+    failed: "Falló el cambio",
+  },
   security: {
     title: "Seguridad",
     current: "Contraseña actual",

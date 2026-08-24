@@ -74,6 +74,19 @@ export const api = {
       },
     ),
   ddns: () => request<import("./types").DDNSProbe>("/api/ddns"),
+  portforward: () => request<import("./types").FwdProbe>("/api/portforward"),
+  addFwdRule: (src_dport: string, dest_ip: string, dest_port: string, proto: string) =>
+    request<import("./types").ModuleResult<import("./types").FwdProbe>>("/api/portforward", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ src_dport, dest_ip, dest_port, proto }),
+    }),
+  deleteFwdRule: (section: string) =>
+    request<import("./types").ModuleResult<import("./types").FwdProbe>>("/api/portforward/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ section }),
+    }),
   iotwifi: () => request<import("./types").IoTProbe>("/api/iotwifi"),
   setIotwifi: (cfg: { enabled: boolean; ssid?: string; key?: string; band?: string }) =>
     request<import("./types").ModuleResult<import("./types").IoTProbe>>("/api/iotwifi", {
