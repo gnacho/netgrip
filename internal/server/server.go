@@ -63,6 +63,8 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("POST /api/openvpn", s.requireAuth(s.handleOVPNSet))
 	s.mux.HandleFunc("POST /api/openvpn/clients", s.requireAuth(s.handleOVPNClientAdd))
 	s.mux.HandleFunc("POST /api/openvpn/clients/delete", s.requireAuth(s.handleOVPNClientDelete))
+	s.mux.HandleFunc("GET /api/packages", s.requireAuth(s.handlePackagesGet))
+	s.mux.HandleFunc("POST /api/packages/upgrade", s.requireAuth(s.handlePackageUpgrade))
 	return s
 }
 
@@ -453,6 +455,33 @@ func (s *Server) handleOVPNClientDelete(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, map[string]any{"state": probe})
+}
+
+func (s *Server) handlePackagesGet(w http.ResponseWriter, _ *http.Request) {
+	pkgs, err := modules.ListUpgradable()
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"upgradable": pkgs})
+}
+
+type packageUpgradeRequest struct {
+	Name string `json:"name"`
+}
+
+func (s *Server) handlePackageUpgrade(w http.ResponseWriter, r *http.Request) {
+	var req packageUpgradeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	pkgs, err := modules.UpgradePackage(req.Name)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"upgradable": pkgs})
 }
 
 // writeModuleResult is the shared response shape for write modules:

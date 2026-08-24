@@ -68,6 +68,13 @@ export const api = {
       },
     ),
   ddns: () => request<import("./types").DDNSProbe>("/api/ddns"),
+  packages: () => request<{ upgradable: import("./types").PkgUpgrade[] }>("/api/packages"),
+  upgradePackage: (name: string) =>
+    request<{ upgradable: import("./types").PkgUpgrade[] }>("/api/packages/upgrade", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
   sqm: () => request<import("./types").SQMProbe>("/api/sqm"),
   openvpn: () => request<import("./types").OVPNProbe>("/api/openvpn"),
   setOpenvpn: (action: "enable" | "disable") =>

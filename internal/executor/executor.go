@@ -48,10 +48,13 @@ func Validate(op Op) error {
 		if len(op.Args) != 1 || !reUCIConfig.MatchString(op.Args[0]) {
 			return fmt.Errorf("invalid uci_commit args: %v", op.Args)
 		}
-	case "pkg_add":
+	case "pkg_add", "apk_upgrade":
 		// Args: package names; apk on 25.12+, opkg on older releases.
+		// NOTE: `apk add <pkg>` does NOT upgrade an installed package in
+		// apk v3 (it keeps the installed version, verified on 25.12.5);
+		// upgrades need `apk upgrade <pkg>`.
 		if len(op.Args) == 0 {
-			return fmt.Errorf("pkg_add needs at least one package")
+			return fmt.Errorf("%s needs at least one package", op.Kind)
 		}
 		for _, pkg := range op.Args {
 			if !rePkg.MatchString(pkg) {
@@ -95,6 +98,8 @@ func Run(op Op) error {
 		} else {
 			cmd = exec.Command("opkg", append([]string{"install"}, op.Args...)...)
 		}
+	case "apk_upgrade":
+		cmd = exec.Command("apk", append([]string{"upgrade"}, op.Args...)...)
 	case "ifup", "ifdown":
 		cmd = exec.Command(op.Kind, op.Args[0])
 	case "initd":
