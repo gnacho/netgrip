@@ -93,7 +93,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
 
   return (
     <div className="min-h-screen">
-      <div className="w-full max-w-[1440px] mx-auto md:flex">
+      <div className="w-full max-w-[1280px] mx-auto md:flex">
         {/* Sidebar (desktop) */}
         <nav className="hidden md:flex md:flex-col md:w-44 md:shrink-0 border-r border-border p-3 gap-1">
           <p className="text-sm font-semibold px-2 py-2 mb-1">{t("app.name")}</p>
