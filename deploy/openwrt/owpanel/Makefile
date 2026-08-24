@@ -37,6 +37,11 @@ define Package/owpanel/postinst
 if [ -z "$${IPKG_INSTROOT}" ]; then
 	/etc/init.d/owpanel enable 2>/dev/null || true
 	/etc/init.d/owpanel restart 2>/dev/null || true
+	# Survive sysupgrades: the apk registry does not survive, but the
+	# preserved files do, so procd starts the panel on first boot.
+	for f in /usr/sbin/owpanel /etc/init.d/owpanel /etc/rc.d/S99owpanel; do
+		grep -qxF "$$f" /etc/sysupgrade.conf 2>/dev/null || echo "$$f" >> /etc/sysupgrade.conf
+	done
 fi
 exit 0
 endef

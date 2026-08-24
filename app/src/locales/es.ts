@@ -125,6 +125,7 @@ export default {
     failed: "No se pudo iniciar la actualización",
     noOwut: "owut no está instalado en este router",
     unsafe: "owut avisa de que NO es seguro actualizar ahora",
+    reinstallNote: "owpanel no está en los repos oficiales: se excluirá de la imagen, pero sus ficheros se conservan vía sysupgrade y volverá solo en el primer arranque.",
   },
   error: { load: "Error cargando datos" },
 };

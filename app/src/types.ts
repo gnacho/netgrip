@@ -75,6 +75,8 @@ export interface UpdateCheck {
   out_of_date_packages: number;
   warnings: string[];
   safe_to_proceed: boolean;
+  missing_packages: string[];
+  safe_with_reinstall: boolean;
 }
 
 export interface WGPeer {
