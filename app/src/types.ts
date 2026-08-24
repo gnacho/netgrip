@@ -103,3 +103,15 @@ export interface ModuleResult<T> {
   state: T;
   error?: string;
 }
+
+export interface DDNSProbe {
+  installed: boolean;
+  active: boolean;
+  running: boolean;
+  service_name: string;
+  domain: string;
+  lookup_host: string;
+  username: string;
+  registered_ip: string;
+  last_update: string;
+}

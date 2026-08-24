@@ -56,6 +56,8 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("POST /api/wireguard", s.requireAuth(s.handleWGSet))
 	s.mux.HandleFunc("POST /api/wireguard/peers", s.requireAuth(s.handleWGPeerAdd))
 	s.mux.HandleFunc("POST /api/wireguard/peers/delete", s.requireAuth(s.handleWGPeerDelete))
+	s.mux.HandleFunc("GET /api/ddns", s.requireAuth(s.handleDDNSGet))
+	s.mux.HandleFunc("POST /api/ddns", s.requireAuth(s.handleDDNSSet))
 	return s
 }
 
@@ -356,6 +358,20 @@ func (s *Server) handleWGPeerDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	probe, rolledBack, err := modules.RemoveWGPeer(req.PublicKey)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleDDNSGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeDDNS())
+}
+
+func (s *Server) handleDDNSSet(w http.ResponseWriter, r *http.Request) {
+	var cfg modules.DDNSConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetDDNS(cfg)
 	writeModuleResult(w, probe, rolledBack, err)
 }
 
