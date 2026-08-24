@@ -63,7 +63,7 @@ func WirelessClients() (map[string][]WirelessClient, error) {
 		if err := json.Unmarshal(raw, &payload); err != nil {
 			continue
 		}
-		var clients []WirelessClient
+		clients := make([]WirelessClient, 0, len(payload.Clients))
 		for key, c := range payload.Clients {
 			if !macRe.MatchString(key) {
 				continue
@@ -90,11 +90,15 @@ func ReadLeases(path string) ([]Lease, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return []Lease{}, nil
 		}
 		return nil, fmt.Errorf("read leases: %w", err)
 	}
-	return ParseLeases(string(data)), nil
+	leases := ParseLeases(string(data))
+	if leases == nil {
+		return []Lease{}, nil
+	}
+	return leases, nil
 }
 
 // ParseLeases parses the content of a dnsmasq leases file:
