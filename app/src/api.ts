@@ -37,4 +37,11 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ current, next }),
     }),
+  updateCheck: () => request<import("./types").UpdateCheck>("/api/update"),
+  startUpdate: () =>
+    request<{ started: boolean; reboot_pending: boolean }>("/api/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirm: true }),
+    }),
 };

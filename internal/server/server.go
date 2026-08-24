@@ -50,6 +50,8 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("GET /api/ipv6", s.requireAuth(s.handleIPv6Get))
 	s.mux.HandleFunc("POST /api/ipv6", s.requireAuth(s.handleIPv6Set))
 	s.mux.HandleFunc("POST /api/password", s.requireAuth(s.handlePasswordSet))
+	s.mux.HandleFunc("GET /api/update", s.requireAuth(s.handleUpdateCheck))
+	s.mux.HandleFunc("POST /api/update", s.requireAuth(s.handleUpdateStart))
 	return s
 }
 
@@ -261,6 +263,36 @@ func (s *Server) handlePasswordSet(w http.ResponseWriter, r *http.Request) {
 	s.sessions = make(map[string]time.Time)
 	s.mu.Unlock()
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handleUpdateCheck(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.CheckUpdate())
+}
+
+type updateStartRequest struct {
+	Confirm bool `json:"confirm"`
+}
+
+func (s *Server) handleUpdateStart(w http.ResponseWriter, r *http.Request) {
+	var req updateStartRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || !req.Confirm {
+		writeError(w, http.StatusBadRequest, "explicit confirmation required")
+		return
+	}
+	check := modules.CheckUpdate()
+	if !check.OwutPresent {
+		writeError(w, http.StatusBadGateway, "owut is not installed on this router")
+		return
+	}
+	if !check.SafeToProceed {
+		writeError(w, http.StatusConflict, "owut reports it is not safe to proceed")
+		return
+	}
+	if err := modules.StartUpgrade(); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"started": true, "reboot_pending": true})
 }
 
 func newToken() string {

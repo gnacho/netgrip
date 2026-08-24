@@ -66,3 +66,12 @@ export interface IPv6SetResult {
   error?: string;
 }
 
+export interface UpdateCheck {
+  available: boolean;
+  owut_present: boolean;
+  version_from: string;
+  version_to: string;
+  out_of_date_packages: number;
+  warnings: string[];
+  safe_to_proceed: boolean;
+}

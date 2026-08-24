@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
-  Cpu, Globe, LogOut, Network, RefreshCw, ShieldCheck, Users, Wifi,
+  ArrowUpCircle, Cpu, Globe, LogOut, Network, RefreshCw, ShieldCheck, Users, Wifi,
 } from "lucide-react";
 import { api } from "../api";
-import type { Board, IPv6Probe, Lease, SystemInfo, WanStatus, WirelessRadio } from "../types";
+import type { Board, IPv6Probe, Lease, SystemInfo, UpdateCheck, WanStatus, WirelessRadio } from "../types";
 import { Card, Pill, Row } from "../components/Card";
 import { Toggle } from "../components/Toggle";
 
@@ -38,6 +38,10 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [pwConfirm, setPwConfirm] = useState("");
   const [pwBusy, setPwBusy] = useState(false);
   const [pwMsg, setPwMsg] = useState<{ tone: "ok" | "danger"; text: string }>();
+  const [update, setUpdate] = useState<UpdateCheck>();
+  const [updateBusy, setUpdateBusy] = useState(false);
+  const [updateConfirm, setUpdateConfirm] = useState(false);
+  const [updateMsg, setUpdateMsg] = useState<{ tone: "ok" | "danger"; text: string }>();
 
   const load = useCallback(async () => {
     setLoadError(false);
@@ -52,6 +56,32 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // owut check is slow (network round trip to the ASU server): load it in
+  // the background after the dashboard is up.
+  useEffect(() => {
+    api.updateCheck().then(setUpdate).catch(() => {});
+  }, []);
+
+  const recheckUpdate = async () => {
+    setUpdateBusy(true);
+    try { setUpdate(await api.updateCheck()); } catch { /* keep previous */ }
+    setUpdateBusy(false);
+  };
+
+  const startUpdate = async () => {
+    setUpdateConfirm(false);
+    setUpdateBusy(true);
+    setUpdateMsg(undefined);
+    try {
+      await api.startUpdate();
+      setUpdateMsg({ tone: "ok", text: t("update.started") });
+    } catch (e) {
+      setUpdateMsg({ tone: "danger", text: e instanceof Error ? e.message : t("update.failed") });
+    } finally {
+      setUpdateBusy(false);
+    }
+  };
 
   const changePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,6 +239,52 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           {ipv6Msg && <p className={`text-xs mt-2 ${ipv6Msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{ipv6Msg.text}</p>}
         </Card>
 
+        <Card title={t("update.title")} icon={ArrowUpCircle} action={
+          <button onClick={recheckUpdate} disabled={updateBusy} className="text-xs text-muted hover:text-text">
+            {updateBusy ? t("update.checking") : t("update.check")}
+          </button>
+        }>
+          <Row label={t("update.current")} value={board?.release && `${board.release.version} (${board.release.revision})`} />
+          {update?.owut_present === false ? (
+            <p className="text-sm text-muted mt-2">{t("update.noOwut")}</p>
+          ) : update ? (
+            <>
+              <Row label={t("update.available")} value={update.version_to} />
+              <Row label="" value={
+                update.out_of_date_packages > 0
+                  ? <Pill tone="warn">{t("update.outOfDate", { count: update.out_of_date_packages })}</Pill>
+                  : <Pill tone="ok">{t("update.upToDate")}</Pill>
+              } />
+              {update.warnings.map((w) => <p key={w} className="text-xs text-warn mt-1">{w}</p>)}
+              {!update.safe_to_proceed && <p className="text-xs text-danger mt-2">{t("update.unsafe")}</p>}
+              {updateConfirm ? (
+                <div className="mt-3 border border-warn/40 rounded-lg p-3">
+                  <p className="text-xs font-medium mb-1">{t("update.confirmTitle")}</p>
+                  <p className="text-xs text-muted mb-3">{t("update.confirmBody")}</p>
+                  <div className="flex gap-2">
+                    <button onClick={startUpdate} className="text-xs bg-danger/80 hover:bg-danger rounded-lg px-3 py-1.5 font-medium">
+                      {t("update.confirmYes")}
+                    </button>
+                    <button onClick={() => setUpdateConfirm(false)} className="text-xs bg-border hover:bg-border/70 rounded-lg px-3 py-1.5">
+                      {t("update.confirmNo")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setUpdateConfirm(true)}
+                  disabled={!update.safe_to_proceed || updateBusy}
+                  className="mt-3 text-sm bg-accent hover:bg-accent/85 disabled:opacity-40 rounded-lg px-3 py-1.5 font-medium"
+                >
+                  {t("update.upgrade")}
+                </button>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted mt-2">{t("update.checking")}</p>
+          )}
+          {updateMsg && <p className={`text-xs mt-2 ${updateMsg.tone === "ok" ? "text-ok" : "text-danger"}`}>{updateMsg.text}</p>}
+        </Card>
 
         <Card title={t("security.title")} icon={ShieldCheck}>
           <form onSubmit={changePassword} className="flex flex-col gap-2">
