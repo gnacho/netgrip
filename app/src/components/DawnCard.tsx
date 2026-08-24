@@ -1,48 +1,153 @@
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Radio } from "lucide-react";
 import type { DawnAP } from "../types";
 import { Card, Pill } from "./Card";
 
+// Deterministic radial mesh: this router at the center, peers on a
+// circle, radio chips on a small orbit around each node. No graph lib.
+const VB_W = 640;
+const VB_H = 380;
+const CX = VB_W / 2;
+const CY = VB_H / 2;
+const PEER_R = 132;
+const RADIO_ORBIT = 40;
+
+type MeshNode = {
+  hostname: string;
+  local: boolean;
+  aps: DawnAP[];
+};
+
 export function DawnCard({ aps, error }: { aps: DawnAP[] | undefined; error: boolean }) {
   const { t } = useTranslation();
+  const [selected, setSelected] = useState<string>(); // bssid
 
-  const sorted = [...(aps || [])].sort((a, b) => {
-    if (a.local !== b.local) return a.local ? -1 : 1;
-    return a.hostname.localeCompare(b.hostname) || a.freq - b.freq;
-  });
+  const nodes = useMemo<MeshNode[]>(() => {
+    const byHost = new Map<string, MeshNode>();
+    for (const ap of aps || []) {
+      const key = ap.hostname || ap.bssid;
+      const node = byHost.get(key) || { hostname: key, local: false, aps: [] };
+      node.local = node.local || ap.local;
+      node.aps.push(ap);
+      byHost.set(key, node);
+    }
+    return [...byHost.values()].sort((a, b) => (a.local === b.local ? 0 : a.local ? -1 : 1));
+  }, [aps]);
+
+  const localNode = nodes.find((n) => n.local);
+  const peers = nodes.filter((n) => !n.local);
+
+  const posOf = (i: number) => {
+    const angle = -Math.PI / 2 + (i * 2 * Math.PI) / Math.max(peers.length, 1);
+    return { x: CX + PEER_R * Math.cos(angle), y: CY + PEER_R * Math.sin(angle) };
+  };
+
+  const selectedAp = (aps || []).find((a) => a.bssid === selected)
+    || (localNode?.aps ?? []).slice().sort((a, b) => b.num_sta - a.num_sta)[0];
+
+  const radioChip = (ap: DawnAP, nx: number, ny: number, idx: number, total: number) => {
+    const angle = Math.PI / 2 + ((idx - (total - 1) / 2) * Math.PI) / 3;
+    const x = nx + RADIO_ORBIT * Math.cos(angle);
+    const y = ny + RADIO_ORBIT * Math.sin(angle);
+    const is5g = ap.freq > 5000;
+    return (
+      <g key={ap.bssid} transform={`translate(${x}, ${y})`}
+        onClick={(e) => { e.stopPropagation(); setSelected(ap.bssid); }}
+        className="cursor-pointer">
+        <circle r="13"
+          className={`${is5g ? "fill-accent/20 stroke-accent" : "fill-warn/20 stroke-warn"} ${selected === ap.bssid ? "stroke-2" : "stroke-1"}`} />
+        <text y="3.5" textAnchor="middle" fontSize="9" className="fill-text">
+          {ap.num_sta}
+        </text>
+        <text y="24" textAnchor="middle" fontSize="7.5" className="fill-muted">
+          {is5g ? "5G" : "2.4G"} ch{ap.channel}
+        </text>
+      </g>
+    );
+  };
+
+  if (error) {
+    return (
+      <Card title={t("dawn.title")} icon={Radio}>
+        <p className="text-sm text-muted">{t("dawn.absent")}</p>
+      </Card>
+    );
+  }
 
   return (
     <Card title={t("dawn.title")} icon={Radio}>
-      {error ? (
-        <p className="text-sm text-muted">{t("dawn.absent")}</p>
-      ) : !aps || aps.length === 0 ? (
+      {!aps || aps.length === 0 ? (
         <p className="text-sm text-muted">{t("dawn.empty")}</p>
       ) : (
-        sorted.map((ap) => (
-          <div key={ap.bssid} className="py-1.5 border-b border-border/50 last:border-0">
-            <div className="flex items-center gap-2 text-sm flex-wrap">
-              <span className="font-medium">{ap.hostname || ap.bssid}</span>
-              {ap.local && <Pill tone="ok">{t("dawn.thisRouter")}</Pill>}
-              <span className="text-xs text-muted">
-                {ap.ssid} · {ap.freq > 5000 ? t("wifi.band5") : t("wifi.band24")} ch{ap.channel} · {t("dawn.util", { count: ap.util })}
-              </span>
-              <span className="text-xs text-muted ml-auto">{t("wifi.clients", { count: ap.num_sta })}</span>
-            </div>
-            {ap.clients.length > 0 && (
-              <div className="mt-1 ml-2">
-                {[...ap.clients]
-                  .sort((a, b) => b.signal - a.signal)
-                  .slice(0, 5)
-                  .map((c) => (
-                    <div key={c.mac} className="flex justify-between text-xs text-muted py-0.5">
-                      <span className="font-mono">{c.mac}</span>
-                      <span>{c.signal} dBm</span>
-                    </div>
-                  ))}
-              </div>
+        <>
+          <svg viewBox={`0 0 ${VB_W} ${VB_H}`} className="w-full">
+            {peers.map((peer, i) => {
+              const p = posOf(i);
+              return (
+                <line key={`link-${peer.hostname}`} x1={CX} y1={CY} x2={p.x} y2={p.y}
+                  className="stroke-border" strokeWidth="1.5" />
+              );
+            })}
+            {peers.map((_, i) => {
+              const a = posOf(i);
+              return peers.slice(i + 1).map((other, j) => {
+                const b = posOf(peers.indexOf(other));
+                return (
+                  <line key={`mesh-${i}-${j}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                    className="stroke-border/40" strokeWidth="1" strokeDasharray="3 4" />
+                );
+              });
+            })}
+            {localNode && (
+              <g transform={`translate(${CX}, ${CY})`}>
+                <circle r="26" className="fill-accent/25 stroke-accent" strokeWidth="2" />
+                <text y="4" textAnchor="middle" fontSize="10" className="fill-text font-medium">
+                  {localNode.hostname}
+                </text>
+                <text y="40" textAnchor="middle" fontSize="8.5" className="fill-accent">
+                  {t("dawn.thisRouter")}
+                </text>
+                {localNode.aps.map((ap, i) => radioChip(ap, 0, 0, i, localNode.aps.length))}
+              </g>
             )}
-          </div>
-        ))
+            {peers.map((peer, i) => {
+              const p = posOf(i);
+              return (
+                <g key={peer.hostname} transform={`translate(${p.x}, ${p.y})`}>
+                  <circle r="20" className="fill-card stroke-muted" strokeWidth="1.5" />
+                  <text y="4" textAnchor="middle" fontSize="9.5" className="fill-text">
+                    {peer.hostname}
+                  </text>
+                  {peer.aps.map((ap, j) => radioChip(ap, 0, 0, j, peer.aps.length))}
+                </g>
+              );
+            })}
+          </svg>
+
+          {selectedAp && (
+            <div className="mt-1">
+              <div className="flex items-center gap-2 text-xs text-muted mb-1">
+                <Pill tone="muted">{selectedAp.hostname}</Pill>
+                <span>{selectedAp.ssid} · {selectedAp.freq > 5000 ? t("wifi.band5") : t("wifi.band24")} ch{selectedAp.channel} · {t("dawn.util", { count: selectedAp.util })}</span>
+                <span className="ml-auto">{t("wifi.clients", { count: selectedAp.num_sta })}</span>
+              </div>
+              {selectedAp.clients.length > 0 && (
+                <div className="grid grid-cols-2 gap-x-4">
+                  {[...selectedAp.clients]
+                    .sort((a, b) => b.signal - a.signal)
+                    .slice(0, 6)
+                    .map((c) => (
+                      <div key={c.mac} className="flex justify-between text-xs text-muted py-0.5">
+                        <span className="font-mono">{c.mac}</span>
+                        <span>{c.signal} dBm</span>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
     </Card>
   );
