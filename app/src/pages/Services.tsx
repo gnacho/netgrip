@@ -12,7 +12,7 @@ export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChang
   onDdnsChange: (p: DDNSProbe) => void;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <WireguardCard probe={wg} onChange={onWgChange} />
       <DdnsCard probe={ddns} onChange={onDdnsChange} />
       <Ipv6Card probe={ipv6} onChange={onIpv6Change} />
