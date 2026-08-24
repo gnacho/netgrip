@@ -1,0 +1,13 @@
+{
+	"admin/services/owpanel": {
+		"title": "owpanel",
+		"order": 50,
+		"action": {
+			"type": "view",
+			"path": "owpanel/panel"
+		},
+		"depends": {
+			"acl": [ "luci-app-owpanel" ]
+		}
+	}
+}
