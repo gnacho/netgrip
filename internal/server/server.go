@@ -66,6 +66,8 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("POST /api/openvpn/clients/delete", s.requireAuth(s.handleOVPNClientDelete))
 	s.mux.HandleFunc("GET /api/packages", s.requireAuth(s.handlePackagesGet))
 	s.mux.HandleFunc("POST /api/packages/upgrade", s.requireAuth(s.handlePackageUpgrade))
+	s.mux.HandleFunc("GET /api/iotwifi", s.requireAuth(s.handleIoTGet))
+	s.mux.HandleFunc("POST /api/iotwifi", s.requireAuth(s.handleIoTSet))
 	return s
 }
 
@@ -503,6 +505,20 @@ func (s *Server) handlePackageUpgrade(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"upgradable": pkgs})
+}
+
+func (s *Server) handleIoTGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeIoT())
+}
+
+func (s *Server) handleIoTSet(w http.ResponseWriter, r *http.Request) {
+	var cfg modules.IoTConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetIoT(cfg)
+	writeModuleResult(w, probe, rolledBack, err)
 }
 
 // writeModuleResult is the shared response shape for write modules:
