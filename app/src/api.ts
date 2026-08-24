@@ -69,6 +69,25 @@ export const api = {
     ),
   ddns: () => request<import("./types").DDNSProbe>("/api/ddns"),
   sqm: () => request<import("./types").SQMProbe>("/api/sqm"),
+  openvpn: () => request<import("./types").OVPNProbe>("/api/openvpn"),
+  setOpenvpn: (action: "enable" | "disable") =>
+    request<import("./types").ModuleResult<import("./types").OVPNProbe>>("/api/openvpn", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    }),
+  addOvpnClient: (name: string) =>
+    request<{ config: string; state: import("./types").OVPNProbe }>("/api/openvpn/clients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
+  deleteOvpnClient: (name: string) =>
+    request<{ state: import("./types").OVPNProbe }>("/api/openvpn/clients/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
   setSqm: (cfg: { enabled: boolean; download?: string; upload?: string }) =>
     request<import("./types").ModuleResult<import("./types").SQMProbe>>("/api/sqm", {
       method: "POST",
