@@ -29,7 +29,7 @@ export function Overview({ board, system, wan, radios, leases }: {
   const ramPct = system ? Math.round((ramUsed / system.memory.total) * 100) : 0;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       <Card title={t("system.title")} icon={Cpu}>
         <Row label={t("system.model")} value={board?.model} />
         <Row label={t("system.firmware")} value={board?.release && `${board.release.distribution} ${board.release.version}`} />

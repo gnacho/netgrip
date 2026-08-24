@@ -9,7 +9,7 @@ export function System({ board, update, onUpdateChange, onLogout }: {
   onLogout: () => void;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       <UpdateCard board={board} update={update} onChange={onUpdateChange} />
       <SecurityCard onLogout={onLogout} />
     </div>
