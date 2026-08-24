@@ -1,0 +1,96 @@
+name: openwrt-package
+
+# Builds the OpenWrt packages for owpanel and attaches them to the release:
+# .ipk (24.10 SDK) and .apk (25.12 SDK), both for aarch64_cortex-a53
+# (covers qualcommax/ipq807x and mediatek/filogic routers).
+#
+# Triggered on v* tag pushes (the same event as any release workflow).
+# The `release` event is NOT reliable for releases published by another
+# workflow (GITHUB_TOKEN events do not start new runs), so this workflow
+# builds the frontend and the binary itself and needs no assets waiting.
+
+on:
+  push:
+    tags: ['v*']
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag (e.g. v0.1.6)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sdk-version: 24.10.5
+            sdk-target: qualcommax/ipq807x
+            format: ipk
+          - sdk-version: 25.12.5
+            sdk-target: qualcommax/ipq807x
+            format: apk
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build frontend
+        run: npm ci && npm run build
+        working-directory: app
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Cross-compile owpanel (arm64)
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build \
+            -ldflags "-s -w" -o /tmp/owpanel ./cmd/owpanel
+          ls -la /tmp/owpanel
+          file /tmp/owpanel
+
+      - name: Package ${{ matrix.format }} (SDK ${{ matrix.sdk-version }})
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          chmod +x deploy/openwrt/package.sh
+          export PKG_VERSION="${TAG#v}"
+          export PKG_RELEASE="1"
+          deploy/openwrt/package.sh \
+            "${{ matrix.sdk-version }}" \
+            "${{ matrix.sdk-target }}" \
+            "" \
+            "${{ matrix.format }}" \
+            /tmp/owpanel
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          echo "Packages generated:"
+          ls -la dist/packages/
+          gh release upload "$TAG" dist/packages/*.${{ matrix.format }} --clobber
