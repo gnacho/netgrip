@@ -57,6 +57,8 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("POST /api/wireguard/peers/delete", s.requireAuth(s.handleWGPeerDelete))
 	s.mux.HandleFunc("GET /api/ddns", s.requireAuth(s.handleDDNSGet))
 	s.mux.HandleFunc("POST /api/ddns", s.requireAuth(s.handleDDNSSet))
+	s.mux.HandleFunc("GET /api/sqm", s.requireAuth(s.handleSQMGet))
+	s.mux.HandleFunc("POST /api/sqm", s.requireAuth(s.handleSQMSet))
 	return s
 }
 
@@ -366,6 +368,20 @@ func (s *Server) handleDDNSSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	probe, rolledBack, err := modules.SetDDNS(cfg)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleSQMGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeSQM())
+}
+
+func (s *Server) handleSQMSet(w http.ResponseWriter, r *http.Request) {
+	var cfg modules.SQMConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetSQM(cfg)
 	writeModuleResult(w, probe, rolledBack, err)
 }
 

@@ -115,3 +115,13 @@ export interface DDNSProbe {
   registered_ip: string;
   last_update: string;
 }
+
+export interface SQMProbe {
+  installed: boolean;
+  has_wan: boolean;
+  active: boolean;
+  running: boolean;
+  interface: string;
+  download: string;
+  upload: string;
+}
