@@ -66,4 +66,18 @@ export const api = {
         body: JSON.stringify({ public_key: publicKey }),
       },
     ),
+  ddns: () => request<import("./types").DDNSProbe>("/api/ddns"),
+  setDdns: (cfg: {
+    enabled: boolean;
+    service_name?: string;
+    domain?: string;
+    lookup_host?: string;
+    username?: string;
+    password?: string;
+  }) =>
+    request<import("./types").ModuleResult<import("./types").DDNSProbe>>("/api/ddns", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
 };
