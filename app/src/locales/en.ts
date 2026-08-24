@@ -7,7 +7,13 @@ export default {
     submit: "Sign in",
     error: "Invalid credentials",
   },
-  nav: { logout: "Log out", refresh: "Refresh" },
+  nav: {
+    logout: "Log out",
+    refresh: "Refresh",
+    overview: "Overview",
+    services: "Services",
+    system: "System",
+  },
   system: {
     title: "System",
     model: "Model",
