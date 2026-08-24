@@ -44,4 +44,26 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ confirm: true }),
     }),
+  wireguard: () => request<import("./types").WGProbe>("/api/wireguard"),
+  setWireguard: (action: "enable" | "disable") =>
+    request<import("./types").ModuleResult<import("./types").WGProbe>>("/api/wireguard", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    }),
+  addWgPeer: (name: string, publicKey: string, admin: boolean) =>
+    request<import("./types").ModuleResult<import("./types").WGProbe>>("/api/wireguard/peers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, public_key: publicKey, admin }),
+    }),
+  deleteWgPeer: (publicKey: string) =>
+    request<import("./types").ModuleResult<import("./types").WGProbe>>(
+      "/api/wireguard/peers/delete",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ public_key: publicKey }),
+      },
+    ),
 };

@@ -52,6 +52,10 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("POST /api/password", s.requireAuth(s.handlePasswordSet))
 	s.mux.HandleFunc("GET /api/update", s.requireAuth(s.handleUpdateCheck))
 	s.mux.HandleFunc("POST /api/update", s.requireAuth(s.handleUpdateStart))
+	s.mux.HandleFunc("GET /api/wireguard", s.requireAuth(s.handleWGGet))
+	s.mux.HandleFunc("POST /api/wireguard", s.requireAuth(s.handleWGSet))
+	s.mux.HandleFunc("POST /api/wireguard/peers", s.requireAuth(s.handleWGPeerAdd))
+	s.mux.HandleFunc("POST /api/wireguard/peers/delete", s.requireAuth(s.handleWGPeerDelete))
 	return s
 }
 
@@ -293,6 +297,86 @@ func (s *Server) handleUpdateStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"started": true, "reboot_pending": true})
+}
+
+func (s *Server) handleWGGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeWG())
+}
+
+type wgSetRequest struct {
+	Action string `json:"action"` // enable | disable
+}
+
+func (s *Server) handleWGSet(w http.ResponseWriter, r *http.Request) {
+	var req wgSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	var probe *modules.WGProbe
+	var rolledBack bool
+	var err error
+	switch req.Action {
+	case "enable":
+		probe, rolledBack, err = modules.SetWG(true)
+	case "disable":
+		probe, rolledBack, err = modules.SetWG(false)
+	default:
+		writeError(w, http.StatusBadRequest, "action must be enable or disable")
+		return
+	}
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+type wgPeerAddRequest struct {
+	Name       string   `json:"name"`
+	PublicKey  string   `json:"public_key"`
+	AllowedIPs []string `json:"allowed_ips"`
+	Admin      bool     `json:"admin"`
+}
+
+func (s *Server) handleWGPeerAdd(w http.ResponseWriter, r *http.Request) {
+	var req wgPeerAddRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.AddWGPeer(req.Name, req.PublicKey, req.AllowedIPs, req.Admin)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+type wgPeerDeleteRequest struct {
+	PublicKey string `json:"public_key"`
+}
+
+func (s *Server) handleWGPeerDelete(w http.ResponseWriter, r *http.Request) {
+	var req wgPeerDeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.RemoveWGPeer(req.PublicKey)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+// writeModuleResult is the shared response shape for write modules:
+// the new probe, whether a rollback happened, and the error if any.
+func writeModuleResult(w http.ResponseWriter, probe any, rolledBack bool, err error) {
+	result := map[string]any{"state": probe, "rolled_back": rolledBack}
+	if err != nil {
+		result["error"] = err.Error()
+		if rolledBack {
+			result["status"] = "rolled_back"
+		} else {
+			result["status"] = "failed"
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(result)
+		return
+	}
+	result["status"] = "applied"
+	writeJSON(w, result)
 }
 
 func newToken() string {
