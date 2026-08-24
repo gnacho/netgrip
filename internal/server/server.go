@@ -75,6 +75,9 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("POST /api/tailscale", s.requireAuth(s.handleTSSet))
 	s.mux.HandleFunc("GET /api/guestwifi", s.requireAuth(s.handleGuestGet))
 	s.mux.HandleFunc("POST /api/guestwifi", s.requireAuth(s.handleGuestSet))
+	s.mux.HandleFunc("GET /api/netdev", s.requireAuth(s.handleNetDev))
+	s.mux.HandleFunc("GET /api/ethports", s.requireAuth(s.handleEthPorts))
+	s.mux.HandleFunc("GET /api/dawn", s.requireAuth(s.handleDawn))
 	return s
 }
 
@@ -593,6 +596,23 @@ func (s *Server) handleGuestSet(w http.ResponseWriter, r *http.Request) {
 	}
 	probe, rolledBack, err := modules.SetGuest(cfg)
 	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleNetDev(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"counters": modules.NetDevCounters(), "ts": time.Now().UnixMilli()})
+}
+
+func (s *Server) handleEthPorts(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"ports": modules.EthPorts()})
+}
+
+func (s *Server) handleDawn(w http.ResponseWriter, _ *http.Request) {
+	aps, err := modules.DawnNetwork()
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"aps": aps})
 }
 
 // writeModuleResult is the shared response shape for write modules:

@@ -187,3 +187,34 @@ export interface GuestProbe {
   clients: number;
   gl_conflict: boolean;
 }
+
+export interface IfaceCounters {
+  name: string;
+  rx_bytes: number;
+  tx_bytes: number;
+}
+
+export interface EthPort {
+  name: string;
+  up: boolean;
+  speed_mbps: number;
+  macs: string[];
+}
+
+export interface DawnClient {
+  mac: string;
+  signal: number;
+}
+
+export interface DawnAP {
+  bssid: string;
+  ssid: string;
+  hostname: string;
+  iface: string;
+  channel: number;
+  freq: number;
+  util: number;
+  num_sta: number;
+  local: boolean;
+  clients: DawnClient[];
+}

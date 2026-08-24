@@ -200,6 +200,25 @@ export default {
     rolledBack: "Falló el cambio y se restauró la configuración anterior",
     failed: "Falló el cambio",
   },
+  traffic: {
+    title: "Tráfico",
+    measuring: "Midiendo...",
+  },
+  ports: {
+    title: "Puertos ethernet",
+    empty: "Sin puertos físicos detectados",
+    up: "enlace",
+    down: "sin cable",
+    macs_one: "{{count}} MAC",
+    macs_other: "{{count}} MACs",
+  },
+  dawn: {
+    title: "Malla DAWN",
+    absent: "DAWN no corre en este router",
+    empty: "Malla vacía",
+    thisRouter: "este router",
+    util: "{{count}}% util",
+  },
   security: {
     title: "Seguridad",
     current: "Contraseña actual",

@@ -74,6 +74,9 @@ export const api = {
       },
     ),
   ddns: () => request<import("./types").DDNSProbe>("/api/ddns"),
+  netdev: () => request<{ counters: import("./types").IfaceCounters[]; ts: number }>("/api/netdev"),
+  ethports: () => request<{ ports: import("./types").EthPort[] }>("/api/ethports"),
+  dawn: () => request<{ aps: import("./types").DawnAP[] }>("/api/dawn"),
   guestwifi: () => request<import("./types").GuestProbe>("/api/guestwifi"),
   setGuestwifi: (cfg: { enabled: boolean; ssid?: string; key?: string; band?: string }) =>
     request<import("./types").ModuleResult<import("./types").GuestProbe>>("/api/guestwifi", {
