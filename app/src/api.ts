@@ -74,6 +74,13 @@ export const api = {
       },
     ),
   ddns: () => request<import("./types").DDNSProbe>("/api/ddns"),
+  guestwifi: () => request<import("./types").GuestProbe>("/api/guestwifi"),
+  setGuestwifi: (cfg: { enabled: boolean; ssid?: string; key?: string; band?: string }) =>
+    request<import("./types").ModuleResult<import("./types").GuestProbe>>("/api/guestwifi", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
   tailscale: () => request<import("./types").TSProbe>("/api/tailscale"),
   setTailscale: (enabled: boolean) =>
     request<import("./types").ModuleResult<import("./types").TSProbe>>("/api/tailscale", {

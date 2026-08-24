@@ -1,4 +1,4 @@
-import type { DDNSProbe, FwdProbe, IoTProbe, IPv6Probe, OVPNProbe, SQMProbe, TSProbe, WGProbe } from "../types";
+import type { DDNSProbe, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, OVPNProbe, SQMProbe, TSProbe, WGProbe } from "../types";
 import { WireguardCard } from "../components/WireguardCard";
 import { Ipv6Card } from "../components/Ipv6Card";
 import { DdnsCard } from "../components/DdnsCard";
@@ -7,8 +7,9 @@ import { OpenvpnCard } from "../components/OpenvpnCard";
 import { IotWifiCard } from "../components/IotWifiCard";
 import { PortForwardCard } from "../components/PortForwardCard";
 import { TailscaleCard } from "../components/TailscaleCard";
+import { GuestWifiCard } from "../components/GuestWifiCard";
 
-export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChange, sqm, onSqmChange, ovpn, onOvpnChange, iot, onIotChange, fwd, onFwdChange, ts, onTsChange }: {
+export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChange, sqm, onSqmChange, ovpn, onOvpnChange, iot, onIotChange, fwd, onFwdChange, ts, onTsChange, guest, onGuestChange }: {
   wg: WGProbe | undefined;
   onWgChange: (p: WGProbe) => void;
   ipv6: IPv6Probe | undefined;
@@ -25,6 +26,8 @@ export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChang
   onFwdChange: (p: FwdProbe) => void;
   ts: TSProbe | undefined;
   onTsChange: (p: TSProbe) => void;
+  guest: GuestProbe | undefined;
+  onGuestChange: (p: GuestProbe) => void;
 }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -34,6 +37,7 @@ export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChang
       <SqmCard probe={sqm} onChange={onSqmChange} />
       <OpenvpnCard probe={ovpn} onChange={onOvpnChange} />
       <IotWifiCard probe={iot} onChange={onIotChange} />
+      <GuestWifiCard probe={guest} onChange={onGuestChange} />
       <PortForwardCard probe={fwd} onChange={onFwdChange} />
       <TailscaleCard probe={ts} onChange={onTsChange} />
     </div>

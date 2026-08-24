@@ -177,3 +177,13 @@ export interface TSProbe {
   auth_url?: string;
   ips: string[];
 }
+
+export interface GuestProbe {
+  gateway: boolean;
+  active: boolean;
+  ssid: string;
+  subnet: string;
+  ifaces: string[];
+  clients: number;
+  gl_conflict: boolean;
+}

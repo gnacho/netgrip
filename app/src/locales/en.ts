@@ -189,6 +189,17 @@ export default {
     rolledBack: "Change failed and previous configuration was restored",
     failed: "Change failed",
   },
+  guest: {
+    title: "Guest WiFi",
+    toggle: "Guest SSID",
+    noGateway: "Only available on the gateway (needs WAN and firewall)",
+    subnet: "Guest subnet",
+    scope: "Guests reach the internet but CANNOT touch your LAN (own subnet and DHCP)",
+    glConflict: "The GL firmware has its own guest WiFi: check it is not active on the same band",
+    applied: "Change applied",
+    rolledBack: "Change failed and previous configuration was restored",
+    failed: "Change failed",
+  },
   security: {
     title: "Security",
     current: "Current password",
