@@ -167,6 +167,18 @@ export default {
     failed: "Change failed",
     reloadWarn: "Radios restart briefly when applying (clients reconnect on their own; 5 GHz can take ~1 min due to DFS)",
   },
+  fwd: {
+    title: "Port forwarding",
+    noWan: "Only applies on the gateway (needs WAN and firewall)",
+    empty: "No rules yet",
+    extPort: "Ext. port",
+    intPort: "Int. port",
+    add: "Add rule",
+    delete: "Delete rule",
+    applied: "Change applied",
+    rolledBack: "Change failed and previous configuration was restored",
+    failed: "Change failed",
+  },
   security: {
     title: "Security",
     current: "Current password",
