@@ -82,6 +82,11 @@ cat > "$PKG_DIR/CONTROL/postinst" << 'POSTINST'
 #!/bin/sh
 /etc/init.d/owpanel enable 2>/dev/null || true
 /etc/init.d/owpanel restart 2>/dev/null || true
+# Survive sysupgrades: the apk registry does not survive, but the
+# preserved files do, so procd starts the panel on first boot.
+for f in /usr/sbin/owpanel /etc/init.d/owpanel /etc/rc.d/S99owpanel; do
+  grep -qxF "$f" /etc/sysupgrade.conf 2>/dev/null || echo "$f" >> /etc/sysupgrade.conf
+done
 exit 0
 POSTINST
 chmod 755 "$PKG_DIR/CONTROL/postinst"

@@ -55,7 +55,12 @@ export function UpdateCard({ board, update, onChange }: {
                 : <Pill tone="ok">{t("update.upToDate")}</Pill>
           } />
           {update.warnings.map((w) => <p key={w} className="text-xs text-warn mt-1">{w}</p>)}
-          {!update.safe_to_proceed && <p className="text-xs text-danger mt-2">{t("update.unsafe")}</p>}
+          {!update.safe_to_proceed && update.safe_with_reinstall && (
+            <p className="text-xs text-warn mt-2">{t("update.reinstallNote")}</p>
+          )}
+          {!update.safe_to_proceed && !update.safe_with_reinstall && (
+            <p className="text-xs text-danger mt-2">{t("update.unsafe")}</p>
+          )}
           {confirm ? (
             <div className="mt-3 border border-warn/40 rounded-lg p-3">
               <p className="text-xs font-medium mb-1">{t("update.confirmTitle")}</p>
@@ -74,7 +79,7 @@ export function UpdateCard({ board, update, onChange }: {
           ) : update.available && (
             <button
               onClick={() => setConfirm(true)}
-              disabled={!update.safe_to_proceed || busy}
+              disabled={(!update.safe_to_proceed && !update.safe_with_reinstall) || busy}
               className="mt-3 text-sm bg-accent hover:bg-accent/85 disabled:opacity-40 rounded-lg px-3 py-1.5 font-medium"
             >
               {update.same_version

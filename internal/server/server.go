@@ -288,11 +288,11 @@ func (s *Server) handleUpdateStart(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, "owut is not installed on this router")
 		return
 	}
-	if !check.SafeToProceed {
+	if !check.SafeToProceed && !check.SafeWithReinstall {
 		writeError(w, http.StatusConflict, "owut reports it is not safe to proceed")
 		return
 	}
-	if err := modules.StartUpgrade(); err != nil {
+	if err := modules.StartUpgrade(check.SafeWithReinstall && !check.SafeToProceed); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
