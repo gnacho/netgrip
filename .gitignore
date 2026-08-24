@@ -1,3 +1,4 @@
-/dist/
+/internal/server/dist/
+/app/node_modules/
 /owpanel
 *.test

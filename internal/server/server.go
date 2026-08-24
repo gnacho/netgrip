@@ -5,17 +5,20 @@ import (
 	"embed"
 	"encoding/hex"
 	"encoding/json"
+	"io/fs"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gnacho/owpanel/internal/auth"
+	"github.com/gnacho/owpanel/internal/modules"
 	"github.com/gnacho/owpanel/internal/ubus"
 )
 
-//go:embed static/index.html
-var staticFS embed.FS
+//go:embed all:dist
+var distFS embed.FS
 
 const (
 	sessionCookie = "owpanel_session"
@@ -36,12 +39,16 @@ func New(rpcdURL string) *Server {
 		mux:      http.NewServeMux(),
 		sessions: make(map[string]time.Time),
 	}
-	s.mux.HandleFunc("/", s.handleIndex)
+	s.mux.HandleFunc("/", s.handleSPA)
 	s.mux.HandleFunc("POST /api/login", s.handleLogin)
 	s.mux.HandleFunc("POST /api/logout", s.handleLogout)
 	s.mux.HandleFunc("GET /api/board", s.requireAuth(s.handleBoard))
+	s.mux.HandleFunc("GET /api/system", s.requireAuth(s.handleSystem))
+	s.mux.HandleFunc("GET /api/wan", s.requireAuth(s.handleWan))
 	s.mux.HandleFunc("GET /api/wireless", s.requireAuth(s.handleWireless))
 	s.mux.HandleFunc("GET /api/leases", s.requireAuth(s.handleLeases))
+	s.mux.HandleFunc("GET /api/ipv6", s.requireAuth(s.handleIPv6Get))
+	s.mux.HandleFunc("POST /api/ipv6", s.requireAuth(s.handleIPv6Set))
 	return s
 }
 
@@ -49,14 +56,28 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)
 }
 
-func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
+// handleSPA serves the embedded frontend with SPA fallback to index.html.
+func (s *Server) handleSPA(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, "/api/") {
 		http.NotFound(w, r)
 		return
 	}
-	data, err := staticFS.ReadFile("static/index.html")
+	dist, err := fs.Sub(distFS, "dist")
 	if err != nil {
-		http.Error(w, "static asset missing", http.StatusInternalServerError)
+		http.Error(w, "frontend not embedded", http.StatusInternalServerError)
+		return
+	}
+	path := strings.TrimPrefix(r.URL.Path, "/")
+	if path != "" {
+		if f, err := dist.Open(path); err == nil {
+			f.Close()
+			http.FileServer(http.FS(dist)).ServeHTTP(w, r)
+			return
+		}
+	}
+	data, err := fs.ReadFile(dist, "index.html")
+	if err != nil {
+		http.Error(w, "frontend not embedded", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -147,13 +168,31 @@ func (s *Server) handleBoard(w http.ResponseWriter, _ *http.Request) {
 	w.Write(raw)
 }
 
-func (s *Server) handleWireless(w http.ResponseWriter, _ *http.Request) {
-	clients, err := ubus.WirelessClients()
+func (s *Server) handleSystem(w http.ResponseWriter, _ *http.Request) {
+	info, err := ubus.GetSystemInfo()
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
 	}
-	writeJSON(w, clients)
+	writeJSON(w, info)
+}
+
+func (s *Server) handleWan(w http.ResponseWriter, _ *http.Request) {
+	status, err := ubus.GetWanStatus()
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, status)
+}
+
+func (s *Server) handleWireless(w http.ResponseWriter, _ *http.Request) {
+	radios, err := ubus.GetWirelessStatus()
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, radios)
 }
 
 func (s *Server) handleLeases(w http.ResponseWriter, _ *http.Request) {
@@ -163,6 +202,41 @@ func (s *Server) handleLeases(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	writeJSON(w, leases)
+}
+
+func (s *Server) handleIPv6Get(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeIPv6())
+}
+
+type ipv6SetRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
+func (s *Server) handleIPv6Set(w http.ResponseWriter, r *http.Request) {
+	var req ipv6SetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetIPv6(req.Enabled)
+	result := map[string]any{
+		"state":       probe,
+		"rolled_back": rolledBack,
+	}
+	if err != nil {
+		result["error"] = err.Error()
+		if rolledBack {
+			result["status"] = "rolled_back"
+		} else {
+			result["status"] = "failed"
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(result)
+		return
+	}
+	result["status"] = "applied"
+	writeJSON(w, result)
 }
 
 func newToken() string {
