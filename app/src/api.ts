@@ -58,6 +58,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, public_key: publicKey, admin }),
     }),
+  addWgPeerQr: (name: string, admin: boolean) =>
+    request<{ config: string; state: import("./types").WGProbe }>("/api/wireguard/peers/qr", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, admin }),
+    }),
   deleteWgPeer: (publicKey: string) =>
     request<import("./types").ModuleResult<import("./types").WGProbe>>(
       "/api/wireguard/peers/delete",
