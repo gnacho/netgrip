@@ -140,6 +140,14 @@ export default {
     deleteClient: "Revoke client",
     downloadHint: "The .ovpn downloads automatically when adding a client",
   },
+  pkg: {
+    title: "Packages",
+    count_one: "{{count}} upgradable",
+    count_other: "{{count}} upgradable",
+    upgrade: "Upgrade",
+    done: "{{name}} upgraded",
+    failed: "Operation failed",
+  },
   security: {
     title: "Security",
     current: "Current password",

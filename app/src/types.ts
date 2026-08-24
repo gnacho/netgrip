@@ -139,3 +139,9 @@ export interface OVPNProbe {
   subnet: string;
   clients: OVPNClient[];
 }
+
+export interface PkgUpgrade {
+  name: string;
+  current: string;
+  available: string;
+}

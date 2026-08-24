@@ -140,6 +140,14 @@ export default {
     deleteClient: "Revocar cliente",
     downloadHint: "El .ovpn se descarga solo al añadir el cliente",
   },
+  pkg: {
+    title: "Paquetes",
+    count_one: "{{count}} actualizable",
+    count_other: "{{count}} actualizables",
+    upgrade: "Actualizar",
+    done: "{{name}} actualizado",
+    failed: "Falló la operación",
+  },
   security: {
     title: "Seguridad",
     current: "Contraseña actual",
