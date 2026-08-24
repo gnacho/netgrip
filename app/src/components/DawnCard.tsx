@@ -6,12 +6,12 @@ import { Card, Pill } from "./Card";
 
 // Deterministic radial mesh: this router at the center, peers on a
 // circle, radio chips on a small orbit around each node. No graph lib.
-const VB_W = 640;
-const VB_H = 380;
+const VB_W = 900;
+const VB_H = 430;
 const CX = VB_W / 2;
 const CY = VB_H / 2;
-const PEER_R = 132;
-const RADIO_ORBIT = 40;
+const PEER_R = 155;
+const RADIO_ORBIT = 52;
 
 type MeshNode = {
   hostname: string;
@@ -55,12 +55,12 @@ export function DawnCard({ aps, error }: { aps: DawnAP[] | undefined; error: boo
       <g key={ap.bssid} transform={`translate(${x}, ${y})`}
         onClick={(e) => { e.stopPropagation(); setSelected(ap.bssid); }}
         className="cursor-pointer">
-        <circle r="13"
+        <circle r="16"
           className={`${is5g ? "fill-accent/20 stroke-accent" : "fill-warn/20 stroke-warn"} ${selected === ap.bssid ? "stroke-2" : "stroke-1"}`} />
-        <text y="3.5" textAnchor="middle" fontSize="9" className="fill-text">
+        <text y="4" textAnchor="middle" fontSize="11" className="fill-text">
           {ap.num_sta}
         </text>
-        <text y="24" textAnchor="middle" fontSize="7.5" className="fill-muted">
+        <text y="30" textAnchor="middle" fontSize="9.5" className="fill-muted">
           {is5g ? "5G" : "2.4G"} ch{ap.channel}
         </text>
       </g>
@@ -101,11 +101,11 @@ export function DawnCard({ aps, error }: { aps: DawnAP[] | undefined; error: boo
             })}
             {localNode && (
               <g transform={`translate(${CX}, ${CY})`}>
-                <circle r="26" className="fill-accent/25 stroke-accent" strokeWidth="2" />
-                <text y="4" textAnchor="middle" fontSize="10" className="fill-text font-medium">
+                <circle r="32" className="fill-accent/25 stroke-accent" strokeWidth="2" />
+                <text y="5" textAnchor="middle" fontSize="13" className="fill-text font-medium">
                   {localNode.hostname}
                 </text>
-                <text y="40" textAnchor="middle" fontSize="8.5" className="fill-accent">
+                <text y="50" textAnchor="middle" fontSize="10.5" className="fill-accent">
                   {t("dawn.thisRouter")}
                 </text>
                 {localNode.aps.map((ap, i) => radioChip(ap, 0, 0, i, localNode.aps.length))}
@@ -115,8 +115,8 @@ export function DawnCard({ aps, error }: { aps: DawnAP[] | undefined; error: boo
               const p = posOf(i);
               return (
                 <g key={peer.hostname} transform={`translate(${p.x}, ${p.y})`}>
-                  <circle r="20" className="fill-card stroke-muted" strokeWidth="1.5" />
-                  <text y="4" textAnchor="middle" fontSize="9.5" className="fill-text">
+                  <circle r="25" className="fill-card stroke-muted" strokeWidth="1.5" />
+                  <text y="5" textAnchor="middle" fontSize="12" className="fill-text">
                     {peer.hostname}
                   </text>
                   {peer.aps.map((ap, j) => radioChip(ap, 0, 0, j, peer.aps.length))}
