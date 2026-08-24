@@ -88,6 +88,7 @@ export const api = {
     ),
   ddns: () => request<import("./types").DDNSProbe>("/api/ddns"),
   netdev: () => request<{ counters: import("./types").IfaceCounters[]; ts: number }>("/api/netdev"),
+  mode: () => request<import("./types").ModeProbe>("/api/mode"),
   ethports: () => request<{ ports: import("./types").EthPort[] }>("/api/ethports"),
   dawn: () => request<{ aps: import("./types").DawnAP[] }>("/api/dawn"),
   guestwifi: () => request<import("./types").GuestProbe>("/api/guestwifi"),

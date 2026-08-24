@@ -75,6 +75,7 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("POST /api/tailscale", s.requireAuth(s.handleTSSet))
 	s.mux.HandleFunc("GET /api/guestwifi", s.requireAuth(s.handleGuestGet))
 	s.mux.HandleFunc("POST /api/guestwifi", s.requireAuth(s.handleGuestSet))
+	s.mux.HandleFunc("GET /api/mode", s.requireAuth(s.handleMode))
 	s.mux.HandleFunc("GET /api/netdev", s.requireAuth(s.handleNetDev))
 	s.mux.HandleFunc("GET /api/ethports", s.requireAuth(s.handleEthPorts))
 	s.mux.HandleFunc("GET /api/dawn", s.requireAuth(s.handleDawn))
@@ -599,6 +600,10 @@ func (s *Server) handleGuestSet(w http.ResponseWriter, r *http.Request) {
 	}
 	probe, rolledBack, err := modules.SetGuest(cfg)
 	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleMode(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeMode())
 }
 
 func (s *Server) handleNetDev(w http.ResponseWriter, _ *http.Request) {

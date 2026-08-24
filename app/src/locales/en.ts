@@ -243,6 +243,17 @@ export default {
     thisRouter: "this router",
     util: "{{count}}% util",
   },
+  mode: {
+    title: "Router mode",
+    ap: "Access point",
+    router: "Router",
+    wanBridge: "The WAN port is bridged into the LAN (AP mode)",
+    dnsmasq: "dnsmasq: {{state}}",
+    firewall: "Firewall: {{state}}",
+    on: "on",
+    off: "off",
+    hint: "The Router/AP selector is coming; mode changes will be done with backup and rollback.",
+  },
   security: {
     title: "Security",
     current: "Current password",

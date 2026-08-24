@@ -60,6 +60,7 @@ type EthDevice struct {
 // devices the switch has learned on it.
 type EthPort struct {
 	Name      string      `json:"name"`
+	Wan       bool        `json:"wan"`
 	Up        bool        `json:"up"`
 	SpeedMbps int         `json:"speed_mbps"`
 	Devices   []EthDevice `json:"devices"`
@@ -87,6 +88,7 @@ func EthPorts() []EthPort {
 			continue
 		}
 		port := EthPort{Name: name, Devices: []EthDevice{}}
+		port.Wan = name == "wan" && WanPortActive()
 		port.Up = strings.Contains(line, "LOWER_UP")
 		if speed, err := os.ReadFile("/sys/class/net/" + name + "/speed"); err == nil {
 			if mbps, err := strconv.Atoi(strings.TrimSpace(string(speed))); err == nil && mbps > 0 {

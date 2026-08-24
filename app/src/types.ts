@@ -201,9 +201,18 @@ export interface EthDevice {
 
 export interface EthPort {
   name: string;
+  wan: boolean;
   up: boolean;
   speed_mbps: number;
   devices: EthDevice[];
+}
+
+export interface ModeProbe {
+  mode: "router" | "ap";
+  wan_in_bridge: boolean;
+  wan_configured: boolean;
+  dnsmasq_on: boolean;
+  firewall_on: boolean;
 }
 
 export interface DawnClient {
