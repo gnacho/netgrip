@@ -106,7 +106,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
       </nav>
 
       {/* Content */}
-      <main className="flex-1 w-full max-w-[1920px] p-4 pb-24 md:pb-12">
+      <main className="flex-1 w-full max-w-[1440px] mx-auto p-4 pb-24 md:pb-12">
         {header}
         {pageContent}
       </main>
