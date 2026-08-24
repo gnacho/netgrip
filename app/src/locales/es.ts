@@ -189,6 +189,17 @@ export default {
     rolledBack: "Falló el cambio y se restauró la configuración anterior",
     failed: "Falló el cambio",
   },
+  guest: {
+    title: "WiFi Invitados",
+    toggle: "SSID invitados",
+    noGateway: "Solo disponible en el gateway (requiere WAN y firewall)",
+    subnet: "Subred invitados",
+    scope: "Los invitados salen a internet pero NO pueden tocar tu LAN (subred y DHCP propios)",
+    glConflict: "El firmware GL tiene su propia WiFi de invitados: revisa que no esté activa en la misma banda",
+    applied: "Cambio aplicado",
+    rolledBack: "Falló el cambio y se restauró la configuración anterior",
+    failed: "Falló el cambio",
+  },
   security: {
     title: "Seguridad",
     current: "Contraseña actual",

@@ -73,6 +73,8 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("POST /api/portforward/delete", s.requireAuth(s.handleFwdDelete))
 	s.mux.HandleFunc("GET /api/tailscale", s.requireAuth(s.handleTSGet))
 	s.mux.HandleFunc("POST /api/tailscale", s.requireAuth(s.handleTSSet))
+	s.mux.HandleFunc("GET /api/guestwifi", s.requireAuth(s.handleGuestGet))
+	s.mux.HandleFunc("POST /api/guestwifi", s.requireAuth(s.handleGuestSet))
 	return s
 }
 
@@ -576,6 +578,20 @@ func (s *Server) handleTSSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	probe, rolledBack, err := modules.SetTailscale(req.Enabled)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleGuestGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeGuest())
+}
+
+func (s *Server) handleGuestSet(w http.ResponseWriter, r *http.Request) {
+	var cfg modules.GuestConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetGuest(cfg)
 	writeModuleResult(w, probe, rolledBack, err)
 }
 
