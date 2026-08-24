@@ -59,6 +59,10 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("POST /api/ddns", s.requireAuth(s.handleDDNSSet))
 	s.mux.HandleFunc("GET /api/sqm", s.requireAuth(s.handleSQMGet))
 	s.mux.HandleFunc("POST /api/sqm", s.requireAuth(s.handleSQMSet))
+	s.mux.HandleFunc("GET /api/openvpn", s.requireAuth(s.handleOVPNGet))
+	s.mux.HandleFunc("POST /api/openvpn", s.requireAuth(s.handleOVPNSet))
+	s.mux.HandleFunc("POST /api/openvpn/clients", s.requireAuth(s.handleOVPNClientAdd))
+	s.mux.HandleFunc("POST /api/openvpn/clients/delete", s.requireAuth(s.handleOVPNClientDelete))
 	return s
 }
 
@@ -383,6 +387,72 @@ func (s *Server) handleSQMSet(w http.ResponseWriter, r *http.Request) {
 	}
 	probe, rolledBack, err := modules.SetSQM(cfg)
 	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleOVPNGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeOVPN())
+}
+
+type ovpnSetRequest struct {
+	Action string `json:"action"` // enable | disable
+}
+
+func (s *Server) handleOVPNSet(w http.ResponseWriter, r *http.Request) {
+	var req ovpnSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	var probe *modules.OVPNProbe
+	var rolledBack bool
+	var err error
+	switch req.Action {
+	case "enable":
+		probe, rolledBack, err = modules.SetOVPN(true)
+	case "disable":
+		probe, rolledBack, err = modules.SetOVPN(false)
+	default:
+		writeError(w, http.StatusBadRequest, "action must be enable or disable")
+		return
+	}
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+type ovpnClientAddRequest struct {
+	Name   string `json:"name"`
+	Remote string `json:"remote"`
+}
+
+func (s *Server) handleOVPNClientAdd(w http.ResponseWriter, r *http.Request) {
+	var req ovpnClientAddRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	config, probe, err := modules.AddOVPNClient(req.Name, req.Remote)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"config": config, "state": probe})
+}
+
+type ovpnClientDeleteRequest struct {
+	Name string `json:"name"`
+}
+
+func (s *Server) handleOVPNClientDelete(w http.ResponseWriter, r *http.Request) {
+	var req ovpnClientDeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, err := modules.RemoveOVPNClient(req.Name)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"state": probe})
 }
 
 // writeModuleResult is the shared response shape for write modules:

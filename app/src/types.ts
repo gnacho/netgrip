@@ -125,3 +125,17 @@ export interface SQMProbe {
   download: string;
   upload: string;
 }
+
+export interface OVPNClient {
+  name: string;
+}
+
+export interface OVPNProbe {
+  installed: boolean;
+  has_pki: boolean;
+  active: boolean;
+  running: boolean;
+  port: string;
+  subnet: string;
+  clients: OVPNClient[];
+}
