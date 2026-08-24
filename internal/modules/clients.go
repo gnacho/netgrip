@@ -1,10 +1,12 @@
 package modules
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/gnacho/owpanel/internal/executor"
 	"github.com/gnacho/owpanel/internal/ubus"
@@ -34,7 +36,7 @@ var reMac = regexp.MustCompile(`^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$`)
 // leases for names/IPs, reservation and block states, and the caller's
 // own device flagged as self.
 func ListClients(requesterIP string) []Client {
-	leases, _ := ubus.ReadLeases("/tmp/dhcp.leases")
+	leases := leasesForClients()
 	byMac := map[string]ubus.Lease{}
 	for _, l := range leases {
 		byMac[strings.ToLower(l.MAC)] = l
@@ -55,13 +57,13 @@ func ListClients(requesterIP string) []Client {
 			for _, wc := range iface.Clients {
 				mac := strings.ToLower(wc.MAC)
 				c := Client{
-					MAC:      mac,
-					Type:     typ,
-					Iface:    iface.Ifname,
-					Signal:   wc.Signal,
-					RxBytes:  wc.RxBytes,
-					TxBytes:  wc.TxBytes,
-					Blocked:  blocked[mac],
+					MAC:       mac,
+					Type:      typ,
+					Iface:     iface.Ifname,
+					Signal:    wc.Signal,
+					RxBytes:   wc.RxBytes,
+					TxBytes:   wc.TxBytes,
+					Blocked:   blocked[mac],
 					Blockable: true,
 				}
 				if l, ok := byMac[mac]; ok {
@@ -121,16 +123,86 @@ func ListClients(requesterIP string) []Client {
 	return clients
 }
 
+// gatewayAddr resolves the default gateway address (the DHCP server for
+// the LAN on dumb APs).
+func gatewayAddr() string {
+	out, err := exec.Command("sh", "-c", "ip route show default | awk '{print $3}' | head -1").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// gatewaySSH runs a read-only command on the gateway with the dedicated
+// owpanel_ro key (deployed to resolve names on dumb APs; write actions
+// stay local to the gateway itself). dropbear's ssh client needs -y to
+// accept the host key and does not support -o BatchMode/ConnectTimeout.
+func gatewaySSH(command string) (string, error) {
+	gw := gatewayAddr()
+	if gw == "" {
+		return "", fmt.Errorf("no default gateway")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "ssh", "-y", "-i", "/root/.ssh/owpanel_ro", "root@"+gw, command).Output()
+	if err != nil {
+		return "", fmt.Errorf("gateway ssh: %w", err)
+	}
+	return string(out), nil
+}
+
+// leasesForClients reads DHCP leases locally; on dumb APs without local
+// dnsmasq it falls back to the gateway's lease file over read-only SSH.
+func leasesForClients() []ubus.Lease {
+	leases, _ := ubus.ReadLeases("/tmp/dhcp.leases")
+	if len(leases) > 0 {
+		return leases
+	}
+	out, err := gatewaySSH("cat /tmp/dhcp.leases")
+	if err != nil {
+		return []ubus.Lease{}
+	}
+	return ubus.ParseLeases(out)
+}
+
+// reservedMACs lists MACs with a DHCP reservation, locally or, on dumb
+// APs, from the gateway's dhcp config (read-only).
 func reservedMACs() map[string]bool {
-	out, err := exec.Command("sh", "-c", "uci show dhcp | grep '=host' | cut -d. -f2 | cut -d= -f1").Output()
 	reserved := map[string]bool{}
+	local, err := exec.Command("sh", "-c", "uci show dhcp | grep '=host' | cut -d. -f2 | cut -d= -f1").Output()
+	if err == nil && len(strings.Fields(string(local))) > 0 {
+		for _, section := range strings.Fields(string(local)) {
+			mac := strings.ToLower(uciGet("dhcp." + section + ".mac"))
+			if mac != "" {
+				reserved[mac] = true
+			}
+		}
+		return reserved
+	}
+	// Fallback: parse the gateway's /etc/config/dhcp host blocks.
+	out, err := gatewaySSH("cat /etc/config/dhcp")
 	if err != nil {
 		return reserved
 	}
-	for _, section := range strings.Fields(string(out)) {
-		mac := strings.ToLower(uciGet("dhcp." + section + ".mac"))
-		if mac != "" {
-			reserved[mac] = true
+	inHost := false
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "config host") {
+			inHost = true
+			continue
+		}
+		if strings.HasPrefix(line, "config ") {
+			inHost = false
+		}
+		if inHost && (strings.HasPrefix(line, "option mac") || strings.HasPrefix(line, "list mac")) {
+			// GL firmware stores mac as a LIST (multiple MACs per host entry)
+			parts := strings.Fields(line)
+			if len(parts) >= 3 {
+				mac := strings.ToLower(strings.Trim(parts[2], "'\""))
+				if reMac.MatchString(mac) {
+					reserved[mac] = true
+				}
+			}
 		}
 	}
 	return reserved

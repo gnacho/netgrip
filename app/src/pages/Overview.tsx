@@ -62,7 +62,7 @@ export function Overview({ board, system, wan, ethports, dawnAps, dawnError }: {
         <TrafficCard />
       </div>
 
-      <div className="sm:col-span-2">
+      <div className="sm:col-span-2 xl:col-span-4">
         <EthPortsCard ports={ethports} />
       </div>
 
@@ -70,7 +70,7 @@ export function Overview({ board, system, wan, ethports, dawnAps, dawnError }: {
         <DawnCard aps={dawnAps} error={dawnError} />
       </div>
 
-      <div className="sm:col-span-2 xl:col-span-3">
+      <div className="sm:col-span-2 xl:col-span-4">
         <ClientsCard />
       </div>
     </div>
