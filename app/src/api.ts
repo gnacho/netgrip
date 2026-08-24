@@ -74,6 +74,13 @@ export const api = {
       },
     ),
   ddns: () => request<import("./types").DDNSProbe>("/api/ddns"),
+  tailscale: () => request<import("./types").TSProbe>("/api/tailscale"),
+  setTailscale: (enabled: boolean) =>
+    request<import("./types").ModuleResult<import("./types").TSProbe>>("/api/tailscale", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    }),
   portforward: () => request<import("./types").FwdProbe>("/api/portforward"),
   addFwdRule: (src_dport: string, dest_ip: string, dest_port: string, proto: string) =>
     request<import("./types").ModuleResult<import("./types").FwdProbe>>("/api/portforward", {

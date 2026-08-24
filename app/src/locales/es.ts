@@ -179,6 +179,16 @@ export default {
     rolledBack: "Falló el cambio y se restauró la configuración anterior",
     failed: "Falló el cambio",
   },
+  ts: {
+    connected: "Conectado",
+    needsLogin: "Necesita login",
+    off: "Apagado",
+    ip: "IP Tailscale",
+    loginLink: "Autenticar este nodo en tu tailnet",
+    applied: "Cambio aplicado",
+    rolledBack: "Falló el cambio y se restauró la configuración anterior",
+    failed: "Falló el cambio",
+  },
   security: {
     title: "Seguridad",
     current: "Contraseña actual",

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import { Blocks, LayoutDashboard, LogOut, RefreshCw, Wrench } from "lucide-react";
 import { api } from "../api";
-import type { Board, DDNSProbe, FwdProbe, IoTProbe, IPv6Probe, Lease, OVPNProbe, PkgUpgrade, SQMProbe, SystemInfo, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
+import type { Board, DDNSProbe, FwdProbe, IoTProbe, IPv6Probe, Lease, OVPNProbe, PkgUpgrade, SQMProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { Overview } from "../pages/Overview";
 import { Services } from "../pages/Services";
 import { System } from "../pages/System";
@@ -32,6 +32,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const [ovpn, setOvpn] = useState<OVPNProbe>();
   const [iot, setIot] = useState<IoTProbe>();
   const [fwd, setFwd] = useState<FwdProbe>();
+  const [ts, setTs] = useState<TSProbe>();
   const [packages, setPackages] = useState<PkgUpgrade[]>();
   const [loadError, setLoadError] = useState(false);
 
@@ -58,6 +59,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     api.openvpn().then(setOvpn).catch(() => {});
     api.iotwifi().then(setIot).catch(() => {});
     api.portforward().then(setFwd).catch(() => {});
+    api.tailscale().then(setTs).catch(() => {});
     api.packages().then((r) => setPackages(r.upgradable)).catch(() => {});
   }, []);
 
@@ -89,7 +91,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
         <Overview board={board} system={system} wan={wan} radios={radios} leases={leases} />
       )}
       {page === "services" && (
-        <Services wg={wg} onWgChange={setWg} ipv6={ipv6} onIpv6Change={setIpv6} ddns={ddns} onDdnsChange={setDdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} iot={iot} onIotChange={setIot} fwd={fwd} onFwdChange={setFwd} />
+        <Services wg={wg} onWgChange={setWg} ipv6={ipv6} onIpv6Change={setIpv6} ddns={ddns} onDdnsChange={setDdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} iot={iot} onIotChange={setIot} fwd={fwd} onFwdChange={setFwd} ts={ts} onTsChange={setTs} />
       )}
       {page === "system" && (
         <System board={board} update={update} onUpdateChange={setUpdate} packages={packages} onPackagesChange={setPackages} onLogout={onLogout} />
