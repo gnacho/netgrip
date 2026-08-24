@@ -1,0 +1,11 @@
+{
+	"luci-app-owpanel": {
+		"description": "Grant access to the owpanel LuCI page",
+		"read": {
+			"ubus": {
+				"system": [ "board" ]
+			}
+		},
+		"write": {}
+	}
+}

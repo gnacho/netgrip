@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Cpu, Globe, Users, Wifi } from "lucide-react";
-import type { Board, DawnAP, EthPort, Lease, SystemInfo, WanStatus, WirelessRadio } from "../types";
+import { Cpu, Globe, Users } from "lucide-react";
+import type { Board, DawnAP, EthPort, Lease, SystemInfo, WanStatus } from "../types";
 import { Card, Pill, Row } from "../components/Card";
 import { TrafficCard } from "../components/TrafficCard";
 import { EthPortsCard } from "../components/EthPortsCard";
@@ -20,11 +20,10 @@ function fmtMB(bytes: number): string {
   return `${Math.round(bytes / 1048576)} MB`;
 }
 
-export function Overview({ board, system, wan, radios, leases, ethports, dawnAps, dawnError }: {
+export function Overview({ board, system, wan, leases, ethports, dawnAps, dawnError }: {
   board: Board | undefined;
   system: SystemInfo | undefined;
   wan: WanStatus | undefined;
-  radios: WirelessRadio[];
   leases: Lease[];
   ethports: EthPort[] | undefined;
   dawnAps: DawnAP[] | undefined;
@@ -58,37 +57,6 @@ export function Overview({ board, system, wan, radios, leases, ethports, dawnAps
         )}
       </Card>
 
-      <Card title={t("wifi.title")} icon={Wifi} action={
-        <Pill tone="muted">
-          {t("wifi.clients", { count: radios.reduce((n, r) => n + r.interfaces.reduce((m, i) => m + i.clients.length, 0), 0) })}
-        </Pill>
-      }>
-        {radios.map((radio) => (
-          <div key={radio.name} className="mb-3 last:mb-0">
-            <div className="flex items-center gap-2 text-sm font-medium mb-1">
-              <span>{radio.band === "5g" ? t("wifi.band5") : t("wifi.band24")}</span>
-              {!radio.up && <Pill tone="danger">{t("wifi.down")}</Pill>}
-              <span className="text-muted text-xs">
-                {t("wifi.channel")} {radio.channel} · {radio.htmode} · {radio.txpower} dBm
-              </span>
-            </div>
-            {radio.interfaces.map((iface) => (
-              <div key={iface.ifname} className="ml-2 text-sm">
-                <div className="flex justify-between py-0.5">
-                  <span>{iface.ssid}</span>
-                  <span className="text-muted">{t("wifi.clients", { count: iface.clients.length })}</span>
-                </div>
-                {iface.clients.map((c) => (
-                  <div key={c.mac} className="flex justify-between text-xs text-muted ml-2 py-0.5">
-                    <span className="font-mono">{c.mac}</span>
-                    <span>{c.signal} dBm</span>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        ))}
-      </Card>
 
       <TrafficCard />
 

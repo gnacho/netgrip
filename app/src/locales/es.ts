@@ -12,6 +12,8 @@ export default {
     refresh: "Refrescar",
     overview: "Resumen",
     services: "Servicios",
+    wifi: "WiFi",
+    ports: "Puertos",
     system: "Sistema",
   },
   system: {

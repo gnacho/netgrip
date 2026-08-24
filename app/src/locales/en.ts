@@ -12,6 +12,8 @@ export default {
     refresh: "Refresh",
     overview: "Overview",
     services: "Services",
+    wifi: "WiFi",
+    ports: "Ports",
     system: "System",
   },
   system: {
