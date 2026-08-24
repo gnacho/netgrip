@@ -35,10 +35,10 @@ func Validate(op Op) error {
 		if len(op.Args) != 2 || !reUCIKey.MatchString(op.Args[0]) || reBadChars.MatchString(op.Args[1]) {
 			return fmt.Errorf("invalid uci_set args: %v", op.Args)
 		}
-	case "uci_add_list":
+	case "uci_add_list", "uci_del_list":
 		// Args: <config.section.option> <value>
 		if len(op.Args) != 2 || !reUCIKey.MatchString(op.Args[0]) || reBadChars.MatchString(op.Args[1]) {
-			return fmt.Errorf("invalid uci_add_list args: %v", op.Args)
+			return fmt.Errorf("invalid %s args: %v", op.Kind, op.Args)
 		}
 	case "uci_delete":
 		if len(op.Args) != 1 || !reUCIKey.MatchString(op.Args[0]) {
@@ -83,6 +83,8 @@ func Run(op Op) error {
 		cmd = exec.Command("uci", "set", op.Args[0]+"="+op.Args[1])
 	case "uci_add_list":
 		cmd = exec.Command("uci", "add_list", op.Args[0]+"="+op.Args[1])
+	case "uci_del_list":
+		cmd = exec.Command("uci", "del_list", op.Args[0]+"="+op.Args[1])
 	case "uci_delete":
 		cmd = exec.Command("uci", "delete", op.Args[0])
 	case "uci_commit":

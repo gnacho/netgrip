@@ -18,24 +18,27 @@ const (
 	wgFirewallRule = "allow_owpanel_wg"
 )
 
-// WGPeer is one WireGuard peer as stored in UCI.
+// WGPeer is one WireGuard peer as stored in UCI. The preshared key itself
+// is never exposed through the API, only its presence.
 type WGPeer struct {
 	Section    string   `json:"section"`
 	Name       string   `json:"name"`
 	PublicKey  string   `json:"public_key"`
 	AllowedIPs []string `json:"allowed_ips"`
 	Admin      bool     `json:"admin"`
+	HasPSK     bool     `json:"has_psk"`
 }
 
 // WGProbe is the read-only WireGuard state.
 type WGProbe struct {
-	Installed bool     `json:"installed"`
-	Active    bool     `json:"active"`
-	Running   bool     `json:"running"`
-	Port      string   `json:"port"`
-	Address   string   `json:"address"`
-	PublicKey string   `json:"public_key"`
-	Peers     []WGPeer `json:"peers"`
+	Installed  bool     `json:"installed"`
+	Active     bool     `json:"active"`
+	Running    bool     `json:"running"`
+	ZoneMember bool     `json:"zone_member"`
+	Port       string   `json:"port"`
+	Address    string   `json:"address"`
+	PublicKey  string   `json:"public_key"`
+	Peers      []WGPeer `json:"peers"`
 }
 
 var reWGPubkey = regexp.MustCompile(`^[A-Za-z0-9+/]{43}=$`)
@@ -74,8 +77,41 @@ func ProbeWG() *WGProbe {
 		p.PublicKey = wgPublicKey(priv)
 	}
 	p.Running = p.Installed && wgShowIface()
+	p.ZoneMember = wgZoneSection() != ""
 	p.Peers = wgPeers()
 	return p
+}
+
+// wgZoneSection returns the firewall zone section whose network list
+// contains wg0 ("" when absent).
+func wgZoneSection() string {
+	out, err := exec.Command("sh", "-c", "uci show firewall | grep '=zone' | cut -d. -f2 | cut -d= -f1").Output()
+	if err != nil {
+		return ""
+	}
+	for _, section := range strings.Fields(string(out)) {
+		networks := uciGet("firewall." + section + ".network")
+		for _, n := range strings.Fields(networks) {
+			if n == wgIface {
+				return section
+			}
+		}
+	}
+	return ""
+}
+
+// wgLanZoneSection returns the firewall section of the zone named 'lan'.
+func wgLanZoneSection() string {
+	out, err := exec.Command("sh", "-c", "uci show firewall | grep '=zone' | cut -d. -f2 | cut -d= -f1").Output()
+	if err != nil {
+		return ""
+	}
+	for _, section := range strings.Fields(string(out)) {
+		if uciGet("firewall."+section+".name") == "lan" {
+			return section
+		}
+	}
+	return ""
 }
 
 func wgPeers() []WGPeer {
@@ -97,6 +133,7 @@ func wgPeers() []WGPeer {
 			PublicKey:  uciGet(base + ".public_key"),
 			AllowedIPs: allowed,
 			Admin:      uciGet(base+".owpanel_admin") == "1",
+			HasPSK:     uciGet(base+".preshared_key") != "",
 		})
 	}
 	return peers
@@ -176,9 +213,12 @@ func enableWG(snapNetwork, snapFirewall string) (*WGProbe, bool, error) {
 	}
 	ops = append(ops, executor.Op{Kind: "uci_commit", Args: []string{"network"}})
 
-	// Firewall input rule: only when the firewall is actually running.
-	// Dumb APs disable fw4 entirely; there the rule is pointless and
-	// `firewall reload` fails hard (verified on a Redmi AX6 dumb AP).
+	// Firewall: only when fw4 is actually running (dumb APs disable it;
+	// there `firewall reload` fails hard, verified on a Redmi AX6).
+	// Two distinct things per the official server guide:
+	//   1. input rule accepting UDP <port> from wan (clients reaching us)
+	//   2. wg0 in the lan zone network list (tunnel traffic treated as LAN,
+	//      which gives clients lan/wan access via the zone forwardings)
 	if executor.ServiceEnabled("firewall") {
 		src := "lan"
 		if uciSectionExists("network.wan") {
@@ -190,9 +230,18 @@ func enableWG(snapNetwork, snapFirewall string) (*WGProbe, bool, error) {
 		set("firewall."+wgFirewallRule+".dest_port", uciGet("network."+wgIface+".listen_port"))
 		set("firewall."+wgFirewallRule+".proto", "udp")
 		set("firewall."+wgFirewallRule+".target", "ACCEPT")
-		ops = append(ops,
-			executor.Op{Kind: "uci_commit", Args: []string{"firewall"}},
-		)
+		if zone := wgLanZoneSection(); zone != "" {
+			member := false
+			for _, n := range strings.Fields(uciGet("firewall." + zone + ".network")) {
+				if n == wgIface {
+					member = true
+				}
+			}
+			if !member {
+				ops = append(ops, executor.Op{Kind: "uci_add_list", Args: []string{"firewall." + zone + ".network", wgIface}})
+			}
+		}
+		ops = append(ops, executor.Op{Kind: "uci_commit", Args: []string{"firewall"}})
 	}
 	if freshInstall {
 		// netifd only scans /lib/netifd/proto at startup: a proto handler
@@ -213,6 +262,9 @@ func enableWG(snapNetwork, snapFirewall string) (*WGProbe, bool, error) {
 		// After a network restart the interface takes a moment to come up.
 		for range 10 {
 			if wgShowIface() {
+				if executor.ServiceEnabled("firewall") && wgLanZoneSection() != "" && wgZoneSection() == "" {
+					return false
+				}
 				return true
 			}
 			time.Sleep(time.Second)
@@ -237,11 +289,17 @@ func disableWG(snapNetwork, snapFirewall string) (*WGProbe, bool, error) {
 		ops = append(ops, executor.Op{Kind: "uci_delete", Args: []string{"network." + wgIface}})
 	}
 	ops = append(ops, executor.Op{Kind: "uci_commit", Args: []string{"network"}})
+	firewallDirty := false
+	if zone := wgZoneSection(); zone != "" {
+		ops = append(ops, executor.Op{Kind: "uci_del_list", Args: []string{"firewall." + zone + ".network", wgIface}})
+		firewallDirty = true
+	}
 	if uciSectionExists("firewall." + wgFirewallRule) {
-		ops = append(ops,
-			executor.Op{Kind: "uci_delete", Args: []string{"firewall." + wgFirewallRule}},
-			executor.Op{Kind: "uci_commit", Args: []string{"firewall"}},
-		)
+		ops = append(ops, executor.Op{Kind: "uci_delete", Args: []string{"firewall." + wgFirewallRule}})
+		firewallDirty = true
+	}
+	if firewallDirty {
+		ops = append(ops, executor.Op{Kind: "uci_commit", Args: []string{"firewall"}})
 	}
 	ops = append(ops, executor.Op{Kind: "initd", Args: []string{"network", "reload"}})
 	if executor.ServiceEnabled("firewall") {
@@ -277,6 +335,13 @@ func AddWGPeer(name, pubkey string, allowedIPs []string, admin bool) (*WGProbe, 
 	ops := []executor.Op{
 		{Kind: "uci_set", Args: []string{base, "wireguard_" + wgIface}},
 		{Kind: "uci_set", Args: []string{base + ".public_key", pubkey}},
+		// Best practices from the official guide: route peer traffic back
+		// through the tunnel, and a per-peer preshared key on top of the
+		// keypair (extra layer recommended by the WireGuard docs).
+		{Kind: "uci_set", Args: []string{base + ".route_allowed_ips", "1"}},
+	}
+	if psk, err := exec.Command("wg", "genpsk").Output(); err == nil {
+		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{base + ".preshared_key", strings.TrimSpace(string(psk))}})
 	}
 	if name != "" {
 		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{base + ".description", name}})
