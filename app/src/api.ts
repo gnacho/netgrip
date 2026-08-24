@@ -74,6 +74,13 @@ export const api = {
       },
     ),
   ddns: () => request<import("./types").DDNSProbe>("/api/ddns"),
+  iotwifi: () => request<import("./types").IoTProbe>("/api/iotwifi"),
+  setIotwifi: (cfg: { enabled: boolean; ssid?: string; key?: string; band?: string }) =>
+    request<import("./types").ModuleResult<import("./types").IoTProbe>>("/api/iotwifi", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
   packages: () => request<{ upgradable: import("./types").PkgUpgrade[] }>("/api/packages"),
   upgradePackage: (name: string) =>
     request<{ upgradable: import("./types").PkgUpgrade[] }>("/api/packages/upgrade", {

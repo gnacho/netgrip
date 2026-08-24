@@ -145,3 +145,12 @@ export interface PkgUpgrade {
   current: string;
   available: string;
 }
+
+export interface IoTProbe {
+  active: boolean;
+  ssid: string;
+  band: string;
+  isolated: boolean;
+  ifaces: string[];
+  clients: number;
+}
