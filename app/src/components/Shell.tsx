@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import { Blocks, LayoutDashboard, LogOut, RefreshCw, Wrench } from "lucide-react";
 import { api } from "../api";
-import type { Board, DDNSProbe, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, Lease, OVPNProbe, PkgUpgrade, SQMProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
+import type { Board, DawnAP, DDNSProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, Lease, OVPNProbe, PkgUpgrade, SQMProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { Overview } from "../pages/Overview";
 import { Services } from "../pages/Services";
 import { System } from "../pages/System";
@@ -34,6 +34,9 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const [fwd, setFwd] = useState<FwdProbe>();
   const [ts, setTs] = useState<TSProbe>();
   const [guest, setGuest] = useState<GuestProbe>();
+  const [ethports, setEthports] = useState<EthPort[]>();
+  const [dawnAps, setDawnAps] = useState<DawnAP[]>();
+  const [dawnError, setDawnError] = useState(false);
   const [packages, setPackages] = useState<PkgUpgrade[]>();
   const [loadError, setLoadError] = useState(false);
 
@@ -62,6 +65,8 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     api.portforward().then(setFwd).catch(() => {});
     api.tailscale().then(setTs).catch(() => {});
     api.guestwifi().then(setGuest).catch(() => {});
+    api.ethports().then((r) => setEthports(r.ports)).catch(() => {});
+    api.dawn().then((r) => { setDawnAps(r.aps); setDawnError(false); }).catch(() => setDawnError(true));
     api.packages().then((r) => setPackages(r.upgradable)).catch(() => {});
   }, []);
 
@@ -90,7 +95,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     <>
       {loadError && <p className="text-danger text-sm mb-3">{t("error.load")}</p>}
       {page === "overview" && (
-        <Overview board={board} system={system} wan={wan} radios={radios} leases={leases} />
+        <Overview board={board} system={system} wan={wan} radios={radios} leases={leases} ethports={ethports} dawnAps={dawnAps} dawnError={dawnError} />
       )}
       {page === "services" && (
         <Services wg={wg} onWgChange={setWg} ipv6={ipv6} onIpv6Change={setIpv6} ddns={ddns} onDdnsChange={setDdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} iot={iot} onIotChange={setIot} fwd={fwd} onFwdChange={setFwd} ts={ts} onTsChange={setTs} guest={guest} onGuestChange={setGuest} />

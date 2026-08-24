@@ -1,8 +1,11 @@
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Cpu, Globe, Users, Wifi } from "lucide-react";
-import type { Board, Lease, SystemInfo, WanStatus, WirelessRadio } from "../types";
+import type { Board, DawnAP, EthPort, Lease, SystemInfo, WanStatus, WirelessRadio } from "../types";
 import { Card, Pill, Row } from "../components/Card";
+import { TrafficCard } from "../components/TrafficCard";
+import { EthPortsCard } from "../components/EthPortsCard";
+import { DawnCard } from "../components/DawnCard";
 
 function fmtUptime(t: TFunction, secs: number): string {
   const d = Math.floor(secs / 86400);
@@ -17,12 +20,15 @@ function fmtMB(bytes: number): string {
   return `${Math.round(bytes / 1048576)} MB`;
 }
 
-export function Overview({ board, system, wan, radios, leases }: {
+export function Overview({ board, system, wan, radios, leases, ethports, dawnAps, dawnError }: {
   board: Board | undefined;
   system: SystemInfo | undefined;
   wan: WanStatus | undefined;
   radios: WirelessRadio[];
   leases: Lease[];
+  ethports: EthPort[] | undefined;
+  dawnAps: DawnAP[] | undefined;
+  dawnError: boolean;
 }) {
   const { t } = useTranslation();
   const ramUsed = system ? system.memory.total - system.memory.available : 0;
@@ -83,6 +89,12 @@ export function Overview({ board, system, wan, radios, leases }: {
           </div>
         ))}
       </Card>
+
+      <TrafficCard />
+
+      <EthPortsCard ports={ethports} />
+
+      <DawnCard aps={dawnAps} error={dawnError} />
 
       <Card title={t("clients.title")} icon={Users}>
         {leases.length === 0 ? (

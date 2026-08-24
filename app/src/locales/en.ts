@@ -200,6 +200,25 @@ export default {
     rolledBack: "Change failed and previous configuration was restored",
     failed: "Change failed",
   },
+  traffic: {
+    title: "Traffic",
+    measuring: "Measuring...",
+  },
+  ports: {
+    title: "Ethernet ports",
+    empty: "No physical ports detected",
+    up: "link",
+    down: "no cable",
+    macs_one: "{{count}} MAC",
+    macs_other: "{{count}} MACs",
+  },
+  dawn: {
+    title: "DAWN mesh",
+    absent: "DAWN is not running on this router",
+    empty: "Empty mesh",
+    thisRouter: "this router",
+    util: "{{count}}% util",
+  },
   security: {
     title: "Security",
     current: "Current password",
