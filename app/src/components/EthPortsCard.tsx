@@ -59,7 +59,7 @@ export function EthPortsCard({ ports }: { ports: EthPort[] | undefined }) {
   return (
     <Card title={t("ports.title")} icon={Cable}>
       <p className="text-xs text-muted mb-3">{t("ports.inUse", { used: inUse, total: sorted.length })}</p>
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full max-w-xl">
+      <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height}>
         <rect x="1" y="1" width={width - 2} height={height - 2} rx="10"
           className="fill-bg stroke-border" />
         {sorted.map((p, i) => {
