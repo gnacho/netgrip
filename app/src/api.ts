@@ -19,6 +19,7 @@ export const api = {
       body: JSON.stringify({ password }),
     }),
   logout: () => request<void>("/api/logout", { method: "POST" }),
+  me: () => request<void>("/api/me"),
   board: () => request<import("./types").Board>("/api/board"),
   system: () => request<import("./types").SystemInfo>("/api/system"),
   wan: () => request<import("./types").WanStatus>("/api/wan"),
