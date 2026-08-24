@@ -54,6 +54,7 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("GET /api/wireguard", s.requireAuth(s.handleWGGet))
 	s.mux.HandleFunc("POST /api/wireguard", s.requireAuth(s.handleWGSet))
 	s.mux.HandleFunc("POST /api/wireguard/peers", s.requireAuth(s.handleWGPeerAdd))
+	s.mux.HandleFunc("POST /api/wireguard/peers/qr", s.requireAuth(s.handleWGPeerQR))
 	s.mux.HandleFunc("POST /api/wireguard/peers/delete", s.requireAuth(s.handleWGPeerDelete))
 	s.mux.HandleFunc("GET /api/ddns", s.requireAuth(s.handleDDNSGet))
 	s.mux.HandleFunc("POST /api/ddns", s.requireAuth(s.handleDDNSSet))
@@ -347,6 +348,26 @@ func (s *Server) handleWGPeerAdd(w http.ResponseWriter, r *http.Request) {
 	}
 	probe, rolledBack, err := modules.AddWGPeer(req.Name, req.PublicKey, req.AllowedIPs, req.Admin)
 	writeModuleResult(w, probe, rolledBack, err)
+}
+
+type wgPeerQRRequest struct {
+	Name     string `json:"name"`
+	Admin    bool   `json:"admin"`
+	Endpoint string `json:"endpoint"`
+}
+
+func (s *Server) handleWGPeerQR(w http.ResponseWriter, r *http.Request) {
+	var req wgPeerQRRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	config, probe, err := modules.AddWGPeerGenerated(req.Name, req.Admin, req.Endpoint)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"config": config, "state": probe})
 }
 
 type wgPeerDeleteRequest struct {

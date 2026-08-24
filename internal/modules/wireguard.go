@@ -403,7 +403,57 @@ func RemoveWGPeer(pubkey string) (*WGProbe, bool, error) {
 	return ProbeWG(), rolledBack, err
 }
 
-// nextWGAddress picks the first free /32 inside the server /24.
+// AddWGPeerGenerated creates a peer with a server-side generated keypair
+// and returns the ready client config (private key included) exactly once.
+// The private key is never persisted by the panel; only the public key and
+// the preshared key live in UCI.
+func AddWGPeerGenerated(name string, admin bool, endpoint string) (string, *WGProbe, error) {
+	privOut, err := exec.Command("wg", "genkey").Output()
+	if err != nil {
+		return "", nil, fmt.Errorf("wg genkey: %w", err)
+	}
+	priv := strings.TrimSpace(string(privOut))
+	pub := wgPublicKey(priv)
+	if pub == "" {
+		return "", nil, fmt.Errorf("wg pubkey failed")
+	}
+	probe, _, err := AddWGPeer(name, pub, nil, admin)
+	if err != nil {
+		return "", probe, err
+	}
+	// Read back the peer data the module just wrote (address + psk).
+	var address, psk string
+	for _, p := range probe.Peers {
+		if p.PublicKey == pub {
+			if len(p.AllowedIPs) > 0 {
+				address = p.AllowedIPs[0]
+			}
+			psk = uciGet("network." + p.Section + ".preshared_key")
+		}
+	}
+	if endpoint == "" {
+		endpoint = wanIPv4()
+	}
+	if endpoint == "" {
+		endpoint = lanIPv4()
+	}
+	var b strings.Builder
+	b.WriteString("[Interface]\n")
+	b.WriteString("PrivateKey = " + priv + "\n")
+	b.WriteString("Address = " + address + "\n")
+	b.WriteString("DNS = " + strings.Split(probe.Address, "/")[0] + "\n")
+	b.WriteString("\n[Peer]\n")
+	b.WriteString("PublicKey = " + probe.PublicKey + "\n")
+	if psk != "" {
+		b.WriteString("PresharedKey = " + psk + "\n")
+	}
+	b.WriteString("AllowedIPs = 0.0.0.0/0\n")
+	if endpoint != "" {
+		b.WriteString("Endpoint = " + endpoint + ":" + probe.Port + "\n")
+	}
+	b.WriteString("PersistentKeepalive = 25\n")
+	return b.String(), probe, nil
+}
 func nextWGAddress(probe *WGProbe) string {
 	base := strings.Split(probe.Address, ".")
 	if len(base) != 4 {

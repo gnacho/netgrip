@@ -91,6 +91,11 @@ export default {
     peerAdmin: "Peer de administración (no se podrá borrar)",
     addPeer: "Añadir peer",
     deletePeer: "Borrar peer",
+    addPeerQr: "Añadir con QR",
+    qrHint: "Escanéalo una vez con la app WireGuard. La clave privada solo vive en este QR, no se guarda.",
+    downloadConf: "Descargar .conf",
+    qrClose: "Cerrar",
+
   },
   ddns: {
     title: "DDNS",

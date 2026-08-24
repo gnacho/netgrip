@@ -1,10 +1,49 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Lock, Plus, Trash2 } from "lucide-react";
+import { Lock, Plus, QrCode, Trash2 } from "lucide-react";
+import QRCode from "qrcode";
 import { api } from "../api";
 import type { WGProbe } from "../types";
 import { Card, Pill, Row } from "./Card";
 import { Toggle } from "./Toggle";
+
+function QrView({ config, onClose }: { config: string; onClose: () => void }) {
+  const { t } = useTranslation();
+  const [dataUrl, setDataUrl] = useState("");
+
+  useEffect(() => {
+    QRCode.toDataURL(config, { width: 280, margin: 2, errorCorrectionLevel: "M" })
+      .then(setDataUrl)
+      .catch(() => {});
+  }, [config]);
+
+  return (
+    <div className="mt-3 border border-border rounded-lg p-3 flex flex-col items-center gap-2">
+      {dataUrl
+        ? <img src={dataUrl} alt="QR" className="rounded bg-white p-1" />
+        : <p className="text-xs text-muted">…</p>}
+      <p className="text-xs text-muted text-center">{t("wg.qrHint")}</p>
+      <div className="flex gap-2">
+        <button
+          onClick={() => {
+            const blob = new Blob([config], { type: "text/plain" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "wireguard-client.conf";
+            a.click();
+            URL.revokeObjectURL(a.href);
+          }}
+          className="text-xs bg-border hover:bg-border/70 rounded-lg px-3 py-1.5"
+        >
+          {t("wg.downloadConf")}
+        </button>
+        <button onClick={onClose} className="text-xs bg-border hover:bg-border/70 rounded-lg px-3 py-1.5">
+          {t("wg.qrClose")}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function WireguardCard({ probe, onChange }: {
   probe: WGProbe | undefined;
@@ -16,6 +55,7 @@ export function WireguardCard({ probe, onChange }: {
   const [peerName, setPeerName] = useState("");
   const [peerKey, setPeerKey] = useState("");
   const [peerAdmin, setPeerAdmin] = useState(false);
+  const [qrConfig, setQrConfig] = useState<string>();
 
   const run = async (fn: () => Promise<{ state: WGProbe; status: string; error?: string }>) => {
     setBusy(true);
@@ -38,6 +78,22 @@ export function WireguardCard({ probe, onChange }: {
     e.preventDefault();
     await run(() => api.addWgPeer(peerName, peerKey, peerAdmin));
     setPeerName(""); setPeerKey(""); setPeerAdmin(false);
+  };
+
+  const addPeerQr = async () => {
+    setBusy(true);
+    setMsg(undefined);
+    try {
+      const result = await api.addWgPeerQr(peerName, peerAdmin);
+      onChange(result.state);
+      setQrConfig(result.config);
+      setPeerName(""); setPeerAdmin(false);
+    } catch (e) {
+      setMsg({ tone: "danger", text: e instanceof Error ? e.message : t("wg.failed") });
+      onChange(await api.wireguard());
+    } finally {
+      setBusy(false);
+    }
   };
 
   const short = (key: string) => key.length > 16 ? key.slice(0, 12) + "…" : key;
@@ -94,11 +150,18 @@ export function WireguardCard({ probe, onChange }: {
                 <input type="checkbox" checked={peerAdmin} onChange={(e) => setPeerAdmin(e.target.checked)} />
                 {t("wg.peerAdmin")}
               </label>
-              <button type="submit" disabled={busy || !peerKey}
-                className="text-sm bg-border hover:bg-border/70 disabled:opacity-40 rounded-lg px-3 py-1.5 self-start flex items-center gap-1">
-                <Plus size={14} /> {t("wg.addPeer")}
-              </button>
+              <div className="flex gap-2">
+                <button type="submit" disabled={busy || !peerKey}
+                  className="text-sm bg-border hover:bg-border/70 disabled:opacity-40 rounded-lg px-3 py-1.5 flex items-center gap-1">
+                  <Plus size={14} /> {t("wg.addPeer")}
+                </button>
+                <button type="button" onClick={addPeerQr} disabled={busy}
+                  className="text-sm bg-accent hover:bg-accent/85 disabled:opacity-40 rounded-lg px-3 py-1.5 flex items-center gap-1">
+                  <QrCode size={14} /> {t("wg.addPeerQr")}
+                </button>
+              </div>
             </form>
+            {qrConfig && <QrView config={qrConfig} onClose={() => setQrConfig(undefined)} />}
           </div>
         </>
       )}
