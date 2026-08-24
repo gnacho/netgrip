@@ -65,3 +65,14 @@ export interface IPv6SetResult {
   state: IPv6Probe;
   error?: string;
 }
+
+export interface UpdateCheck {
+  available: boolean;
+  same_version: boolean;
+  owut_present: boolean;
+  version_from: string;
+  version_to: string;
+  out_of_date_packages: number;
+  warnings: string[];
+  safe_to_proceed: boolean;
+}
