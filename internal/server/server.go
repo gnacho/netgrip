@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gnacho/owpanel/internal/auth"
+	"github.com/gnacho/owpanel/internal/modules"
 	"github.com/gnacho/owpanel/internal/ubus"
 )
 
@@ -46,6 +47,8 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("GET /api/wan", s.requireAuth(s.handleWan))
 	s.mux.HandleFunc("GET /api/wireless", s.requireAuth(s.handleWireless))
 	s.mux.HandleFunc("GET /api/leases", s.requireAuth(s.handleLeases))
+	s.mux.HandleFunc("GET /api/ipv6", s.requireAuth(s.handleIPv6Get))
+	s.mux.HandleFunc("POST /api/ipv6", s.requireAuth(s.handleIPv6Set))
 	return s
 }
 
@@ -199,6 +202,41 @@ func (s *Server) handleLeases(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	writeJSON(w, leases)
+}
+
+func (s *Server) handleIPv6Get(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeIPv6())
+}
+
+type ipv6SetRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
+func (s *Server) handleIPv6Set(w http.ResponseWriter, r *http.Request) {
+	var req ipv6SetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetIPv6(req.Enabled)
+	result := map[string]any{
+		"state":       probe,
+		"rolled_back": rolledBack,
+	}
+	if err != nil {
+		result["error"] = err.Error()
+		if rolledBack {
+			result["status"] = "rolled_back"
+		} else {
+			result["status"] = "failed"
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(result)
+		return
+	}
+	result["status"] = "applied"
+	writeJSON(w, result)
 }
 
 func newToken() string {

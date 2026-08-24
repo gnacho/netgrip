@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
-  Cpu, Globe, LogOut, RefreshCw, Users, Wifi,
+  Cpu, Globe, LogOut, Network, RefreshCw, Users, Wifi,
 } from "lucide-react";
 import { api } from "../api";
-import type { Board, Lease, SystemInfo, WanStatus, WirelessRadio } from "../types";
+import type { Board, IPv6Probe, Lease, SystemInfo, WanStatus, WirelessRadio } from "../types";
 import { Card, Pill, Row } from "../components/Card";
+import { Toggle } from "../components/Toggle";
 
 function fmtUptime(t: TFunction, secs: number): string {
   const d = Math.floor(secs / 86400);
@@ -28,21 +29,43 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [wan, setWan] = useState<WanStatus>();
   const [radios, setRadios] = useState<WirelessRadio[]>([]);
   const [leases, setLeases] = useState<Lease[]>([]);
+  const [ipv6, setIpv6] = useState<IPv6Probe>();
+  const [ipv6Busy, setIpv6Busy] = useState(false);
+  const [ipv6Msg, setIpv6Msg] = useState<{ tone: "ok" | "danger"; text: string }>();
   const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
     setLoadError(false);
     try {
-      const [b, s, w, r, l] = await Promise.all([
-        api.board(), api.system(), api.wan(), api.wireless(), api.leases(),
+      const [b, s, w, r, l, v6] = await Promise.all([
+        api.board(), api.system(), api.wan(), api.wireless(), api.leases(), api.ipv6(),
       ]);
-      setBoard(b); setSystem(s); setWan(w); setRadios(r); setLeases(l);
+      setBoard(b); setSystem(s); setWan(w); setRadios(r); setLeases(l); setIpv6(v6);
     } catch {
       setLoadError(true);
     }
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const toggleIpv6 = async (enabled: boolean) => {
+    setIpv6Busy(true);
+    setIpv6Msg(undefined);
+    try {
+      const result = await api.setIpv6(enabled);
+      setIpv6(result.state);
+      if (result.status === "applied") {
+        setIpv6Msg({ tone: "ok", text: t("ipv6.applied") });
+      } else if (result.status === "rolled_back") {
+        setIpv6Msg({ tone: "danger", text: t("ipv6.rolledBack") });
+      }
+    } catch {
+      setIpv6Msg({ tone: "danger", text: t("ipv6.failed") });
+      setIpv6(await api.ipv6());
+    } finally {
+      setIpv6Busy(false);
+    }
+  };
 
   const ramUsed = system ? system.memory.total - system.memory.available : 0;
   const ramPct = system ? Math.round((ramUsed / system.memory.total) * 100) : 0;
@@ -135,6 +158,34 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           )}
         </Card>
 
+        <Card title={t("ipv6.title")} icon={Network}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">{t("ipv6.toggle")}</span>
+              {ipv6 && (
+                <Pill tone={ipv6.state === "enabled" ? "ok" : ipv6.state === "disabled" ? "muted" : "warn"}>
+                  {t(`ipv6.${ipv6.state}`)}
+                </Pill>
+              )}
+            </div>
+            <Toggle
+              checked={ipv6?.state === "enabled"}
+              busy={ipv6Busy}
+              disabled={!ipv6}
+              onChange={toggleIpv6}
+            />
+          </div>
+          {ipv6 && (
+            <p className="text-xs text-muted">
+              {t("ipv6.details", {
+                odhcpd: ipv6.odhcpd_enabled ? t("ipv6.on") : t("ipv6.off"),
+                ra: ipv6.ra_mode || "-",
+                dhcpv6: ipv6.dhcpv6_mode || "-",
+              })}
+            </p>
+          )}
+          {ipv6Msg && <p className={`text-xs mt-2 ${ipv6Msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{ipv6Msg.text}</p>}
+        </Card>
       </div>
     </main>
   );

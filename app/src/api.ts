@@ -24,4 +24,11 @@ export const api = {
   wan: () => request<import("./types").WanStatus>("/api/wan"),
   wireless: () => request<import("./types").WirelessRadio[]>("/api/wireless"),
   leases: () => request<import("./types").Lease[]>("/api/leases"),
+  ipv6: () => request<import("./types").IPv6Probe>("/api/ipv6"),
+  setIpv6: (enabled: boolean) =>
+    request<import("./types").IPv6SetResult>("/api/ipv6", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    }),
 };

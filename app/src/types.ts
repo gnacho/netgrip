@@ -51,3 +51,17 @@ export interface Lease {
   hostname: string;
 }
 
+export interface IPv6Probe {
+  state: "enabled" | "disabled" | "partial";
+  lan_ipv6: string;
+  odhcpd_enabled: boolean;
+  ra_mode: string;
+  dhcpv6_mode: string;
+}
+
+export interface IPv6SetResult {
+  status: "applied" | "rolled_back" | "failed";
+  rolled_back: boolean;
+  state: IPv6Probe;
+  error?: string;
+}
