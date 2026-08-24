@@ -78,6 +78,9 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("GET /api/netdev", s.requireAuth(s.handleNetDev))
 	s.mux.HandleFunc("GET /api/ethports", s.requireAuth(s.handleEthPorts))
 	s.mux.HandleFunc("GET /api/dawn", s.requireAuth(s.handleDawn))
+	s.mux.HandleFunc("GET /api/clients", s.requireAuth(s.handleClients))
+	s.mux.HandleFunc("POST /api/clients/reserve", s.requireAuth(s.handleClientReserve))
+	s.mux.HandleFunc("POST /api/clients/block", s.requireAuth(s.handleClientBlock))
 	return s
 }
 
@@ -613,6 +616,51 @@ func (s *Server) handleDawn(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"aps": aps})
+}
+
+func (s *Server) handleClients(w http.ResponseWriter, r *http.Request) {
+	requesterIP, _, _ := strings.Cut(r.RemoteAddr, ":")
+	writeJSON(w, map[string]any{"clients": modules.ListClients(requesterIP), "ts": time.Now().UnixMilli()})
+}
+
+type clientReserveRequest struct {
+	MAC      string `json:"mac"`
+	IP       string `json:"ip"`
+	Reserved bool   `json:"reserved"`
+}
+
+func (s *Server) handleClientReserve(w http.ResponseWriter, r *http.Request) {
+	var req clientReserveRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	_, rolledBack, err := modules.SetClientReservation(req.MAC, req.IP, req.Reserved)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"rolled_back": rolledBack, "status": "applied"})
+}
+
+type clientBlockRequest struct {
+	MAC     string `json:"mac"`
+	Type    string `json:"type"`
+	Blocked bool   `json:"blocked"`
+}
+
+func (s *Server) handleClientBlock(w http.ResponseWriter, r *http.Request) {
+	var req clientBlockRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	_, rolledBack, err := modules.SetClientBlocked(req.MAC, req.Type, req.Blocked)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"rolled_back": rolledBack, "status": "applied"})
 }
 
 // writeModuleResult is the shared response shape for write modules:

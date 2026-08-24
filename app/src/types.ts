@@ -223,3 +223,19 @@ export interface DawnAP {
   local: boolean;
   clients: DawnClient[];
 }
+
+export interface Client {
+  name: string;
+  ip?: string;
+  mac: string;
+  type: "wifi24" | "wifi5" | "cable";
+  iface?: string;
+  signal?: number;
+  rx_bytes: number;
+  tx_bytes: number;
+  self: boolean;
+  reserved: boolean;
+  reservable: boolean;
+  blocked: boolean;
+  blockable: boolean;
+}

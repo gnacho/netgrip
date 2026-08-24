@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import { ArrowLeftRight, Blocks, LayoutDashboard, LogOut, RefreshCw, Wifi, Wrench } from "lucide-react";
 import { api } from "../api";
-import type { Board, DawnAP, DDNSProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, Lease, OVPNProbe, PkgUpgrade, SQMProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
+import type { Board, DawnAP, DDNSProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, OVPNProbe, PkgUpgrade, SQMProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { Overview } from "../pages/Overview";
 import { WifiPage } from "../pages/Wifi";
 import { Services } from "../pages/Services";
@@ -27,7 +27,6 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const [system, setSystem] = useState<SystemInfo>();
   const [wan, setWan] = useState<WanStatus>();
   const [radios, setRadios] = useState<WirelessRadio[]>([]);
-  const [leases, setLeases] = useState<Lease[]>([]);
   const [ipv6, setIpv6] = useState<IPv6Probe>();
   const [update, setUpdate] = useState<UpdateCheck>();
   const [wg, setWg] = useState<WGProbe>();
@@ -47,10 +46,10 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const load = useCallback(async () => {
     setLoadError(false);
     try {
-      const [b, s, w, r, l, v6] = await Promise.all([
-        api.board(), api.system(), api.wan(), api.wireless(), api.leases(), api.ipv6(),
+      const [b, s, w, r, v6] = await Promise.all([
+        api.board(), api.system(), api.wan(), api.wireless(), api.ipv6(),
       ]);
-      setBoard(b); setSystem(s); setWan(w); setRadios(r); setLeases(l); setIpv6(v6);
+      setBoard(b); setSystem(s); setWan(w); setRadios(r); setIpv6(v6);
     } catch {
       setLoadError(true);
     }
@@ -99,7 +98,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     <>
       {loadError && <p className="text-danger text-sm mb-3">{t("error.load")}</p>}
       {page === "overview" && (
-        <Overview board={board} system={system} wan={wan} leases={leases} ethports={ethports} dawnAps={dawnAps} dawnError={dawnError} />
+        <Overview board={board} system={system} wan={wan} ethports={ethports} dawnAps={dawnAps} dawnError={dawnError} />
       )}
       {page === "wifi" && (
         <WifiPage radios={radios} iot={iot} onIotChange={setIot} guest={guest} onGuestChange={setGuest} />

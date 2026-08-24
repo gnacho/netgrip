@@ -38,9 +38,13 @@ func ListObjects(prefix string) ([]string, error) {
 var macRe = regexp.MustCompile(`^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$`)
 
 // WirelessClient is a single associated station on a hostapd interface.
+// Rx/Tx bytes are cumulative counters from the AP perspective: tx is
+// client download, rx is client upload.
 type WirelessClient struct {
-	MAC    string `json:"mac"`
-	Signal int    `json:"signal,omitempty"`
+	MAC     string `json:"mac"`
+	Signal  int    `json:"signal,omitempty"`
+	RxBytes int64  `json:"rx_bytes,omitempty"`
+	TxBytes int64  `json:"tx_bytes,omitempty"`
 }
 
 // WirelessClients returns the associated stations per hostapd ubus object.
@@ -58,6 +62,10 @@ func WirelessClients() (map[string][]WirelessClient, error) {
 		var payload struct {
 			Clients map[string]struct {
 				Signal int `json:"signal"`
+				Bytes  struct {
+					Rx int64 `json:"rx"`
+					Tx int64 `json:"tx"`
+				} `json:"bytes"`
 			} `json:"clients"`
 		}
 		if err := json.Unmarshal(raw, &payload); err != nil {
@@ -68,7 +76,12 @@ func WirelessClients() (map[string][]WirelessClient, error) {
 			if !macRe.MatchString(key) {
 				continue
 			}
-			clients = append(clients, WirelessClient{MAC: key, Signal: c.Signal})
+			clients = append(clients, WirelessClient{
+				MAC:     key,
+				Signal:  c.Signal,
+				RxBytes: c.Bytes.Rx,
+				TxBytes: c.Bytes.Tx,
+			})
 		}
 		result[obj] = clients
 	}
