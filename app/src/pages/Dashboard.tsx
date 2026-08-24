@@ -249,18 +249,24 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
             <p className="text-sm text-muted mt-2">{t("update.noOwut")}</p>
           ) : update ? (
             <>
-              <Row label={t("update.available")} value={update.version_to} />
+              {!update.same_version && <Row label={t("update.available")} value={update.version_to} />}
               <Row label="" value={
-                update.out_of_date_packages > 0
-                  ? <Pill tone="warn">{t("update.outOfDate", { count: update.out_of_date_packages })}</Pill>
-                  : <Pill tone="ok">{t("update.upToDate")}</Pill>
+                !update.same_version
+                  ? <Pill tone="warn">{t("update.newVersion")}</Pill>
+                  : update.out_of_date_packages > 0
+                    ? <Pill tone="warn">{t("update.outOfDate", { count: update.out_of_date_packages })}</Pill>
+                    : <Pill tone="ok">{t("update.upToDate")}</Pill>
               } />
               {update.warnings.map((w) => <p key={w} className="text-xs text-warn mt-1">{w}</p>)}
               {!update.safe_to_proceed && <p className="text-xs text-danger mt-2">{t("update.unsafe")}</p>}
               {updateConfirm ? (
                 <div className="mt-3 border border-warn/40 rounded-lg p-3">
                   <p className="text-xs font-medium mb-1">{t("update.confirmTitle")}</p>
-                  <p className="text-xs text-muted mb-3">{t("update.confirmBody")}</p>
+                  <p className="text-xs text-muted mb-3">
+                    {update.same_version
+                      ? t("update.confirmBodyPackages")
+                      : t("update.confirmBodyFirmware")}
+                  </p>
                   <div className="flex gap-2">
                     <button onClick={startUpdate} className="text-xs bg-danger/80 hover:bg-danger rounded-lg px-3 py-1.5 font-medium">
                       {t("update.confirmYes")}
@@ -270,13 +276,15 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
                     </button>
                   </div>
                 </div>
-              ) : (
+              ) : update.available && (
                 <button
                   onClick={() => setUpdateConfirm(true)}
                   disabled={!update.safe_to_proceed || updateBusy}
                   className="mt-3 text-sm bg-accent hover:bg-accent/85 disabled:opacity-40 rounded-lg px-3 py-1.5 font-medium"
                 >
-                  {t("update.upgrade")}
+                  {update.same_version
+                    ? t("update.upgradePackages", { count: update.out_of_date_packages })
+                    : t("update.upgradeFirmware")}
                 </button>
               )}
             </>

@@ -68,6 +68,7 @@ export interface IPv6SetResult {
 
 export interface UpdateCheck {
   available: boolean;
+  same_version: boolean;
   owut_present: boolean;
   version_from: string;
   version_to: string;

@@ -11,6 +11,7 @@ import (
 // UpdateCheck is the parsed result of `owut check`.
 type UpdateCheck struct {
 	Available      bool     `json:"available"`
+	SameVersion    bool     `json:"same_version"`
 	OwutPresent    bool     `json:"owut_present"`
 	VersionFrom    string   `json:"version_from"`
 	VersionTo      string   `json:"version_to"`
@@ -52,8 +53,18 @@ func CheckUpdate() *UpdateCheck {
 		}
 	}
 	check.SafeToProceed = reSafe.MatchString(text)
-	check.Available = check.VersionTo != "" && check.VersionFrom != "" && check.VersionTo != check.VersionFrom || check.OutOfDatePkgs > 0
+	check.SameVersion = check.VersionFrom == "" || check.VersionTo == "" || coreVersion(check.VersionFrom) == coreVersion(check.VersionTo)
+	check.Available = !check.SameVersion || check.OutOfDatePkgs > 0
 	return check
+}
+
+// coreVersion strips the trailing metadata (" (kernel ...)") so two
+// revisions of the same release compare equal.
+func coreVersion(v string) string {
+	if i := strings.Index(v, " ("); i >= 0 {
+		return strings.TrimSpace(v[:i])
+	}
+	return strings.TrimSpace(v)
 }
 
 // StartUpgrade launches `owut upgrade -q` detached. The router WILL reboot
