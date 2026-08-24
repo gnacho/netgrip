@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/gnacho/owpanel/internal/ubus"
 )
 
 // IfaceCounters are the raw /proc/net/dev counters of one interface.
@@ -47,24 +49,33 @@ func NetDevCounters() []IfaceCounters {
 	return counters
 }
 
+// EthDevice is one device learned on a port, with its name when it can
+// be resolved (dnsmasq leases when the router runs DHCP).
+type EthDevice struct {
+	MAC  string `json:"mac"`
+	Name string `json:"name,omitempty"`
+}
+
 // EthPort is one physical ethernet port with its link state and the
-// MAC addresses the switch has learned on it.
+// devices the switch has learned on it.
 type EthPort struct {
-	Name      string   `json:"name"`
-	Up        bool     `json:"up"`
-	SpeedMbps int      `json:"speed_mbps"`
-	MACs      []string `json:"macs"`
+	Name      string      `json:"name"`
+	Up        bool        `json:"up"`
+	SpeedMbps int         `json:"speed_mbps"`
+	Devices   []EthDevice `json:"devices"`
 }
 
 var reEthPortName = regexp.MustCompile(`^(lan\d+|wan|eth\d+|swp\d+)$`)
 
-// EthPorts lists the physical ports with link state, speed and FDB MACs.
+// EthPorts lists the physical ports with link state, speed and the
+// devices learned on each (names resolved from DHCP leases when present).
 func EthPorts() []EthPort {
 	out, err := exec.Command("ip", "-o", "link").Output()
 	if err != nil {
 		return []EthPort{}
 	}
 	fdb := bridgeFdb()
+	names := leaseNames()
 	var ports []EthPort
 	for _, line := range strings.Split(string(out), "\n") {
 		fields := strings.Fields(line)
@@ -75,7 +86,7 @@ func EthPorts() []EthPort {
 		if !reEthPortName.MatchString(name) {
 			continue
 		}
-		port := EthPort{Name: name, MACs: []string{}}
+		port := EthPort{Name: name, Devices: []EthDevice{}}
 		port.Up = strings.Contains(line, "LOWER_UP")
 		if speed, err := os.ReadFile("/sys/class/net/" + name + "/speed"); err == nil {
 			if mbps, err := strconv.Atoi(strings.TrimSpace(string(speed))); err == nil && mbps > 0 {
@@ -83,7 +94,9 @@ func EthPorts() []EthPort {
 			}
 		}
 		if macs, ok := fdb[name]; ok {
-			port.MACs = macs
+			for _, mac := range macs {
+				port.Devices = append(port.Devices, EthDevice{MAC: mac, Name: names[mac]})
+			}
 		}
 		ports = append(ports, port)
 	}
@@ -91,6 +104,26 @@ func EthPorts() []EthPort {
 		return []EthPort{}
 	}
 	return ports
+}
+
+// leaseNames maps MAC -> hostname from the dnsmasq leases file (empty on
+// routers without dnsmasq, like dumb APs).
+func leaseNames() map[string]string {
+	leases, err := ubusLeases()
+	if err != nil {
+		return map[string]string{}
+	}
+	names := map[string]string{}
+	for _, l := range leases {
+		if l.Hostname != "" && l.Hostname != "*" {
+			names[strings.ToLower(l.MAC)] = l.Hostname
+		}
+	}
+	return names
+}
+
+func ubusLeases() ([]ubus.Lease, error) {
+	return ubus.ReadLeases("/tmp/dhcp.leases")
 }
 
 // bridgeFdb returns the learned MACs grouped by port name, via

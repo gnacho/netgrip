@@ -212,6 +212,11 @@ export default {
     macs_one: "{{count}} MAC",
     macs_other: "{{count}} MACs",
     learnedOn: "MACs learned on {{port}}",
+    unmanaged: "switch ?",
+    switchDetected: "Unmanaged switch detected ({{count}} MACs on this port)",
+    hintDirect: "Plug devices directly into the router's free ports to see them per port.",
+    hintManaged: "Replace it with a managed switch (SNMP) to identify what hangs from each port.",
+    unknownDevice: "Unknown device",
     noMacs: "No learned MACs on this port",
   },
   dawn: {

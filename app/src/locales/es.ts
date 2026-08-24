@@ -212,6 +212,11 @@ export default {
     macs_one: "{{count}} MAC",
     macs_other: "{{count}} MACs",
     learnedOn: "MACs aprendidas en {{port}}",
+    unmanaged: "switch ?",
+    switchDetected: "Switch no gestionado detectado ({{count}} MACs en esta boca)",
+    hintDirect: "Conecta los dispositivos directamente a las bocas libres del router para verlos por puerto.",
+    hintManaged: "Cámbialo por un switch gestionable (SNMP) para identificar qué cuelga de cada boca.",
+    unknownDevice: "Dispositivo desconocido",
     noMacs: "Sin MACs aprendidas en este puerto",
   },
   dawn: {

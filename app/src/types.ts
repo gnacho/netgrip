@@ -194,11 +194,16 @@ export interface IfaceCounters {
   tx_bytes: number;
 }
 
+export interface EthDevice {
+  mac: string;
+  name?: string;
+}
+
 export interface EthPort {
   name: string;
   up: boolean;
   speed_mbps: number;
-  macs: string[];
+  devices: EthDevice[];
 }
 
 export interface DawnClient {

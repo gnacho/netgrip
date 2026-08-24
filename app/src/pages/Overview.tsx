@@ -94,7 +94,9 @@ export function Overview({ board, system, wan, radios, leases, ethports, dawnAps
 
       <EthPortsCard ports={ethports} />
 
-      <DawnCard aps={dawnAps} error={dawnError} />
+      <div className="sm:col-span-2 xl:col-span-3">
+        <DawnCard aps={dawnAps} error={dawnError} />
+      </div>
 
       <Card title={t("clients.title")} icon={Users}>
         {leases.length === 0 ? (
