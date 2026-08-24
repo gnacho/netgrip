@@ -5,9 +5,10 @@ import {
   ArrowUpCircle, Cpu, Globe, LogOut, Network, RefreshCw, ShieldCheck, Users, Wifi,
 } from "lucide-react";
 import { api } from "../api";
-import type { Board, IPv6Probe, Lease, SystemInfo, UpdateCheck, WanStatus, WirelessRadio } from "../types";
+import type { Board, IPv6Probe, Lease, SystemInfo, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { Card, Pill, Row } from "../components/Card";
 import { Toggle } from "../components/Toggle";
+import { WireguardCard } from "../components/WireguardCard";
 
 function fmtUptime(t: TFunction, secs: number): string {
   const d = Math.floor(secs / 86400);
@@ -42,6 +43,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [updateBusy, setUpdateBusy] = useState(false);
   const [updateConfirm, setUpdateConfirm] = useState(false);
   const [updateMsg, setUpdateMsg] = useState<{ tone: "ok" | "danger"; text: string }>();
+  const [wg, setWg] = useState<WGProbe>();
 
   const load = useCallback(async () => {
     setLoadError(false);
@@ -61,6 +63,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   // the background after the dashboard is up.
   useEffect(() => {
     api.updateCheck().then(setUpdate).catch(() => {});
+    api.wireguard().then(setWg).catch(() => {});
   }, []);
 
   const recheckUpdate = async () => {
@@ -293,6 +296,8 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           )}
           {updateMsg && <p className={`text-xs mt-2 ${updateMsg.tone === "ok" ? "text-ok" : "text-danger"}`}>{updateMsg.text}</p>}
         </Card>
+
+        <WireguardCard probe={wg} onChange={setWg} />
 
         <Card title={t("security.title")} icon={ShieldCheck}>
           <form onSubmit={changePassword} className="flex flex-col gap-2">

@@ -76,3 +76,28 @@ export interface UpdateCheck {
   warnings: string[];
   safe_to_proceed: boolean;
 }
+
+export interface WGPeer {
+  section: string;
+  name: string;
+  public_key: string;
+  allowed_ips: string[];
+  admin: boolean;
+}
+
+export interface WGProbe {
+  installed: boolean;
+  active: boolean;
+  running: boolean;
+  port: string;
+  address: string;
+  public_key: string;
+  peers: WGPeer[];
+}
+
+export interface ModuleResult<T> {
+  status: "applied" | "rolled_back" | "failed";
+  rolled_back: boolean;
+  state: T;
+  error?: string;
+}
