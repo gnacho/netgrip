@@ -88,28 +88,30 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   );
 
   return (
-    <div className="min-h-screen md:flex">
-      {/* Sidebar (desktop) */}
-      <nav className="hidden md:flex md:flex-col md:w-44 md:shrink-0 border-r border-border p-3 gap-1">
-        <p className="text-sm font-semibold px-2 py-2 mb-1">{t("app.name")}</p>
-        {NAV.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setPage(item.id)}
-            className={`flex items-center gap-2 px-2 py-2 rounded-lg text-sm text-left transition-colors
-              ${page === item.id ? "bg-accent/15 text-accent font-medium" : "text-muted hover:text-text hover:bg-card"}`}
-          >
-            <item.icon size={16} />
-            {t(item.key)}
-          </button>
-        ))}
-      </nav>
+    <div className="min-h-screen">
+      <div className="w-full max-w-[1440px] mx-auto md:flex">
+        {/* Sidebar (desktop) */}
+        <nav className="hidden md:flex md:flex-col md:w-44 md:shrink-0 border-r border-border p-3 gap-1">
+          <p className="text-sm font-semibold px-2 py-2 mb-1">{t("app.name")}</p>
+          {NAV.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setPage(item.id)}
+              className={`flex items-center gap-2 px-2 py-2 rounded-lg text-sm text-left transition-colors
+                ${page === item.id ? "bg-accent/15 text-accent font-medium" : "text-muted hover:text-text hover:bg-card"}`}
+            >
+              <item.icon size={16} />
+              {t(item.key)}
+            </button>
+          ))}
+        </nav>
 
-      {/* Content */}
-      <main className="flex-1 w-full max-w-[1440px] mx-auto p-4 pb-24 md:pb-12">
-        {header}
-        {pageContent}
-      </main>
+        {/* Content */}
+        <main className="flex-1 p-4 pb-24 md:pb-12">
+          {header}
+          {pageContent}
+        </main>
+      </div>
 
       {/* Bottom nav (mobile) */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-card border-t border-border flex z-10">

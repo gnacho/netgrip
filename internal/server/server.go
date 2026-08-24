@@ -1,9 +1,7 @@
 package server
 
 import (
-	"crypto/rand"
 	"embed"
-	"encoding/hex"
 	"encoding/json"
 	"io/fs"
 	"log"
@@ -27,20 +25,21 @@ const (
 )
 
 type Server struct {
-	rpcdURL  string
-	mux      *http.ServeMux
-	mu       sync.Mutex
-	sessions map[string]time.Time
+	rpcdURL string
+	mux     *http.ServeMux
+	mu      sync.Mutex
+	revoked map[string]bool
 }
 
 func New(rpcdURL string) *Server {
 	s := &Server{
-		rpcdURL:  rpcdURL,
-		mux:      http.NewServeMux(),
-		sessions: make(map[string]time.Time),
+		rpcdURL: rpcdURL,
+		mux:     http.NewServeMux(),
+		revoked: make(map[string]bool),
 	}
 	s.mux.HandleFunc("/", s.handleSPA)
 	s.mux.HandleFunc("POST /api/login", s.handleLogin)
+	s.mux.HandleFunc("GET /api/me", s.requireAuth(s.handleMe))
 	s.mux.HandleFunc("POST /api/logout", s.handleLogout)
 	s.mux.HandleFunc("GET /api/board", s.requireAuth(s.handleBoard))
 	s.mux.HandleFunc("GET /api/system", s.requireAuth(s.handleSystem))
@@ -117,10 +116,11 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
-	token := newToken()
-	s.mu.Lock()
-	s.sessions[token] = time.Now().Add(sessionTTL)
-	s.mu.Unlock()
+	token, err := auth.NewSessionToken(sessionTTL)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "session token")
+		return
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookie,
 		Value:    token,
@@ -135,17 +135,21 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie(sessionCookie); err == nil {
 		s.mu.Lock()
-		delete(s.sessions, c.Value)
+		s.revoked[c.Value] = true
 		s.mu.Unlock()
 	}
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1})
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (s *Server) handleMe(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		c, err := r.Cookie(sessionCookie)
-		if err != nil || !s.validSession(c.Value) {
+		if err != nil || !auth.ValidSessionToken(c.Value) || s.isRevoked(c.Value) {
 			writeError(w, http.StatusUnauthorized, "login required")
 			return
 		}
@@ -153,18 +157,10 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func (s *Server) validSession(token string) bool {
+func (s *Server) isRevoked(token string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	expiry, ok := s.sessions[token]
-	if !ok {
-		return false
-	}
-	if time.Now().After(expiry) {
-		delete(s.sessions, token)
-		return false
-	}
-	return true
+	return s.revoked[token]
 }
 
 func (s *Server) handleBoard(w http.ResponseWriter, _ *http.Request) {
@@ -265,9 +261,7 @@ func (s *Server) handlePasswordSet(w http.ResponseWriter, r *http.Request) {
 	}
 	// The password changed: every existing panel session must die, including
 	// the caller's. The user logs in again with the new password.
-	s.mu.Lock()
-	s.sessions = make(map[string]time.Time)
-	s.mu.Unlock()
+	auth.BumpEpoch()
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -393,14 +387,6 @@ func writeModuleResult(w http.ResponseWriter, probe any, rolledBack bool, err er
 	}
 	result["status"] = "applied"
 	writeJSON(w, result)
-}
-
-func newToken() string {
-	buf := make([]byte, 32)
-	if _, err := rand.Read(buf); err != nil {
-		panic(err)
-	}
-	return hex.EncodeToString(buf)
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
