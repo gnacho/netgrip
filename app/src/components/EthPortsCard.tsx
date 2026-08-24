@@ -4,10 +4,11 @@ import { Cable, Lightbulb } from "lucide-react";
 import type { EthPort } from "../types";
 import { Card } from "./Card";
 
-// NetPulse-style chassis: RJ45 jacks with two status LEDs on top, golden
-// pins when linked, and the connected device name below each one.
-const JACK_W = 44;
-const JACK_H = 34;
+// NetPulse-style chassis, cloned from the reference: tall RJ45 jacks with
+// two LEDs on top, a row of golden contacts and the dark connector
+// cavity. Teal accent for WAN, green for linked LAN ports.
+const JACK_W = 48;
+const JACK_H = 62;
 const JACK_GAP = 22;
 const PAD = 16;
 
@@ -42,7 +43,7 @@ export function EthPortsCard({ ports }: { ports: EthPort[] | undefined }) {
 
   const inUse = sorted.filter((p) => p.up).length;
   const width = PAD * 2 + sorted.length * JACK_W + (sorted.length - 1) * JACK_GAP;
-  const height = 118;
+  const height = 148;
   const selectedPort = sorted.find((p) => p.name === selected);
 
   const deviceLine = (p: EthPort): { text: string; cls: string } => {
@@ -67,34 +68,39 @@ export function EthPortsCard({ ports }: { ports: EthPort[] | undefined }) {
           const y = 16;
           const dev = deviceLine(p);
           const isWan = p.name === "wan";
+          const jackStroke = p.up ? (isWan ? "#2dd4bf" : "#34d399") : "#2c3e52";
           return (
             <g key={p.name} transform={`translate(${x}, ${y})`}
               onClick={() => setSelected(selected === p.name ? undefined : p.name)}
               className="cursor-pointer">
-              {/* status LEDs */}
-              <circle cx={JACK_W / 2 - 7} cy={0} r="3" className={p.up ? "fill-ok" : "fill-border"} />
-              <circle cx={JACK_W / 2 + 7} cy={0} r="3" className={p.up ? "fill-ok" : "fill-border"} />
-              {/* jack */}
-              <rect y={8} width={JACK_W} height={JACK_H} rx="5"
-                className={`fill-card ${p.up ? (isWan ? "stroke-[#2dd4bf]" : "stroke-ok") : "stroke-border"}`}
+              {/* status LEDs above the jack */}
+              <circle cx={JACK_W / 2 - 8} cy={0} r="3.5" fill={p.up ? "#34d399" : "#2c3e52"} />
+              <circle cx={JACK_W / 2 + 8} cy={0} r="3.5" fill={p.up ? "#34d399" : "#2c3e52"} />
+              {/* RJ45 jack */}
+              <rect y={8} width={JACK_W} height={JACK_H} rx="6"
+                fill="#0f1826" stroke={jackStroke}
                 strokeWidth={selected === p.name ? 2.5 : 1.5} />
+              {/* golden contacts row */}
               {Array.from({ length: 8 }).map((_, pin) => (
-                <line key={pin} x1={6 + pin * 4.6} y1={13} x2={6 + pin * 4.6} y2={25}
-                  stroke={p.up ? "#eab308" : "#4b5b6e"} strokeWidth="2" />
+                <rect key={pin} x={6.5 + pin * 4.6} y={13} width="2.6" height="10" rx="0.5"
+                  fill={p.up ? "#eab308" : "#4b5b6e"} />
               ))}
-              <rect x="6" y={27} width={JACK_W - 12} height={JACK_H - 27 - 5} rx="2"
-                className="fill-bg" />
+              {/* connector cavity with clip notch */}
+              <rect x="7" y={27} width={JACK_W - 14} height={JACK_H - 27 - 6} rx="2.5"
+                fill="#0b1118" stroke="#22303f" strokeWidth="1" />
+              <rect x={JACK_W / 2 - 5} y={JACK_H - 11} width="10" height="5" rx="1"
+                fill="#0f1826" stroke="#22303f" strokeWidth="1" />
               {/* labels */}
               <text x={JACK_W / 2} y={JACK_H + 22} textAnchor="middle"
-                className={`${isWan ? "fill-[#2dd4bf]" : "fill-muted"}`}
-                fontSize="10" fontWeight={isWan ? "bold" : "normal"}>
+                fill={isWan ? "#2dd4bf" : "#8ba3bb"}
+                fontSize="11" fontWeight={isWan ? "bold" : "normal"}>
                 {portLabel(p.name)}
               </text>
-              <text x={JACK_W / 2} y={JACK_H + 36} textAnchor="middle"
-                className={dev.cls} fontSize="9.5">{dev.text}</text>
+              <text x={JACK_W / 2} y={JACK_H + 38} textAnchor="middle"
+                className={dev.cls} fontSize="10.5">{dev.text}</text>
               {p.up && p.speed_mbps > 0 && (
-                <text x={JACK_W / 2} y={JACK_H + 49} textAnchor="middle"
-                  className="fill-muted" fontSize="8.5">{fmtSpeed(p.speed_mbps)}</text>
+                <text x={JACK_W / 2} y={JACK_H + 53} textAnchor="middle"
+                  className="fill-muted" fontSize="9.5">{fmtSpeed(p.speed_mbps)}</text>
               )}
             </g>
           );
