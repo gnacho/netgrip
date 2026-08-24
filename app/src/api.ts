@@ -68,6 +68,13 @@ export const api = {
       },
     ),
   ddns: () => request<import("./types").DDNSProbe>("/api/ddns"),
+  sqm: () => request<import("./types").SQMProbe>("/api/sqm"),
+  setSqm: (cfg: { enabled: boolean; download?: string; upload?: string }) =>
+    request<import("./types").ModuleResult<import("./types").SQMProbe>>("/api/sqm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
   setDdns: (cfg: {
     enabled: boolean;
     service_name?: string;
