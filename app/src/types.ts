@@ -169,3 +169,11 @@ export interface FwdProbe {
   firewall: boolean;
   rules: FwdRule[];
 }
+
+export interface TSProbe {
+  installed: boolean;
+  running: boolean;
+  state: string;
+  auth_url?: string;
+  ips: string[];
+}

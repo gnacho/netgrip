@@ -71,6 +71,8 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("GET /api/portforward", s.requireAuth(s.handleFwdGet))
 	s.mux.HandleFunc("POST /api/portforward", s.requireAuth(s.handleFwdAdd))
 	s.mux.HandleFunc("POST /api/portforward/delete", s.requireAuth(s.handleFwdDelete))
+	s.mux.HandleFunc("GET /api/tailscale", s.requireAuth(s.handleTSGet))
+	s.mux.HandleFunc("POST /api/tailscale", s.requireAuth(s.handleTSSet))
 	return s
 }
 
@@ -556,6 +558,24 @@ func (s *Server) handleFwdDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	probe, rolledBack, err := modules.RemoveFwdRule(req.Section)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleTSGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeTailscale())
+}
+
+type tsSetRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
+func (s *Server) handleTSSet(w http.ResponseWriter, r *http.Request) {
+	var req tsSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetTailscale(req.Enabled)
 	writeModuleResult(w, probe, rolledBack, err)
 }
 
