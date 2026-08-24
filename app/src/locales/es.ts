@@ -7,7 +7,13 @@ export default {
     submit: "Entrar",
     error: "Credenciales incorrectas",
   },
-  nav: { logout: "Salir", refresh: "Refrescar" },
+  nav: {
+    logout: "Salir",
+    refresh: "Refrescar",
+    overview: "Resumen",
+    services: "Servicios",
+    system: "Sistema",
+  },
   system: {
     title: "Sistema",
     model: "Modelo",

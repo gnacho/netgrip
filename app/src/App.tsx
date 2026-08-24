@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "./api";
 import { Login } from "./pages/Login";
-import { Dashboard } from "./pages/Dashboard";
+import { Shell } from "./components/Shell";
 
 export default function App() {
   const [authed, setAuthed] = useState(false);
@@ -10,7 +10,7 @@ export default function App() {
     return <Login onSuccess={() => setAuthed(true)} />;
   }
   return (
-    <Dashboard
+    <Shell
       onLogout={async () => {
         await api.logout().catch(() => {});
         setAuthed(false);
