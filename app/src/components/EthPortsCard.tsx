@@ -99,8 +99,8 @@ export function EthPortsCard({ ports }: { ports: EthPort[] | undefined }) {
     if (b.name === "wan") return 1;
     return a.name.localeCompare(b.name, undefined, { numeric: true });
   });
-  const wanPorts = sorted.filter((p) => p.name === "wan");
-  const lanPorts = sorted.filter((p) => p.name !== "wan");
+  const wanPorts = sorted.filter((p) => p.wan);
+  const lanPorts = sorted.filter((p) => !p.wan);
   const inUse = sorted.filter((p) => p.up).length;
   const selectedPort = sorted.find((p) => p.name === selected);
 

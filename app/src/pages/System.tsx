@@ -2,6 +2,7 @@ import type { Board, PkgUpgrade, UpdateCheck } from "../types";
 import { UpdateCard } from "../components/UpdateCard";
 import { SecurityCard } from "../components/SecurityCard";
 import { PackagesCard } from "../components/PackagesCard";
+import { ModeCard } from "../components/ModeCard";
 
 export function System({ board, update, onUpdateChange, packages, onPackagesChange, onLogout }: {
   board: Board | undefined;
@@ -16,6 +17,7 @@ export function System({ board, update, onUpdateChange, packages, onPackagesChan
       <UpdateCard board={board} update={update} onChange={onUpdateChange} />
       <SecurityCard onLogout={onLogout} />
       <PackagesCard upgradable={packages} onChange={onPackagesChange} />
+      <ModeCard />
     </div>
   );
 }
