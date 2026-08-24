@@ -1,11 +1,12 @@
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Cpu, Globe, Users } from "lucide-react";
-import type { Board, DawnAP, EthPort, Lease, SystemInfo, WanStatus } from "../types";
+import { Cpu, Globe } from "lucide-react";
+import type { Board, DawnAP, EthPort, SystemInfo, WanStatus } from "../types";
 import { Card, Pill, Row } from "../components/Card";
 import { TrafficCard } from "../components/TrafficCard";
 import { EthPortsCard } from "../components/EthPortsCard";
 import { DawnCard } from "../components/DawnCard";
+import { ClientsCard } from "../components/ClientsCard";
 
 function fmtUptime(t: TFunction, secs: number): string {
   const d = Math.floor(secs / 86400);
@@ -20,11 +21,10 @@ function fmtMB(bytes: number): string {
   return `${Math.round(bytes / 1048576)} MB`;
 }
 
-export function Overview({ board, system, wan, leases, ethports, dawnAps, dawnError }: {
+export function Overview({ board, system, wan, ethports, dawnAps, dawnError }: {
   board: Board | undefined;
   system: SystemInfo | undefined;
   wan: WanStatus | undefined;
-  leases: Lease[];
   ethports: EthPort[] | undefined;
   dawnAps: DawnAP[] | undefined;
   dawnError: boolean;
@@ -34,7 +34,7 @@ export function Overview({ board, system, wan, leases, ethports, dawnAps, dawnEr
   const ramPct = system ? Math.round((ramUsed / system.memory.total) * 100) : 0;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <Card title={t("system.title")} icon={Cpu}>
         <Row label={t("system.model")} value={board?.model} />
         <Row label={t("system.firmware")} value={board?.release && `${board.release.distribution} ${board.release.version}`} />
@@ -58,23 +58,21 @@ export function Overview({ board, system, wan, leases, ethports, dawnAps, dawnEr
       </Card>
 
 
-      <TrafficCard />
+      <div className="sm:col-span-2">
+        <TrafficCard />
+      </div>
 
-      <EthPortsCard ports={ethports} />
+      <div className="sm:col-span-2">
+        <EthPortsCard ports={ethports} />
+      </div>
 
-      <div className="sm:col-span-2 xl:col-span-3">
+      <div className="sm:col-span-2 xl:col-span-4">
         <DawnCard aps={dawnAps} error={dawnError} />
       </div>
 
-      <Card title={t("clients.title")} icon={Users}>
-        {leases.length === 0 ? (
-          <p className="text-sm text-muted">{t("clients.empty")}</p>
-        ) : (
-          leases.map((l) => (
-            <Row key={l.mac} label={l.hostname || l.mac} value={l.ip} />
-          ))
-        )}
-      </Card>
+      <div className="sm:col-span-2 xl:col-span-3">
+        <ClientsCard />
+      </div>
     </div>
   );
 }

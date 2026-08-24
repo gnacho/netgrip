@@ -25,6 +25,19 @@ export const api = {
   wan: () => request<import("./types").WanStatus>("/api/wan"),
   wireless: () => request<import("./types").WirelessRadio[]>("/api/wireless"),
   leases: () => request<import("./types").Lease[]>("/api/leases"),
+  clients: () => request<{ clients: import("./types").Client[]; ts: number }>("/api/clients"),
+  reserveClient: (mac: string, ip: string, reserved: boolean) =>
+    request<{ status: string }>("/api/clients/reserve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mac, ip, reserved }),
+    }),
+  blockClient: (mac: string, type: string, blocked: boolean) =>
+    request<{ status: string }>("/api/clients/block", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mac, type, blocked }),
+    }),
   ipv6: () => request<import("./types").IPv6Probe>("/api/ipv6"),
   setIpv6: (enabled: boolean) =>
     request<import("./types").IPv6SetResult>("/api/ipv6", {
