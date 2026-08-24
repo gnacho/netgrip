@@ -67,5 +67,16 @@ export default {
     hours: "{{count}}h",
     minutes: "{{count}}m",
   },
+  security: {
+    title: "Security",
+    current: "Current password",
+    next: "New password",
+    confirm: "Repeat the new password",
+    submit: "Change password",
+    mismatch: "New passwords do not match",
+    tooShort: "Minimum {{count}} characters",
+    done: "Password changed. Sign in again with the new one.",
+    failed: "Could not change the password",
+  },
   error: { load: "Failed to load data" },
 };

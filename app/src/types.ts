@@ -65,3 +65,4 @@ export interface IPv6SetResult {
   state: IPv6Probe;
   error?: string;
 }
+

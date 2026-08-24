@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
-  Cpu, Globe, LogOut, Network, RefreshCw, Users, Wifi,
+  Cpu, Globe, LogOut, Network, RefreshCw, ShieldCheck, Users, Wifi,
 } from "lucide-react";
 import { api } from "../api";
 import type { Board, IPv6Probe, Lease, SystemInfo, WanStatus, WirelessRadio } from "../types";
@@ -33,6 +33,11 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [ipv6Busy, setIpv6Busy] = useState(false);
   const [ipv6Msg, setIpv6Msg] = useState<{ tone: "ok" | "danger"; text: string }>();
   const [loadError, setLoadError] = useState(false);
+  const [pwCurrent, setPwCurrent] = useState("");
+  const [pwNext, setPwNext] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwMsg, setPwMsg] = useState<{ tone: "ok" | "danger"; text: string }>();
 
   const load = useCallback(async () => {
     setLoadError(false);
@@ -47,6 +52,23 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const changePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwMsg(undefined);
+    if (pwNext.length < 8) { setPwMsg({ tone: "danger", text: t("security.tooShort", { count: 8 }) }); return; }
+    if (pwNext !== pwConfirm) { setPwMsg({ tone: "danger", text: t("security.mismatch") }); return; }
+    setPwBusy(true);
+    try {
+      await api.setPassword(pwCurrent, pwNext);
+      setPwMsg({ tone: "ok", text: t("security.done") });
+      setTimeout(onLogout, 2500);
+    } catch (err) {
+      setPwMsg({ tone: "danger", text: err instanceof Error ? err.message : t("security.failed") });
+    } finally {
+      setPwBusy(false);
+    }
+  };
 
   const toggleIpv6 = async (enabled: boolean) => {
     setIpv6Busy(true);
@@ -185,6 +207,26 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
             </p>
           )}
           {ipv6Msg && <p className={`text-xs mt-2 ${ipv6Msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{ipv6Msg.text}</p>}
+        </Card>
+
+
+        <Card title={t("security.title")} icon={ShieldCheck}>
+          <form onSubmit={changePassword} className="flex flex-col gap-2">
+            <input type="password" value={pwCurrent} onChange={(e) => setPwCurrent(e.target.value)}
+              placeholder={t("security.current")} autoComplete="current-password"
+              className="bg-bg border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-accent" />
+            <input type="password" value={pwNext} onChange={(e) => setPwNext(e.target.value)}
+              placeholder={t("security.next")} autoComplete="new-password"
+              className="bg-bg border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-accent" />
+            <input type="password" value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)}
+              placeholder={t("security.confirm")} autoComplete="new-password"
+              className="bg-bg border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-accent" />
+            {pwMsg && <p className={`text-xs ${pwMsg.tone === "ok" ? "text-ok" : "text-danger"}`}>{pwMsg.text}</p>}
+            <button type="submit" disabled={pwBusy || !pwCurrent || !pwNext}
+              className="text-sm bg-accent hover:bg-accent/85 disabled:opacity-40 rounded-lg px-3 py-1.5 font-medium self-start">
+              {t("security.submit")}
+            </button>
+          </form>
         </Card>
       </div>
     </main>

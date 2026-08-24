@@ -67,5 +67,16 @@ export default {
     hours: "{{count}}h",
     minutes: "{{count}}m",
   },
+  security: {
+    title: "Seguridad",
+    current: "Contraseña actual",
+    next: "Nueva contraseña",
+    confirm: "Repite la nueva contraseña",
+    submit: "Cambiar contraseña",
+    mismatch: "Las contraseñas nuevas no coinciden",
+    tooShort: "Mínimo {{count}} caracteres",
+    done: "Contraseña cambiada. Entra de nuevo con la nueva.",
+    failed: "No se pudo cambiar",
+  },
   error: { load: "Error cargando datos" },
 };
