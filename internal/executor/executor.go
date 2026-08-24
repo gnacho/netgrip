@@ -18,6 +18,7 @@ var (
 	reUCIKey    = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-zA-Z0-9_@:-]+)+$`)
 	reUCIConfig = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	reService   = regexp.MustCompile(`^[a-z0-9_-]+$`)
+	rePkg       = regexp.MustCompile(`^[a-z0-9][a-z0-9+_.-]*$`)
 	reBadChars  = regexp.MustCompile("[;\n\r`]")
 )
 
@@ -34,6 +35,11 @@ func Validate(op Op) error {
 		if len(op.Args) != 2 || !reUCIKey.MatchString(op.Args[0]) || reBadChars.MatchString(op.Args[1]) {
 			return fmt.Errorf("invalid uci_set args: %v", op.Args)
 		}
+	case "uci_add_list":
+		// Args: <config.section.option> <value>
+		if len(op.Args) != 2 || !reUCIKey.MatchString(op.Args[0]) || reBadChars.MatchString(op.Args[1]) {
+			return fmt.Errorf("invalid uci_add_list args: %v", op.Args)
+		}
 	case "uci_delete":
 		if len(op.Args) != 1 || !reUCIKey.MatchString(op.Args[0]) {
 			return fmt.Errorf("invalid uci_delete args: %v", op.Args)
@@ -41,6 +47,20 @@ func Validate(op Op) error {
 	case "uci_commit":
 		if len(op.Args) != 1 || !reUCIConfig.MatchString(op.Args[0]) {
 			return fmt.Errorf("invalid uci_commit args: %v", op.Args)
+		}
+	case "pkg_add":
+		// Args: package names; apk on 25.12+, opkg on older releases.
+		if len(op.Args) == 0 {
+			return fmt.Errorf("pkg_add needs at least one package")
+		}
+		for _, pkg := range op.Args {
+			if !rePkg.MatchString(pkg) {
+				return fmt.Errorf("invalid package name: %q", pkg)
+			}
+		}
+	case "ifup", "ifdown":
+		if len(op.Args) != 1 || !reService.MatchString(op.Args[0]) {
+			return fmt.Errorf("invalid %s args: %v", op.Kind, op.Args)
 		}
 	case "initd":
 		if len(op.Args) != 2 || !reService.MatchString(op.Args[0]) || !initdActions[op.Args[1]] {
@@ -61,10 +81,20 @@ func Run(op Op) error {
 	switch op.Kind {
 	case "uci_set":
 		cmd = exec.Command("uci", "set", op.Args[0]+"="+op.Args[1])
+	case "uci_add_list":
+		cmd = exec.Command("uci", "add_list", op.Args[0]+"="+op.Args[1])
 	case "uci_delete":
 		cmd = exec.Command("uci", "delete", op.Args[0])
 	case "uci_commit":
 		cmd = exec.Command("uci", "commit", op.Args[0])
+	case "pkg_add":
+		if _, err := exec.LookPath("apk"); err == nil {
+			cmd = exec.Command("apk", append([]string{"add"}, op.Args...)...)
+		} else {
+			cmd = exec.Command("opkg", append([]string{"install"}, op.Args...)...)
+		}
+	case "ifup", "ifdown":
+		cmd = exec.Command(op.Kind, op.Args[0])
 	case "initd":
 		cmd = exec.Command("/etc/init.d/"+op.Args[0], op.Args[1])
 	}
@@ -102,11 +132,15 @@ func Snapshot(config string) (string, error) {
 }
 
 // Restore imports a previously exported UCI config and commits it.
+// Note: `uci import <config>` reads from stdin and REPLACES the package
+// (merge only happens with the -m flag). The -f global option means
+// "use <file> as input", NOT "full package": `uci import -f network`
+// is invalid and made restores silently fail (verified on 25.12.5).
 func Restore(config, content string) error {
 	if !reUCIConfig.MatchString(config) {
 		return fmt.Errorf("invalid config name: %q", config)
 	}
-	cmd := exec.Command("uci", "import", "-f", config)
+	cmd := exec.Command("uci", "import", config)
 	cmd.Stdin = bytes.NewBufferString(content)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("uci import %s: %w (%s)", config, err, strings.TrimSpace(string(out)))
