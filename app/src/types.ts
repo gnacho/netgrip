@@ -31,6 +31,9 @@ export interface WirelessInterface {
   ssid: string;
   encryption: string;
   disabled: boolean;
+  hidden: boolean;
+  bssid: string;
+  rname: string;
   clients: WirelessClient[];
 }
 
@@ -245,6 +248,21 @@ export interface RemoteAccess {
   ping_wan: boolean;
   remote_https: boolean;
   remote_ssh: boolean;
+}
+
+export interface WifiUI {
+  section: string;
+  radio: string;
+  ifname: string;
+  band: string;
+  ssid: string;
+  encryption: string;
+  has_key: boolean;
+  hidden: boolean;
+  mac: string;
+  bssid: string;
+  disabled: boolean;
+  clients: { mac: string; signal?: number }[];
 }
 
 export interface OffloadProbe {

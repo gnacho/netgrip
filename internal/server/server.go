@@ -83,6 +83,8 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("POST /api/remoteaccess", s.requireAuth(s.handleRemoteSet))
 	s.mux.HandleFunc("GET /api/offload", s.requireAuth(s.handleOffloadGet))
 	s.mux.HandleFunc("POST /api/offload", s.requireAuth(s.handleOffloadSet))
+	s.mux.HandleFunc("GET /api/wifi", s.requireAuth(s.handleWifiGet))
+	s.mux.HandleFunc("POST /api/wifi", s.requireAuth(s.handleWifiSet))
 	s.mux.HandleFunc("GET /api/netdev", s.requireAuth(s.handleNetDev))
 	s.mux.HandleFunc("GET /api/ethports", s.requireAuth(s.handleEthPorts))
 	s.mux.HandleFunc("GET /api/dawn", s.requireAuth(s.handleDawn))
@@ -708,6 +710,25 @@ func (s *Server) handleOffloadSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	probe, rolledBack, err := modules.SetOffload(req.Enabled)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleWifiGet(w http.ResponseWriter, _ *http.Request) {
+	ui, err := modules.ProbeWifiUI()
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"interfaces": ui})
+}
+
+func (s *Server) handleWifiSet(w http.ResponseWriter, r *http.Request) {
+	var edit modules.WifiEdit
+	if err := json.NewDecoder(r.Body).Decode(&edit); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetWifi(edit)
 	writeModuleResult(w, probe, rolledBack, err)
 }
 
