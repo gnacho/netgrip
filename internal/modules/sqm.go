@@ -22,13 +22,13 @@ type SQMConfig struct {
 
 // SQMProbe is the read-only SQM state.
 type SQMProbe struct {
-	Installed  bool   `json:"installed"`
-	HasWan     bool   `json:"has_wan"`
-	Active     bool   `json:"active"`
-	Running    bool   `json:"running"`
-	Interface  string `json:"interface"`
-	Download   string `json:"download"`
-	Upload     string `json:"upload"`
+	Installed bool   `json:"installed"`
+	HasWan    bool   `json:"has_wan"`
+	Active    bool   `json:"active"`
+	Running   bool   `json:"running"`
+	Interface string `json:"interface"`
+	Download  string `json:"download"`
+	Upload    string `json:"upload"`
 }
 
 func sqmInstalled() bool {

@@ -135,6 +135,44 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(edit),
     }),
+  lan: () => request<import("./types").LANConfig>("/api/lan"),
+  setLan: (opts: { ipaddr?: string; netmask?: string; ap_isolation?: boolean }) =>
+    request<import("./types").ModuleResult<import("./types").LANConfig>>("/api/lan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(opts),
+    }),
+  setDhcp: (cfg: import("./types").DHCPConfig) =>
+    request<import("./types").ModuleResult<import("./types").LANConfig>>("/api/lan/dhcp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
+  setReservation: (mac: string, ip: string, name: string, reserved: boolean) =>
+    request<import("./types").ModuleResult<import("./types").LANConfig>>("/api/lan/reservation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mac, ip, name, reserved }),
+    }),
+  clearReservations: () =>
+    request<import("./types").ModuleResult<import("./types").LANConfig>>("/api/lan/reservations/clear", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    }),
+  dns: () => request<import("./types").DNSConfig>("/api/dns"),
+  setDns: (opts: { rebind_protection?: boolean; override_dns?: boolean; dns_vpn?: boolean }) =>
+    request<import("./types").ModuleResult<import("./types").DNSConfig>>("/api/dns", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(opts),
+    }),
+  setDnsHost: (ip: string, hostname: string, remove: boolean) =>
+    request<import("./types").ModuleResult<import("./types").DNSConfig>>("/api/dns/hosts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ip, hostname, remove }),
+    }),
   ethports: () => request<{ ports: import("./types").EthPort[] }>("/api/ethports"),
   dawn: () => request<{ aps: import("./types").DawnAP[] }>("/api/dawn"),
   guestwifi: () => request<import("./types").GuestProbe>("/api/guestwifi"),
