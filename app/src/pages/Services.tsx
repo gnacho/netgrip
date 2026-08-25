@@ -22,11 +22,15 @@ export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChang
 }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      <WireguardCard probe={wg} onChange={onWgChange} />
+      <div className="sm:col-span-2 xl:col-span-3">
+        <WireguardCard probe={wg} onChange={onWgChange} />
+      </div>
       <DdnsCard probe={ddns} onChange={onDdnsChange} />
       <Ipv6Card probe={ipv6} onChange={onIpv6Change} />
       <SqmCard probe={sqm} onChange={onSqmChange} />
-      <OpenvpnCard probe={ovpn} onChange={onOvpnChange} />
+      <div className="sm:col-span-2 xl:col-span-3">
+        <OpenvpnCard probe={ovpn} onChange={onOvpnChange} />
+      </div>
       <TailscaleCard probe={ts} onChange={onTsChange} />
     </div>
   );
