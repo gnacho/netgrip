@@ -215,6 +215,46 @@ export interface ModeProbe {
   firewall_on: boolean;
 }
 
+export interface PanelAccess {
+  http_port: number;
+  https_enabled: boolean;
+  force_https: boolean;
+  session_ttl: string;
+}
+
+export interface LuciAccess {
+  http_port: number;
+  https_port: number;
+  force_https: boolean;
+  enabled: boolean;
+}
+
+export interface SSHAccess {
+  enabled: boolean;
+  port: string;
+}
+
+export interface AccessProbe {
+  panel: PanelAccess;
+  luci: LuciAccess;
+  ssh: SSHAccess;
+}
+
+export interface RemoteAccess {
+  applicable: boolean;
+  ping_wan: boolean;
+  remote_https: boolean;
+  remote_ssh: boolean;
+}
+
+export interface OffloadProbe {
+  applicable: boolean;
+  software: boolean;
+  hardware: boolean;
+  hardware_known: boolean;
+  hardware_active: boolean;
+}
+
 export interface DawnClient {
   mac: string;
   signal: number;

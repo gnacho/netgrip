@@ -76,6 +76,13 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("GET /api/guestwifi", s.requireAuth(s.handleGuestGet))
 	s.mux.HandleFunc("POST /api/guestwifi", s.requireAuth(s.handleGuestSet))
 	s.mux.HandleFunc("GET /api/mode", s.requireAuth(s.handleMode))
+	s.mux.HandleFunc("POST /api/mode", s.requireAuth(s.handleModeSet))
+	s.mux.HandleFunc("GET /api/access", s.requireAuth(s.handleAccessGet))
+	s.mux.HandleFunc("POST /api/access", s.requireAuth(s.handleAccessSet))
+	s.mux.HandleFunc("GET /api/remoteaccess", s.requireAuth(s.handleRemoteGet))
+	s.mux.HandleFunc("POST /api/remoteaccess", s.requireAuth(s.handleRemoteSet))
+	s.mux.HandleFunc("GET /api/offload", s.requireAuth(s.handleOffloadGet))
+	s.mux.HandleFunc("POST /api/offload", s.requireAuth(s.handleOffloadSet))
 	s.mux.HandleFunc("GET /api/netdev", s.requireAuth(s.handleNetDev))
 	s.mux.HandleFunc("GET /api/ethports", s.requireAuth(s.handleEthPorts))
 	s.mux.HandleFunc("GET /api/dawn", s.requireAuth(s.handleDawn))
@@ -141,7 +148,8 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
-	token, err := auth.NewSessionToken(sessionTTL)
+	ttl := time.Duration(modules.PanelSessionTTLMinutes()) * time.Minute
+	token, err := auth.NewSessionToken(ttl)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "session token")
 		return
@@ -152,7 +160,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   int(sessionTTL.Seconds()),
+		MaxAge:   int(ttl.Seconds()),
 	})
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -604,6 +612,103 @@ func (s *Server) handleGuestSet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleMode(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, modules.ProbeMode())
+}
+
+type modeSetRequest struct {
+	Target  string `json:"target"`
+	Confirm bool   `json:"confirm"`
+}
+
+func (s *Server) handleModeSet(w http.ResponseWriter, r *http.Request) {
+	var req modeSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if !req.Confirm {
+		writeError(w, http.StatusBadRequest, "explicit confirmation required")
+		return
+	}
+	probe, rolledBack, err := modules.SetMode(req.Target)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleAccessGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeAccess())
+}
+
+type accessSetRequest struct {
+	// Exactly one of the following targets is applied per request.
+	Target       string                `json:"target"` // luci | ssh | panel_session
+	Luci         modules.LuciAccess    `json:"luci"`
+	SSH          modules.SSHAccess     `json:"ssh"`
+	SessionTtlM  int                   `json:"session_ttl_minutes"`
+}
+
+func (s *Server) handleAccessSet(w http.ResponseWriter, r *http.Request) {
+	var req accessSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	switch req.Target {
+	case "luci":
+		probe, rolledBack, err := modules.SetLuciAccess(req.Luci)
+		writeModuleResult(w, probe, rolledBack, err)
+	case "ssh":
+		probe, rolledBack, err := modules.SetSSHAccess(req.SSH)
+		writeModuleResult(w, probe, rolledBack, err)
+	case "panel_session":
+		if req.SessionTtlM <= 0 {
+			writeError(w, http.StatusBadRequest, "session_ttl_minutes must be > 0")
+			return
+		}
+		if err := modules.SetPanelSessionTTL(req.SessionTtlM); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, map[string]any{"status": "applied", "panel": modules.ProbeAccess().Panel})
+	default:
+		writeError(w, http.StatusBadRequest, "target must be luci, ssh or panel_session")
+	}
+}
+
+func (s *Server) handleRemoteGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeRemoteAccess())
+}
+
+type remoteSetRequest struct {
+	PingWAN     *bool `json:"ping_wan"`
+	RemoteHTTPS *bool `json:"remote_https"`
+	RemoteSSH   *bool `json:"remote_ssh"`
+}
+
+func (s *Server) handleRemoteSet(w http.ResponseWriter, r *http.Request) {
+	var req remoteSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetRemoteAccess(req.PingWAN, req.RemoteHTTPS, req.RemoteSSH)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleOffloadGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeOffload())
+}
+
+type offloadSetRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
+func (s *Server) handleOffloadSet(w http.ResponseWriter, r *http.Request) {
+	var req offloadSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetOffload(req.Enabled)
+	writeModuleResult(w, probe, rolledBack, err)
 }
 
 func (s *Server) handleNetDev(w http.ResponseWriter, _ *http.Request) {

@@ -89,6 +89,45 @@ export const api = {
   ddns: () => request<import("./types").DDNSProbe>("/api/ddns"),
   netdev: () => request<{ counters: import("./types").IfaceCounters[]; ts: number }>("/api/netdev"),
   mode: () => request<import("./types").ModeProbe>("/api/mode"),
+  setMode: (target: "router" | "ap") =>
+    request<import("./types").ModuleResult<import("./types").ModeProbe>>("/api/mode", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target, confirm: true }),
+    }),
+  access: () => request<import("./types").AccessProbe>("/api/access"),
+  setLuciAccess: (luci: import("./types").LuciAccess) =>
+    request<import("./types").ModuleResult<import("./types").AccessProbe>>("/api/access", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target: "luci", luci }),
+    }),
+  setSshAccess: (ssh: import("./types").SSHAccess) =>
+    request<import("./types").ModuleResult<import("./types").AccessProbe>>("/api/access", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target: "ssh", ssh }),
+    }),
+  setPanelSessionTtl: (minutes: number) =>
+    request<{ status: string; panel: import("./types").PanelAccess }>("/api/access", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target: "panel_session", session_ttl_minutes: minutes }),
+    }),
+  remoteAccess: () => request<import("./types").RemoteAccess>("/api/remoteaccess"),
+  setRemoteAccess: (opts: { ping_wan?: boolean; remote_https?: boolean; remote_ssh?: boolean }) =>
+    request<import("./types").ModuleResult<import("./types").RemoteAccess>>("/api/remoteaccess", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(opts),
+    }),
+  offload: () => request<import("./types").OffloadProbe>("/api/offload"),
+  setOffload: (enabled: boolean) =>
+    request<import("./types").ModuleResult<import("./types").OffloadProbe>>("/api/offload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    }),
   ethports: () => request<{ ports: import("./types").EthPort[] }>("/api/ethports"),
   dawn: () => request<{ aps: import("./types").DawnAP[] }>("/api/dawn"),
   guestwifi: () => request<import("./types").GuestProbe>("/api/guestwifi"),

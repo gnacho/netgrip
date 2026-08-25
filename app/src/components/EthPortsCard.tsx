@@ -61,7 +61,7 @@ function Jack({ port, isWan, onClick, selected }: {
       {/* Etiquetas */}
       <div className="mt-1.5 w-full text-center">
         <div className={`font-mono text-[10px] font-semibold tracking-wide ${isWan ? "text-accent" : "text-muted"}`}>
-          {isWan ? "WAN" : port.name === "wan" ? "LAN" : port.name.toUpperCase().replace(/^LAN(\d+)$/, "LAN $1")}
+          {isWan ? "WAN" : port.name === "wan" ? "LAN 4" : port.name.toUpperCase().replace(/^LAN(\d+)$/, "LAN $1")}
         </div>
         {up ? (
           <>
