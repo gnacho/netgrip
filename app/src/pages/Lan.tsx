@@ -109,7 +109,8 @@ export function LanPage() {
       </Card>
 
       {/* Reservations */}
-      <Card title={t("lan.resTitle")} icon={Info} action={        cfg && cfg.reservations.length > 0 ? (
+      <div className="sm:col-span-2">
+        <Card title={t("lan.resTitle")} icon={Info} action={        cfg && cfg.reservations.length > 0 ? (
           <button onClick={() => run(() => api.clearReservations(), t("lan.cleared"))}
             className="text-xs text-muted hover:text-danger flex items-center gap-1">
             <Trash2 size={12} /> {t("lan.clearAll")}
@@ -151,9 +152,12 @@ export function LanPage() {
             </tbody>
           </table>
         </div>
-      </Card>
+        </Card>
+      </div>
 
-      <DnsCard />
+      <div className="sm:col-span-2">
+        <DnsCard />
+      </div>
 
       {msg && <p className={`text-xs sm:col-span-2 ${msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
     </div>

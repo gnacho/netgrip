@@ -6,7 +6,7 @@ export function Ports({ fwd, onFwdChange }: {
   onFwdChange: (p: FwdProbe) => void;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-4">
       <PortForwardCard probe={fwd} onChange={onFwdChange} />
     </div>
   );

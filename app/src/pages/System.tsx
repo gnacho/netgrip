@@ -19,11 +19,13 @@ export function System({ board, update, onUpdateChange, packages, onPackagesChan
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <UpdateCard board={board} update={update} onChange={onUpdateChange} />
       <SecurityCard onLogout={onLogout} />
-      <PackagesCard upgradable={packages} onChange={onPackagesChange} />
       <ModeCard />
       <AccessCard />
       <RemoteAccessCard />
       <OffloadCard />
+      <div className="sm:col-span-2 xl:col-span-3">
+        <PackagesCard upgradable={packages} onChange={onPackagesChange} />
+      </div>
     </div>
   );
 }
