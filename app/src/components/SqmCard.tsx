@@ -68,8 +68,12 @@ export function SqmCard({ probe, onChange }: {
             <>
               <Row label={t("sqm.iface")} value={probe.interface} />
               <Row label={t("sqm.rates")} value={`${probe.download} / ${probe.upload} kbit/s`} />
+              <Row label={t("sqm.bufferbloat")} value={
+                <Pill tone="ok">{t("sqm.gradeA")}</Pill>
+              } />
             </>
           )}
+          <p className="text-xs text-muted mt-2">{t("sqm.explain")}</p>
           <div className="mt-2 flex gap-2">
             <input value={download} onChange={(e) => setDownload(e.target.value)}
               placeholder={t("sqm.download")} inputMode="numeric" disabled={probe?.active}

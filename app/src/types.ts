@@ -250,6 +250,45 @@ export interface RemoteAccess {
   remote_ssh: boolean;
 }
 
+export interface Reservation {
+  mac: string;
+  ip: string;
+  name?: string;
+}
+
+export interface DHCPConfig {
+  enabled: boolean;
+  start: number;
+  limit: number;
+  lease_time: number;
+  gateway?: string;
+  dns1?: string;
+  dns2?: string;
+}
+
+export interface LANConfig {
+  applicable: boolean;
+  ipaddr: string;
+  netmask: string;
+  ap_isolation: boolean;
+  dhcp: DHCPConfig;
+  reservations: Reservation[];
+}
+
+export interface HostEntry {
+  ip: string;
+  hostname: string;
+}
+
+export interface DNSConfig {
+  applicable: boolean;
+  rebind_protection: boolean;
+  override_dns: boolean;
+  dns_vpn: boolean;
+  adguard_active: boolean;
+  hosts: HostEntry[];
+}
+
 export interface WifiUI {
   section: string;
   radio: string;

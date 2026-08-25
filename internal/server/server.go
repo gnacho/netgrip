@@ -85,6 +85,14 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("POST /api/offload", s.requireAuth(s.handleOffloadSet))
 	s.mux.HandleFunc("GET /api/wifi", s.requireAuth(s.handleWifiGet))
 	s.mux.HandleFunc("POST /api/wifi", s.requireAuth(s.handleWifiSet))
+	s.mux.HandleFunc("GET /api/lan", s.requireAuth(s.handleLANGet))
+	s.mux.HandleFunc("POST /api/lan", s.requireAuth(s.handleLANSet))
+	s.mux.HandleFunc("POST /api/lan/dhcp", s.requireAuth(s.handleDHCPSet))
+	s.mux.HandleFunc("POST /api/lan/reservation", s.requireAuth(s.handleReservationSet))
+	s.mux.HandleFunc("POST /api/lan/reservations/clear", s.requireAuth(s.handleReservationsClear))
+	s.mux.HandleFunc("GET /api/dns", s.requireAuth(s.handleDNSGet))
+	s.mux.HandleFunc("POST /api/dns", s.requireAuth(s.handleDNSSet))
+	s.mux.HandleFunc("POST /api/dns/hosts", s.requireAuth(s.handleDNSHostsSet))
 	s.mux.HandleFunc("GET /api/netdev", s.requireAuth(s.handleNetDev))
 	s.mux.HandleFunc("GET /api/ethports", s.requireAuth(s.handleEthPorts))
 	s.mux.HandleFunc("GET /api/dawn", s.requireAuth(s.handleDawn))
@@ -729,6 +737,99 @@ func (s *Server) handleWifiSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	probe, rolledBack, err := modules.SetWifi(edit)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleLANGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeLAN())
+}
+
+type lanSetRequest struct {
+	IpAddr      *string `json:"ipaddr,omitempty"`
+	Netmask     *string `json:"netmask,omitempty"`
+	ApIsolation *bool   `json:"ap_isolation,omitempty"`
+}
+
+func (s *Server) handleLANSet(w http.ResponseWriter, r *http.Request) {
+	var req lanSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	cfg := struct {
+		IpAddr      *string `json:"ipaddr,omitempty"`
+		Netmask     *string `json:"netmask,omitempty"`
+		ApIsolation *bool   `json:"ap_isolation,omitempty"`
+	}{req.IpAddr, req.Netmask, req.ApIsolation}
+	probe, rolledBack, err := modules.SetLAN(cfg)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleDHCPSet(w http.ResponseWriter, r *http.Request) {
+	var cfg modules.DHCPConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetDHCP(cfg)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+type reservationSetRequest struct {
+	MAC      string `json:"mac"`
+	IP       string `json:"ip"`
+	Name     string `json:"name,omitempty"`
+	Reserved bool   `json:"reserved"`
+}
+
+func (s *Server) handleReservationSet(w http.ResponseWriter, r *http.Request) {
+	var req reservationSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetReservation(req.MAC, req.IP, req.Name, req.Reserved)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleReservationsClear(w http.ResponseWriter, _ *http.Request) {
+	probe, rolledBack, err := modules.ClearReservations()
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleDNSGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeDNS())
+}
+
+type dnsSetRequest struct {
+	RebindProtect *bool `json:"rebind_protection,omitempty"`
+	OverrideDNS   *bool `json:"override_dns,omitempty"`
+	DnsVpn        *bool `json:"dns_vpn,omitempty"`
+}
+
+func (s *Server) handleDNSSet(w http.ResponseWriter, r *http.Request) {
+	var req dnsSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetDNS(req.RebindProtect, req.OverrideDNS, req.DnsVpn)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+type dnsHostsSetRequest struct {
+	IP       string `json:"ip"`
+	Hostname string `json:"hostname"`
+	Remove   bool   `json:"remove"`
+}
+
+func (s *Server) handleDNSHostsSet(w http.ResponseWriter, r *http.Request) {
+	var req dnsHostsSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetHosts(req.IP, req.Hostname, req.Remove)
 	writeModuleResult(w, probe, rolledBack, err)
 }
 

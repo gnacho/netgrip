@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftRight, Blocks, LayoutDashboard, LogOut, RefreshCw, Wifi, Wrench } from "lucide-react";
+import { ArrowLeftRight, Blocks, LayoutDashboard, LogOut, Network, RefreshCw, Wifi, Wrench } from "lucide-react";
 import { api } from "../api";
 import type { Board, DawnAP, DDNSProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, OVPNProbe, PkgUpgrade, SQMProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe } from "../types";
 import { Overview } from "../pages/Overview";
@@ -9,12 +9,14 @@ import { WifiPage } from "../pages/Wifi";
 import { Services } from "../pages/Services";
 import { Ports } from "../pages/Ports";
 import { System } from "../pages/System";
+import { LanPage } from "../pages/Lan";
 
-type Page = "overview" | "wifi" | "services" | "ports" | "system";
+type Page = "overview" | "wifi" | "lan" | "services" | "ports" | "system";
 
 const NAV: { id: Page; icon: LucideIcon; key: string }[] = [
   { id: "overview", icon: LayoutDashboard, key: "nav.overview" },
   { id: "wifi", icon: Wifi, key: "nav.wifi" },
+  { id: "lan", icon: Network, key: "nav.lan" },
   { id: "services", icon: Blocks, key: "nav.services" },
   { id: "ports", icon: ArrowLeftRight, key: "nav.ports" },
   { id: "system", icon: Wrench, key: "nav.system" },
@@ -101,6 +103,9 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
       )}
       {page === "wifi" && (
         <WifiPage iot={iot} onIotChange={setIot} guest={guest} onGuestChange={setGuest} />
+      )}
+      {page === "lan" && (
+        <LanPage />
       )}
       {page === "services" && (
         <Services wg={wg} onWgChange={setWg} ipv6={ipv6} onIpv6Change={setIpv6} ddns={ddns} onDdnsChange={setDdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} ts={ts} onTsChange={setTs} />
