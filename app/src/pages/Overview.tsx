@@ -58,7 +58,7 @@ export function Overview({ board, system, wan, ethports, dawnAps, dawnError }: {
       </Card>
 
 
-      <div className="sm:col-span-2">
+      <div className="sm:col-span-2 xl:col-span-4">
         <TrafficCard />
       </div>
 
