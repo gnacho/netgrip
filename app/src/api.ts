@@ -128,6 +128,13 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled }),
     }),
+  wifi: () => request<{ interfaces: import("./types").WifiUI[] }>("/api/wifi"),
+  setWifi: (edit: { section: string; ssid?: string; key?: string; encryption?: string; hidden?: boolean; disabled?: boolean; mac?: string }) =>
+    request<import("./types").ModuleResult<import("./types").WifiUI>>("/api/wifi", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(edit),
+    }),
   ethports: () => request<{ ports: import("./types").EthPort[] }>("/api/ethports"),
   dawn: () => request<{ aps: import("./types").DawnAP[] }>("/api/dawn"),
   guestwifi: () => request<import("./types").GuestProbe>("/api/guestwifi"),
