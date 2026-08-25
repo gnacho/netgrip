@@ -3,6 +3,9 @@ import { UpdateCard } from "../components/UpdateCard";
 import { SecurityCard } from "../components/SecurityCard";
 import { PackagesCard } from "../components/PackagesCard";
 import { ModeCard } from "../components/ModeCard";
+import { AccessCard } from "../components/AccessCard";
+import { RemoteAccessCard } from "../components/RemoteAccessCard";
+import { OffloadCard } from "../components/OffloadCard";
 
 export function System({ board, update, onUpdateChange, packages, onPackagesChange, onLogout }: {
   board: Board | undefined;
@@ -18,6 +21,9 @@ export function System({ board, update, onUpdateChange, packages, onPackagesChan
       <SecurityCard onLogout={onLogout} />
       <PackagesCard upgradable={packages} onChange={onPackagesChange} />
       <ModeCard />
+      <AccessCard />
+      <RemoteAccessCard />
+      <OffloadCard />
     </div>
   );
 }
