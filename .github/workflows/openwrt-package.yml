@@ -94,6 +94,10 @@ jobs:
           echo "Packages generated:"
           ls -la dist/packages/
           gh release upload "$TAG" dist/packages/*.${{ matrix.format }} --clobber
+          # Binary artifact (arm64) for manual deploys; the OpenWrt package is
+          # still the recommended install path because it survives sysupgrade.
+          cp /tmp/owpanel /tmp/owpanel-linux-arm64
+          gh release upload "$TAG" /tmp/owpanel-linux-arm64 --clobber
 
   package-luci:
     runs-on: ubuntu-latest
