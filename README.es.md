@@ -102,9 +102,23 @@ funcionando en los routers de casa desde el primer spike de dos ficheros.
 
 ## Instalación
 
-Requisitos: un router OpenWrt con CPU ARM de 64 bits (`aarch64_cortex-a53`,
-que cubre MediaTek filogic y Qualcomm ipq807x), con OpenWrt 24.10 o 25.12.
-El panel escucha en el puerto 8080 y valida tu login contra rpcd.
+Hay dos formas de poner owpanel en un router, según lo cómodo que te muevas
+con OpenWrt.
+
+**Para un montaje no técnico**, el camino previsto es una imagen de firmware
+que ya incluya owpanel (y su entrada de LuCI), flasheada como cualquier
+imagen OpenWrt, de modo que no haya nada que instalar. Esa imagen aún no está
+publicada: el plan y el trabajo que requiere un feed propio de paquetes
+instalados (para que ASU/owut reconstruya la imagen con el panel dentro)
+están en el
+[issue #63](https://github.com/gnacho/owpanel/issues/63). Hasta que llegue, el
+panel usa el paquete de **OpenWrt 25.12/24.10** correspondiente.
+
+**Para un montaje con soltura en OpenWrt**, añade el panel desde la release
+como paquete `apk` u `opkg`. Requisitos: un router ARM de 64 bits
+(`aarch64_cortex-a53`, cubre MediaTek filogic y Qualcomm ipq807x) con OpenWrt
+24.10 o 25.12. El panel escucha en el puerto 8080 y valida tu login contra
+rpcd.
 
 Descarga el paquete correcto para tu router y su versión de OpenWrt desde la
 página de [Releases](https://github.com/gnacho/owpanel/releases/latest). Hay
@@ -131,6 +145,21 @@ opkg install owpanel_0.12.0-1_aarch64_cortex-a53.ipk
 
 Abre `http://<ip-del-router>:8080` y entra con el mismo usuario y contraseña
 que usas en LuCI.
+
+<details>
+<summary><strong>Instalación manual (binario suelto)</strong></summary>
+
+Si prefieres no usar el paquete OpenWrt, descarga `owpanel-linux-arm64` de la
+release y colócalo en el router. El paquete sigue siendo el camino
+recomendado: sobrevive a sysupgrade; un binario suelto no.
+
+```sh
+# El dropbear de busybox no tiene scp; pasa el fichero por ssh:
+cat owpanel-linux-arm64 | ssh root@<ip-del-router> "cat > /usr/sbin/owpanel && chmod 755 /usr/sbin/owpanel"
+/usr/sbin/owpanel -listen 0.0.0.0 -port 8080
+```
+
+</details>
 
 El instalador (postinst) habilita y arranca el servicio y añade el binario,
 el script de init y el enlace de rc.d a `/etc/sysupgrade.conf`, así el panel
