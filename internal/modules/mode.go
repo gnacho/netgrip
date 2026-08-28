@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/gnacho/owpanel/internal/executor"
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
 // ModeProbe reports whether the router is a gateway/router or an access

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gnacho/owpanel/internal/ubus"
+	"github.com/gnacho/netgrip/internal/ubus"
 )
 
 // IfaceCounters are the raw /proc/net/dev counters of one interface.

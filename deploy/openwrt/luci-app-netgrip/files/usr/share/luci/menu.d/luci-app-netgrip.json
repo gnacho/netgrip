@@ -1,0 +1,13 @@
+{
+	"admin/services/netgrip": {
+		"title": "netgrip",
+		"order": 50,
+		"action": {
+			"type": "view",
+			"path": "netgrip/panel"
+		},
+		"depends": {
+			"acl": [ "luci-app-netgrip" ]
+		}
+	}
+}

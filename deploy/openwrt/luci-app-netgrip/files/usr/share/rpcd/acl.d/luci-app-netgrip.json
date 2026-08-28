@@ -1,6 +1,6 @@
 {
-	"luci-app-owpanel": {
-		"description": "Grant access to the owpanel LuCI page",
+	"luci-app-netgrip": {
+		"description": "Grant access to the netgrip LuCI page",
 		"read": {
 			"ubus": {
 				"system": [ "board" ]

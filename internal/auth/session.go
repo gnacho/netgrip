@@ -18,12 +18,12 @@ import (
 // Format: epoch.expiry.nonce.signature
 //   signature = hex(hmac-sha256(secret, "epoch.expiry.nonce"))
 //
-// secret: /etc/owpanel.secret (32 random bytes, 0600, created on first use)
-// epoch:  /etc/owpanel.epoch (integer; bumped on password change so all
+// secret: /etc/netgrip.secret (32 random bytes, 0600, created on first use)
+// epoch:  /etc/netgrip.epoch (integer; bumped on password change so all
 //         previously issued tokens die at once)
 const (
-	secretPath = "/etc/owpanel.secret"
-	epochPath  = "/etc/owpanel.epoch"
+	secretPath = "/etc/netgrip.secret"
+	epochPath  = "/etc/netgrip.epoch"
 )
 
 func secret() ([]byte, error) {

@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/gnacho/owpanel/internal/executor"
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
 // IPv6Probe is the read-only state of IPv6 on the router.

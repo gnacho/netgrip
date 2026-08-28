@@ -8,7 +8,7 @@ import { Card } from "./Card";
  * Clon 1:1 del panel de bocas de NetPulse (PortPanel.tsx): misma
  * geometría (columna de 84px, LEDs 6px con pulso, cuerpo 48px border-2,
  * pines 2x10 inset 7/5, cavidad h-18 inset 6/5), separador vertical tras
- * WAN, chasis flex-wrap gap-x-4, leyenda. Tokens adaptados a owpanel.
+ * WAN, chasis flex-wrap gap-x-4, leyenda. Tokens adaptados a netgrip.
  */
 
 function Jack({ port, isWan, onClick, selected }: {

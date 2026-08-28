@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gnacho/owpanel/internal/executor"
-	"github.com/gnacho/owpanel/internal/ubus"
+	"github.com/gnacho/netgrip/internal/executor"
+	"github.com/gnacho/netgrip/internal/ubus"
 )
 
 // WifiEdit is the user-provided change to one AP interface (a "radio"'s

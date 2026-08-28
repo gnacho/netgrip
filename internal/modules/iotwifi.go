@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnacho/owpanel/internal/executor"
-	"github.com/gnacho/owpanel/internal/ubus"
+	"github.com/gnacho/netgrip/internal/executor"
+	"github.com/gnacho/netgrip/internal/ubus"
 )
 
-const iotSection = "owpanel_iot"
+const iotSection = "netgrip_iot"
 
 // IoTConfig is the user-provided IoT SSID configuration.
 type IoTConfig struct {

@@ -1,5 +1,5 @@
 export default {
-  app: { name: "owpanel" },
+  app: { name: "NetGrip" },
   login: {
     title: "Sign in",
     subtitle: "Router root password (same as LuCI)",
@@ -353,7 +353,7 @@ export default {
     failed: "Could not start the update",
     noOwut: "owut is not installed on this router",
     unsafe: "owut reports it is NOT safe to update now",
-    reinstallNote: "owpanel is not in the official repos: it will be excluded from the image, but its files are preserved via sysupgrade and it will be back on first boot.",
+    reinstallNote: "NetGrip is not in the official repos: it will be excluded from the image, but its files are preserved via sysupgrade and it will be back on first boot.",
   },
   error: { load: "Failed to load data" },
   lan: {
@@ -440,7 +440,7 @@ export default {
     error: "Update failed: {{msg}}",
   },
   wizard: {
-    title: "Welcome to owpanel",
+    title: "Welcome to NetGrip",
     intro: "Let's set up the essentials of your router in a few steps. You can skip any step and come back later from the panel.",
     startSetup: "Start setup",
     skipToPanel: "Go straight to the panel",

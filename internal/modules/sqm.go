@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnacho/owpanel/internal/executor"
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
-const sqmSection = "owpanel"
+const sqmSection = "netgrip"
 
 // SQMConfig is the user-provided queue configuration. Rates in kbit/s.
 type SQMConfig struct {

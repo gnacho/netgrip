@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gnacho/owpanel/internal/server"
+	"github.com/gnacho/netgrip/internal/server"
 )
 
 var version = "dev"
@@ -18,6 +18,6 @@ func main() {
 	flag.Parse()
 
 	addr := fmt.Sprintf("%s:%d", *listen, *port)
-	log.Printf("owpanel %s listening on %s (rpcd: %s)", version, addr, *rpcdURL)
+	log.Printf("netgrip %s listening on %s (rpcd: %s)", version, addr, *rpcdURL)
 	log.Fatal(http.ListenAndServe(addr, server.New(*rpcdURL, version)))
 }

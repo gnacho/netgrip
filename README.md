@@ -1,4 +1,4 @@
-# owpanel
+# NetGrip
 
 <p align="center">
   <a href="README.md">English</a> |
@@ -6,15 +6,15 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/gnacho/owpanel/releases"><img alt="Release" src="https://img.shields.io/github/v/release/gnacho/owpanel"></a>
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/gnacho/owpanel"></a>
+  <a href="https://github.com/gnacho/netgrip/releases"><img alt="Release" src="https://img.shields.io/github/v/release/gnacho/netgrip"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/gnacho/netgrip"></a>
 </p>
 
 <p align="center">
-  <img alt="owpanel overview: system and WAN cards, a live traffic chart and the ethernet port panel, all in a dark theme" src="assets/hero-en.png" width="800">
+  <img alt="NetGrip overview: system and WAN cards, a live traffic chart and the ethernet port panel, all in a dark theme" src="assets/hero-en.png" width="800">
 </p>
 
-owpanel is a lightweight companion panel that runs on an OpenWrt router. It
+NetGrip is a lightweight companion panel that runs on an OpenWrt router. It
 sits next to LuCI, not instead of it: the dashboard plus service toggles
 (WireGuard, OpenVPN, DNS, QoS, guest and IoT Wi-Fi...) that deploy real
 configuration with a snapshot, a health check and an automatic rollback. It
@@ -29,7 +29,7 @@ section name, an interface and an option to edit. Vendor portals (GL.iNet's
 is the one I saw most) are the opposite, but they are closed single-page apps
 that only work on that vendor's firmware. I wanted something in between: the
 inspection and control of a real router, behind buttons a relative can
-press. So owpanel takes the service that LuCI already exposes through rpcd
+press. So NetGrip takes the service that LuCI already exposes through rpcd
 (the same session login and password as LuCI) and puts a switch in front of
 it. Turning a service on writes the config, waits, checks it came up, and
 undoes itself if it did not. That is mostly the whole idea. It has been
@@ -43,7 +43,7 @@ running on my home routers since I first built the two-file spike.
 - **Go embed for the frontend** - the React UI is compiled into the binary,
   so the package is one file and the router serves the app itself.
 - **rpcd session auth, no user database** - a router has one admin, not a
-  user table. owpanel validates the login against rpcd (the same session
+  user table. NetGrip validates the login against rpcd (the same session
   LuCI uses) and keeps a signed cookie. Nothing extra to administer.
 - **OpenWrt package, not a copy-paste script** - the CI builds `.apk` and
   `.ipk` with the OpenWrt SDK. Packages survive sysupgrade (owut/ASU keeps
@@ -77,7 +77,7 @@ running on my home routers since I first built the two-file spike.
   reserved IP and a block action.
 - **Firmware updates** - owut/ASU integration to rebuild the image with the
   packages already installed, so the panel survives a flash.
-- **LuCI entry** - an optional `luci-app-owpanel` package embeds the panel
+- **LuCI entry** - an optional `luci-app-netgrip` package embeds the panel
   under LuCI > Services.
 - **ES and EN UI** - the interface switches language in one click.
 
@@ -97,15 +97,15 @@ running on my home routers since I first built the two-file spike.
 
 ## Installation
 
-There are two ways to get owpanel on a router, depending on how comfortable
+There are two ways to get NetGrip on a router, depending on how comfortable
 you are with OpenWrt.
 
 **For a non-technical setup** the intended path is a firmware image that
-already includes owpanel (and its LuCI entry), flashed like any OpenWrt
+already includes NetGrip (and its LuCI entry), flashed like any OpenWrt
 image, so there is nothing to install. That image is not published yet: the
 plan and the work needed for a custom installed-packages feed (so ASU/owut
 rebuilds the image with the panel inside) is tracked in
-[issue #63](https://github.com/gnacho/owpanel/issues/63). Until that lands,
+[issue #63](https://github.com/gnacho/netgrip/issues/63). Until that lands,
 the panel uses the matching **OpenWrt 25.12/24.10 package**.
 
 **For an OpenWrt-savvy setup**, add the panel from the release as an `apk` or
@@ -115,7 +115,7 @@ OpenWrt 24.10 or 25.12. The panel listens on port 8080 and validates your
 login against rpcd.
 
 Download the right package for your router and its OpenWrt version from the
-[Releases](https://github.com/gnacho/owpanel/releases/latest) page. There are
+[Releases](https://github.com/gnacho/netgrip/releases/latest) page. There are
 two formats built from the OpenWrt SDK: `.apk` (OpenWrt 25.12 and later) and
 `.ipk` (OpenWrt 24.10).
 
@@ -123,18 +123,18 @@ two formats built from the OpenWrt SDK: `.apk` (OpenWrt 25.12 and later) and
 
 ```sh
 # Copy it to the router, then:
-apk add owpanel-0.12.0-r1.aarch64_cortex-a53.apk
-/etc/init.d/owpanel enable
-/etc/init.d/owpanel start
+apk add netgrip-0.12.0-r1.aarch64_cortex-a53.apk
+/etc/init.d/netgrip enable
+/etc/init.d/netgrip start
 ```
 
 ### OpenWrt 24.10 (ipk)
 
 ```sh
 # Copy it to the router, then:
-opkg install owpanel_0.12.0-1_aarch64_cortex-a53.ipk
-/etc/init.d/owpanel enable
-/etc/init.d/owpanel start
+opkg install netgrip_0.12.0-1_aarch64_cortex-a53.ipk
+/etc/init.d/netgrip enable
+/etc/init.d/netgrip start
 ```
 
 Open `http://<router-ip>:8080` and log in with the same username and password
@@ -143,27 +143,27 @@ you use for LuCI.
 <details>
 <summary><strong>Manual install (bare binary)</strong></summary>
 
-If you prefer not to use the OpenWrt package, download `owpanel-linux-arm64`
+If you prefer not to use the OpenWrt package, download `netgrip-linux-arm64`
 from the release and place it on the router. The package is still the
 recommended path: it survives sysupgrade, a bare binary does not.
 
 ```sh
 # Busybox dropbear has no scp; pipe the file instead:
-cat owpanel-linux-arm64 | ssh root@<router-ip> "cat > /usr/sbin/owpanel && chmod 755 /usr/sbin/owpanel"
-/usr/sbin/owpanel -listen 0.0.0.0 -port 8080
+cat netgrip-linux-arm64 | ssh root@<router-ip> "cat > /usr/sbin/netgrip && chmod 755 /usr/sbin/netgrip"
+/usr/sbin/netgrip -listen 0.0.0.0 -port 8080
 ```
 
 </details>
 
 The installer (postinst) enables and starts the service and adds the binary,
 the init script and the rc.d link to `/etc/sysupgrade.conf`, so the panel
-comes back after a firmware update. On 25.12 owpanel's own reinstall path also
+comes back after a firmware update. On 25.12 NetGrip's own reinstall path also
 uses owut to keep the package in the image (see the release notes).
 
-### luci-app-owpanel (optional)
+### luci-app-netgrip (optional)
 
-To embed the panel inside LuCI (Services > owpanel), install the matching
-`luci-app-owpanel` package the same way. The postinst restarts rpcd and
+To embed the panel inside LuCI (Services > NetGrip), install the matching
+`luci-app-netgrip` package the same way. The postinst restarts rpcd and
 clears the LuCI menu cache so the entry appears.
 
 ### Build from source
@@ -171,18 +171,18 @@ clears the LuCI menu cache so the entry appears.
 Requires Go 1.24+ and Node 22+:
 
 ```sh
-git clone https://github.com/gnacho/owpanel.git
-cd owpanel
+git clone https://github.com/gnacho/netgrip.git
+cd netgrip
 
 # Frontend is embedded into the binary at build time.
 cd app
 npm ci
 cd ..
 
-CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o owpanel ./cmd/owpanel
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o netgrip ./cmd/netgrip
 
 # Busybox dropbear has no scp; pipe the file to the router instead:
-cat owpanel | ssh root@<router-ip> "cat > /usr/sbin/owpanel && chmod 755 /usr/sbin/owpanel"
+cat netgrip | ssh root@<router-ip> "cat > /usr/sbin/netgrip && chmod 755 /usr/sbin/netgrip"
 ```
 
 ## Configuration
@@ -207,11 +207,11 @@ After a package install, the service runs from `procd`:
 
 ```sh
 # Status and logs
-/etc/init.d/owpanel status
-logread -e owpanel -f
+/etc/init.d/netgrip status
+logread -e netgrip -f
 
 # Restart
-/etc/init.d/owpanel restart
+/etc/init.d/netgrip restart
 ```
 
 Point a browser at `http://<router-ip>:8080`. The login validates against
@@ -233,11 +233,11 @@ Stack: **Go 1.24 (single static binary)** + **React 19 + TypeScript + Vite +
 Tailwind (embedded with go:embed)**. There is no external database.
 
 ```bash
-git clone https://github.com/gnacho/owpanel.git
-cd owpanel/app
+git clone https://github.com/gnacho/netgrip.git
+cd netgrip/app
 npm ci
 npm run dev      # frontend dev server (see vite.config.ts for the /api proxy)
-go build -o owpanel ./cmd/owpanel
+go build -o netgrip ./cmd/netgrip
 go test ./...
 ```
 

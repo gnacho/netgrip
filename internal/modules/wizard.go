@@ -13,7 +13,7 @@ type WizardState struct {
 
 func ProbeWizard() *WizardState {
 	completed := false
-	if out, err := exec.Command("uci", "-q", "get", "owpanel.wizard.completed").Output(); err == nil {
+	if out, err := exec.Command("uci", "-q", "get", "netgrip.wizard.completed").Output(); err == nil {
 		completed = strings.TrimSpace(string(out)) == "1"
 	}
 	mode := ProbeMode().Mode
@@ -21,24 +21,24 @@ func ProbeWizard() *WizardState {
 }
 
 func CompleteWizard() error {
-	if !uciSectionExists("owpanel.wizard") {
-		if !uciSectionExists("owpanel.main") {
-			cmd := exec.Command("uci", "import", "owpanel")
+	if !uciSectionExists("netgrip.wizard") {
+		if !uciSectionExists("netgrip.main") {
+			cmd := exec.Command("uci", "import", "netgrip")
 			cmd.Stdin = strings.NewReader("config panel 'main'\n\toption panel 'panel'\nconfig wizard 'wizard'\n\toption completed '0'\n")
 			if out, err := cmd.CombinedOutput(); err != nil {
-				return fmt.Errorf("init owpanel wizard config: %s", strings.TrimSpace(string(out)))
+				return fmt.Errorf("init netgrip wizard config: %s", strings.TrimSpace(string(out)))
 			}
 		} else {
-			cmd := exec.Command("uci", "import", "owpanel")
+			cmd := exec.Command("uci", "import", "netgrip")
 			cmd.Stdin = strings.NewReader("config wizard 'wizard'\n\toption completed '0'\n")
 			if out, err := cmd.CombinedOutput(); err != nil {
 				return fmt.Errorf("add wizard section: %s", strings.TrimSpace(string(out)))
 			}
 		}
 	}
-	out, err := exec.Command("uci", "set", "owpanel.wizard.completed=1").CombinedOutput()
+	out, err := exec.Command("uci", "set", "netgrip.wizard.completed=1").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("set wizard completed: %s", strings.TrimSpace(string(out)))
 	}
-	return exec.Command("uci", "commit", "owpanel").Run()
+	return exec.Command("uci", "commit", "netgrip").Run()
 }

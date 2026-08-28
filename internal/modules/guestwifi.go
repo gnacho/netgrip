@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnacho/owpanel/internal/executor"
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
 const (
-	guestSection  = "owpanel_guest"
-	guestZoneName = "owpanel_guest"
-	guestFwdName  = "owpanel_guest_wan"
+	guestSection  = "netgrip_guest"
+	guestZoneName = "netgrip_guest"
+	guestFwdName  = "netgrip_guest_wan"
 	guestSubnetIP = "192.168.9.1"
 	guestNetmask  = "255.255.255.0"
 )
@@ -151,7 +151,7 @@ func guestOps(cfg GuestConfig) ([]executor.Op, error) {
 			// Zone: clients may reach the router (DHCP/DNS) and the
 			// internet, but no forwarding to lan exists, so no LAN access.
 			set("firewall."+guestZoneName, "zone")
-			set("firewall."+guestZoneName+".name", "owpanel-guest")
+			set("firewall."+guestZoneName+".name", "netgrip-guest")
 			set("firewall."+guestZoneName+".input", "ACCEPT")
 			set("firewall."+guestZoneName+".output", "ACCEPT")
 			set("firewall."+guestZoneName+".forward", "REJECT")

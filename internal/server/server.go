@@ -10,16 +10,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gnacho/owpanel/internal/auth"
-	"github.com/gnacho/owpanel/internal/modules"
-	"github.com/gnacho/owpanel/internal/ubus"
+	"github.com/gnacho/netgrip/internal/auth"
+	"github.com/gnacho/netgrip/internal/modules"
+	"github.com/gnacho/netgrip/internal/ubus"
 )
 
 //go:embed all:dist
 var distFS embed.FS
 
 const (
-	sessionCookie = "owpanel_session"
+	sessionCookie = "netgrip_session"
 	sessionTTL    = 12 * time.Hour
 	leasesPath    = "/tmp/dhcp.leases"
 )

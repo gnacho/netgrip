@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnacho/owpanel/internal/executor"
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
 // TSProbe is the read-only Tailscale state.

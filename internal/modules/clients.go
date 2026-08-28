@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnacho/owpanel/internal/executor"
-	"github.com/gnacho/owpanel/internal/ubus"
+	"github.com/gnacho/netgrip/internal/executor"
+	"github.com/gnacho/netgrip/internal/ubus"
 )
 
 // Client is one network client in the clients table.
@@ -140,7 +140,7 @@ func gatewayAddr() string {
 }
 
 // gatewaySSH runs a read-only command on the gateway with the dedicated
-// owpanel_ro key (deployed to resolve names on dumb APs; write actions
+// netgrip_ro key (deployed to resolve names on dumb APs; write actions
 // stay local to the gateway itself). dropbear's ssh client needs -y to
 // accept the host key and does not support -o BatchMode/ConnectTimeout.
 func gatewaySSH(command string) (string, error) {
@@ -150,7 +150,7 @@ func gatewaySSH(command string) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "ssh", "-y", "-i", "/root/.ssh/owpanel_ro", "root@"+gw, command).Output()
+	out, err := exec.CommandContext(ctx, "ssh", "-y", "-i", "/root/.ssh/netgrip_ro", "root@"+gw, command).Output()
 	if err != nil {
 		return "", fmt.Errorf("gateway ssh: %w", err)
 	}
@@ -234,7 +234,7 @@ func blockedMACs() map[string]bool {
 }
 
 func hostSections() []string {
-	out, err := exec.Command("sh", "-c", "uci show dhcp | grep '=host' | cut -d. -f2 | cut -d= -f1 | grep '^owpanel_host_'").Output()
+	out, err := exec.Command("sh", "-c", "uci show dhcp | grep '=host' | cut -d. -f2 | cut -d= -f1 | grep '^netgrip_host_'").Output()
 	if err != nil {
 		return []string{}
 	}
@@ -259,7 +259,7 @@ func SetClientReservation(mac, ip string, reserved bool) (*[]Client, bool, error
 		_ = executor.Restore("dhcp", snap)
 		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"dnsmasq", "reload"}})
 	}
-	section := "owpanel_host_" + strings.ReplaceAll(mac, ":", "")
+	section := "netgrip_host_" + strings.ReplaceAll(mac, ":", "")
 	var ops []executor.Op
 	if reserved {
 		ops = append(ops,
@@ -356,13 +356,13 @@ func setCableBlocked(mac string, blocked bool) (*[]Client, bool, error) {
 		_ = executor.Restore("firewall", snap)
 		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"firewall", "reload"}})
 	}
-	section := "owpanel_block_" + strings.ReplaceAll(mac, ":", "")
+	section := "netgrip_block_" + strings.ReplaceAll(mac, ":", "")
 	base := "firewall." + section
 	var ops []executor.Op
 	if blocked {
 		ops = append(ops,
 			executor.Op{Kind: "uci_set", Args: []string{base, "rule"}},
-			executor.Op{Kind: "uci_set", Args: []string{base + ".name", "owpanel-block-" + mac}},
+			executor.Op{Kind: "uci_set", Args: []string{base + ".name", "netgrip-block-" + mac}},
 			executor.Op{Kind: "uci_set", Args: []string{base + ".src", "lan"}},
 			executor.Op{Kind: "uci_set", Args: []string{base + ".src_mac", mac}},
 			executor.Op{Kind: "uci_set", Args: []string{base + ".target", "REJECT"}},
