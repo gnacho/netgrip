@@ -427,4 +427,34 @@ export const api = {
     }),
   dpi: () =>
     request<import("./types").DPIProbe>("/api/dpi"),
+  fleet: () =>
+    request<{ nodes: import("./types").FleetNodeStatus[] }>("/api/fleet"),
+  addFleetNode: (node: { id: string; name: string; address: string; password: string }) =>
+    request<{ status: string }>("/api/fleet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(node),
+    }),
+  deleteFleetNode: (id: string) =>
+    request<{ status: string }>("/api/fleet", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }),
+  checkFleetNode: (id: string) =>
+    request<import("./types").FleetNodeStatus>("/api/fleet/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }),
+  checkAllFleet: () =>
+    request<{ nodes: import("./types").FleetNodeStatus[] }>("/api/fleet/check-all", {
+      method: "POST",
+    }),
+  updateFleetNode: (id: string) =>
+    request<{ status: string }>("/api/fleet/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }),
 };

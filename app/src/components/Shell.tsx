@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftRight, Blocks, Download, LayoutDashboard, LogOut, Network, RefreshCw, Wifi, Wrench } from "lucide-react";
+import { ArrowLeftRight, Blocks, Download, LayoutDashboard, LogOut, Network, RefreshCw, Server, Wifi, Wrench } from "lucide-react";
 import { api } from "../api";
 import type { Board, DawnAP, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, ModeProbe, OVPNProbe, PkgUpgrade, SelfUpdateCheck, SQMProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe } from "../types";
 import { Overview } from "../pages/Overview";
@@ -11,8 +11,9 @@ import { Ports } from "../pages/Ports";
 import { System } from "../pages/System";
 import { LanPage } from "../pages/Lan";
 import { ToolsPage } from "../pages/Tools";
+import { FleetPage } from "../pages/Fleet";
 
-type Page = "overview" | "wifi" | "lan" | "services" | "ports" | "tools" | "system";
+type Page = "overview" | "wifi" | "lan" | "services" | "ports" | "tools" | "fleet" | "system";
 
 const NAV: { id: Page; icon: LucideIcon; key: string }[] = [
   { id: "overview", icon: LayoutDashboard, key: "nav.overview" },
@@ -21,6 +22,7 @@ const NAV: { id: Page; icon: LucideIcon; key: string }[] = [
   { id: "services", icon: Blocks, key: "nav.services" },
   { id: "ports", icon: ArrowLeftRight, key: "nav.ports" },
   { id: "tools", icon: RefreshCw, key: "nav.tools" },
+  { id: "fleet", icon: Server, key: "nav.fleet" },
   { id: "system", icon: Wrench, key: "nav.system" },
 ];
 
@@ -143,6 +145,9 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
       )}
       {activePage === "tools" && (
         <ToolsPage ethports={ethports ?? []} />
+      )}
+      {activePage === "fleet" && (
+        <FleetPage />
       )}
       {activePage === "system" && (
         <System board={board} update={update} onUpdateChange={setUpdate} packages={packages} onPackagesChange={setPackages} onLogout={onLogout} />

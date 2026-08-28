@@ -614,3 +614,14 @@ export interface DPIProbe {
   total_flows: number;
   protocols: DPIProtocol[];
 }
+
+export interface FleetNodeStatus {
+  id: string;
+  name: string;
+  address: string;
+  reachable: boolean;
+  current_version: string;
+  latest_version: string;
+  update_available: boolean;
+  error?: string;
+}
