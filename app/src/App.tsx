@@ -1,26 +1,49 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
 import { Login } from "./pages/Login";
 import { Shell } from "./components/Shell";
+import { Wizard } from "./pages/Wizard";
 
 export default function App() {
   const [authed, setAuthed] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [wizardDone, setWizardDone] = useState(true);
 
-  // Session tokens are HMAC-signed and survive service restarts: a page
-  // refresh only needs to ask whether the cookie is still valid.
-  useEffect(() => {
-    api.me()
-      .then(() => setAuthed(true))
-      .catch(() => {})
-      .finally(() => setChecking(false));
+  const checkSession = useCallback(async () => {
+    try {
+      await api.me();
+      setAuthed(true);
+      try {
+        const ws = await api.wizardState();
+        setWizardDone(ws.completed);
+      } catch {
+        setWizardDone(true);
+      }
+    } catch {
+      // not authed
+    } finally {
+      setChecking(false);
+    }
   }, []);
+
+  useEffect(() => { checkSession(); }, [checkSession]);
 
   if (checking) {
     return <main className="min-h-screen" />;
   }
   if (!authed) {
-    return <Login onSuccess={() => setAuthed(true)} />;
+    return <Login onSuccess={async () => {
+      setAuthed(true);
+      try {
+        const ws = await api.wizardState();
+        setWizardDone(ws.completed);
+      } catch {
+        setWizardDone(true);
+      }
+    }} />;
+  }
+  if (!wizardDone) {
+    return <Wizard onDone={() => setWizardDone(true)} />;
   }
   return (
     <Shell

@@ -293,4 +293,8 @@ export const api = {
     }),
   selfUpdateStatus: () =>
     request<import("./types").SelfUpdateStatus>("/api/selfupdate/status"),
+  wizardState: () =>
+    request<import("./types").WizardState>("/api/wizard"),
+  wizardComplete: () =>
+    request<{ status: string }>("/api/wizard/complete", { method: "POST" }),
 };
