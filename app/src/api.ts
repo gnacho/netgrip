@@ -349,4 +349,18 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg),
     }),
+  firewall: () =>
+    request<import("./types").FirewallProbe>("/api/firewall"),
+  addFirewallRule: (rule: import("./types").FirewallRuleAdd) =>
+    request<import("./types").ModuleResult<import("./types").FirewallProbe>>("/api/firewall", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rule),
+    }),
+  deleteFirewallRule: (section: string) =>
+    request<import("./types").ModuleResult<import("./types").FirewallProbe>>("/api/firewall", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ section }),
+    }),
 };
