@@ -124,6 +124,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/templates", s.requireAuth(s.handleTemplatesApply))
 	s.mux.HandleFunc("GET /api/switch", s.requireAuth(s.handleSwitchGet))
 	s.mux.HandleFunc("POST /api/switch", s.requireAuth(s.handleSwitchSet))
+	s.mux.HandleFunc("GET /api/port-stats", s.requireAuth(s.handlePortStatsGet))
 	s.mux.HandleFunc("GET /api/history", s.requireAuth(s.handleHistoryGet))
 	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
@@ -1289,4 +1290,8 @@ func (s *Server) handleSwitchSet(w http.ResponseWriter, r *http.Request) {
 	}
 	probe, rolledBack, err := modules.SetSwitchPort(edit)
 	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handlePortStatsGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbePortStats())
 }

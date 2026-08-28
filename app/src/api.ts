@@ -379,4 +379,6 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(edit),
     }),
+  portStats: () =>
+    request<import("./types").PortStatsProbe>("/api/port-stats"),
 };

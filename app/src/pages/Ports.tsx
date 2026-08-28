@@ -2,6 +2,7 @@ import type { FwdProbe } from "../types";
 import { PortForwardCard } from "../components/PortForwardCard";
 import { VLANTable } from "../components/VLANTable";
 import { SwitchCard } from "../components/SwitchCard";
+import { PortStatsCard } from "../components/PortStatsCard";
 
 export function Ports({ fwd, onFwdChange }: {
   fwd: FwdProbe | undefined;
@@ -11,6 +12,7 @@ export function Ports({ fwd, onFwdChange }: {
     <div className="grid gap-4">
       <PortForwardCard probe={fwd} onChange={onFwdChange} />
       <SwitchCard />
+      <PortStatsCard />
       <VLANTable />
     </div>
   );
