@@ -1,12 +1,16 @@
 package modules
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
+
+const stormConfPath = "/etc/netgrip/storm.conf"
 
 type StormPort struct {
 	Port             string `json:"port"`
@@ -118,6 +122,7 @@ func SetStormControl(req StormSetRequest) error {
 	exec.Command("tc", "qdisc", "del", "dev", req.Port, "ingress").Run()
 
 	if req.Percent == 0 {
+		removeStormConfig(req.Port)
 		return nil
 	}
 
@@ -139,5 +144,51 @@ func SetStormControl(req StormSetRequest) error {
 		"police", "rate", bcRate, "burst", "32k",
 		"exceed", "drop").Run()
 
+	saveStormConfig(req.Port, req.Percent)
+
 	return nil
+}
+
+func loadStormConfigs() map[string]int {
+	configs := make(map[string]int)
+	f, err := os.Open(stormConfPath)
+	if err != nil {
+		return configs
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			port := strings.TrimSpace(parts[0])
+			pct, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+			if err == nil && pct > 0 {
+				configs[port] = pct
+			}
+		}
+	}
+	return configs
+}
+
+func saveStormConfig(port string, percent int) {
+	configs := loadStormConfigs()
+	configs[port] = percent
+	writeStormConfigs(configs)
+}
+
+func removeStormConfig(port string) {
+	configs := loadStormConfigs()
+	delete(configs, port)
+	writeStormConfigs(configs)
+}
+
+func writeStormConfigs(configs map[string]int) {
+	os.MkdirAll(filepath.Dir(stormConfPath), 0755)
+	var lines []string
+	for port, pct := range configs {
+		lines = append(lines, fmt.Sprintf("%s=%d", port, pct))
+	}
+	os.WriteFile(stormConfPath, []byte(strings.Join(lines, "\n")+"\n"), 0600)
 }

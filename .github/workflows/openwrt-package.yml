@@ -107,6 +107,14 @@ jobs:
         run: |
           echo "Packages generated:"
           ls -la dist/packages/
+          # Rename APK to include arch to avoid clobber between arm64 and amd64
+          for apk in dist/packages/*.apk; do
+            [ -f "$apk" ] || continue
+            base="$(basename "$apk" .apk)"
+            newname="${base}-${{ matrix.arch }}.apk"
+            mv "$apk" "dist/packages/$newname"
+            echo "Renamed: $newname"
+          done
           gh release upload "$TAG" dist/packages/*.${{ matrix.format }} --clobber
           # Binary artifact for manual deploys; the OpenWrt package is
           # still the recommended install path because it survives sysupgrade.
