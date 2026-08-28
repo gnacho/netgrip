@@ -22,7 +22,7 @@ function fmtMB(bytes: number): string {
   return `${Math.round(bytes / 1048576)} MB`;
 }
 
-export function Overview({ board, system, wan, ethports, dawnAps, dawnError, drift, onDriftChange }: {
+export function Overview({ board, system, wan, ethports, dawnAps, dawnError, drift, onDriftChange, isSwitch }: {
   board: Board | undefined;
   system: SystemInfo | undefined;
   wan: WanStatus | undefined;
@@ -31,6 +31,7 @@ export function Overview({ board, system, wan, ethports, dawnAps, dawnError, dri
   dawnError: boolean;
   drift: DriftProbe | undefined;
   onDriftChange: (d: DriftProbe) => void;
+  isSwitch: boolean;
 }) {
   const { t } = useTranslation();
   const ramUsed = system ? system.memory.total - system.memory.available : 0;
@@ -47,18 +48,20 @@ export function Overview({ board, system, wan, ethports, dawnAps, dawnError, dri
         <Row label={t("system.flash")} value={system && `${fmtMB(system.root.free * 1024)} ${t("system.free")}`} />
       </Card>
 
-      <Card title={t("wan.title")} icon={Globe}>
-        {!wan?.present ? (
-          <p className="text-sm text-muted">{t("wan.absent")}</p>
-        ) : (
-          <>
-            <Row label={t("wan.title")} value={<Pill tone={wan.up ? "ok" : "danger"}>{wan.up ? t("wan.up") : t("wan.down")}</Pill>} />
-            <Row label={t("wan.ip")} value={wan.ipv4.join(", ")} />
-            <Row label={t("wan.gateway")} value={wan.gateway} />
-            <Row label={t("wan.dns")} value={wan.dns.join(", ")} />
-          </>
-        )}
-      </Card>
+      {!isSwitch && (
+        <Card title={t("wan.title")} icon={Globe}>
+          {!wan?.present ? (
+            <p className="text-sm text-muted">{t("wan.absent")}</p>
+          ) : (
+            <>
+              <Row label={t("wan.title")} value={<Pill tone={wan.up ? "ok" : "danger"}>{wan.up ? t("wan.up") : t("wan.down")}</Pill>} />
+              <Row label={t("wan.ip")} value={wan.ipv4.join(", ")} />
+              <Row label={t("wan.gateway")} value={wan.gateway} />
+              <Row label={t("wan.dns")} value={wan.dns.join(", ")} />
+            </>
+          )}
+        </Card>
+      )}
 
       <DriftCard drift={drift} onChange={onDriftChange} />
 
@@ -70,9 +73,11 @@ export function Overview({ board, system, wan, ethports, dawnAps, dawnError, dri
         <EthPortsCard ports={ethports} />
       </div>
 
-      <div className="sm:col-span-2 xl:col-span-4">
-        <DawnCard aps={dawnAps} error={dawnError} />
-      </div>
+      {!isSwitch && (
+        <div className="sm:col-span-2 xl:col-span-4">
+          <DawnCard aps={dawnAps} error={dawnError} />
+        </div>
+      )}
 
       <div className="sm:col-span-2 xl:col-span-4">
         <ClientsCard />

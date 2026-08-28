@@ -30,7 +30,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const [board, setBoard] = useState<Board>();
   const [system, setSystem] = useState<SystemInfo>();
   const [wan, setWan] = useState<WanStatus>();
-  const [mode, setMode] = useState<ModeProbe["mode"]>();
+  const [mode, setMode] = useState<ModeProbe>();
   const [ipv6, setIpv6] = useState<IPv6Probe>();
   const [update, setUpdate] = useState<UpdateCheck>();
   const [wg, setWg] = useState<WGProbe>();
@@ -66,7 +66,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   // Slow checks (owut hits the ASU server): load in the background.
   useEffect(() => {
     api.updateCheck().then(setUpdate).catch(() => {});
-    api.mode().then((r) => setMode(r.mode)).catch(() => {});
+    api.mode().then(setMode).catch(() => {});
     api.wireguard().then(setWg).catch(() => {});
     api.ddns().then(setDdns).catch(() => {});
     api.sqm().then(setSqm).catch(() => {});
@@ -84,8 +84,14 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
 
   // In AP mode the router is not the gateway: hide pages that only apply to
   // the gateway (LAN config with dnsmasq, port forwarding).
-  const apMode = mode === "ap";
-  const navItems = apMode ? NAV.filter((n) => n.id !== "lan" && n.id !== "ports") : NAV;
+  // On switches (no WiFi, many ports): hide WiFi and services pages.
+  const isSwitch = mode?.hardware_class === "switch";
+  const apMode = mode?.mode === "ap" && !isSwitch;
+  const navItems = NAV.filter((n) => {
+    if (isSwitch && (n.id === "wifi" || n.id === "services")) return false;
+    if (apMode && (n.id === "lan" || n.id === "ports")) return false;
+    return true;
+  });
   const activePage = navItems.some((n) => n.id === page) ? page : "overview";
 
   const header = (
@@ -121,7 +127,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     <>
       {loadError && <p className="text-danger text-sm mb-3">{t("error.load")}</p>}
       {activePage === "overview" && (
-        <Overview board={board} system={system} wan={wan} ethports={ethports} dawnAps={dawnAps} dawnError={dawnError} drift={drift} onDriftChange={setDrift} />
+        <Overview board={board} system={system} wan={wan} ethports={ethports} dawnAps={dawnAps} dawnError={dawnError} drift={drift} onDriftChange={setDrift} isSwitch={isSwitch} />
       )}
       {activePage === "wifi" && (
         <WifiPage iot={iot} onIotChange={setIot} guest={guest} onGuestChange={setGuest} />

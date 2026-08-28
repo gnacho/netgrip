@@ -279,6 +279,8 @@ export default {
     confirmAp: "Switch to AP mode and reconfigure the network. Continue?",
     changed: "Mode applied",
     reverted: "The change was reverted on failure",
+    switch: "Switch",
+    switchInfo: "{{ports}}-port managed switch",
   },
   access: {
     title: "Access",

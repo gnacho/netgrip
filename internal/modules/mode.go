@@ -11,21 +11,26 @@ import (
 // ModeProbe reports whether the router is a gateway/router or an access
 // point, using the real state: a WAN interface inside the LAN bridge
 // (dnsmasq and firewall off) is an AP reconverting the WAN into a LAN
-// port.
+// port. Hardware class detects switches (no WiFi, many ports).
 type ModeProbe struct {
 	Mode          string `json:"mode"` // router | ap
+	HardwareClass string `json:"hardware_class"` // router | ap | switch
 	WanInBridge   bool   `json:"wan_in_bridge"`
 	WanConfigured bool   `json:"wan_configured"`
 	DnsmasqOn     bool   `json:"dnsmasq_on"`
 	FirewallOn    bool   `json:"firewall_on"`
+	HasWifi       bool   `json:"has_wifi"`
+	PortCount     int    `json:"port_count"`
 }
 
-// ProbeMode detects the router mode.
+// ProbeMode detects the router mode and hardware class.
 func ProbeMode() *ModeProbe {
 	p := &ModeProbe{
 		WanConfigured: uciSectionExists("network.wan"),
 		DnsmasqOn:     executor.ServiceEnabled("dnsmasq"),
 		FirewallOn:    executor.ServiceEnabled("firewall"),
+		HasWifi:       hasWifiRadios(),
+		PortCount:     len(bridgePortList()),
 	}
 	out, err := exec.Command("ip", "-o", "link", "show", "wan").Output()
 	if err == nil && strings.Contains(string(out), "master br-lan") {
@@ -39,7 +44,22 @@ func ProbeMode() *ModeProbe {
 	default:
 		p.Mode = "ap"
 	}
+
+	switch {
+	case !p.HasWifi && p.PortCount > 4:
+		p.HardwareClass = "switch"
+	default:
+		p.HardwareClass = p.Mode
+	}
 	return p
+}
+
+func hasWifiRadios() bool {
+	out, err := exec.Command("ls", "/sys/class/ieee80211/").Output()
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(out)) != ""
 }
 
 // SetMode converts the router between Router (gateway) and AP modes. This is
