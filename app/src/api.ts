@@ -297,4 +297,6 @@ export const api = {
     request<import("./types").WizardState>("/api/wizard"),
   wizardComplete: () =>
     request<{ status: string }>("/api/wizard/complete", { method: "POST" }),
+  drift: () =>
+    request<import("./types").DriftProbe>("/api/drift"),
 };

@@ -30,6 +30,24 @@ type ConfigDiff struct {
 	After  string `json:"after"`
 }
 
+type DriftLine struct {
+	Kind string `json:"kind"` // added | removed
+	Text string `json:"text"`
+}
+
+type DriftConfig struct {
+	Config string      `json:"config"`
+	Lines  []DriftLine `json:"lines"`
+}
+
+type DriftProbe struct {
+	HasBaseline bool          `json:"has_baseline"`
+	SnapshotID  string        `json:"snapshot_id"`
+	SnapshotTS  int64         `json:"snapshot_ts"`
+	Changes     int           `json:"changes"`
+	Configs     []DriftConfig `json:"configs"`
+}
+
 func ListSnapshots() []ConfigSnapshot {
 	entries, err := os.ReadDir(snapshotDir)
 	if err != nil {
@@ -272,4 +290,68 @@ func SetIGMP(enabled bool) (*IGMPProbe, error) {
 
 func init() {
 	os.MkdirAll(snapshotDir, 0755)
+}
+
+func ProbeDrift() *DriftProbe {
+	snaps := ListSnapshots()
+	if len(snaps) == 0 {
+		return &DriftProbe{HasBaseline: false}
+	}
+	latest := snaps[0]
+	dir := filepath.Join(snapshotDir, latest.ID)
+	var changed []DriftConfig
+	for _, cfg := range uciConfigs {
+		baseContent, err := os.ReadFile(filepath.Join(dir, cfg+".uci"))
+		if err != nil {
+			continue
+		}
+		current, err := executor.Snapshot(cfg)
+		if err != nil {
+			continue
+		}
+		lines := diffLines(string(baseContent), current)
+		if len(lines) > 0 {
+			changed = append(changed, DriftConfig{Config: cfg, Lines: lines})
+		}
+	}
+	return &DriftProbe{
+		HasBaseline: true,
+		SnapshotID:  latest.ID,
+		SnapshotTS:  latest.Timestamp,
+		Changes:     len(changed),
+		Configs:     changed,
+	}
+}
+
+func diffLines(before, after string) []DriftLine {
+	beforeSet := map[string]bool{}
+	afterSet := map[string]bool{}
+	for _, l := range strings.Split(strings.TrimSpace(before), "\n") {
+		if l != "" {
+			beforeSet[l] = true
+		}
+	}
+	for _, l := range strings.Split(strings.TrimSpace(after), "\n") {
+		if l != "" {
+			afterSet[l] = true
+		}
+	}
+	var lines []DriftLine
+	for l := range afterSet {
+		if !beforeSet[l] {
+			lines = append(lines, DriftLine{Kind: "added", Text: l})
+		}
+	}
+	for l := range beforeSet {
+		if !afterSet[l] {
+			lines = append(lines, DriftLine{Kind: "removed", Text: l})
+		}
+	}
+	sort.Slice(lines, func(i, j int) bool {
+		if lines[i].Kind != lines[j].Kind {
+			return lines[i].Kind < lines[j].Kind
+		}
+		return lines[i].Text < lines[j].Text
+	})
+	return lines
 }

@@ -439,6 +439,17 @@ export default {
     restarting: "Restarting...",
     error: "Update failed: {{msg}}",
   },
+  drift: {
+    title: "Config drift",
+    noBaseline: "No baseline snapshot yet. Create one to detect future changes.",
+    takeBaseline: "Take baseline snapshot",
+    taking: "Taking...",
+    clean: "No changes since baseline",
+    sinceDate: "since {{date}}",
+    changesCount: "{{count}} config changed",
+    changesCount_other: "{{count}} configs changed",
+    updateBaseline: "Update baseline",
+  },
   wizard: {
     title: "Welcome to NetGrip",
     intro: "Let's set up the essentials of your router in a few steps. You can skip any step and come back later from the panel.",
