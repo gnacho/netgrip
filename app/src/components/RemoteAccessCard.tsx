@@ -34,33 +34,28 @@ export function RemoteAccessCard() {
     { key: "remote_ssh", label: t("remote.ssh"), hint: t("remote.sshHint") },
   ];
 
+  if (!probe || !probe.applicable) return null;
   return (
     <Card title={t("remote.title")} icon={Globe}>
-      {!probe ? (
-        <p className="text-sm text-muted">…</p>
-      ) : !probe.applicable ? (
-        <p className="text-sm text-warn">{t("remote.notApplicable")}</p>
-      ) : (
-        <div className="flex flex-col gap-3 text-sm">
-          <p className="text-xs text-muted">{t("remote.intro")}</p>
-          {items.map((item) => (
-            <div key={item.key} className="flex items-center justify-between gap-2">
-              <div className="flex-1">
-                <div>{item.label}</div>
-                <div className="text-xs text-muted">{item.hint}</div>
-              </div>
-              <input
-                type="checkbox" checked={probe[item.key]}
-                disabled={busy === item.key}
-                onChange={(e) => toggle(item.key, e.target.checked)}
-                className="accent-accent"
-              />
+      <div className="flex flex-col gap-3 text-sm">
+        <p className="text-xs text-muted">{t("remote.intro")}</p>
+        {items.map((item) => (
+          <div key={item.key} className="flex items-center justify-between gap-2">
+            <div className="flex-1">
+              <div>{item.label}</div>
+              <div className="text-xs text-muted">{item.hint}</div>
             </div>
-          ))}
-          <p className="text-xs text-danger">{t("remote.warn")}</p>
-          {msg && <p className={`text-xs ${msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
-        </div>
-      )}
+            <input
+              type="checkbox" checked={probe[item.key]}
+              disabled={busy === item.key}
+              onChange={(e) => toggle(item.key, e.target.checked)}
+              className="accent-accent"
+            />
+          </div>
+        ))}
+        <p className="text-xs text-danger">{t("remote.warn")}</p>
+        {msg && <p className={`text-xs ${msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
+      </div>
     </Card>
   );
 }

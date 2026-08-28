@@ -50,13 +50,7 @@ export function LanPage() {
     }
   };
 
-  if (cfg && !cfg.applicable) {
-    return (
-      <Card title={t("lan.title")} icon={Info}>
-        <p className="text-sm text-warn">{t("lan.notApplicable")}</p>
-      </Card>
-    );
-  }
+  if (cfg && !cfg.applicable) return null;
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">

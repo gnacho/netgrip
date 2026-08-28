@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import { ArrowLeftRight, Blocks, LayoutDashboard, LogOut, Network, RefreshCw, Wifi, Wrench } from "lucide-react";
 import { api } from "../api";
-import type { Board, DawnAP, DDNSProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, OVPNProbe, PkgUpgrade, SQMProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe } from "../types";
+import type { Board, DawnAP, DDNSProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, ModeProbe, OVPNProbe, PkgUpgrade, SQMProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe } from "../types";
 import { Overview } from "../pages/Overview";
 import { WifiPage } from "../pages/Wifi";
 import { Services } from "../pages/Services";
@@ -28,6 +28,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const [board, setBoard] = useState<Board>();
   const [system, setSystem] = useState<SystemInfo>();
   const [wan, setWan] = useState<WanStatus>();
+  const [mode, setMode] = useState<ModeProbe["mode"]>();
   const [ipv6, setIpv6] = useState<IPv6Probe>();
   const [update, setUpdate] = useState<UpdateCheck>();
   const [wg, setWg] = useState<WGProbe>();
@@ -61,6 +62,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   // Slow checks (owut hits the ASU server): load in the background.
   useEffect(() => {
     api.updateCheck().then(setUpdate).catch(() => {});
+    api.mode().then((r) => setMode(r.mode)).catch(() => {});
     api.wireguard().then(setWg).catch(() => {});
     api.ddns().then(setDdns).catch(() => {});
     api.sqm().then(setSqm).catch(() => {});
@@ -73,6 +75,12 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     api.dawn().then((r) => { setDawnAps(r.aps); setDawnError(false); }).catch(() => setDawnError(true));
     api.packages().then((r) => setPackages(r.upgradable)).catch(() => {});
   }, []);
+
+  // In AP mode the router is not the gateway: hide pages that only apply to
+  // the gateway (LAN config with dnsmasq, port forwarding).
+  const apMode = mode === "ap";
+  const navItems = apMode ? NAV.filter((n) => n.id !== "lan" && n.id !== "ports") : NAV;
+  const activePage = navItems.some((n) => n.id === page) ? page : "overview";
 
   const header = (
     <header className="flex items-center gap-3 mb-4">
@@ -98,22 +106,22 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const pageContent = (
     <>
       {loadError && <p className="text-danger text-sm mb-3">{t("error.load")}</p>}
-      {page === "overview" && (
+      {activePage === "overview" && (
         <Overview board={board} system={system} wan={wan} ethports={ethports} dawnAps={dawnAps} dawnError={dawnError} />
       )}
-      {page === "wifi" && (
+      {activePage === "wifi" && (
         <WifiPage iot={iot} onIotChange={setIot} guest={guest} onGuestChange={setGuest} />
       )}
-      {page === "lan" && (
+      {activePage === "lan" && (
         <LanPage />
       )}
-      {page === "services" && (
+      {activePage === "services" && (
         <Services wg={wg} onWgChange={setWg} ipv6={ipv6} onIpv6Change={setIpv6} ddns={ddns} onDdnsChange={setDdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} ts={ts} onTsChange={setTs} />
       )}
-      {page === "ports" && (
+      {activePage === "ports" && (
         <Ports fwd={fwd} onFwdChange={setFwd} />
       )}
-      {page === "system" && (
+      {activePage === "system" && (
         <System board={board} update={update} onUpdateChange={setUpdate} packages={packages} onPackagesChange={setPackages} onLogout={onLogout} />
       )}
     </>
@@ -125,12 +133,12 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
         {/* Sidebar (desktop) */}
         <nav className="hidden md:flex md:flex-col md:w-44 md:shrink-0 border-r border-border p-3 gap-1">
           <p className="text-sm font-semibold px-2 py-2 mb-1">{t("app.name")}</p>
-          {NAV.map((item) => (
+          {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setPage(item.id)}
               className={`flex items-center gap-2 px-2 py-2 rounded-lg text-sm text-left transition-colors
-                ${page === item.id ? "bg-accent/15 text-accent font-medium" : "text-muted hover:text-text hover:bg-card"}`}
+                ${activePage === item.id ? "bg-accent/15 text-accent font-medium" : "text-muted hover:text-text hover:bg-card"}`}
             >
               <item.icon size={16} />
               {t(item.key)}
@@ -147,12 +155,12 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
 
       {/* Bottom nav (mobile) */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-card border-t border-border flex z-10">
-        {NAV.map((item) => (
+        {navItems.map((item) => (
           <button
             key={item.id}
             onClick={() => setPage(item.id)}
             className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-xs
-              ${page === item.id ? "text-accent" : "text-muted"}`}
+              ${activePage === item.id ? "text-accent" : "text-muted"}`}
           >
             <item.icon size={18} />
             {t(item.key)}

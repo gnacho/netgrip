@@ -43,13 +43,11 @@ export function GuestWifiCard({ probe, onChange }: {
 
   const canEnable = ssid.trim() !== "" && key.length >= 8;
 
+  if (!probe || !probe.gateway) return null;
   return (
     <Card title={t("guest.title")} icon={UserX}>
-      {!probe?.gateway ? (
-        <p className="text-sm text-muted">{t("guest.noGateway")}</p>
-      ) : (
-        <>
-          <div className="flex items-center justify-between mb-2">
+      <>
+        <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <span className="text-sm">{t("guest.toggle")}</span>
               {probe && (
@@ -92,8 +90,7 @@ export function GuestWifiCard({ probe, onChange }: {
               <p className="text-xs text-muted">{t("guest.scope")}</p>
             </div>
           )}
-        </>
-      )}
+      </>
       {msg && <p className={`text-xs mt-2 ${msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
     </Card>
   );

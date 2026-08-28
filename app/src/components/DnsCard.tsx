@@ -31,13 +31,7 @@ export function DnsCard() {
   const toggle = (key: "rebind_protection" | "override_dns" | "dns_vpn", value: boolean) =>
     run(() => api.setDns({ [key]: value }), t("access.saved"));
 
-  if (cfg && !cfg.applicable) {
-    return (
-      <Card title={t("dns.title")} icon={Server}>
-        <p className="text-sm text-warn">{t("lan.notApplicable")}</p>
-      </Card>
-    );
-  }
+  if (cfg && !cfg.applicable) return null;
 
   const items: { key: "rebind_protection" | "override_dns" | "dns_vpn"; label: string }[] = [
     { key: "rebind_protection", label: t("dns.rebind") },

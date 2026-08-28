@@ -42,12 +42,10 @@ export function PortForwardCard({ probe, onChange }: {
 
   const applicable = probe?.has_wan && probe?.firewall;
 
+  if (!probe || !applicable) return null;
   return (
     <Card title={t("fwd.title")} icon={ArrowLeftRight}>
-      {!applicable ? (
-        <p className="text-sm text-muted">{t("fwd.noWan")}</p>
-      ) : (
-        <>
+      <>
           {probe.rules.length === 0 && <p className="text-xs text-muted mb-2">{t("fwd.empty")}</p>}
           {probe.rules.map((r) => (
             <div key={r.section} className="flex items-center gap-2 py-1 border-b border-border/50 last:border-0 text-sm">
@@ -87,8 +85,7 @@ export function PortForwardCard({ probe, onChange }: {
               </button>
             </div>
           </form>
-        </>
-      )}
+      </>
       {msg && <p className={`text-xs mt-2 ${msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
     </Card>
   );

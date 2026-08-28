@@ -35,9 +35,13 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
         {main.length === 0 && <p className="text-sm text-muted">…</p>}
       </div>
 
-      <SectionTitle title={t("wifi.sectionGuest")} />
-      <AddBanner text={t("guest.banner")} onAdd={() => {}} />
-      <GuestWifiCard probe={guest} onChange={onGuestChange} />
+      {guest?.gateway && (
+        <>
+          <SectionTitle title={t("wifi.sectionGuest")} />
+          <AddBanner text={t("guest.banner")} onAdd={() => {}} />
+          <GuestWifiCard probe={guest} onChange={onGuestChange} />
+        </>
+      )}
 
       <SectionTitle title={t("wifi.sectionIot")} />
       <AddBanner text={t("iot.banner")} onAdd={() => {}} />
