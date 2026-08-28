@@ -371,4 +371,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, confirm }),
     }),
+  switchPorts: () =>
+    request<import("./types").SwitchProbe>("/api/switch"),
+  setSwitchPort: (edit: import("./types").SwitchPortEdit) =>
+    request<import("./types").ModuleResult<import("./types").SwitchProbe>>("/api/switch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(edit),
+    }),
 };

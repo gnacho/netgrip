@@ -122,6 +122,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("DELETE /api/firewall", s.requireAuth(s.handleFirewallDelRule))
 	s.mux.HandleFunc("GET /api/templates", s.requireAuth(s.handleTemplatesGet))
 	s.mux.HandleFunc("POST /api/templates", s.requireAuth(s.handleTemplatesApply))
+	s.mux.HandleFunc("GET /api/switch", s.requireAuth(s.handleSwitchGet))
+	s.mux.HandleFunc("POST /api/switch", s.requireAuth(s.handleSwitchSet))
 	s.mux.HandleFunc("GET /api/history", s.requireAuth(s.handleHistoryGet))
 	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
@@ -1273,4 +1275,18 @@ func (s *Server) handleTemplatesApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "applied"})
+}
+
+func (s *Server) handleSwitchGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeSwitchPorts())
+}
+
+func (s *Server) handleSwitchSet(w http.ResponseWriter, r *http.Request) {
+	var edit modules.SwitchPortEdit
+	if err := json.NewDecoder(r.Body).Decode(&edit); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetSwitchPort(edit)
+	writeModuleResult(w, probe, rolledBack, err)
 }
