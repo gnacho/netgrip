@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Camera, Cable, GitCompareArrows, RefreshCw, ShieldCheck, Ban, Undo2, Download } from "lucide-react";
+import { Camera, Cable, GitCompareArrows, RefreshCw, ShieldCheck, Ban, Undo2, Download, Stethoscope, ShieldAlert } from "lucide-react";
 import { api } from "../api";
 import { Card, Pill } from "../components/Card";
-import type { ConfigSnapshot, ConfigDiff, EthPort, IGMPProbe, LoopResult } from "../types";
+import type { ConfigSnapshot, ConfigDiff, EthPort, IGMPProbe, LoopResult, CableTestProbe, StormProbe } from "../types";
 import { TemplatesCard } from "../components/TemplatesCard";
 
 export function ToolsPage({ ethports }: { ethports: EthPort[] }) {
@@ -14,6 +14,8 @@ export function ToolsPage({ ethports }: { ethports: EthPort[] }) {
       </div>
       <IGMPCard />
       <LoopsCard />
+      <CableTestCard />
+      <StormControlCard />
       <div className="sm:col-span-2">
         <BounceCard ethports={ethports} />
       </div>
@@ -292,6 +294,96 @@ function BounceCard({ ethports }: { ethports: EthPort[] }) {
         ))}
       </div>
       {msg && <p className={`text-xs mt-2 ${msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
+    </Card>
+  );
+}
+
+function CableTestCard() {
+  const { t } = useTranslation();
+  const [probe, setProbe] = useState<CableTestProbe | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const run = async () => {
+    setBusy(true);
+    try { setProbe(await api.cableTest()); } catch { setProbe({ applicable: false, ports: [] }); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <Card title={t("tools.cableTest")} icon={Stethoscope}>
+      <p className="text-xs text-muted mb-3">{t("tools.cableTestIntro")}</p>
+      <button onClick={run} disabled={busy}
+        className="text-xs bg-accent hover:bg-accent/85 disabled:opacity-40 rounded-lg px-3 py-1.5 font-medium mb-3">
+        {busy ? "..." : t("tools.cableTestRun")}
+      </button>
+
+      {probe && probe.ports.length > 0 && (
+        <div className="flex flex-col gap-1 text-sm">
+          {probe.ports.map((p) => (
+            <div key={p.port} className="flex items-center gap-2 py-1 border-b border-border/50 last:border-0">
+              <span className="font-mono text-xs w-16">{p.port}</span>
+              {p.supported ? (
+                <>
+                  <Pill tone={p.pair_status === "ok" ? "ok" : p.pair_status === "short" ? "danger" : "warn"}>
+                    {p.pair_status || "unknown"}
+                  </Pill>
+                  {p.length && <span className="text-xs text-muted">{p.length}</span>}
+                </>
+              ) : (
+                <span className="text-xs text-muted">{t("tools.cableTestNotSupported")}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function StormControlCard() {
+  const { t } = useTranslation();
+  const [probe, setProbe] = useState<StormProbe | null>(null);
+  const [busy, setBusy] = useState<string>();
+  const [percent, setPercent] = useState<Record<string, number>>({});
+
+  useEffect(() => { api.stormControl().then(setProbe).catch(() => {}); }, []);
+
+  if (!probe?.applicable) return null;
+
+  const apply = async (port: string) => {
+    setBusy(port);
+    try {
+      await api.setStormControl(port, percent[port] ?? 0);
+      setProbe(await api.stormControl());
+    } catch {
+    } finally { setBusy(undefined); }
+  };
+
+  const wired = probe.ports.filter((p) => p.port.startsWith("lan"));
+
+  return (
+    <Card title={t("tools.stormControl")} icon={ShieldAlert}>
+      <p className="text-xs text-muted mb-3">{t("tools.stormControlIntro")}</p>
+      <div className="flex flex-col gap-2">
+        {wired.map((p) => {
+          const pct = percent[p.port] ?? (p.active ? 10 : 0);
+          return (
+            <div key={p.port} className="flex items-center gap-2 text-sm">
+              <span className="font-mono text-xs w-14">{p.port}</span>
+              <span className="text-xs text-muted w-16">{p.link_speed_mbps > 0 ? `${p.link_speed_mbps}M` : "?"}</span>
+              <input type="range" min={0} max={50} value={pct}
+                onChange={(e) => setPercent((prev) => ({ ...prev, [p.port]: +e.target.value }))}
+                className="flex-1 accent-accent" />
+              <span className="text-xs w-8 text-right">{pct}%</span>
+              <button onClick={() => apply(p.port)} disabled={busy === p.port}
+                className="text-xs bg-accent/15 hover:bg-accent/25 border border-accent/30 rounded px-2 py-1 disabled:opacity-50">
+                {busy === p.port ? "..." : t("tools.stormApply")}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-muted mt-2">{t("tools.stormControlNote")}</p>
     </Card>
   );
 }

@@ -457,4 +457,14 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     }),
+  cableTest: () =>
+    request<import("./types").CableTestProbe>("/api/cable-test"),
+  stormControl: () =>
+    request<import("./types").StormProbe>("/api/storm"),
+  setStormControl: (port: string, percent: number) =>
+    request<{ status: string }>("/api/storm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ port, percent }),
+    }),
 };
