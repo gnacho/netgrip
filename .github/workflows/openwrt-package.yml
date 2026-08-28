@@ -82,7 +82,7 @@ jobs:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
           GOOS=linux GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build \
-            -ldflags "-s -w" -o /tmp/netgrip ./cmd/netgrip
+            -ldflags "-s -w -X main.version=${TAG}" -o /tmp/netgrip ./cmd/netgrip
           ls -la /tmp/netgrip
           file /tmp/netgrip
 
