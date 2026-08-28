@@ -319,4 +319,6 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ vid }),
     }),
+  history: () =>
+    request<{ entries: import("./types").HistoryEntry[] }>("/api/history"),
 };

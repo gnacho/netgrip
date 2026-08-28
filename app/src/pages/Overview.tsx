@@ -8,6 +8,7 @@ import { EthPortsCard } from "../components/EthPortsCard";
 import { DawnCard } from "../components/DawnCard";
 import { ClientsCard } from "../components/ClientsCard";
 import { DriftCard } from "../components/DriftCard";
+import { HistoryChart } from "../components/HistoryChart";
 
 function fmtUptime(t: TFunction, secs: number): string {
   const d = Math.floor(secs / 86400);
@@ -67,6 +68,10 @@ export function Overview({ board, system, wan, ethports, dawnAps, dawnError, dri
 
       <div className="sm:col-span-2 xl:col-span-4">
         <TrafficCard />
+      </div>
+
+      <div className="sm:col-span-2 xl:col-span-4">
+        <HistoryChart />
       </div>
 
       <div className="sm:col-span-2 xl:col-span-4">

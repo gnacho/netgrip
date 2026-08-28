@@ -438,3 +438,11 @@ export interface VLANEdit {
   vid: number;
   ports: VLANPort[];
 }
+
+export interface HistoryEntry {
+  ts: number;
+  rx: number;
+  tx: number;
+  load: number;
+  clients: number;
+}

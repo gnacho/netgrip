@@ -111,6 +111,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/vlans", s.requireAuth(s.handleVLANsGet))
 	s.mux.HandleFunc("POST /api/vlans", s.requireAuth(s.handleVLANsSet))
 	s.mux.HandleFunc("DELETE /api/vlans", s.requireAuth(s.handleVLANsDelete))
+	s.mux.HandleFunc("GET /api/history", s.requireAuth(s.handleHistoryGet))
 	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
 	s.mux.HandleFunc("GET /api/loops", s.requireAuth(s.handleLoops))
@@ -1138,4 +1139,8 @@ func (s *Server) handleVLANsDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	probe, rolledBack, err := modules.DeleteVLAN(req.VID)
 	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleHistoryGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"entries": modules.GetHistory()})
 }
