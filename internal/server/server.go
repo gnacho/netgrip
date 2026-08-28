@@ -120,6 +120,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/firewall", s.requireAuth(s.handleFirewallGet))
 	s.mux.HandleFunc("POST /api/firewall", s.requireAuth(s.handleFirewallAddRule))
 	s.mux.HandleFunc("DELETE /api/firewall", s.requireAuth(s.handleFirewallDelRule))
+	s.mux.HandleFunc("GET /api/templates", s.requireAuth(s.handleTemplatesGet))
+	s.mux.HandleFunc("POST /api/templates", s.requireAuth(s.handleTemplatesApply))
 	s.mux.HandleFunc("GET /api/history", s.requireAuth(s.handleHistoryGet))
 	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
@@ -1242,4 +1244,33 @@ func (s *Server) handleFirewallDelRule(w http.ResponseWriter, r *http.Request) {
 	}
 	probe, rolledBack, err := modules.DeleteFirewallRule(req.Section)
 	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleTemplatesGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"templates": modules.ListTemplates()})
+}
+
+type templateApplyRequest struct {
+	ID      string `json:"id"`
+	Confirm bool   `json:"confirm"`
+}
+
+func (s *Server) handleTemplatesApply(w http.ResponseWriter, r *http.Request) {
+	var req templateApplyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ID == "" {
+		writeError(w, http.StatusBadRequest, "template id required")
+		return
+	}
+	// Destructive templates require explicit confirmation
+	for _, t := range modules.ListTemplates() {
+		if t.ID == req.ID && t.Destructive && !req.Confirm {
+			writeError(w, http.StatusBadRequest, "destructive template requires confirm=true")
+			return
+		}
+	}
+	if err := modules.ApplyTemplate(req.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "applied"})
 }

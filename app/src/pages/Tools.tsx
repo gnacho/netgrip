@@ -4,6 +4,7 @@ import { Camera, Cable, GitCompareArrows, RefreshCw, ShieldCheck, Ban, Undo2, Do
 import { api } from "../api";
 import { Card, Pill } from "../components/Card";
 import type { ConfigSnapshot, ConfigDiff, EthPort, IGMPProbe, LoopResult } from "../types";
+import { TemplatesCard } from "../components/TemplatesCard";
 
 export function ToolsPage({ ethports }: { ethports: EthPort[] }) {
   return (
@@ -15,6 +16,9 @@ export function ToolsPage({ ethports }: { ethports: EthPort[] }) {
       <LoopsCard />
       <div className="sm:col-span-2">
         <BounceCard ethports={ethports} />
+      </div>
+      <div className="sm:col-span-2">
+        <TemplatesCard />
       </div>
     </div>
   );

@@ -496,6 +496,13 @@ export default {
     tagged: "Tagged",
     notMember: "Not member",
   },
+  templates: {
+    title: "Network templates",
+    intro: "Apply predefined configurations in one click. Destructive templates require confirmation.",
+    apply: "Apply",
+    confirmApply: "Confirm",
+    applied: "Template applied successfully",
+  },
   drift: {
     title: "Config drift",
     noBaseline: "No baseline snapshot yet. Create one to detect future changes.",
