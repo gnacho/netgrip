@@ -203,12 +203,34 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 		return
 	}
 
-	if err := os.Rename(tmpPath, currentBin); err != nil {
+	if err := copyFile(tmpPath, currentBin); err != nil {
 		os.Rename(backupPath, currentBin)
+		os.Remove(tmpPath)
 		setUpdateStatus("error", 0, fmt.Sprintf("install: %v", err))
 		return
 	}
+	os.Remove(tmpPath)
+	os.Chmod(currentBin, 0755)
 
 	setUpdateStatus("restarting", 100, "")
 	exec.Command("/etc/init.d/netgrip", "restart").Start()
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Close()
 }
