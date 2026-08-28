@@ -496,3 +496,10 @@ export interface FirewallRuleAdd {
   dest_port: string;
   target: string;
 }
+
+export interface Template {
+  id: string;
+  name: string;
+  description: string;
+  destructive: boolean;
+}

@@ -496,6 +496,13 @@ export default {
     tagged: "Con tag",
     notMember: "No miembro",
   },
+  templates: {
+    title: "Plantillas de red",
+    intro: "Aplica configuraciones predefinidas con un clic. Las plantillas destructivas piden confirmacion.",
+    apply: "Aplicar",
+    confirmApply: "Confirmar",
+    applied: "Plantilla aplicada correctamente",
+  },
   drift: {
     title: "Cambios de configuracion",
     noBaseline: "Aun no hay una copia de referencia. Crea una para detectar cambios futuros.",

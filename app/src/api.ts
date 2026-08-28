@@ -363,4 +363,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ section }),
     }),
+  templates: () =>
+    request<{ templates: import("./types").Template[] }>("/api/templates"),
+  applyTemplate: (id: string, confirm: boolean) =>
+    request<{ status: string }>("/api/templates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, confirm }),
+    }),
 };
