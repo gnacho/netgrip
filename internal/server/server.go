@@ -108,6 +108,9 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/config/rollback", s.requireAuth(s.handleSnapshotRollback))
 	s.mux.HandleFunc("POST /api/ports/bounce", s.requireAuth(s.handlePortBounce))
 	s.mux.HandleFunc("POST /api/ports/block", s.requireAuth(s.handlePortBlock))
+	s.mux.HandleFunc("GET /api/vlans", s.requireAuth(s.handleVLANsGet))
+	s.mux.HandleFunc("POST /api/vlans", s.requireAuth(s.handleVLANsSet))
+	s.mux.HandleFunc("DELETE /api/vlans", s.requireAuth(s.handleVLANsDelete))
 	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
 	s.mux.HandleFunc("GET /api/loops", s.requireAuth(s.handleLoops))
@@ -1107,4 +1110,32 @@ func (s *Server) handleWizardComplete(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleDriftGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, modules.ProbeDrift())
+}
+
+func (s *Server) handleVLANsGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeVLANs())
+}
+
+func (s *Server) handleVLANsSet(w http.ResponseWriter, r *http.Request) {
+	var edit modules.VLANEdit
+	if err := json.NewDecoder(r.Body).Decode(&edit); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetVLAN(edit)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+type vlanDeleteRequest struct {
+	VID int `json:"vid"`
+}
+
+func (s *Server) handleVLANsDelete(w http.ResponseWriter, r *http.Request) {
+	var req vlanDeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.DeleteVLAN(req.VID)
+	writeModuleResult(w, probe, rolledBack, err)
 }

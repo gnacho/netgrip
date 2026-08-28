@@ -305,4 +305,18 @@ export const api = {
     request<{ status: string }>("/api/wizard/complete", { method: "POST" }),
   drift: () =>
     request<import("./types").DriftProbe>("/api/drift"),
+  vlans: () =>
+    request<import("./types").VLANProbe>("/api/vlans"),
+  setVlan: (edit: import("./types").VLANEdit) =>
+    request<import("./types").ModuleResult<import("./types").VLANProbe>>("/api/vlans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(edit),
+    }),
+  deleteVlan: (vid: number) =>
+    request<import("./types").ModuleResult<import("./types").VLANProbe>>("/api/vlans", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vid }),
+    }),
 };

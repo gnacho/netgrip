@@ -410,3 +410,28 @@ export interface DriftProbe {
   changes: number;
   configs: DriftConfig[];
 }
+
+export interface VLANPort {
+  port: string;
+  tagged: boolean;
+}
+
+export interface VLAN {
+  vid: number;
+  name: string;
+  device: string;
+  ports: VLANPort[];
+  default: boolean;
+}
+
+export interface VLANProbe {
+  applicable: boolean;
+  bridge: string;
+  vlans: VLAN[];
+  ports: string[];
+}
+
+export interface VLANEdit {
+  vid: number;
+  ports: VLANPort[];
+}

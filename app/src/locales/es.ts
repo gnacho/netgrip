@@ -442,6 +442,17 @@ export default {
     restarting: "Reiniciando...",
     error: "Fallo al actualizar: {{msg}}",
   },
+  vlan: {
+    title: "VLANs",
+    intro: "Gestiona VLANs en el bridge. Pulsa una celda para cambiar: vacio -> sin tag (U) -> con tag (T) -> vacio.",
+    newVid: "VID (2-4094)",
+    add: "Crear VLAN",
+    confirmDel: "Borrar",
+    invalidVid: "VID debe ser 2-4094",
+    untagged: "Sin tag",
+    tagged: "Con tag",
+    notMember: "No miembro",
+  },
   drift: {
     title: "Cambios de configuracion",
     noBaseline: "Aun no hay una copia de referencia. Crea una para detectar cambios futuros.",
