@@ -107,6 +107,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/config/diff", s.requireAuth(s.handleSnapshotDiff))
 	s.mux.HandleFunc("POST /api/config/rollback", s.requireAuth(s.handleSnapshotRollback))
 	s.mux.HandleFunc("POST /api/ports/bounce", s.requireAuth(s.handlePortBounce))
+	s.mux.HandleFunc("POST /api/ports/block", s.requireAuth(s.handlePortBlock))
 	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
 	s.mux.HandleFunc("GET /api/loops", s.requireAuth(s.handleLoops))
@@ -1014,6 +1015,25 @@ func (s *Server) handlePortBounce(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := modules.BounceLink(req.Iface)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, result)
+}
+
+type blockRequest struct {
+	Iface   string `json:"iface"`
+	Blocked bool   `json:"blocked"`
+}
+
+func (s *Server) handlePortBlock(w http.ResponseWriter, r *http.Request) {
+	var req blockRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Iface == "" {
+		writeError(w, http.StatusBadRequest, "iface required")
+		return
+	}
+	result, err := modules.BlockPort(req.Iface, req.Blocked)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return

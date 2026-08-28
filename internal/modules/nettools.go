@@ -172,6 +172,24 @@ type LinkBounceResult struct {
 	Ok    bool   `json:"ok"`
 }
 
+func BlockPort(iface string, blocked bool) (*LinkBounceResult, error) {
+	if err := executor.Validate(executor.Op{Kind: "ip_link", Args: []string{iface, "down"}}); err != nil {
+		return nil, fmt.Errorf("invalid interface: %s", iface)
+	}
+	ports := bridgePorts()
+	if !ports[iface] {
+		return nil, fmt.Errorf("interface %s is not a bridge port", iface)
+	}
+	action := "down"
+	if !blocked {
+		action = "up"
+	}
+	if err := executor.Run(executor.Op{Kind: "ip_link", Args: []string{iface, action}}); err != nil {
+		return nil, err
+	}
+	return &LinkBounceResult{Iface: iface, Ok: true}, nil
+}
+
 func BounceLink(iface string) (*LinkBounceResult, error) {
 	if err := executor.Validate(executor.Op{Kind: "ip_link", Args: []string{iface, "down"}}); err != nil {
 		return nil, fmt.Errorf("invalid interface: %s", iface)

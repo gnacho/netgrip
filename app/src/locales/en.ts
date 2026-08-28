@@ -420,6 +420,9 @@ export default {
     bouncing: "Restarting...",
     bounceConfirm: "Restart port {{iface}}? The link will drop for 2 seconds.",
     bounceDone: "Port restarted",
+    portBlocked: "Port blocked",
+    portUnblocked: "Port unblocked",
+    blockConfirm: "Block",
     configs: "{{n}} configs",
   },
   selfupdate: {
