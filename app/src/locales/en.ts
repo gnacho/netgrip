@@ -442,6 +442,17 @@ export default {
     restarting: "Restarting...",
     error: "Update failed: {{msg}}",
   },
+  vlan: {
+    title: "VLANs",
+    intro: "Manage VLANs on the bridge. Click a cell to cycle: empty -> untagged (U) -> tagged (T) -> empty.",
+    newVid: "VID (2-4094)",
+    add: "Create VLAN",
+    confirmDel: "Delete",
+    invalidVid: "VID must be 2-4094",
+    untagged: "Untagged",
+    tagged: "Tagged",
+    notMember: "Not member",
+  },
   drift: {
     title: "Config drift",
     noBaseline: "No baseline snapshot yet. Create one to detect future changes.",
