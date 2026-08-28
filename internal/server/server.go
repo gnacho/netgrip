@@ -127,6 +127,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/port-stats", s.requireAuth(s.handlePortStatsGet))
 	s.mux.HandleFunc("GET /api/switch/modes", s.requireAuth(s.handleSwitchModesGet))
 	s.mux.HandleFunc("POST /api/switch/modes", s.requireAuth(s.handleSwitchModesApply))
+	s.mux.HandleFunc("GET /api/poe", s.requireAuth(s.handlePoEGet))
+	s.mux.HandleFunc("POST /api/poe/schedule", s.requireAuth(s.handlePoESchedule))
 	s.mux.HandleFunc("GET /api/history", s.requireAuth(s.handleHistoryGet))
 	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
@@ -1323,4 +1325,22 @@ func (s *Server) handleSwitchModesApply(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, map[string]string{"status": "applied"})
+}
+
+func (s *Server) handlePoEGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbePoE())
+}
+
+func (s *Server) handlePoESchedule(w http.ResponseWriter, r *http.Request) {
+	var sched modules.PoESchedule
+	if err := json.NewDecoder(r.Body).Decode(&sched); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, err := modules.SetPoESchedule(sched)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"status": "applied", "state": probe})
 }
