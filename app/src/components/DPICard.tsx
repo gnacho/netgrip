@@ -41,7 +41,8 @@ export function DPICard() {
 
   if (!probe?.applicable) return null;
 
-  const grouped = groupBy === "category" ? groupByCategory(probe) : probe.protocols;
+  const protocols = probe.protocols ?? [];
+  const grouped = groupBy === "category" ? groupByCategory({ ...probe, protocols }) : protocols;
   const maxBytes = Math.max(...grouped.map((p) => p.bytes), 1);
   const topN = grouped.slice(0, 12);
 
