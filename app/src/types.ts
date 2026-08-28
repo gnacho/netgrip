@@ -381,3 +381,9 @@ export interface SelfUpdateCheck {
   asset_url?: string;
   asset_size?: number;
 }
+
+export interface SelfUpdateStatus {
+  phase: "idle" | "downloading" | "installing" | "restarting" | "error";
+  progress: number;
+  message?: string;
+}

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -31,12 +32,36 @@ type ghAsset struct {
 }
 
 type SelfUpdateCheck struct {
-	Current    string `json:"current"`
-	Latest     string `json:"latest"`
-	Available  bool   `json:"available"`
-	Notes      string `json:"notes"`
-	AssetURL   string `json:"asset_url,omitempty"`
-	AssetSize  int64  `json:"asset_size,omitempty"`
+	Current   string `json:"current"`
+	Latest    string `json:"latest"`
+	Available bool   `json:"available"`
+	Notes     string `json:"notes"`
+	AssetURL  string `json:"asset_url,omitempty"`
+	AssetSize int64  `json:"asset_size,omitempty"`
+}
+
+type SelfUpdateStatus struct {
+	Phase    string `json:"phase"`
+	Progress int    `json:"progress"`
+	Message  string `json:"message,omitempty"`
+}
+
+var (
+	updateMu     sync.Mutex
+	updateStatus = SelfUpdateStatus{Phase: "idle"}
+	updateCheck  *SelfUpdateCheck
+)
+
+func GetSelfUpdateStatus() SelfUpdateStatus {
+	updateMu.Lock()
+	defer updateMu.Unlock()
+	return updateStatus
+}
+
+func setUpdateStatus(phase string, progress int, msg string) {
+	updateMu.Lock()
+	updateStatus = SelfUpdateStatus{Phase: phase, Progress: progress, Message: msg}
+	updateMu.Unlock()
 }
 
 func CheckSelfUpdate(currentVersion string) *SelfUpdateCheck {
@@ -78,34 +103,92 @@ func CheckSelfUpdate(currentVersion string) *SelfUpdateCheck {
 			break
 		}
 	}
+
+	updateMu.Lock()
+	updateCheck = result
+	updateMu.Unlock()
+
 	return result
 }
 
-func ApplySelfUpdate(assetURL string) error {
-	if assetURL == "" {
-		return fmt.Errorf("no asset URL")
+func StartSelfUpdate(currentVersion string) error {
+	updateMu.Lock()
+	if updateStatus.Phase == "downloading" || updateStatus.Phase == "installing" {
+		updateMu.Unlock()
+		return fmt.Errorf("update already in progress")
 	}
+	if updateCheck == nil || !updateCheck.Available || updateCheck.AssetURL == "" {
+		updateMu.Unlock()
+		return fmt.Errorf("no update available")
+	}
+	assetURL := updateCheck.AssetURL
+	assetSize := updateCheck.AssetSize
+	updateMu.Unlock()
+
+	go runSelfUpdate(assetURL, assetSize, currentVersion)
+	return nil
+}
+
+func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
+	setUpdateStatus("downloading", 0, "")
+
 	client := &http.Client{Timeout: 120 * time.Second}
 	resp, err := client.Get(assetURL)
 	if err != nil {
-		return fmt.Errorf("download: %w", err)
+		setUpdateStatus("error", 0, fmt.Sprintf("download: %v", err))
+		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("download: HTTP %d", resp.StatusCode)
+		setUpdateStatus("error", 0, fmt.Sprintf("download: HTTP %d", resp.StatusCode))
+		return
+	}
+
+	total := assetSize
+	if total <= 0 {
+		total = resp.ContentLength
 	}
 
 	f, err := os.Create(tmpPath)
 	if err != nil {
-		return fmt.Errorf("create temp: %w", err)
+		setUpdateStatus("error", 0, fmt.Sprintf("create temp: %v", err))
+		return
 	}
-	if _, err := io.Copy(f, resp.Body); err != nil {
-		f.Close()
-		os.Remove(tmpPath)
-		return fmt.Errorf("write temp: %w", err)
+
+	var downloaded int64
+	buf := make([]byte, 32*1024)
+	for {
+		n, readErr := resp.Body.Read(buf)
+		if n > 0 {
+			if _, writeErr := f.Write(buf[:n]); writeErr != nil {
+				f.Close()
+				os.Remove(tmpPath)
+				setUpdateStatus("error", 0, fmt.Sprintf("write: %v", writeErr))
+				return
+			}
+			downloaded += int64(n)
+			if total > 0 {
+				pct := int(downloaded * 100 / total)
+				if pct > 100 {
+					pct = 100
+				}
+				setUpdateStatus("downloading", pct, "")
+			}
+		}
+		if readErr != nil {
+			f.Close()
+			if readErr != io.EOF {
+				os.Remove(tmpPath)
+				setUpdateStatus("error", 0, fmt.Sprintf("read: %v", readErr))
+				return
+			}
+			break
+		}
 	}
 	f.Close()
 	os.Chmod(tmpPath, 0755)
+
+	setUpdateStatus("installing", 100, "")
 
 	currentBin, err := os.Executable()
 	if err != nil {
@@ -116,14 +199,16 @@ func ApplySelfUpdate(assetURL string) error {
 	backupPath := currentBin + ".bak"
 	if err := os.Rename(currentBin, backupPath); err != nil {
 		os.Remove(tmpPath)
-		return fmt.Errorf("backup: %w", err)
+		setUpdateStatus("error", 0, fmt.Sprintf("backup: %v", err))
+		return
 	}
 
 	if err := os.Rename(tmpPath, currentBin); err != nil {
 		os.Rename(backupPath, currentBin)
-		return fmt.Errorf("install: %w", err)
+		setUpdateStatus("error", 0, fmt.Sprintf("install: %v", err))
+		return
 	}
 
+	setUpdateStatus("restarting", 100, "")
 	exec.Command("/etc/init.d/owpanel", "restart").Start()
-	return nil
 }

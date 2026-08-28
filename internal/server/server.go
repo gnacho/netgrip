@@ -111,6 +111,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
 	s.mux.HandleFunc("GET /api/loops", s.requireAuth(s.handleLoops))
 	s.mux.HandleFunc("GET /api/selfupdate", s.requireAuth(s.handleSelfUpdateCheck))
+	s.mux.HandleFunc("GET /api/selfupdate/status", s.requireAuth(s.handleSelfUpdateStatus))
 	s.mux.HandleFunc("POST /api/selfupdate", s.requireAuth(s.handleSelfUpdateApply))
 	return s
 }
@@ -1047,6 +1048,10 @@ func (s *Server) handleSelfUpdateCheck(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, modules.CheckSelfUpdate(s.version))
 }
 
+func (s *Server) handleSelfUpdateStatus(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.GetSelfUpdateStatus())
+}
+
 type selfUpdateApplyRequest struct {
 	Confirm bool `json:"confirm"`
 }
@@ -1057,18 +1062,9 @@ func (s *Server) handleSelfUpdateApply(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "explicit confirmation required")
 		return
 	}
-	check := modules.CheckSelfUpdate(s.version)
-	if !check.Available {
-		writeError(w, http.StatusConflict, "no update available")
+	if err := modules.StartSelfUpdate(s.version); err != nil {
+		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	if check.AssetURL == "" {
-		writeError(w, http.StatusBadGateway, "no binary asset found in release")
-		return
-	}
-	if err := modules.ApplySelfUpdate(check.AssetURL); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	writeJSON(w, map[string]any{"status": "applied", "restarting": true})
+	writeJSON(w, map[string]string{"status": "started"})
 }

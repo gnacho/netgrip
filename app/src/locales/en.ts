@@ -433,5 +433,10 @@ export default {
     confirmMsg: "Download the new version and restart the panel? The session will survive the restart.",
     done: "Update applied, restarting...",
     noAsset: "No binary asset found in the release",
+    bannerText: "Update to {{version}} available",
+    downloading: "Downloading... {{pct}}%",
+    installing: "Installing...",
+    restarting: "Restarting...",
+    error: "Update failed: {{msg}}",
   },
 };
