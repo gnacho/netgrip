@@ -125,6 +125,9 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/wizard", s.requireAuth(s.handleWizardGet))
 	s.mux.HandleFunc("POST /api/wizard/complete", s.requireAuth(s.handleWizardComplete))
 	s.mux.HandleFunc("GET /api/drift", s.requireAuth(s.handleDriftGet))
+	s.mux.HandleFunc("GET /api/telegram", s.requireAuth(s.handleTelegramGet))
+	s.mux.HandleFunc("POST /api/telegram", s.requireAuth(s.handleTelegramSet))
+	s.mux.HandleFunc("POST /api/telegram/test", s.requireAuth(s.handleTelegramTest))
 	return s
 }
 
