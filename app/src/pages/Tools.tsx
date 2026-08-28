@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Camera, Cable, GitCompareArrows, RefreshCw, ShieldCheck } from "lucide-react";
+import { Camera, Cable, GitCompareArrows, RefreshCw, ShieldCheck, Ban, Undo2 } from "lucide-react";
 import { api } from "../api";
 import { Card, Pill } from "../components/Card";
 import type { ConfigSnapshot, ConfigDiff, EthPort, IGMPProbe, LoopResult } from "../types";
@@ -163,11 +163,32 @@ function LoopsCard() {
   const { t } = useTranslation();
   const [result, setResult] = useState<LoopResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [blockBusy, setBlockBusy] = useState<string>();
+  const [confirmBlock, setConfirmBlock] = useState<string>();
+  const [msg, setMsg] = useState<{ text: string; tone: "ok" | "danger" }>();
 
   const check = async () => {
     setBusy(true);
     try { setResult(await api.loops()); } catch { setResult({ loops: [], has_hub: false }); }
     finally { setBusy(false); }
+  };
+
+  const blockPort = async (iface: string) => {
+    setBlockBusy(iface);
+    try {
+      await api.blockPort(iface, true);
+      setMsg({ text: t("tools.portBlocked"), tone: "ok" });
+    } catch (e: any) { setMsg({ text: e.message, tone: "danger" }); }
+    finally { setBlockBusy(undefined); setConfirmBlock(undefined); }
+  };
+
+  const unblockPort = async (iface: string) => {
+    setBlockBusy(iface);
+    try {
+      await api.blockPort(iface, false);
+      setMsg({ text: t("tools.portUnblocked"), tone: "ok" });
+    } catch (e: any) { setMsg({ text: e.message, tone: "danger" }); }
+    finally { setBlockBusy(undefined); }
   };
 
   return (
@@ -187,11 +208,36 @@ function LoopsCard() {
             <div key={l.mac} className="flex items-center gap-2 py-1 border-b border-border/50 last:border-0">
               <span className="font-mono text-xs">{l.mac}</span>
               <Pill tone="warn">{l.ports.join(", ")}</Pill>
+              <div className="flex gap-1 ml-auto">
+                {l.ports.map((port) => (
+                  confirmBlock === port ? (
+                    <div key={port} className="flex gap-0.5">
+                      <button onClick={() => blockPort(port)} disabled={blockBusy === port}
+                        className="text-xs bg-danger/20 hover:bg-danger/30 rounded px-1.5 py-0.5 flex items-center gap-1">
+                        <Ban size={10} /> {blockBusy === port ? "..." : t("tools.blockConfirm")}
+                      </button>
+                      <button onClick={() => setConfirmBlock(undefined)} className="text-xs text-muted">x</button>
+                    </div>
+                  ) : (
+                    <div key={port} className="flex gap-0.5">
+                      <button onClick={() => setConfirmBlock(port)}
+                        className="text-xs bg-danger/10 hover:bg-danger/20 text-danger rounded px-1.5 py-0.5 flex items-center gap-1">
+                        <Ban size={10} /> {port}
+                      </button>
+                      <button onClick={() => unblockPort(port)} disabled={blockBusy === port}
+                        className="text-xs bg-ok/10 hover:bg-ok/20 text-ok rounded px-1 py-0.5 flex items-center gap-0.5">
+                        <Undo2 size={10} />
+                      </button>
+                    </div>
+                  )
+                ))}
+              </div>
             </div>
           ))}
           {result.has_hub && <p className="text-warn text-xs mt-1">{t("tools.hubDetected")}</p>}
         </div>
       )}
+      {msg && <p className={`text-xs mt-2 ${msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
     </Card>
   );
 }

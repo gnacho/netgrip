@@ -275,6 +275,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ iface }),
     }),
+  blockPort: (iface: string, blocked: boolean) =>
+    request<{ iface: string; ok: boolean }>("/api/ports/block", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ iface, blocked }),
+    }),
   igmp: () => request<import("./types").IGMPProbe>("/api/igmp"),
   setIgmp: (enabled: boolean) =>
     request<import("./types").IGMPProbe>("/api/igmp", {

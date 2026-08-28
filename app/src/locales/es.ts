@@ -420,6 +420,9 @@ export default {
     bouncing: "Reiniciando...",
     bounceConfirm: "Reiniciar puerto {{iface}}? El enlace caera 2 segundos.",
     bounceDone: "Puerto reiniciado",
+    portBlocked: "Puerto bloqueado",
+    portUnblocked: "Puerto desbloqueado",
+    blockConfirm: "Bloquear",
     configs: "{{n}} configs",
   },
   selfupdate: {
