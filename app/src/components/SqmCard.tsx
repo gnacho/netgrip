@@ -44,6 +44,7 @@ export function SqmCard({ probe, onChange }: {
 
   const ratesOk = Number(download) > 0 && Number(upload) > 0;
 
+  if (!probe || !probe.has_wan) return null;
   return (
     <Card title={t("sqm.title")} icon={Gauge}>
       <div className="flex items-center justify-between mb-2">

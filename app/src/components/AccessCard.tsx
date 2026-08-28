@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { KeyRound } from "lucide-react";
@@ -18,6 +19,15 @@ function NumInput({ value, onChange, placeholder, min = 1, max = 65535 }: {
       min={min} max={max} onChange={(e) => onChange(Number(e.target.value))}
       className="bg-bg border border-border rounded-lg px-2 py-1 text-sm outline-none focus:border-accent w-20"
     />
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <div className="text-xs text-muted mb-1">{label}</div>
+      {children}
+    </div>
   );
 }
 
@@ -67,18 +77,10 @@ export function AccessCard() {
     finally { setBusy(undefined); }
   };
 
-  const saveLuci = () => run("luci", async () => {
-    await api.setLuciAccess({ http_port: luciHttp, https_port: luciHttps, force_https: luciForce, enabled: true });
-    setProbe(await api.access());
-  }, t("access.saved"));
-
-  const saveSsh = () => run("ssh", async () => {
-    await api.setSshAccess({ enabled: sshEnabled, port: sshPort });
-    setProbe(await api.access());
-  }, t("access.saved"));
-
-  const saveTtl = () => run("ttl", async () => {
+  const saveAll = () => run("all", async () => {
     await api.setPanelSessionTtl(ttlMin);
+    await api.setLuciAccess({ http_port: luciHttp, https_port: luciHttps, force_https: luciForce, enabled: true });
+    await api.setSshAccess({ enabled: sshEnabled, port: sshPort });
     setProbe(await api.access());
   }, t("access.saved"));
 
@@ -90,54 +92,39 @@ export function AccessCard() {
         <div className="flex flex-col gap-3 text-sm">
           <p className="text-xs text-muted">{t("access.intro")}</p>
 
-          {/* Panel session timeout */}
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-muted">{t("access.sessionTtl")}</span>
-            <div className="flex items-center gap-1">
-              <NumInput value={ttlMin} onChange={setTtlMin} min={1} max={100000} />
-              <span className="text-xs text-muted">{t("access.minutes")}</span>
-              <button onClick={saveTtl} disabled={busy === "ttl" || ttlMin <= 0}
-                className="text-xs bg-accent hover:bg-accent/85 disabled:opacity-40 rounded-lg px-2 py-1 font-medium">
-                {t("access.save")}
-              </button>
-            </div>
-          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3">
+            {/* Panel session timeout */}
+            <Field label={t("access.sessionTtl")}>
+              <div className="flex items-center gap-1">
+                <NumInput value={ttlMin} onChange={setTtlMin} min={1} max={100000} />
+                <span className="text-xs text-muted">{t("access.minutes")}</span>
+              </div>
+            </Field>
 
-          {/* LuCI (uhttpd) */}
-          <div className="border-t border-border/50 pt-2">
-            <div className="text-xs font-medium uppercase tracking-wider text-muted mb-2">{t("access.luci")}</div>
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <span className="text-muted">HTTP</span>
+            {/* LuCI (uhttpd) */}
+            <Field label={t("access.luciHttp")}>
               <NumInput value={luciHttp} onChange={setLuciHttp} />
-            </div>
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <span className="text-muted">HTTPS</span>
+            </Field>
+            <Field label={t("access.luciHttps")}>
               <NumInput value={luciHttps} onChange={setLuciHttps} />
-            </div>
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="text-muted">{t("access.forceHttps")}</span>
+            </Field>
+            <Field label={t("access.luciForce")}>
               <input type="checkbox" checked={luciForce} onChange={(e) => setLuciForce(e.target.checked)} className="accent-accent" />
-            </div>
-            <button onClick={saveLuci} disabled={busy === "luci"}
-              className="text-xs bg-accent hover:bg-accent/85 disabled:opacity-40 rounded-lg px-2 py-1 font-medium">
-              {t("access.save")}
-            </button>
+            </Field>
+
+            {/* SSH (dropbear) */}
+            <Field label={t("access.enableSsh")}>
+              <input type="checkbox" checked={sshEnabled} onChange={(e) => setSshEnabled(e.target.checked)} className="accent-accent" />
+            </Field>
+            <Field label={t("access.sshPort")}>
+              <NumInput value={Number(sshPort) || 0} onChange={(v) => setSshPort(String(v))} />
+            </Field>
           </div>
 
-          {/* SSH (dropbear) */}
-          <div className="border-t border-border/50 pt-2">
-            <div className="text-xs font-medium uppercase tracking-wider text-muted mb-2">{t("access.ssh")}</div>
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <span className="text-muted">{t("access.enableSsh")}</span>
-              <input type="checkbox" checked={sshEnabled} onChange={(e) => setSshEnabled(e.target.checked)} className="accent-accent" />
-            </div>
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="text-muted">{t("access.sshPort")}</span>
-              <NumInput value={Number(sshPort) || 0} onChange={(v) => setSshPort(String(v))} />
-            </div>
-            <button onClick={saveSsh} disabled={busy === "ssh"}
-              className="text-xs bg-accent hover:bg-accent/85 disabled:opacity-40 rounded-lg px-2 py-1 font-medium">
-              {t("access.save")}
+          <div className="flex justify-end">
+            <button onClick={saveAll} disabled={busy === "all" || ttlMin <= 0}
+              className="text-sm bg-accent hover:bg-accent/85 disabled:opacity-40 rounded-lg px-3 py-1.5 font-medium">
+              {busy === "all" ? "…" : t("access.save")}
             </button>
           </div>
 

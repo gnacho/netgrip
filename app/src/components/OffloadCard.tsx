@@ -28,35 +28,31 @@ export function OffloadCard() {
     }
   };
 
+  if (!probe || !probe.applicable) return null;
+
   return (
     <Card title={t("offload.title")} icon={Zap}>
-      {!probe ? (
-        <p className="text-sm text-muted">…</p>
-      ) : !probe.applicable ? (
-        <p className="text-sm text-warn">{t("offload.notApplicable")}</p>
-      ) : (
-        <div className="flex flex-col gap-3 text-sm">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span>{t("offload.software")}</span>
-                <Pill tone={probe.software ? "ok" : "muted"}>
-                  {probe.software ? t("offload.on") : t("offload.off")}
-                </Pill>
-              </div>
-              <div className="text-xs text-muted">{t("offload.softwareHint")}</div>
+      <div className="flex flex-col gap-3 text-sm">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span>{t("offload.software")}</span>
+              <Pill tone={probe.software ? "ok" : "muted"}>
+                {probe.software ? t("offload.on") : t("offload.off")}
+              </Pill>
             </div>
-            <input
-              type="checkbox" checked={probe.software} disabled={busy}
-              onChange={(e) => toggle(e.target.checked)} className="accent-accent"
-            />
+            <div className="text-xs text-muted">{t("offload.softwareHint")}</div>
           </div>
-          <div className="text-xs text-muted border-t border-border/50 pt-2">
-            <span className="font-medium">{t("offload.hardwareNote")}</span> {t("offload.hardwareHint")}
-          </div>
-          {msg && <p className={`text-xs ${msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
+          <input
+            type="checkbox" checked={probe.software} disabled={busy}
+            onChange={(e) => toggle(e.target.checked)} className="accent-accent"
+          />
         </div>
-      )}
+        <div className="text-xs text-muted border-t border-border/50 pt-2">
+          <span className="font-medium">{t("offload.hardwareNote")}</span> {t("offload.hardwareHint")}
+        </div>
+        {msg && <p className={`text-xs ${msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
+      </div>
     </Card>
   );
 }

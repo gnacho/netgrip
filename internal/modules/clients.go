@@ -44,6 +44,7 @@ func ListClients(requesterIP string) []Client {
 	reserved := reservedMACs()
 	blocked := blockedMACs()
 	dnsmasqUp := executor.ServiceRunning("dnsmasq")
+	isAP := ProbeMode().Mode == "ap"
 
 	var clients []Client
 
@@ -81,32 +82,37 @@ func ListClients(requesterIP string) []Client {
 		}
 	}
 
-	// Wired clients from the FDB (no byte counters available).
-	wifiPorts := map[string]bool{}
-	for _, radio := range radios {
-		for _, iface := range radio.Interfaces {
-			wifiPorts[iface.Ifname] = true
-		}
-	}
-	for port, macs := range bridgeFdb() {
-		if wifiPorts[port] {
-			continue
-		}
-		for _, mac := range macs {
-			mac = strings.ToLower(mac)
-			c := Client{MAC: mac, Type: "cable", Iface: port, Blocked: blocked[mac]}
-			if l, ok := byMac[mac]; ok {
-				c.Name = l.Hostname
-				c.IP = l.IP
-				c.Self = requesterIP != "" && l.IP == requesterIP
+	// Wired clients from the FDB (no byte counters available). On an AP the
+	// bridge learns the whole upstream LAN through the uplink port, so only
+	// show wired clients when the router is the gateway (router mode); a dumb
+	// AP's clients are its wireless associates.
+	if !isAP {
+		wifiPorts := map[string]bool{}
+		for _, radio := range radios {
+			for _, iface := range radio.Interfaces {
+				wifiPorts[iface.Ifname] = true
 			}
-			if c.Name == "" || c.Name == "*" {
-				c.Name = mac
+		}
+		for port, macs := range bridgeFdb() {
+			if wifiPorts[port] {
+				continue
 			}
-			c.Reserved = reserved[mac]
-			c.Reservable = dnsmasqUp && c.IP != ""
-			c.Blockable = executor.ServiceEnabled("firewall")
-			clients = append(clients, c)
+			for _, mac := range macs {
+				mac = strings.ToLower(mac)
+				c := Client{MAC: mac, Type: "cable", Iface: port, Blocked: blocked[mac]}
+				if l, ok := byMac[mac]; ok {
+					c.Name = l.Hostname
+					c.IP = l.IP
+					c.Self = requesterIP != "" && l.IP == requesterIP
+				}
+				if c.Name == "" || c.Name == "*" {
+					c.Name = mac
+				}
+				c.Reserved = reserved[mac]
+				c.Reservable = dnsmasqUp && c.IP != ""
+				c.Blockable = executor.ServiceEnabled("firewall")
+				clients = append(clients, c)
+			}
 		}
 	}
 
