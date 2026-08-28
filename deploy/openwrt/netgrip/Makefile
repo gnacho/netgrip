@@ -30,6 +30,8 @@ define Package/netgrip/install
 	$(INSTALL_BIN) ./files/usr/sbin/netgrip $(1)/usr/sbin/netgrip
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/etc/init.d/netgrip $(1)/etc/init.d/netgrip
+	$(INSTALL_DIR) $(1)/usr/libexec
+	$(INSTALL_BIN) ./files/usr/libexec/netgrip-restore-rules $(1)/usr/libexec/netgrip-restore-rules
 endef
 
 define Package/netgrip/postinst
@@ -39,7 +41,7 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
 	/etc/init.d/netgrip restart 2>/dev/null || true
 	# Survive sysupgrades: the apk registry does not survive, but the
 	# preserved files do, so procd starts the panel on first boot.
-	for f in /usr/sbin/netgrip /etc/init.d/netgrip /etc/rc.d/S99netgrip; do
+	for f in /usr/sbin/netgrip /etc/init.d/netgrip /etc/rc.d/S99netgrip /usr/libexec/netgrip-restore-rules; do
 		grep -qxF "$$f" /etc/sysupgrade.conf 2>/dev/null || echo "$$f" >> /etc/sysupgrade.conf
 	done
 fi

@@ -59,11 +59,13 @@ SDK_DIR="$WORK_DIR/${SDK_NAME%.tar.zst}"
 
 # Stage the binary and package files
 PKG_DIR="$WORK_DIR/netgrip-pkg"
-mkdir -p "$PKG_DIR/CONTROL" "$PKG_DIR/usr/sbin" "$PKG_DIR/etc/init.d"
+mkdir -p "$PKG_DIR/CONTROL" "$PKG_DIR/usr/sbin" "$PKG_DIR/etc/init.d" "$PKG_DIR/usr/libexec"
 cp "$BINARY" "$PKG_DIR/usr/sbin/netgrip"
 chmod 755 "$PKG_DIR/usr/sbin/netgrip"
 cp "$REPO_ROOT/deploy/openwrt/netgrip/files/netgrip.init" "$PKG_DIR/etc/init.d/netgrip"
 chmod 755 "$PKG_DIR/etc/init.d/netgrip"
+cp "$REPO_ROOT/deploy/openwrt/netgrip/files/netgrip-restore-rules" "$PKG_DIR/usr/libexec/netgrip-restore-rules"
+chmod 755 "$PKG_DIR/usr/libexec/netgrip-restore-rules"
 
 # CONTROL files
 cat > "$PKG_DIR/CONTROL/control" << CTRL
@@ -84,7 +86,7 @@ cat > "$PKG_DIR/CONTROL/postinst" << 'POSTINST'
 /etc/init.d/netgrip restart 2>/dev/null || true
 # Survive sysupgrades: the apk registry does not survive, but the
 # preserved files do, so procd starts the panel on first boot.
-for f in /usr/sbin/netgrip /etc/init.d/netgrip /etc/rc.d/S99netgrip; do
+for f in /usr/sbin/netgrip /etc/init.d/netgrip /etc/rc.d/S99netgrip /usr/libexec/netgrip-restore-rules; do
   grep -qxF "$f" /etc/sysupgrade.conf 2>/dev/null || echo "$f" >> /etc/sysupgrade.conf
 done
 exit 0
