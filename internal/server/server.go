@@ -125,6 +125,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/switch", s.requireAuth(s.handleSwitchGet))
 	s.mux.HandleFunc("POST /api/switch", s.requireAuth(s.handleSwitchSet))
 	s.mux.HandleFunc("GET /api/port-stats", s.requireAuth(s.handlePortStatsGet))
+	s.mux.HandleFunc("GET /api/switch/modes", s.requireAuth(s.handleSwitchModesGet))
+	s.mux.HandleFunc("POST /api/switch/modes", s.requireAuth(s.handleSwitchModesApply))
 	s.mux.HandleFunc("GET /api/history", s.requireAuth(s.handleHistoryGet))
 	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
@@ -1294,4 +1296,31 @@ func (s *Server) handleSwitchSet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlePortStatsGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, modules.ProbePortStats())
+}
+
+func (s *Server) handleSwitchModesGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"modes": modules.ListSwitchModes()})
+}
+
+type switchModeApplyRequest struct {
+	ID         string `json:"id"`
+	UplinkPort string `json:"uplink_port"`
+	Confirm    bool   `json:"confirm"`
+}
+
+func (s *Server) handleSwitchModesApply(w http.ResponseWriter, r *http.Request) {
+	var req switchModeApplyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ID == "" {
+		writeError(w, http.StatusBadRequest, "mode id required")
+		return
+	}
+	if !req.Confirm {
+		writeError(w, http.StatusBadRequest, "explicit confirmation required (confirm=true)")
+		return
+	}
+	if err := modules.ApplySwitchMode(req.ID, req.UplinkPort); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "applied"})
 }

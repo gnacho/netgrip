@@ -542,3 +542,9 @@ export interface PortStatsProbe {
   ports: PortStats[];
   ts: number;
 }
+
+export interface SwitchMode {
+  id: string;
+  name: string;
+  description: string;
+}

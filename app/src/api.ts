@@ -381,4 +381,12 @@ export const api = {
     }),
   portStats: () =>
     request<import("./types").PortStatsProbe>("/api/port-stats"),
+  switchModes: () =>
+    request<{ modes: import("./types").SwitchMode[] }>("/api/switch/modes"),
+  applySwitchMode: (id: string, uplinkPort: string, confirm: boolean) =>
+    request<{ status: string }>("/api/switch/modes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, uplink_port: uplinkPort, confirm }),
+    }),
 };

@@ -496,6 +496,16 @@ export default {
     tagged: "Con tag",
     notMember: "No miembro",
   },
+  switchModes: {
+    title: "Modos de switch",
+    intro: "Aplica configuraciones predefinidas de VLANs y puertos. Requiere confirmacion y reinicia la red.",
+    uplinkPort: "Puerto de uplink (hacia el router)",
+    selectPort: "Seleccionar puerto...",
+    uplinkRequired: "Selecciona un puerto de uplink",
+    apply: "Aplicar",
+    confirmApply: "Confirmar",
+    applied: "Modo de switch aplicado",
+  },
   portStats: {
     title: "Estadisticas por puerto",
     intro: "Trafico, errores y drops por puerto del bridge. Se actualiza cada 3 segundos.",
