@@ -652,3 +652,36 @@ export interface StormProbe {
   applicable: boolean;
   ports: StormPort[];
 }
+
+export interface StorageDevice {
+  name: string;
+  path: string;
+  fs_type: string;
+  size_bytes: number;
+  used_bytes: number;
+  free_bytes: number;
+  mount_point?: string;
+}
+
+export interface StorageService {
+  name: string;
+  running: boolean;
+  enabled: boolean;
+}
+
+export interface StorageProbe {
+  applicable: boolean;
+  devices: StorageDevice[];
+  services: StorageService[];
+}
+
+export interface MACACLPort {
+  port: string;
+  mode: string;
+  macs: string[];
+}
+
+export interface MACACLProbe {
+  applicable: boolean;
+  ports: MACACLPort[];
+}

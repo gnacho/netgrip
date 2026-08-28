@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftRight, Blocks, Download, LayoutDashboard, LogOut, Network, RefreshCw, Server, Wifi, Wrench } from "lucide-react";
+import { ArrowLeftRight, Blocks, Download, HardDrive, LayoutDashboard, LogOut, Network, RefreshCw, Server, Wifi, Wrench } from "lucide-react";
 import { api } from "../api";
-import type { Board, DawnAP, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, ModeProbe, OVPNProbe, PkgUpgrade, SelfUpdateCheck, SQMProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe } from "../types";
+import type { Board, DawnAP, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, ModeProbe, OVPNProbe, PkgUpgrade, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe } from "../types";
 import { Overview } from "../pages/Overview";
 import { WifiPage } from "../pages/Wifi";
 import { Services } from "../pages/Services";
@@ -12,8 +12,9 @@ import { System } from "../pages/System";
 import { LanPage } from "../pages/Lan";
 import { ToolsPage } from "../pages/Tools";
 import { FleetPage } from "../pages/Fleet";
+import { StoragePage } from "../pages/Storage";
 
-type Page = "overview" | "wifi" | "lan" | "services" | "ports" | "tools" | "fleet" | "system";
+type Page = "overview" | "wifi" | "lan" | "services" | "ports" | "tools" | "fleet" | "storage" | "system";
 
 const NAV: { id: Page; icon: LucideIcon; key: string }[] = [
   { id: "overview", icon: LayoutDashboard, key: "nav.overview" },
@@ -22,6 +23,7 @@ const NAV: { id: Page; icon: LucideIcon; key: string }[] = [
   { id: "services", icon: Blocks, key: "nav.services" },
   { id: "ports", icon: ArrowLeftRight, key: "nav.ports" },
   { id: "tools", icon: RefreshCw, key: "nav.tools" },
+  { id: "storage", icon: HardDrive, key: "nav.storage" },
   { id: "fleet", icon: Server, key: "nav.fleet" },
   { id: "system", icon: Wrench, key: "nav.system" },
 ];
@@ -49,6 +51,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const [packages, setPackages] = useState<PkgUpgrade[]>();
   const [selfUpdate, setSelfUpdate] = useState<SelfUpdateCheck>();
   const [drift, setDrift] = useState<DriftProbe>();
+  const [storage, setStorage] = useState<StorageProbe>();
   const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
@@ -82,6 +85,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     api.packages().then((r) => setPackages(r.upgradable)).catch(() => {});
     api.selfUpdateCheck().then(setSelfUpdate).catch(() => {});
     api.drift().then(setDrift).catch(() => {});
+    api.storage().then(setStorage).catch(() => {});
   }, []);
 
   // In AP mode the router is not the gateway: hide pages that only apply to
@@ -92,6 +96,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const navItems = NAV.filter((n) => {
     if (isSwitch && (n.id === "wifi" || n.id === "services")) return false;
     if (apMode && (n.id === "lan" || n.id === "ports")) return false;
+    if (n.id === "storage" && !storage?.applicable) return false;
     return true;
   });
   const activePage = navItems.some((n) => n.id === page) ? page : "overview";
@@ -148,6 +153,9 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
       )}
       {activePage === "fleet" && (
         <FleetPage />
+      )}
+      {activePage === "storage" && (
+        <StoragePage />
       )}
       {activePage === "system" && (
         <System board={board} update={update} onUpdateChange={setUpdate} packages={packages} onPackagesChange={setPackages} onLogout={onLogout} />

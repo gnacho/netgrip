@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Camera, Cable, GitCompareArrows, RefreshCw, ShieldCheck, Ban, Undo2, Download, Stethoscope, ShieldAlert } from "lucide-react";
+import { Camera, Cable, GitCompareArrows, RefreshCw, ShieldCheck, Ban, Undo2, Download, Stethoscope, ShieldAlert, Lock } from "lucide-react";
 import { api } from "../api";
 import { Card, Pill } from "../components/Card";
-import type { ConfigSnapshot, ConfigDiff, EthPort, IGMPProbe, LoopResult, CableTestProbe, StormProbe } from "../types";
+import type { ConfigSnapshot, ConfigDiff, EthPort, IGMPProbe, LoopResult, CableTestProbe, StormProbe, MACACLProbe } from "../types";
 import { TemplatesCard } from "../components/TemplatesCard";
 
 export function ToolsPage({ ethports }: { ethports: EthPort[] }) {
@@ -16,6 +16,7 @@ export function ToolsPage({ ethports }: { ethports: EthPort[] }) {
       <LoopsCard />
       <CableTestCard />
       <StormControlCard />
+      <MACACLCard />
       <div className="sm:col-span-2">
         <BounceCard ethports={ethports} />
       </div>
@@ -384,6 +385,78 @@ function StormControlCard() {
         })}
       </div>
       <p className="text-[10px] text-muted mt-2">{t("tools.stormControlNote")}</p>
+    </Card>
+  );
+}
+
+function MACACLCard() {
+  const { t } = useTranslation();
+  const [probe, setProbe] = useState<MACACLProbe | null>(null);
+  const [busy, setBusy] = useState<string>();
+  const [modes, setModes] = useState<Record<string, string>>({});
+  const [macText, setMacText] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    api.macAcl().then((p) => {
+      setProbe(p);
+      if (p.ports) {
+        const m: Record<string, string> = {};
+        const t: Record<string, string> = {};
+        for (const port of p.ports) {
+          m[port.port] = port.mode;
+          t[port.port] = port.macs.join("\n");
+        }
+        setModes(m);
+        setMacText(t);
+      }
+    }).catch(() => {});
+  }, []);
+
+  if (!probe?.applicable) return null;
+
+  const wired = probe.ports.filter((p) => p.port.startsWith("lan"));
+
+  const apply = async (port: string) => {
+    setBusy(port);
+    try {
+      const macs = (macText[port] || "").split("\n").map((m) => m.trim()).filter(Boolean);
+      await api.setMacAcl(port, modes[port] || "off", macs);
+      setProbe(await api.macAcl());
+    } catch {
+    } finally { setBusy(undefined); }
+  };
+
+  return (
+    <Card title={t("tools.macAcl")} icon={Lock}>
+      <p className="text-xs text-muted mb-3">{t("tools.macAclIntro")}</p>
+      <div className="flex flex-col gap-3">
+        {wired.map((p) => {
+          const mode = modes[p.port] || "off";
+          return (
+            <div key={p.port} className="border border-border/50 rounded-lg p-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-mono text-xs w-14">{p.port}</span>
+                <select value={mode} onChange={(e) => setModes((prev) => ({ ...prev, [p.port]: e.target.value }))}
+                  className="text-xs bg-bg border border-border rounded px-2 py-1">
+                  <option value="off">{t("tools.macAclOff")}</option>
+                  <option value="allow">{t("tools.macAclAllow")}</option>
+                  <option value="deny">{t("tools.macAclDeny")}</option>
+                </select>
+                <button onClick={() => apply(p.port)} disabled={busy === p.port}
+                  className="text-xs bg-accent/15 hover:bg-accent/25 border border-accent/30 rounded px-2 py-1 ml-auto disabled:opacity-50">
+                  {busy === p.port ? "..." : t("tools.macAclApply")}
+                </button>
+              </div>
+              {mode !== "off" && (
+                <textarea value={macText[p.port] || ""} rows={3}
+                  onChange={(e) => setMacText((prev) => ({ ...prev, [p.port]: e.target.value }))}
+                  placeholder={t("tools.macAclPlaceholder")}
+                  className="w-full text-xs bg-bg border border-border rounded px-2 py-1 font-mono" />
+              )}
+            </div>
+          );
+        })}
+      </div>
     </Card>
   );
 }
