@@ -279,6 +279,8 @@ export default {
     confirmAp: "Se cambiará a modo AP y se reconfigurará la red. ¿Continuar?",
     changed: "Modo aplicado",
     reverted: "El cambio se revirtió por un fallo",
+    switch: "Switch",
+    switchInfo: "Switch gestionado de {{ports}} puertos",
   },
   access: {
     title: "Acceso",

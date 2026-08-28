@@ -212,10 +212,13 @@ export interface EthPort {
 
 export interface ModeProbe {
   mode: "router" | "ap";
+  hardware_class: "router" | "ap" | "switch";
   wan_in_bridge: boolean;
   wan_configured: boolean;
   dnsmasq_on: boolean;
   firewall_on: boolean;
+  has_wifi: boolean;
+  port_count: number;
 }
 
 export interface PanelAccess {

@@ -41,28 +41,35 @@ export function ModeCard() {
       ) : (
         <>
           <Row label={t("mode.title")} value={
-            <Pill tone={mode.mode === "router" ? "ok" : "warn"}>
-              {mode.mode === "router" ? t("mode.router") : t("mode.ap")}
-            </Pill>
+            mode.hardware_class === "switch" ? (
+              <Pill tone="muted">{t("mode.switch")}</Pill>
+            ) : (
+              <Pill tone={mode.mode === "router" ? "ok" : "warn"}>
+                {mode.mode === "router" ? t("mode.router") : t("mode.ap")}
+              </Pill>
+            )
           } />
-          {mode.mode === "ap" && <p className="text-xs text-warn mt-1">{t("mode.wanBridge")}</p>}
+          {mode.mode === "ap" && mode.hardware_class !== "switch" && <p className="text-xs text-warn mt-1">{t("mode.wanBridge")}</p>}
+          {mode.hardware_class === "switch" && <p className="text-xs text-muted mt-1">{t("mode.switchInfo", { ports: mode.port_count })}</p>}
           <Row label="dnsmasq" value={mode.dnsmasq_on ? t("mode.on") : t("mode.off")} />
           <Row label="Firewall" value={mode.firewall_on ? t("mode.on") : t("mode.off")} />
 
-          <div className="mt-2 flex flex-col gap-2">
-            {mode.mode === "ap" ? (
-              <button onClick={() => switchMode("router")} disabled={busy}
-                className="text-sm bg-accent hover:bg-accent/85 disabled:opacity-40 rounded-lg px-3 py-1.5 font-medium self-start">
-                {busy ? "…" : t("mode.toRouter")}
-              </button>
-            ) : (
-              <button onClick={() => switchMode("ap")} disabled={busy}
-                className="text-sm bg-accent hover:bg-accent/85 disabled:opacity-40 rounded-lg px-3 py-1.5 font-medium self-start">
-                {busy ? "…" : t("mode.toAp")}
-              </button>
-            )}
-            {msg && <p className={`text-xs ${msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
-          </div>
+          {mode.hardware_class !== "switch" && (
+            <div className="mt-2 flex flex-col gap-2">
+              {mode.mode === "ap" ? (
+                <button onClick={() => switchMode("router")} disabled={busy}
+                  className="text-sm bg-accent hover:bg-accent/85 disabled:opacity-40 rounded-lg px-3 py-1.5 font-medium self-start">
+                  {busy ? "…" : t("mode.toRouter")}
+                </button>
+              ) : (
+                <button onClick={() => switchMode("ap")} disabled={busy}
+                  className="text-sm bg-accent hover:bg-accent/85 disabled:opacity-40 rounded-lg px-3 py-1.5 font-medium self-start">
+                  {busy ? "…" : t("mode.toAp")}
+                </button>
+              )}
+              {msg && <p className={`text-xs ${msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
+            </div>
+          )}
         </>
       )}
     </Card>
