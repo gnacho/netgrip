@@ -115,6 +115,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/selfupdate", s.requireAuth(s.handleSelfUpdateApply))
 	s.mux.HandleFunc("GET /api/wizard", s.requireAuth(s.handleWizardGet))
 	s.mux.HandleFunc("POST /api/wizard/complete", s.requireAuth(s.handleWizardComplete))
+	s.mux.HandleFunc("GET /api/drift", s.requireAuth(s.handleDriftGet))
 	return s
 }
 
@@ -1080,5 +1081,10 @@ func (s *Server) handleWizardComplete(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	modules.CreateSnapshot()
 	writeJSON(w, map[string]string{"status": "completed"})
+}
+
+func (s *Server) handleDriftGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeDrift())
 }

@@ -392,3 +392,21 @@ export interface WizardState {
   completed: boolean;
   mode: "router" | "ap";
 }
+
+export interface DriftLine {
+  kind: "added" | "removed";
+  text: string;
+}
+
+export interface DriftConfig {
+  config: string;
+  lines: DriftLine[];
+}
+
+export interface DriftProbe {
+  has_baseline: boolean;
+  snapshot_id: string;
+  snapshot_ts: number;
+  changes: number;
+  configs: DriftConfig[];
+}

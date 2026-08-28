@@ -1,12 +1,13 @@
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Cpu, Globe } from "lucide-react";
-import type { Board, DawnAP, EthPort, SystemInfo, WanStatus } from "../types";
+import type { Board, DawnAP, DriftProbe, EthPort, SystemInfo, WanStatus } from "../types";
 import { Card, Pill, Row } from "../components/Card";
 import { TrafficCard } from "../components/TrafficCard";
 import { EthPortsCard } from "../components/EthPortsCard";
 import { DawnCard } from "../components/DawnCard";
 import { ClientsCard } from "../components/ClientsCard";
+import { DriftCard } from "../components/DriftCard";
 
 function fmtUptime(t: TFunction, secs: number): string {
   const d = Math.floor(secs / 86400);
@@ -21,13 +22,15 @@ function fmtMB(bytes: number): string {
   return `${Math.round(bytes / 1048576)} MB`;
 }
 
-export function Overview({ board, system, wan, ethports, dawnAps, dawnError }: {
+export function Overview({ board, system, wan, ethports, dawnAps, dawnError, drift, onDriftChange }: {
   board: Board | undefined;
   system: SystemInfo | undefined;
   wan: WanStatus | undefined;
   ethports: EthPort[] | undefined;
   dawnAps: DawnAP[] | undefined;
   dawnError: boolean;
+  drift: DriftProbe | undefined;
+  onDriftChange: (d: DriftProbe) => void;
 }) {
   const { t } = useTranslation();
   const ramUsed = system ? system.memory.total - system.memory.available : 0;
@@ -57,6 +60,7 @@ export function Overview({ board, system, wan, ethports, dawnAps, dawnError }: {
         )}
       </Card>
 
+      <DriftCard drift={drift} onChange={onDriftChange} />
 
       <div className="sm:col-span-2 xl:col-span-4">
         <TrafficCard />

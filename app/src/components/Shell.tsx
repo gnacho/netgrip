@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import { ArrowLeftRight, Blocks, Download, LayoutDashboard, LogOut, Network, RefreshCw, Wifi, Wrench } from "lucide-react";
 import { api } from "../api";
-import type { Board, DawnAP, DDNSProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, ModeProbe, OVPNProbe, PkgUpgrade, SelfUpdateCheck, SQMProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe } from "../types";
+import type { Board, DawnAP, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, ModeProbe, OVPNProbe, PkgUpgrade, SelfUpdateCheck, SQMProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe } from "../types";
 import { Overview } from "../pages/Overview";
 import { WifiPage } from "../pages/Wifi";
 import { Services } from "../pages/Services";
@@ -46,6 +46,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const [dawnError, setDawnError] = useState(false);
   const [packages, setPackages] = useState<PkgUpgrade[]>();
   const [selfUpdate, setSelfUpdate] = useState<SelfUpdateCheck>();
+  const [drift, setDrift] = useState<DriftProbe>();
   const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
@@ -78,6 +79,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     api.dawn().then((r) => { setDawnAps(r.aps); setDawnError(false); }).catch(() => setDawnError(true));
     api.packages().then((r) => setPackages(r.upgradable)).catch(() => {});
     api.selfUpdateCheck().then(setSelfUpdate).catch(() => {});
+    api.drift().then(setDrift).catch(() => {});
   }, []);
 
   // In AP mode the router is not the gateway: hide pages that only apply to
@@ -119,7 +121,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     <>
       {loadError && <p className="text-danger text-sm mb-3">{t("error.load")}</p>}
       {activePage === "overview" && (
-        <Overview board={board} system={system} wan={wan} ethports={ethports} dawnAps={dawnAps} dawnError={dawnError} />
+        <Overview board={board} system={system} wan={wan} ethports={ethports} dawnAps={dawnAps} dawnError={dawnError} drift={drift} onDriftChange={setDrift} />
       )}
       {activePage === "wifi" && (
         <WifiPage iot={iot} onIotChange={setIot} guest={guest} onGuestChange={setGuest} />

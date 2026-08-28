@@ -439,6 +439,17 @@ export default {
     restarting: "Reiniciando...",
     error: "Fallo al actualizar: {{msg}}",
   },
+  drift: {
+    title: "Cambios de configuracion",
+    noBaseline: "Aun no hay una copia de referencia. Crea una para detectar cambios futuros.",
+    takeBaseline: "Crear copia de referencia",
+    taking: "Creando...",
+    clean: "Sin cambios desde la referencia",
+    sinceDate: "desde {{date}}",
+    changesCount: "{{count}} config cambiada",
+    changesCount_other: "{{count}} configs cambiadas",
+    updateBaseline: "Actualizar referencia",
+  },
   wizard: {
     title: "Bienvenido a NetGrip",
     intro: "Vamos a configurar lo esencial de tu router en unos pasos. Puedes saltar cualquier paso y volver despues desde el panel.",
