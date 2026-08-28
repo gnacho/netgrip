@@ -341,4 +341,12 @@ export const api = {
     }),
   telegramTest: () =>
     request<{ ok: boolean }>("/api/telegram/test", { method: "POST" }),
+  nlbwmon: () =>
+    request<import("./types").NlbwmonProbe>("/api/nlbwmon"),
+  setNlbwmon: (cfg: import("./types").NlbwmonConfig) =>
+    request<import("./types").ModuleResult<import("./types").NlbwmonProbe>>("/api/nlbwmon", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
 };

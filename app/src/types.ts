@@ -446,3 +446,19 @@ export interface HistoryEntry {
   load: number;
   clients: number;
 }
+
+export interface NlbwmonProbe {
+  installed: boolean;
+  running: boolean;
+  generations: number;
+  commit_interval: number;
+  prealloc_days: number;
+  protocol_database: boolean;
+}
+
+export interface NlbwmonConfig {
+  enabled?: boolean;
+  generations?: number;
+  commit_interval?: number;
+  prealloc_days?: number;
+}
