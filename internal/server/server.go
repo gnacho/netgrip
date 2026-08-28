@@ -115,6 +115,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/https", s.requireAuth(s.handleHTTPSGet))
 	s.mux.HandleFunc("POST /api/https", s.requireAuth(s.handleHTTPSEnable))
 	s.mux.HandleFunc("POST /api/wol", s.requireAuth(s.handleWoL))
+	s.mux.HandleFunc("GET /api/nlbwmon", s.requireAuth(s.handleNlbwmonGet))
+	s.mux.HandleFunc("POST /api/nlbwmon", s.requireAuth(s.handleNlbwmonSet))
 	s.mux.HandleFunc("GET /api/history", s.requireAuth(s.handleHistoryGet))
 	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
@@ -1195,4 +1197,18 @@ func (s *Server) handleWoL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "sent"})
+}
+
+func (s *Server) handleNlbwmonGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeNlbwmon())
+}
+
+func (s *Server) handleNlbwmonSet(w http.ResponseWriter, r *http.Request) {
+	var cfg modules.NlbwmonConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetNlbwmon(cfg)
+	writeModuleResult(w, probe, rolledBack, err)
 }
