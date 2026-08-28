@@ -129,6 +129,10 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/switch/modes", s.requireAuth(s.handleSwitchModesApply))
 	s.mux.HandleFunc("GET /api/poe", s.requireAuth(s.handlePoEGet))
 	s.mux.HandleFunc("POST /api/poe/schedule", s.requireAuth(s.handlePoESchedule))
+	s.mux.HandleFunc("GET /api/port-templates", s.requireAuth(s.handlePortTemplatesGet))
+	s.mux.HandleFunc("POST /api/port-templates", s.requireAuth(s.handlePortTemplatesSave))
+	s.mux.HandleFunc("DELETE /api/port-templates", s.requireAuth(s.handlePortTemplatesDelete))
+	s.mux.HandleFunc("POST /api/port-templates/apply", s.requireAuth(s.handlePortTemplatesApply))
 	s.mux.HandleFunc("GET /api/history", s.requireAuth(s.handleHistoryGet))
 	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
@@ -1343,4 +1347,51 @@ func (s *Server) handlePoESchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"status": "applied", "state": probe})
+}
+
+func (s *Server) handlePortTemplatesGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"templates": modules.ListPortTemplates()})
+}
+
+func (s *Server) handlePortTemplatesSave(w http.ResponseWriter, r *http.Request) {
+	var tpl modules.PortTemplateSave
+	if err := json.NewDecoder(r.Body).Decode(&tpl); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := modules.SavePortTemplate(tpl); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "saved"})
+}
+
+type portTemplateDeleteRequest struct {
+	Name string `json:"name"`
+}
+
+func (s *Server) handlePortTemplatesDelete(w http.ResponseWriter, r *http.Request) {
+	var req portTemplateDeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Name == "" {
+		writeError(w, http.StatusBadRequest, "name required")
+		return
+	}
+	if err := modules.DeletePortTemplate(req.Name); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "deleted"})
+}
+
+func (s *Server) handlePortTemplatesApply(w http.ResponseWriter, r *http.Request) {
+	var req modules.PortTemplateApply
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := modules.ApplyPortTemplate(req); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "applied"})
 }

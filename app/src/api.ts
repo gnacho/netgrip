@@ -397,4 +397,24 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(sched),
     }),
+  portTemplates: () =>
+    request<{ templates: import("./types").PortTemplate[] }>("/api/port-templates"),
+  savePortTemplate: (tpl: import("./types").PortTemplateSave) =>
+    request<{ status: string }>("/api/port-templates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(tpl),
+    }),
+  deletePortTemplate: (name: string) =>
+    request<{ status: string }>("/api/port-templates", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
+  applyPortTemplate: (template: string, ports: string[]) =>
+    request<{ status: string }>("/api/port-templates/apply", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ template, ports }),
+    }),
 };

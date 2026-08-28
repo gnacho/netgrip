@@ -571,3 +571,24 @@ export interface PoESchedule {
   on_time: string;
   off_time: string;
 }
+
+export interface PortTemplateVLAN {
+  vid: number;
+  tagged: boolean;
+}
+
+export interface PortTemplate {
+  name: string;
+  description: string;
+  vlans: PortTemplateVLAN[];
+  admin_up: boolean;
+  speed_mbps: number;
+}
+
+export interface PortTemplateSave {
+  name: string;
+  description: string;
+  vlans: PortTemplateVLAN[];
+  admin_up: boolean;
+  speed_mbps: number;
+}
