@@ -689,4 +689,18 @@ export default {
     add: "Anadir",
     cancel: "Cancelar",
   },
+  backup: {
+    title: "Backup de configuracion",
+    description: "Envia snapshots UCI a un servidor NetPulse central para backup fuera del dispositivo.",
+    serverURL: "URL del servidor NetPulse",
+    routerID: "ID del router",
+    token: "Token API",
+    save: "Guardar",
+    saving: "Guardando...",
+    saved: "Configuracion guardada",
+    pushNow: "Enviar ultimo snapshot",
+    pushing: "Enviando...",
+    pushed: "Snapshot {{id}} enviado correctamente",
+    pushFailed: "Fallo el envio",
+  },
 };

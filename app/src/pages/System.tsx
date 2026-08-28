@@ -8,6 +8,7 @@ import { RemoteAccessCard } from "../components/RemoteAccessCard";
 import { OffloadCard } from "../components/OffloadCard";
 import { SelfUpdateCard } from "../components/SelfUpdateCard";
 import { TelegramCard } from "../components/TelegramCard";
+import { ConfigBackupCard } from "../components/ConfigBackupCard";
 
 export function System({ board, update, onUpdateChange, packages, onPackagesChange, onLogout }: {
   board: Board | undefined;
@@ -26,6 +27,7 @@ export function System({ board, update, onUpdateChange, packages, onPackagesChan
       <OffloadCard />
       <SelfUpdateCard />
       <TelegramCard />
+      <ConfigBackupCard />
       <div className="sm:col-span-2 xl:col-span-3">
         <AccessCard />
       </div>

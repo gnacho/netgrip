@@ -689,4 +689,18 @@ export default {
     add: "Add",
     cancel: "Cancel",
   },
+  backup: {
+    title: "Config Backup",
+    description: "Push UCI snapshots to a central NetPulse server for off-device backup.",
+    serverURL: "NetPulse server URL",
+    routerID: "Router ID",
+    token: "API token",
+    save: "Save",
+    saving: "Saving...",
+    saved: "Configuration saved",
+    pushNow: "Push latest snapshot",
+    pushing: "Pushing...",
+    pushed: "Snapshot {{id}} pushed successfully",
+    pushFailed: "Push failed",
+  },
 };
