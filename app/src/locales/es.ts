@@ -496,6 +496,14 @@ export default {
     tagged: "Con tag",
     notMember: "No miembro",
   },
+  portStats: {
+    title: "Estadisticas por puerto",
+    intro: "Trafico, errores y drops por puerto del bridge. Se actualiza cada 3 segundos.",
+    port: "Puerto",
+    errors: "Errores",
+    drops: "Drops",
+    hasErrors: "Se detectaron errores o drops en algun puerto. Puede indicar un cable o conector danado.",
+  },
   switch: {
     title: "Gestion de puertos",
     intro: "Estado y configuracion de cada puerto del switch. Pulsa la descripcion para editarla.",

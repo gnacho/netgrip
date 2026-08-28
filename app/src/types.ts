@@ -527,3 +527,18 @@ export interface SwitchPortEdit {
   poe_enabled?: boolean;
   description?: string;
 }
+
+export interface PortStats {
+  name: string;
+  rx_bytes: number;
+  tx_bytes: number;
+  rx_errors: number;
+  tx_errors: number;
+  rx_drops: number;
+  tx_drops: number;
+}
+
+export interface PortStatsProbe {
+  ports: PortStats[];
+  ts: number;
+}
