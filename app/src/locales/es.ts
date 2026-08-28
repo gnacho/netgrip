@@ -433,5 +433,10 @@ export default {
     confirmMsg: "Descargar la nueva version y reiniciar el panel? La sesion sobrevivira al reinicio.",
     done: "Actualizacion aplicada, reiniciando...",
     noAsset: "No se encontro el binario en la release",
+    bannerText: "Actualizacion a {{version}} disponible",
+    downloading: "Descargando... {{pct}}%",
+    installing: "Instalando...",
+    restarting: "Reiniciando...",
+    error: "Fallo al actualizar: {{msg}}",
   },
 };

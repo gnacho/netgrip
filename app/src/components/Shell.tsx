@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftRight, Blocks, LayoutDashboard, LogOut, Network, RefreshCw, Wifi, Wrench } from "lucide-react";
+import { ArrowLeftRight, Blocks, Download, LayoutDashboard, LogOut, Network, RefreshCw, Wifi, Wrench } from "lucide-react";
 import { api } from "../api";
-import type { Board, DawnAP, DDNSProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, ModeProbe, OVPNProbe, PkgUpgrade, SQMProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe } from "../types";
+import type { Board, DawnAP, DDNSProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, ModeProbe, OVPNProbe, PkgUpgrade, SelfUpdateCheck, SQMProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe } from "../types";
 import { Overview } from "../pages/Overview";
 import { WifiPage } from "../pages/Wifi";
 import { Services } from "../pages/Services";
@@ -45,6 +45,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const [dawnAps, setDawnAps] = useState<DawnAP[]>();
   const [dawnError, setDawnError] = useState(false);
   const [packages, setPackages] = useState<PkgUpgrade[]>();
+  const [selfUpdate, setSelfUpdate] = useState<SelfUpdateCheck>();
   const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
@@ -76,6 +77,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     api.ethports().then((r) => setEthports(r.ports)).catch(() => {});
     api.dawn().then((r) => { setDawnAps(r.aps); setDawnError(false); }).catch(() => setDawnError(true));
     api.packages().then((r) => setPackages(r.upgradable)).catch(() => {});
+    api.selfUpdateCheck().then(setSelfUpdate).catch(() => {});
   }, []);
 
   // In AP mode the router is not the gateway: hide pages that only apply to
@@ -104,6 +106,14 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
       </button>
     </header>
   );
+
+  const updateBanner = selfUpdate?.available ? (
+    <button onClick={() => setPage("system")}
+      className="w-full mb-3 py-2 px-4 bg-accent/15 hover:bg-accent/25 border border-accent/30 rounded-lg text-sm flex items-center gap-2 transition-colors">
+      <Download size={16} className="text-accent" />
+      <span>{t("selfupdate.bannerText", { version: selfUpdate.latest })}</span>
+    </button>
+  ) : null;
 
   const pageContent = (
     <>
@@ -154,6 +164,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
         {/* Content */}
         <main className="flex-1 p-4 pb-24 md:pb-12">
           {header}
+          {updateBanner}
           {pageContent}
         </main>
       </div>

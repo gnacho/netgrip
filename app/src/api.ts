@@ -291,4 +291,6 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ confirm: true }),
     }),
+  selfUpdateStatus: () =>
+    request<import("./types").SelfUpdateStatus>("/api/selfupdate/status"),
 };
