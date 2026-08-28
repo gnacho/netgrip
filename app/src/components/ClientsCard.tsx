@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Cable, Monitor, Users, Wifi } from "lucide-react";
+import { Cable, Monitor, Users, Wifi, Zap } from "lucide-react";
 import { api } from "../api";
 import type { Client } from "../types";
 import { Card, Pill } from "./Card";
@@ -104,6 +104,7 @@ export function ClientsCard() {
                 <th className="text-left font-medium py-1.5 px-1">{t("clients.traffic")}</th>
                 <th className="text-center font-medium py-1.5 px-1">{t("clients.reserved")}</th>
                 <th className="text-center font-medium py-1.5 px-1">{t("clients.block")}</th>
+                <th className="text-center font-medium py-1.5 px-1">{t("clients.wol")}</th>
               </tr>
             </thead>
             <tbody>
@@ -168,6 +169,24 @@ export function ClientsCard() {
                         onChange={(v) => toggleBlock(c, v)}
                       />
                     </div>
+                  </td>
+                  <td className="py-1.5 px-1 text-center">
+                    {c.type === "cable" && (
+                      <button
+                        onClick={() => {
+                          setBusyMac(c.mac);
+                          api.wakeOnLan(c.mac)
+                            .then(() => setMsg({ tone: "ok", text: t("clients.wolSent", { name: c.name }) }))
+                            .catch((e: any) => setMsg({ tone: "danger", text: e.message }))
+                            .finally(() => setBusyMac(undefined));
+                        }}
+                        disabled={busyMac === c.mac}
+                        className="text-muted hover:text-accent p-1 disabled:opacity-40"
+                        title={t("clients.wolHint")}
+                      >
+                        <Zap size={12} />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

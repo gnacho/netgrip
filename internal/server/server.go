@@ -114,6 +114,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("DELETE /api/vlans", s.requireAuth(s.handleVLANsDelete))
 	s.mux.HandleFunc("GET /api/https", s.requireAuth(s.handleHTTPSGet))
 	s.mux.HandleFunc("POST /api/https", s.requireAuth(s.handleHTTPSEnable))
+	s.mux.HandleFunc("POST /api/wol", s.requireAuth(s.handleWoL))
 	s.mux.HandleFunc("GET /api/history", s.requireAuth(s.handleHistoryGet))
 	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
@@ -1174,4 +1175,21 @@ func (s *Server) handleHTTPSEnable(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "enabled"})
+}
+
+type wolRequest struct {
+	MAC string `json:"mac"`
+}
+
+func (s *Server) handleWoL(w http.ResponseWriter, r *http.Request) {
+	var req wolRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.MAC == "" {
+		writeError(w, http.StatusBadRequest, "mac required")
+		return
+	}
+	if err := modules.WakeOnLAN(req.MAC); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "sent"})
 }

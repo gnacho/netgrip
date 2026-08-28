@@ -325,4 +325,20 @@ export const api = {
     request<{ has_cert: boolean }>("/api/https"),
   enableHttps: () =>
     request<{ status: string }>("/api/https", { method: "POST" }),
+  wakeOnLan: (mac: string) =>
+    request<{ status: string }>("/api/wol", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mac }),
+    }),
+  telegramGet: () =>
+    request<{ botToken: string; chatId: string; enabled: boolean }>("/api/telegram"),
+  telegramSet: (botToken: string, chatId: string, enabled: boolean) =>
+    request<{ ok: boolean; botName: string; chatName: string }>("/api/telegram", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ botToken, chatId, enabled }),
+    }),
+  telegramTest: () =>
+    request<{ ok: boolean }>("/api/telegram/test", { method: "POST" }),
 };
