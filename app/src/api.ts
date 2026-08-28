@@ -467,4 +467,20 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ port, percent }),
     }),
+  storage: () =>
+    request<import("./types").StorageProbe>("/api/storage"),
+  setStorageService: (name: string, action: "enable" | "disable") =>
+    request<{ status: string }>("/api/storage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, action }),
+    }),
+  macAcl: () =>
+    request<import("./types").MACACLProbe>("/api/mac-acl"),
+  setMacAcl: (port: string, mode: string, macs: string[]) =>
+    request<{ status: string }>("/api/mac-acl", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ port, mode, macs }),
+    }),
 };

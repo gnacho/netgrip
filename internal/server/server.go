@@ -158,6 +158,10 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/cable-test", s.requireAuth(s.handleCableTestGet))
 	s.mux.HandleFunc("GET /api/storm", s.requireAuth(s.handleStormGet))
 	s.mux.HandleFunc("POST /api/storm", s.requireAuth(s.handleStormSet))
+	s.mux.HandleFunc("GET /api/storage", s.requireAuth(s.handleStorageGet))
+	s.mux.HandleFunc("POST /api/storage", s.requireAuth(s.handleStorageSet))
+	s.mux.HandleFunc("GET /api/mac-acl", s.requireAuth(s.handleMACACLGet))
+	s.mux.HandleFunc("POST /api/mac-acl", s.requireAuth(s.handleMACACLSet))
 	return s
 }
 
@@ -1525,6 +1529,43 @@ func (s *Server) handleStormSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := modules.SetStormControl(req); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "applied"})
+}
+
+func (s *Server) handleStorageGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeStorage())
+}
+
+func (s *Server) handleStorageSet(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name   string `json:"name"`
+		Action string `json:"action"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := modules.SetStorageService(req.Name, req.Action); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "applied"})
+}
+
+func (s *Server) handleMACACLGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeMACACL())
+}
+
+func (s *Server) handleMACACLSet(w http.ResponseWriter, r *http.Request) {
+	var req modules.MACACLSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := modules.SetMACACL(req); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
