@@ -106,6 +106,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("DELETE /api/config/snapshot", s.requireAuth(s.handleSnapshotDelete))
 	s.mux.HandleFunc("GET /api/config/diff", s.requireAuth(s.handleSnapshotDiff))
 	s.mux.HandleFunc("POST /api/config/rollback", s.requireAuth(s.handleSnapshotRollback))
+	s.mux.HandleFunc("GET /api/config/snapshot/export", s.requireAuth(s.handleSnapshotExport))
 	s.mux.HandleFunc("POST /api/ports/bounce", s.requireAuth(s.handlePortBounce))
 	s.mux.HandleFunc("POST /api/ports/block", s.requireAuth(s.handlePortBlock))
 	s.mux.HandleFunc("GET /api/vlans", s.requireAuth(s.handleVLANsGet))
@@ -1006,6 +1007,22 @@ func (s *Server) handleSnapshotRollback(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, map[string]string{"status": "applied"})
+}
+
+func (s *Server) handleSnapshotExport(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "id query param required")
+		return
+	}
+	data, err := modules.ExportSnapshot(id)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "application/gzip")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"netgrip-snapshot-"+id+".tar.gz\"")
+	w.Write(data)
 }
 
 type bounceRequest struct {

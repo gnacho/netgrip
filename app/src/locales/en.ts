@@ -403,6 +403,7 @@ export default {
     rolling: "Restoring...",
     diff: "Compare",
     delete: "Delete",
+    export: "Download",
     noSnapshots: "No snapshots yet.",
     rollbackConfirm: "Restore this snapshot? The router will reload network, firewall and DNS.",
     deleteConfirm: "Delete this snapshot?",

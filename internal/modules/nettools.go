@@ -1,6 +1,9 @@
 package modules
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -165,6 +168,34 @@ func isValidSnapshotID(id string) bool {
 		}
 	}
 	return true
+}
+
+func ExportSnapshot(id string) ([]byte, error) {
+	if !isValidSnapshotID(id) {
+		return nil, fmt.Errorf("invalid snapshot id")
+	}
+	dir := filepath.Join(snapshotDir, id)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return nil, fmt.Errorf("snapshot %s not found", id)
+	}
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gw)
+	for _, cfg := range uciConfigs {
+		path := filepath.Join(dir, cfg+".uci")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		hdr := &tar.Header{Name: cfg + ".uci", Size: int64(len(data)), Mode: 0644}
+		if err := tw.WriteHeader(hdr); err != nil {
+			continue
+		}
+		tw.Write(data)
+	}
+	tw.Close()
+	gw.Close()
+	return buf.Bytes(), nil
 }
 
 type LinkBounceResult struct {

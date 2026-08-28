@@ -403,6 +403,7 @@ export default {
     rolling: "Restaurando...",
     diff: "Comparar",
     delete: "Borrar",
+    export: "Descargar",
     noSnapshots: "Aun no hay copias.",
     rollbackConfirm: "Restaurar esta copia? El router recargara red, firewall y DNS.",
     deleteConfirm: "Borrar esta copia?",

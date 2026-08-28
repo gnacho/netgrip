@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Camera, Cable, GitCompareArrows, RefreshCw, ShieldCheck, Ban, Undo2 } from "lucide-react";
+import { Camera, Cable, GitCompareArrows, RefreshCw, ShieldCheck, Ban, Undo2, Download } from "lucide-react";
 import { api } from "../api";
 import { Card, Pill } from "../components/Card";
 import type { ConfigSnapshot, ConfigDiff, EthPort, IGMPProbe, LoopResult } from "../types";
@@ -84,6 +84,10 @@ function SnapshotsCard() {
               <input type="radio" name="snapB" checked={selB === s.id} onChange={() => setSelB(s.id)} className="accent-accent" />
               <span className="flex-1">{fmtDate(s.timestamp)}</span>
               <Pill tone="muted">{t("tools.configs", { n: s.configs })}</Pill>
+              <a href={`/api/config/snapshot/export?id=${s.id}`} download
+                className="text-muted hover:text-text p-1" title={t("tools.export")}>
+                <Download size={12} />
+              </a>
               {confirmId === s.id ? (
                 <div className="flex gap-1">
                   <button onClick={() => rollback(s.id)} disabled={busy === "rollback-" + s.id}
