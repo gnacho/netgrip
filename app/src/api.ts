@@ -321,4 +321,8 @@ export const api = {
     }),
   history: () =>
     request<{ entries: import("./types").HistoryEntry[] }>("/api/history"),
+  httpsState: () =>
+    request<{ has_cert: boolean }>("/api/https"),
+  enableHttps: () =>
+    request<{ status: string }>("/api/https", { method: "POST" }),
 };
