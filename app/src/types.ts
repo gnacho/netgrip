@@ -625,3 +625,30 @@ export interface FleetNodeStatus {
   update_available: boolean;
   error?: string;
 }
+
+export interface CableTestResult {
+  port: string;
+  supported: boolean;
+  pair_status?: string;
+  length?: string;
+  error?: string;
+}
+
+export interface CableTestProbe {
+  applicable: boolean;
+  ports: CableTestResult[];
+}
+
+export interface StormPort {
+  port: string;
+  link_speed_mbps: number;
+  broadcast_kbps: number;
+  multicast_kbps: number;
+  unknown_unicast_kbps: number;
+  active: boolean;
+}
+
+export interface StormProbe {
+  applicable: boolean;
+  ports: StormPort[];
+}

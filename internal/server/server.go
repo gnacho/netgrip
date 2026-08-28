@@ -155,6 +155,9 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/fleet/check", s.requireAuth(s.handleFleetCheck))
 	s.mux.HandleFunc("POST /api/fleet/check-all", s.requireAuth(s.handleFleetCheckAll))
 	s.mux.HandleFunc("POST /api/fleet/update", s.requireAuth(s.handleFleetUpdate))
+	s.mux.HandleFunc("GET /api/cable-test", s.requireAuth(s.handleCableTestGet))
+	s.mux.HandleFunc("GET /api/storm", s.requireAuth(s.handleStormGet))
+	s.mux.HandleFunc("POST /api/storm", s.requireAuth(s.handleStormSet))
 	return s
 }
 
@@ -1505,4 +1508,25 @@ func (s *Server) handleFleetUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "updating"})
+}
+
+func (s *Server) handleCableTestGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeCableTest())
+}
+
+func (s *Server) handleStormGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeStormControl())
+}
+
+func (s *Server) handleStormSet(w http.ResponseWriter, r *http.Request) {
+	var req modules.StormSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := modules.SetStormControl(req); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "applied"})
 }
