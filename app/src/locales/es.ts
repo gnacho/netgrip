@@ -422,4 +422,16 @@ export default {
     bounceDone: "Puerto reiniciado",
     configs: "{{n}} configs",
   },
+  selfupdate: {
+    title: "Actualizacion del panel",
+    current: "Version actual",
+    latest: "Ultima version",
+    upToDate: "Al dia",
+    available: "Actualizacion disponible",
+    update: "Actualizar y reiniciar",
+    updating: "Actualizando...",
+    confirmMsg: "Descargar la nueva version y reiniciar el panel? La sesion sobrevivira al reinicio.",
+    done: "Actualizacion aplicada, reiniciando...",
+    noAsset: "No se encontro el binario en la release",
+  },
 };

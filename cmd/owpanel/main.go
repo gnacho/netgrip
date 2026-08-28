@@ -9,6 +9,8 @@ import (
 	"github.com/gnacho/owpanel/internal/server"
 )
 
+var version = "dev"
+
 func main() {
 	listen := flag.String("listen", "0.0.0.0", "listen address")
 	port := flag.Int("port", 8080, "listen port")
@@ -16,6 +18,6 @@ func main() {
 	flag.Parse()
 
 	addr := fmt.Sprintf("%s:%d", *listen, *port)
-	log.Printf("owpanel spike listening on %s (rpcd: %s)", addr, *rpcdURL)
-	log.Fatal(http.ListenAndServe(addr, server.New(*rpcdURL)))
+	log.Printf("owpanel %s listening on %s (rpcd: %s)", version, addr, *rpcdURL)
+	log.Fatal(http.ListenAndServe(addr, server.New(*rpcdURL, version)))
 }

@@ -422,4 +422,16 @@ export default {
     bounceDone: "Port restarted",
     configs: "{{n}} configs",
   },
+  selfupdate: {
+    title: "Panel update",
+    current: "Current version",
+    latest: "Latest version",
+    upToDate: "Up to date",
+    available: "Update available",
+    update: "Update and restart",
+    updating: "Updating...",
+    confirmMsg: "Download the new version and restart the panel? The session will survive the restart.",
+    done: "Update applied, restarting...",
+    noAsset: "No binary asset found in the release",
+  },
 };
