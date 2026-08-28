@@ -425,4 +425,6 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role_id: roleId, port }),
     }),
+  dpi: () =>
+    request<import("./types").DPIProbe>("/api/dpi"),
 };

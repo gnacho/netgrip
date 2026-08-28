@@ -625,4 +625,13 @@ export default {
     chat: "Chat",
     error: "Error",
   },
+  dpi: {
+    title: "Trafico por aplicacion",
+    intro: "Clasificacion del trafico activo por protocolo. Solo refleja flujos activos en la tabla de conexiones.",
+    total: "Total",
+    flows: "flujos",
+    byCategory: "Por categoria",
+    byProtocol: "Por protocolo",
+    noData: "Sin trafico activo en este momento",
+  },
 };
