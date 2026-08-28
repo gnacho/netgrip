@@ -625,4 +625,13 @@ export default {
     chat: "Chat",
     error: "Error",
   },
+  dpi: {
+    title: "Traffic by Application",
+    intro: "Classification of active traffic by protocol. Only reflects active flows in the connection table.",
+    total: "Total",
+    flows: "flows",
+    byCategory: "By Category",
+    byProtocol: "By Protocol",
+    noData: "No active traffic at this time",
+  },
 };

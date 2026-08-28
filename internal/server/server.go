@@ -135,6 +135,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/port-templates/apply", s.requireAuth(s.handlePortTemplatesApply))
 	s.mux.HandleFunc("GET /api/roles", s.requireAuth(s.handleRolesGet))
 	s.mux.HandleFunc("POST /api/roles", s.requireAuth(s.handleRolesApply))
+	s.mux.HandleFunc("GET /api/dpi", s.requireAuth(s.handleDPIGet))
 	s.mux.HandleFunc("GET /api/history", s.requireAuth(s.handleHistoryGet))
 	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
@@ -1413,4 +1414,8 @@ func (s *Server) handleRolesApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "applied"})
+}
+
+func (s *Server) handleDPIGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeDPI())
 }

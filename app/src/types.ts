@@ -600,3 +600,17 @@ export interface RoleProfile {
   vid: number;
   isolated: boolean;
 }
+
+export interface DPIProtocol {
+  name: string;
+  bytes: number;
+  flows: number;
+  category: string;
+}
+
+export interface DPIProbe {
+  applicable: boolean;
+  total_bytes: number;
+  total_flows: number;
+  protocols: DPIProtocol[];
+}
