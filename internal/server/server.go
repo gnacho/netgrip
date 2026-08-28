@@ -149,6 +149,12 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/telegram", s.requireAuth(s.handleTelegramGet))
 	s.mux.HandleFunc("POST /api/telegram", s.requireAuth(s.handleTelegramSet))
 	s.mux.HandleFunc("POST /api/telegram/test", s.requireAuth(s.handleTelegramTest))
+	s.mux.HandleFunc("GET /api/fleet", s.requireAuth(s.handleFleetGet))
+	s.mux.HandleFunc("POST /api/fleet", s.requireAuth(s.handleFleetAdd))
+	s.mux.HandleFunc("DELETE /api/fleet", s.requireAuth(s.handleFleetDelete))
+	s.mux.HandleFunc("POST /api/fleet/check", s.requireAuth(s.handleFleetCheck))
+	s.mux.HandleFunc("POST /api/fleet/check-all", s.requireAuth(s.handleFleetCheckAll))
+	s.mux.HandleFunc("POST /api/fleet/update", s.requireAuth(s.handleFleetUpdate))
 	return s
 }
 
@@ -1418,4 +1424,85 @@ func (s *Server) handleRolesApply(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDPIGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, modules.ProbeDPI())
+}
+
+func (s *Server) handleFleetGet(w http.ResponseWriter, _ *http.Request) {
+	nodes, err := modules.ListFleet()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"nodes": nodes})
+}
+
+func (s *Server) handleFleetAdd(w http.ResponseWriter, r *http.Request) {
+	var node modules.FleetNode
+	if err := json.NewDecoder(r.Body).Decode(&node); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if node.ID == "" || node.Name == "" || node.Address == "" {
+		writeError(w, http.StatusBadRequest, "id, name and address required")
+		return
+	}
+	if err := modules.AddFleetNode(node); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "added"})
+}
+
+func (s *Server) handleFleetDelete(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := modules.RemoveFleetNode(req.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "deleted"})
+}
+
+func (s *Server) handleFleetCheck(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	status, err := modules.CheckFleetNode(req.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, status)
+}
+
+func (s *Server) handleFleetCheckAll(w http.ResponseWriter, _ *http.Request) {
+	nodes, err := modules.CheckAllFleet()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"nodes": nodes})
+}
+
+func (s *Server) handleFleetUpdate(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := modules.UpdateFleetNode(req.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "updating"})
 }
