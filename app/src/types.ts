@@ -462,3 +462,37 @@ export interface NlbwmonConfig {
   commit_interval?: number;
   prealloc_days?: number;
 }
+
+export interface FWZone {
+  name: string;
+  input: string;
+  output: string;
+  forward: string;
+  network: string[];
+  masq: boolean;
+}
+
+export interface FWRule {
+  name: string;
+  section: string;
+  src: string;
+  dest: string;
+  proto: string;
+  dest_port: string;
+  target: string;
+}
+
+export interface FirewallProbe {
+  applicable: boolean;
+  zones: FWZone[];
+  rules: FWRule[];
+}
+
+export interface FirewallRuleAdd {
+  name: string;
+  src: string;
+  dest: string;
+  proto: string;
+  dest_port: string;
+  target: string;
+}

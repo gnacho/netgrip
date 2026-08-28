@@ -117,6 +117,9 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/wol", s.requireAuth(s.handleWoL))
 	s.mux.HandleFunc("GET /api/nlbwmon", s.requireAuth(s.handleNlbwmonGet))
 	s.mux.HandleFunc("POST /api/nlbwmon", s.requireAuth(s.handleNlbwmonSet))
+	s.mux.HandleFunc("GET /api/firewall", s.requireAuth(s.handleFirewallGet))
+	s.mux.HandleFunc("POST /api/firewall", s.requireAuth(s.handleFirewallAddRule))
+	s.mux.HandleFunc("DELETE /api/firewall", s.requireAuth(s.handleFirewallDelRule))
 	s.mux.HandleFunc("GET /api/history", s.requireAuth(s.handleHistoryGet))
 	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
@@ -1210,5 +1213,33 @@ func (s *Server) handleNlbwmonSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	probe, rolledBack, err := modules.SetNlbwmon(cfg)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleFirewallGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeFirewall())
+}
+
+func (s *Server) handleFirewallAddRule(w http.ResponseWriter, r *http.Request) {
+	var rule modules.FirewallRuleAdd
+	if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.AddFirewallRule(rule)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+type fwDeleteRequest struct {
+	Section string `json:"section"`
+}
+
+func (s *Server) handleFirewallDelRule(w http.ResponseWriter, r *http.Request) {
+	var req fwDeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Section == "" {
+		writeError(w, http.StatusBadRequest, "section required")
+		return
+	}
+	probe, rolledBack, err := modules.DeleteFirewallRule(req.Section)
 	writeModuleResult(w, probe, rolledBack, err)
 }

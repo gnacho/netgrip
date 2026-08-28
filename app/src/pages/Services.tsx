@@ -6,6 +6,7 @@ import { SqmCard } from "../components/SqmCard";
 import { OpenvpnCard } from "../components/OpenvpnCard";
 import { TailscaleCard } from "../components/TailscaleCard";
 import { NlbwmonCard } from "../components/NlbwmonCard";
+import { FirewallCard } from "../components/FirewallCard";
 
 export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChange, sqm, onSqmChange, ovpn, onOvpnChange, ts, onTsChange }: {
   wg: WGProbe | undefined;
@@ -34,6 +35,9 @@ export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChang
       </div>
       <TailscaleCard probe={ts} onChange={onTsChange} />
       <NlbwmonCard />
+      <div className="sm:col-span-2 xl:col-span-3">
+        <FirewallCard />
+      </div>
     </div>
   );
 }
