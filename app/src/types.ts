@@ -372,3 +372,12 @@ export interface LoopResult {
   loops: LoopEntry[];
   has_hub: boolean;
 }
+
+export interface SelfUpdateCheck {
+  current: string;
+  latest: string;
+  available: boolean;
+  notes: string;
+  asset_url?: string;
+  asset_size?: number;
+}

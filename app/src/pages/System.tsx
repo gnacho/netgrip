@@ -6,6 +6,7 @@ import { ModeCard } from "../components/ModeCard";
 import { AccessCard } from "../components/AccessCard";
 import { RemoteAccessCard } from "../components/RemoteAccessCard";
 import { OffloadCard } from "../components/OffloadCard";
+import { SelfUpdateCard } from "../components/SelfUpdateCard";
 
 export function System({ board, update, onUpdateChange, packages, onPackagesChange, onLogout }: {
   board: Board | undefined;
@@ -22,6 +23,7 @@ export function System({ board, update, onUpdateChange, packages, onPackagesChan
       <ModeCard />
       <RemoteAccessCard />
       <OffloadCard />
+      <SelfUpdateCard />
       <div className="sm:col-span-2 xl:col-span-3">
         <AccessCard />
       </div>

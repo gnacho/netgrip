@@ -283,4 +283,12 @@ export const api = {
       body: JSON.stringify({ enabled }),
     }),
   loops: () => request<import("./types").LoopResult>("/api/loops"),
+  selfUpdateCheck: () =>
+    request<import("./types").SelfUpdateCheck>("/api/selfupdate"),
+  selfUpdateApply: () =>
+    request<{ status: string; restarting: boolean }>("/api/selfupdate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirm: true }),
+    }),
 };
