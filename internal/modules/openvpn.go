@@ -10,17 +10,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnacho/owpanel/internal/executor"
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
 var validNameRe = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,32}$`)
 
 const (
-	ovpnSection = "owpanel_server"
+	ovpnSection = "netgrip_server"
 	ovpnPkiDir  = "/etc/easy-rsa/pki"
 	ovpnPort    = "1194"
 	ovpnSubnet  = "10.8.0.0 255.255.255.0"
-	ovpnFwRule  = "allow_owpanel_ovpn"
+	ovpnFwRule  = "allow_netgrip_ovpn"
 )
 
 // OVPNClient is one issued client certificate.
@@ -205,7 +205,7 @@ func enableOVPN(rollback func()) (*OVPNProbe, bool, error) {
 			src = "wan"
 		}
 		set("firewall."+ovpnFwRule, "rule")
-		set("firewall."+ovpnFwRule+".name", "Allow-owpanel-OpenVPN")
+		set("firewall."+ovpnFwRule+".name", "Allow-netgrip-OpenVPN")
 		set("firewall."+ovpnFwRule+".src", src)
 		set("firewall."+ovpnFwRule+".dest_port", ovpnPort)
 		set("firewall."+ovpnFwRule+".proto", "udp")

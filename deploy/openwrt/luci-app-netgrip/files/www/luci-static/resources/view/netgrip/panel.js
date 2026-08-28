@@ -3,19 +3,19 @@
 'require ui';
 
 /*
- * owpanel/panel: embeds the owpanel companion UI (served by the owpanel
+ * netgrip/panel: embeds the netgrip companion UI (served by the netgrip
  * package on port 8080) inside LuCI. Falls back to a plain link when the
  * browser blocks the iframe (mixed content if LuCI runs over HTTPS while
- * owpanel serves plain HTTP on the LAN).
+ * netgrip serves plain HTTP on the LAN).
  */
 
 return view.extend({
 	render: function() {
 		var url = window.location.protocol + '//' + window.location.hostname + ':8080/';
 
-		return E('div', { 'class': 'owpanel-embed' }, [
+		return E('div', { 'class': 'netgrip-embed' }, [
 			E('p', { 'class': 'cbi-section-descr' }, [
-				_('The owpanel companion panel runs on this router, port 8080. '),
+				_('The netgrip companion panel runs on this router, port 8080. '),
 				E('a', { href: url, target: '_blank', rel: 'noreferrer' }, _('Open it in a new tab'))
 			]),
 			E('iframe', {

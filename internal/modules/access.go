@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnacho/owpanel/internal/executor"
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
 // AccessProbe is the read-only state of the three admin access surfaces:
@@ -20,7 +20,7 @@ type AccessProbe struct {
 	SSH   SSHAccess   `json:"ssh"`
 }
 
-// PanelAccess covers the owpanel web server.
+// PanelAccess covers the netgrip web server.
 type PanelAccess struct {
 	HTTPPort     int    `json:"http_port"`
 	HTTPSEnabled bool   `json:"https_enabled"`
@@ -53,17 +53,17 @@ func ProbeAccess() *AccessProbe {
 
 // panelSessionTTLMinutePath is the UCI option (in minutes) that governs how
 // long a panel session token lives. Absent means the default of 12h.
-const panelSessionTTLMinutePath = "owpanel.main.session_timeout"
+const panelSessionTTLMinutePath = "netgrip.main.session_timeout"
 
 func probePanelAccess() PanelAccess {
 	p := PanelAccess{
 		HTTPPort:   8080,
 		SessionTtl: PanelSessionTTLString(),
 	}
-	if p.HTTPSEnabled = uciGet("owpanel.main.https") == "1"; p.HTTPSEnabled {
-		p.ForceHTTPS = uciGet("owpanel.main.force_https") == "1"
+	if p.HTTPSEnabled = uciGet("netgrip.main.https") == "1"; p.HTTPSEnabled {
+		p.ForceHTTPS = uciGet("netgrip.main.force_https") == "1"
 	}
-	if v, err := strconv.Atoi(uciGet("owpanel.main.http_port")); err == nil && v > 0 {
+	if v, err := strconv.Atoi(uciGet("netgrip.main.http_port")); err == nil && v > 0 {
 		p.HTTPPort = v
 	}
 	return p
@@ -90,21 +90,21 @@ func SetPanelSessionTTL(minutes int) error {
 	if minutes <= 0 {
 		return fmt.Errorf("session timeout must be > 0 minutes")
 	}
-	if !uciSectionExists("owpanel.main") {
-		// The owpanel UCI package may not exist yet (panel never wrote the
+	if !uciSectionExists("netgrip.main") {
+		// The netgrip UCI package may not exist yet (panel never wrote the
 		// section). `uci import` creates the config package with a NAMED
-		// section so `uci set owpanel.main.<opt>=<val>` resolves. A bare
+		// section so `uci set netgrip.main.<opt>=<val>` resolves. A bare
 		// `config main` would create an anonymous @main[0], which `uci set`
 		// cannot address by name.
-		cmd := exec.Command("uci", "import", "owpanel")
+		cmd := exec.Command("uci", "import", "netgrip")
 		cmd.Stdin = strings.NewReader("config panel 'main'\n\toption panel 'panel'\n")
 		if out, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("init owpanel config: %s", strings.TrimSpace(string(out)))
+			return fmt.Errorf("init netgrip config: %s", strings.TrimSpace(string(out)))
 		}
 	}
 	ops := []executor.Op{
 		{Kind: "uci_set", Args: []string{panelSessionTTLMinutePath, strconv.Itoa(minutes)}},
-		{Kind: "uci_commit", Args: []string{"owpanel"}},
+		{Kind: "uci_commit", Args: []string{"netgrip"}},
 	}
 	return executor.Apply(ops, nil)
 }

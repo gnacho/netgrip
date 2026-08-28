@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnacho/owpanel/internal/executor"
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
-const ddnsSection = "owpanel"
+const ddnsSection = "netgrip"
 
 // DDNSConfig is the user-provided service configuration. Password is
 // write-only: it is never returned by the probe.

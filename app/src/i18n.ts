@@ -3,7 +3,7 @@ import { initReactI18next } from "react-i18next";
 import es from "./locales/es";
 import en from "./locales/en";
 
-const stored = localStorage.getItem("owpanel-lang");
+const stored = localStorage.getItem("netgrip-lang");
 const browser = navigator.language.startsWith("es") ? "es" : "en";
 
 i18n.use(initReactI18next).init({
@@ -13,6 +13,6 @@ i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 });
 
-i18n.on("languageChanged", (lng) => localStorage.setItem("owpanel-lang", lng));
+i18n.on("languageChanged", (lng) => localStorage.setItem("netgrip-lang", lng));
 
 export default i18n;

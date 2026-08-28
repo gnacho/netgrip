@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gnacho/owpanel/internal/executor"
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
-const fwdPrefix = "owpanel_fwd_"
+const fwdPrefix = "netgrip_fwd_"
 
 // FwdRule is one port forwarding rule.
 type FwdRule struct {
@@ -103,7 +103,7 @@ func AddFwdRule(srcDport, destIP, destPort, proto string) (*FwdProbe, bool, erro
 	proto = strings.ReplaceAll(proto, "tcpudp", "tcp udp")
 	ops := []executor.Op{
 		{Kind: "uci_set", Args: []string{base, "redirect"}},
-		{Kind: "uci_set", Args: []string{base + ".name", "owpanel-fwd-" + srcDport}},
+		{Kind: "uci_set", Args: []string{base + ".name", "netgrip-fwd-" + srcDport}},
 		{Kind: "uci_set", Args: []string{base + ".src", "wan"}},
 		{Kind: "uci_set", Args: []string{base + ".src_dport", srcDport}},
 		{Kind: "uci_set", Args: []string{base + ".dest", "lan"}},
@@ -132,7 +132,7 @@ func RemoveFwdRule(section string) (*FwdProbe, bool, error) {
 		return ProbeFwd(), false, err
 	}
 	if !strings.HasPrefix(section, fwdPrefix) || !reFwdSection.MatchString(section) {
-		return ProbeFwd(), false, fmt.Errorf("not an owpanel rule")
+		return ProbeFwd(), false, fmt.Errorf("not an netgrip rule")
 	}
 	snap, err := executor.Snapshot("firewall")
 	if err != nil {

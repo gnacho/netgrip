@@ -1,5 +1,5 @@
 export default {
-  app: { name: "owpanel" },
+  app: { name: "NetGrip" },
   login: {
     title: "Entrar",
     subtitle: "Contraseña root del router (la misma de LuCI)",
@@ -353,7 +353,7 @@ export default {
     failed: "No se pudo iniciar la actualización",
     noOwut: "owut no está instalado en este router",
     unsafe: "owut avisa de que NO es seguro actualizar ahora",
-    reinstallNote: "owpanel no está en los repos oficiales: se excluirá de la imagen, pero sus ficheros se conservan vía sysupgrade y volverá solo en el primer arranque.",
+    reinstallNote: "NetGrip no está en los repos oficiales: se excluirá de la imagen, pero sus ficheros se conservan vía sysupgrade y volverá solo en el primer arranque.",
   },
   error: { load: "Error cargando datos" },
   lan: {
@@ -438,5 +438,31 @@ export default {
     installing: "Instalando...",
     restarting: "Reiniciando...",
     error: "Fallo al actualizar: {{msg}}",
+  },
+  wizard: {
+    title: "Bienvenido a NetGrip",
+    intro: "Vamos a configurar lo esencial de tu router en unos pasos. Puedes saltar cualquier paso y volver despues desde el panel.",
+    startSetup: "Empezar configuracion",
+    skipToPanel: "Ir directo al panel",
+    next: "Siguiente",
+    back: "Atras",
+    skip: "Saltar este paso",
+    passwordHint: "Cambia la contrasena root del router. Puedes saltarlo si ya la cambiaste.",
+    wifiHint: "Configura el nombre y contrasena de tu red WiFi principal.",
+    wgHint: "Activa WireGuard para acceder a tu red de forma segura desde cualquier sitio.",
+    wgNotInstalled: "WireGuard no esta instalado en este router. Puedes instalarlo mas tarde desde Servicios.",
+    wgEnable: "Activar WireGuard",
+    doneTitle: "Listo!",
+    doneBody: "Tu router esta configurado. Puedes seguir ajustando todo desde el panel.",
+    goToPanel: "Ir al panel",
+    step: {
+      welcome: "Bienvenida",
+      password: "Contrasena",
+      wifi: "WiFi",
+      guest: "Invitados",
+      iot: "IoT",
+      wireguard: "WireGuard",
+      done: "Listo",
+    },
   },
 };

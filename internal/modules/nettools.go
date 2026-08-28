@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnacho/owpanel/internal/executor"
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
 var uciConfigs = []string{
@@ -16,7 +16,7 @@ var uciConfigs = []string{
 	"system", "dropbear", "uhttpd", "sqm", "ddns",
 }
 
-const snapshotDir = "/etc/owpanel/snapshots"
+const snapshotDir = "/etc/netgrip/snapshots"
 
 type ConfigSnapshot struct {
 	ID        string `json:"id"`

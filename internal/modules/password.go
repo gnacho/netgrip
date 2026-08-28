@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gnacho/owpanel/internal/auth"
+	"github.com/gnacho/netgrip/internal/auth"
 )
 
 // MinPasswordLength is the minimum accepted length for a new root password.

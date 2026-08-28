@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	githubRepo   = "gnacho/owpanel"
+	githubRepo   = "gnacho/netgrip"
 	githubAPIURL = "https://api.github.com/repos/" + githubRepo + "/releases/latest"
-	assetName    = "owpanel-linux-arm64"
-	tmpPath      = "/tmp/owpanel.update"
+	assetName    = "netgrip-linux-arm64"
+	tmpPath      = "/tmp/netgrip.update"
 )
 
 type ghRelease struct {
@@ -76,7 +76,7 @@ func CheckSelfUpdate(currentVersion string) *SelfUpdateCheck {
 		return result
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "owpanel/"+currentVersion)
+	req.Header.Set("User-Agent", "netgrip/"+currentVersion)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -192,7 +192,7 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 
 	currentBin, err := os.Executable()
 	if err != nil {
-		currentBin = "/usr/sbin/owpanel"
+		currentBin = "/usr/sbin/netgrip"
 	}
 	currentBin = strings.TrimSuffix(currentBin, " (deleted)")
 
@@ -210,5 +210,5 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 	}
 
 	setUpdateStatus("restarting", 100, "")
-	exec.Command("/etc/init.d/owpanel", "restart").Start()
+	exec.Command("/etc/init.d/netgrip", "restart").Start()
 }

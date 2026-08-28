@@ -387,3 +387,8 @@ export interface SelfUpdateStatus {
   progress: number;
   message?: string;
 }
+
+export interface WizardState {
+  completed: boolean;
+  mode: "router" | "ap";
+}

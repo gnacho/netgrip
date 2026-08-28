@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gnacho/owpanel/internal/executor"
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
 // LANConfig is the read-only LAN + DHCP + reservation state.
@@ -300,7 +300,7 @@ func SetReservation(mac, ip, name string, reserved bool) (*LANConfig, bool, erro
 		_ = executor.Restore("dhcp", snap)
 		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"dnsmasq", "reload"}})
 	}
-	section := "owpanel_host_" + strings.ReplaceAll(mac, ":", "")
+	section := "netgrip_host_" + strings.ReplaceAll(mac, ":", "")
 	base := "dhcp." + section
 	var ops []executor.Op
 	if reserved {
@@ -326,7 +326,7 @@ func SetReservation(mac, ip, name string, reserved bool) (*LANConfig, bool, erro
 	return ProbeLAN(), false, nil
 }
 
-// ClearReservations removes every owpanel_* reservation (gateway only).
+// ClearReservations removes every netgrip_* reservation (gateway only).
 func ClearReservations() (*LANConfig, bool, error) {
 	if !lanApplicable() {
 		return ProbeLAN(), false, fmt.Errorf("reservations only apply on the gateway (static IP + dnsmasq)")

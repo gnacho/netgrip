@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnacho/owpanel/internal/executor"
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
 // PkgUpgrade is one package with an available upgrade.

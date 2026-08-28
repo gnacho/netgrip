@@ -3,7 +3,7 @@ package modules
 import (
 	"fmt"
 
-	"github.com/gnacho/owpanel/internal/executor"
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
 // OffloadProbe is the read-only network acceleration state.

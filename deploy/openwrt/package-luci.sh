@@ -1,5 +1,5 @@
 #!/bin/bash
-# package-luci.sh builds luci-app-owpanel as .ipk or .apk using the SDK.
+# package-luci.sh builds luci-app-netgrip as .ipk or .apk using the SDK.
 # The package is files-only (PKGARCH all), so one artifact serves every
 # aarch64 router. The .apk is built with the REAL apk mkpkg from the SDK
 # (an .ipk renamed to .apk does NOT install on apk v3).
@@ -21,7 +21,7 @@ echo "=== package-luci.sh: $FORMAT SDK=$SDK_VERSION target=$SDK_TARGET ==="
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-APP_DIR="$SCRIPT_DIR/luci-app-owpanel"
+APP_DIR="$SCRIPT_DIR/luci-app-netgrip"
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
@@ -45,21 +45,21 @@ SDK_DIR="$WORK_DIR/${SDK_NAME%.tar.zst}"
 OUT_DIR="$REPO_ROOT/dist/packages"
 mkdir -p "$OUT_DIR"
 
-PKG_DIR="$WORK_DIR/luci-app-owpanel-pkg"
+PKG_DIR="$WORK_DIR/luci-app-netgrip-pkg"
 mkdir -p "$PKG_DIR/CONTROL"
 cp -r "$APP_DIR/files/." "$PKG_DIR/"
 
 write_controls() {
   cat > "$PKG_DIR/CONTROL/control" << CTRL
-Package: luci-app-owpanel
+Package: luci-app-netgrip
 Version: ${PKG_VERSION:-0.0.0}-${PKG_RELEASE:-1}
-Depends: luci-base, owpanel
+Depends: luci-base, netgrip
 License: AGPL-3.0-only
 Section: luci
 Architecture: all
-Maintainer: Nacho <owpanel@cloudless.club>
-Description: owpanel embedded in LuCI
- LuCI menu entry that embeds the owpanel companion panel (served
+Maintainer: Nacho <netgrip@cloudless.club>
+Description: netgrip embedded in LuCI
+ LuCI menu entry that embeds the netgrip companion panel (served
  locally on port 8080) inside the LuCI interface.
 CTRL
 
@@ -86,11 +86,11 @@ if [ "$FORMAT" = "ipk" ]; then
   echo "  Building .ipk..."
   write_controls
   "$SDK_DIR/scripts/ipkg-build" "$PKG_DIR" "$OUT_DIR"
-  echo "  IPK: $(ls "$OUT_DIR"/luci-app-owpanel_*.ipk)"
+  echo "  IPK: $(ls "$OUT_DIR"/luci-app-netgrip_*.ipk)"
 
 elif [ "$FORMAT" = "apk" ]; then
-  echo "  Building .apk via SDK make (same proven flow as the owpanel package)..."
-  PKG_DIR_SDK="$SDK_DIR/package/utils/luci-app-owpanel"
+  echo "  Building .apk via SDK make (same proven flow as the netgrip package)..."
+  PKG_DIR_SDK="$SDK_DIR/package/utils/luci-app-netgrip"
   mkdir -p "$PKG_DIR_SDK/files"
   cp -r "$APP_DIR/files/." "$PKG_DIR_SDK/files/"
   cp "$APP_DIR/Makefile" "$PKG_DIR_SDK/Makefile"
@@ -98,9 +98,9 @@ elif [ "$FORMAT" = "apk" ]; then
 
   cd "$SDK_DIR"
   make defconfig >/dev/null 2>&1 || true
-  make package/luci-app-owpanel/compile V=s 2>&1 | tail -10
-  find bin/packages -name "luci-app-owpanel*.apk" -exec cp {} "$OUT_DIR/" \;
-  echo "  APK: $(ls "$OUT_DIR"/luci-app-owpanel-*.apk 2>/dev/null || echo 'NOT FOUND')"
+  make package/luci-app-netgrip/compile V=s 2>&1 | tail -10
+  find bin/packages -name "luci-app-netgrip*.apk" -exec cp {} "$OUT_DIR/" \;
+  echo "  APK: $(ls "$OUT_DIR"/luci-app-netgrip-*.apk 2>/dev/null || echo 'NOT FOUND')"
 
 else
   echo "ERROR: FORMAT must be ipk or apk" >&2

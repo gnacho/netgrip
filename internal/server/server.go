@@ -10,16 +10,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gnacho/owpanel/internal/auth"
-	"github.com/gnacho/owpanel/internal/modules"
-	"github.com/gnacho/owpanel/internal/ubus"
+	"github.com/gnacho/netgrip/internal/auth"
+	"github.com/gnacho/netgrip/internal/modules"
+	"github.com/gnacho/netgrip/internal/ubus"
 )
 
 //go:embed all:dist
 var distFS embed.FS
 
 const (
-	sessionCookie = "owpanel_session"
+	sessionCookie = "netgrip_session"
 	sessionTTL    = 12 * time.Hour
 	leasesPath    = "/tmp/dhcp.leases"
 )
@@ -113,6 +113,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/selfupdate", s.requireAuth(s.handleSelfUpdateCheck))
 	s.mux.HandleFunc("GET /api/selfupdate/status", s.requireAuth(s.handleSelfUpdateStatus))
 	s.mux.HandleFunc("POST /api/selfupdate", s.requireAuth(s.handleSelfUpdateApply))
+	s.mux.HandleFunc("GET /api/wizard", s.requireAuth(s.handleWizardGet))
+	s.mux.HandleFunc("POST /api/wizard/complete", s.requireAuth(s.handleWizardComplete))
 	return s
 }
 
@@ -1067,4 +1069,16 @@ func (s *Server) handleSelfUpdateApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "started"})
+}
+
+func (s *Server) handleWizardGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeWizard())
+}
+
+func (s *Server) handleWizardComplete(w http.ResponseWriter, _ *http.Request) {
+	if err := modules.CompleteWizard(); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "completed"})
 }

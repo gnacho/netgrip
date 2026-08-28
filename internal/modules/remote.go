@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/gnacho/owpanel/internal/executor"
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
 // RemoteAccess is the read-only state of the three remote-access firewalling
@@ -19,8 +19,8 @@ type RemoteAccess struct {
 
 const (
 	remotePingIdx  = "allow_ping" // uses the stock Allow-Ping rule
-	remoteHTTPSIdx = "owpanel_remote_https"
-	remoteSSHIdx   = "owpanel_remote_ssh"
+	remoteHTTPSIdx = "netgrip_remote_https"
+	remoteSSHIdx   = "netgrip_remote_ssh"
 )
 
 // ProbeRemoteAccess reads whether the router is the gateway, plus the current
@@ -163,7 +163,7 @@ func remoteRuleOps(kind string, accept bool) []executor.Op {
 	}
 	return []executor.Op{
 		{Kind: "uci_set", Args: []string{"firewall." + idx, "rule"}},
-		{Kind: "uci_set", Args: []string{"firewall." + idx + ".name", "owpanel-remote-" + kind}},
+		{Kind: "uci_set", Args: []string{"firewall." + idx + ".name", "netgrip-remote-" + kind}},
 		{Kind: "uci_set", Args: []string{"firewall." + idx + ".src", "wan"}},
 		{Kind: "uci_set", Args: []string{"firewall." + idx + ".proto", proto}},
 		{Kind: "uci_set", Args: []string{"firewall." + idx + ".dest_port", port}},

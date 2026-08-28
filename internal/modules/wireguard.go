@@ -8,14 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnacho/owpanel/internal/executor"
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
 const (
 	wgIface        = "wg0"
 	wgDefaultPort  = "51820"
 	wgDefaultAddr  = "10.66.0.1/24"
-	wgFirewallRule = "allow_owpanel_wg"
+	wgFirewallRule = "allow_netgrip_wg"
 )
 
 // WGPeer is one WireGuard peer as stored in UCI. The preshared key itself
@@ -132,7 +132,7 @@ func wgPeers() []WGPeer {
 			Name:       uciGet(base + ".description"),
 			PublicKey:  uciGet(base + ".public_key"),
 			AllowedIPs: allowed,
-			Admin:      uciGet(base+".owpanel_admin") == "1",
+			Admin:      uciGet(base+".netgrip_admin") == "1",
 			HasPSK:     uciGet(base+".preshared_key") != "",
 		})
 	}
@@ -225,7 +225,7 @@ func enableWG(snapNetwork, snapFirewall string) (*WGProbe, bool, error) {
 			src = "wan"
 		}
 		set("firewall."+wgFirewallRule, "rule")
-		set("firewall."+wgFirewallRule+".name", "Allow-owpanel-WireGuard")
+		set("firewall."+wgFirewallRule+".name", "Allow-netgrip-WireGuard")
 		set("firewall."+wgFirewallRule+".src", src)
 		set("firewall."+wgFirewallRule+".dest_port", uciGet("network."+wgIface+".listen_port"))
 		set("firewall."+wgFirewallRule+".proto", "udp")
@@ -347,7 +347,7 @@ func AddWGPeer(name, pubkey string, allowedIPs []string, admin bool) (*WGProbe, 
 		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{base + ".description", name}})
 	}
 	if admin {
-		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{base + ".owpanel_admin", "1"}})
+		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{base + ".netgrip_admin", "1"}})
 	}
 	for _, ip := range allowedIPs {
 		ops = append(ops, executor.Op{Kind: "uci_add_list", Args: []string{base + ".allowed_ips", ip}})

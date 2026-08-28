@@ -35,7 +35,7 @@ var (
 
 // CheckUpdate runs `owut check -v` (read-only) and parses the report.
 // The verbose variant also lists the packages missing in the target
-// version, which is what lets us detect the "only owpanel is missing"
+// version, which is what lets us detect the "only netgrip is missing"
 // case (locally installed package, unknown to the ASU server).
 func CheckUpdate() *UpdateCheck {
 	check := &UpdateCheck{Warnings: []string{}, MissingPackages: []string{}}
@@ -65,20 +65,20 @@ func CheckUpdate() *UpdateCheck {
 	}
 	check.SafeToProceed = reSafe.MatchString(text)
 	// Safe with reinstall: the ONLY packages unknown to the ASU server are
-	// owpanel itself. Those can be excluded from the image build
-	// (owut -r owpanel) and reinstalled on first boot by the rc.local hook.
-	check.SafeWithReinstall = !check.SafeToProceed && len(check.MissingPackages) > 0 && onlyOwpanel(check.MissingPackages)
+	// netgrip itself. Those can be excluded from the image build
+	// (owut -r netgrip) and reinstalled on first boot by the rc.local hook.
+	check.SafeWithReinstall = !check.SafeToProceed && len(check.MissingPackages) > 0 && onlyNetgrip(check.MissingPackages)
 	check.SameVersion = check.VersionFrom == "" || check.VersionTo == "" || coreVersion(check.VersionFrom) == coreVersion(check.VersionTo)
 	check.Available = !check.SameVersion || check.OutOfDatePkgs > 0
 	return check
 }
 
-func onlyOwpanel(pkgs []string) bool {
+func onlyNetgrip(pkgs []string) bool {
 	if len(pkgs) == 0 {
 		return false
 	}
 	for _, p := range pkgs {
-		if p != "owpanel" {
+		if p != "netgrip" {
 			return false
 		}
 	}
@@ -95,8 +95,8 @@ func coreVersion(v string) string {
 }
 
 // StartUpgrade launches `owut upgrade -q` detached. When the only blocker
-// is the locally installed owpanel package (unknown to the ASU server),
-// it is excluded from the build with -r owpanel and restored from the
+// is the locally installed netgrip package (unknown to the ASU server),
+// it is excluded from the build with -r netgrip and restored from the
 // files preserved by sysupgrade (see EnsureSurvival).
 func StartUpgrade(withReinstall bool) error {
 	if withReinstall {
@@ -106,7 +106,7 @@ func StartUpgrade(withReinstall bool) error {
 	}
 	args := []string{"owut", "upgrade", "-q"}
 	if withReinstall {
-		args = append(args, "-r", "owpanel")
+		args = append(args, "-r", "netgrip")
 	}
 	cmd := exec.Command("setsid", args...)
 	if err := cmd.Start(); err != nil {
@@ -117,17 +117,17 @@ func StartUpgrade(withReinstall bool) error {
 
 const sysupgradeConf = "/etc/sysupgrade.conf"
 
-// survivalFiles are the owpanel files preserved across a sysupgrade so the
+// survivalFiles are the netgrip files preserved across a sysupgrade so the
 // panel comes back on first boot even though the apk package registry does
 // not survive: the binary, the init script and the autostart symlink.
 // Fully local: no download, no feed, works regardless of repo visibility.
 var survivalFiles = []string{
-	"/usr/sbin/owpanel",
-	"/etc/init.d/owpanel",
-	"/etc/rc.d/S99owpanel",
+	"/usr/sbin/netgrip",
+	"/etc/init.d/netgrip",
+	"/etc/rc.d/S99netgrip",
 }
 
-// EnsureSurvival lists the owpanel files in /etc/sysupgrade.conf so a
+// EnsureSurvival lists the netgrip files in /etc/sysupgrade.conf so a
 // sysupgrade (manual or via owut/ASU) preserves them and procd starts the
 // panel on first boot. Idempotent; safe to call any time. The apk package
 // registry itself does not survive, so a later `apk add` of a newer
