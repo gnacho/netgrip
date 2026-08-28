@@ -167,3 +167,74 @@ jobs:
           echo "LuCI packages generated:"
           ls -la dist/packages/
           gh release upload "$TAG" dist/packages/*.${{ matrix.format }} --clobber
+
+  apk-feed:
+    needs: [package, package-luci]
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || inputs.version != ''
+    permissions:
+      contents: write
+      pages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install apk-tools and abuild
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y abuild apk-tools
+
+      - name: Download APKs from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          mkdir -p feed
+          gh release download "$TAG" -p "*.apk" -D feed/ || true
+          ls -la feed/
+
+      - name: Set up signing key
+        env:
+          APK_SIGN_KEY: ${{ secrets.APK_SIGN_KEY }}
+        run: |
+          if [ -z "$APK_SIGN_KEY" ]; then
+            echo "::error::APK_SIGN_KEY secret not set. Generate a key with: abuild-keygen -n"
+            echo "::error::Then add the private key content as APK_SIGN_KEY in repo secrets."
+            exit 1
+          fi
+          mkdir -p ~/.abuild
+          echo "$APK_SIGN_KEY" > ~/.abuild/netgrip-signing-key.rsa
+          chmod 600 ~/.abuild/netgrip-signing-key.rsa
+
+      - name: Sign APKs and generate index
+        run: |
+          chmod +x deploy/openwrt/sign-apk.sh
+          PRIVKEY=~/.abuild/netgrip-signing-key.rsa
+          for apk in feed/*.apk; do
+            [ -f "$apk" ] || continue
+            ./deploy/openwrt/sign-apk.sh "$apk" "$PRIVKEY" feed/
+          done
+
+      - name: Extract public key
+        run: |
+          PRIVKEY=~/.abuild/netgrip-signing-key.rsa
+          openssl rsa -in "$PRIVKEY" -pubout -out feed/netgrip.rsa.pub 2>/dev/null
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./feed
+          publish_branch: gh-pages
+          force_push: true
+
