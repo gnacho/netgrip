@@ -162,6 +162,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/storage", s.requireAuth(s.handleStorageSet))
 	s.mux.HandleFunc("GET /api/mac-acl", s.requireAuth(s.handleMACACLGet))
 	s.mux.HandleFunc("POST /api/mac-acl", s.requireAuth(s.handleMACACLSet))
+	s.mux.HandleFunc("POST /api/executor/apply", s.handleExecutorApply)
+	s.mux.HandleFunc("GET /api/executor/token", s.requireAuth(s.handleExecutorToken))
 	return s
 }
 
@@ -1570,4 +1572,27 @@ func (s *Server) handleMACACLSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "applied"})
+}
+
+func (s *Server) handleExecutorToken(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]string{"token": modules.GetExecutorToken()})
+}
+
+func (s *Server) handleExecutorApply(w http.ResponseWriter, r *http.Request) {
+	auth := r.Header.Get("Authorization")
+	if !strings.HasPrefix(auth, "Bearer ") || !modules.ValidateExecutorToken(strings.TrimPrefix(auth, "Bearer ")) {
+		writeError(w, http.StatusUnauthorized, "invalid or missing executor token")
+		return
+	}
+	var req modules.ExecutorRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	resp := modules.ExecuteOps(req)
+	if !resp.Ok {
+		writeJSON(w, resp)
+		return
+	}
+	writeJSON(w, resp)
 }
