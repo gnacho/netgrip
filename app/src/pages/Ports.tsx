@@ -6,6 +6,7 @@ import { PortStatsCard } from "../components/PortStatsCard";
 import { SwitchModesCard } from "../components/SwitchModesCard";
 import { PoECard } from "../components/PoECard";
 import { PortTemplatesCard } from "../components/PortTemplatesCard";
+import { RoleProfilesCard } from "../components/RoleProfilesCard";
 
 export function Ports({ fwd, onFwdChange }: {
   fwd: FwdProbe | undefined;
@@ -18,6 +19,7 @@ export function Ports({ fwd, onFwdChange }: {
       <PortStatsCard />
       <PoECard />
       <PortTemplatesCard />
+      <RoleProfilesCard />
       <SwitchModesCard />
       <VLANTable />
     </div>

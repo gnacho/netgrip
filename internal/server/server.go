@@ -133,6 +133,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/port-templates", s.requireAuth(s.handlePortTemplatesSave))
 	s.mux.HandleFunc("DELETE /api/port-templates", s.requireAuth(s.handlePortTemplatesDelete))
 	s.mux.HandleFunc("POST /api/port-templates/apply", s.requireAuth(s.handlePortTemplatesApply))
+	s.mux.HandleFunc("GET /api/roles", s.requireAuth(s.handleRolesGet))
+	s.mux.HandleFunc("POST /api/roles", s.requireAuth(s.handleRolesApply))
 	s.mux.HandleFunc("GET /api/history", s.requireAuth(s.handleHistoryGet))
 	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
@@ -1390,6 +1392,23 @@ func (s *Server) handlePortTemplatesApply(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if err := modules.ApplyPortTemplate(req); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "applied"})
+}
+
+func (s *Server) handleRolesGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"roles": modules.ListRoleProfiles()})
+}
+
+func (s *Server) handleRolesApply(w http.ResponseWriter, r *http.Request) {
+	var req modules.RoleApply
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := modules.ApplyRoleProfile(req); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
