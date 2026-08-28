@@ -242,6 +242,10 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg),
     }),
+  runBufferbloatTest: () =>
+    request<import("./types").BufferbloatResult>("/api/sqm/test", { method: "POST" }),
+  bufferbloatHistory: () =>
+    request<{ entries: import("./types").BufferbloatResult[] }>("/api/sqm/history"),
   setDdns: (cfg: {
     enabled: boolean;
     service_name?: string;
