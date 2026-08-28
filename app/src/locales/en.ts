@@ -299,6 +299,10 @@ export default {
     luciHint: "LuCI uses uhttpd ports.",
     sshHint: "SSH uses dropbear.",
     saved: "Saved",
+    httpsReady: "Self-signed HTTPS certificate installed",
+    httpsNone: "No HTTPS certificate",
+    httpsGenerate: "Generate certificate",
+    httpsGenerated: "HTTPS certificate generated (restart panel to apply)",
   },
   remote: {
     title: "Remote access",

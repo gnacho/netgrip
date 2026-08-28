@@ -112,6 +112,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/vlans", s.requireAuth(s.handleVLANsGet))
 	s.mux.HandleFunc("POST /api/vlans", s.requireAuth(s.handleVLANsSet))
 	s.mux.HandleFunc("DELETE /api/vlans", s.requireAuth(s.handleVLANsDelete))
+	s.mux.HandleFunc("GET /api/https", s.requireAuth(s.handleHTTPSGet))
+	s.mux.HandleFunc("POST /api/https", s.requireAuth(s.handleHTTPSEnable))
 	s.mux.HandleFunc("GET /api/history", s.requireAuth(s.handleHistoryGet))
 	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
@@ -1160,4 +1162,16 @@ func (s *Server) handleVLANsDelete(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleHistoryGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, map[string]any{"entries": modules.GetHistory()})
+}
+
+func (s *Server) handleHTTPSGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"has_cert": modules.HasSelfSignedCert()})
+}
+
+func (s *Server) handleHTTPSEnable(w http.ResponseWriter, _ *http.Request) {
+	if err := modules.EnableHTTPS(); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "enabled"})
 }

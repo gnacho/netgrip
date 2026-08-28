@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { KeyRound } from "lucide-react";
+import { KeyRound, ShieldCheck } from "lucide-react";
 import { api } from "../api";
 import type { AccessProbe } from "../types";
 import { Card } from "./Card";
@@ -57,6 +57,7 @@ export function AccessCard() {
   const [ttlMin, setTtlMin] = useState(720);
   const [busy, setBusy] = useState<string>();
   const [msg, setMsg] = useState<{ tone: "ok" | "danger"; text: string }>();
+  const [hasCert, setHasCert] = useState(false);
 
   useEffect(() => {
     api.access().then((p) => {
@@ -68,6 +69,7 @@ export function AccessCard() {
       setSshPort(p.ssh.port || "22");
       setTtlMin(durationToMin(p.panel.session_ttl));
     }).catch(() => {});
+    api.httpsState().then((s) => setHasCert(s.has_cert)).catch(() => {});
   }, []);
 
   const run = async (id: string, fn: () => Promise<void>, ok: string) => {
@@ -119,6 +121,23 @@ export function AccessCard() {
             <Field label={t("access.sshPort")}>
               <NumInput value={Number(sshPort) || 0} onChange={(v) => setSshPort(String(v))} />
             </Field>
+          </div>
+
+          {/* HTTPS certificate */}
+          <div className="flex items-center gap-3 pt-2 border-t border-border/50">
+            <ShieldCheck size={16} className={hasCert ? "text-ok" : "text-muted"} />
+            <span className="text-sm flex-1">
+              {hasCert ? t("access.httpsReady") : t("access.httpsNone")}
+            </span>
+            {!hasCert && (
+              <button onClick={() => run("https", async () => {
+                await api.enableHttps();
+                setHasCert(true);
+              }, t("access.httpsGenerated"))} disabled={busy === "https"}
+                className="text-xs bg-accent/15 text-accent px-2 py-1 rounded-lg hover:bg-accent/25 disabled:opacity-50">
+                {busy === "https" ? "…" : t("access.httpsGenerate")}
+              </button>
+            )}
           </div>
 
           <div className="flex justify-end">

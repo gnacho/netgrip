@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -289,4 +290,74 @@ func sshHealthy(cfg SSHAccess) bool {
 	}
 	conn.Close()
 	return true
+}
+
+const (
+	sslDir  = "/etc/netgrip/ssl"
+	certPath = sslDir + "/cert.pem"
+	keyPath  = sslDir + "/key.pem"
+)
+
+func HasSelfSignedCert() bool {
+	_, err1 := os.Stat(certPath)
+	_, err2 := os.Stat(keyPath)
+	return err1 == nil && err2 == nil
+}
+
+func GenerateSelfSignedCert() error {
+	if err := os.MkdirAll(sslDir, 0700); err != nil {
+		return fmt.Errorf("mkdir ssl: %w", err)
+	}
+	hostname, _ := os.Hostname()
+	if hostname == "" {
+		hostname = "netgrip"
+	}
+	if _, err := exec.LookPath("px5g"); err == nil {
+		cmd := exec.Command("px5g", "selfsigned",
+			"-days", "3650",
+			"-newkey", "rsa:2048",
+			"-keyout", keyPath,
+			"-x509",
+			"-out", certPath,
+			"-subj", "/CN="+hostname,
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("px5g selfsigned: %s (%w)", strings.TrimSpace(string(out)), err)
+		}
+		return nil
+	}
+	if _, err := exec.LookPath("openssl"); err == nil {
+		cmd := exec.Command("openssl", "req", "-x509", "-newkey", "rsa:2048",
+			"-keyout", keyPath, "-out", certPath,
+			"-days", "3650", "-nodes",
+			"-subj", "/CN="+hostname,
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("openssl req: %s (%w)", strings.TrimSpace(string(out)), err)
+		}
+		return nil
+	}
+	return fmt.Errorf("neither px5g nor openssl found on the router")
+}
+
+func EnableHTTPS() error {
+	if !HasSelfSignedCert() {
+		if err := GenerateSelfSignedCert(); err != nil {
+			return err
+		}
+	}
+	if !uciSectionExists("netgrip.main") {
+		cmd := exec.Command("uci", "import", "netgrip")
+		cmd.Stdin = strings.NewReader("config panel 'main'\n\toption panel 'panel'\n")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("init netgrip config: %s", strings.TrimSpace(string(out)))
+		}
+	}
+	ops := []executor.Op{
+		{Kind: "uci_set", Args: []string{"netgrip.main.https", "1"}},
+		{Kind: "uci_set", Args: []string{"netgrip.main.https_cert", certPath}},
+		{Kind: "uci_set", Args: []string{"netgrip.main.https_key", keyPath}},
+		{Kind: "uci_commit", Args: []string{"netgrip"}},
+	}
+	return executor.Apply(ops, nil)
 }
