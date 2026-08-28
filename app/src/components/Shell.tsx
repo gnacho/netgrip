@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftRight, Blocks, Download, HardDrive, LayoutDashboard, LogOut, Network, RefreshCw, Server, Wifi, Wrench } from "lucide-react";
+import { ArrowLeftRight, Blocks, Download, HardDrive, LayoutDashboard, LogOut, Moon, Network, RefreshCw, Server, Sun, Wifi, Wrench } from "lucide-react";
 import { api } from "../api";
 import type { Board, DawnAP, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, ModeProbe, OVPNProbe, PkgUpgrade, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe } from "../types";
 import { Overview } from "../pages/Overview";
@@ -28,8 +28,20 @@ const NAV: { id: Page; icon: LucideIcon; key: string }[] = [
   { id: "system", icon: Wrench, key: "nav.system" },
 ];
 
+function useTheme() {
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
+  const toggle = () => {
+    const next = !dark;
+    document.documentElement.classList.toggle("dark", next);
+    localStorage.setItem("netgrip-theme", next ? "dark" : "light");
+    setDark(next);
+  };
+  return { dark, toggle };
+}
+
 export function Shell({ onLogout }: { onLogout: () => void }) {
   const { t, i18n } = useTranslation();
+  const theme = useTheme();
   const [page, setPage] = useState<Page>("overview");
   const [board, setBoard] = useState<Board>();
   const [system, setSystem] = useState<SystemInfo>();
@@ -112,6 +124,9 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
         title="Language"
       >
         {i18n.language === "es" ? "🇪🇸 Español" : "🇬🇧 English"}
+      </button>
+      <button onClick={theme.toggle} className="text-muted hover:text-text p-2" title={t("nav.theme")}>
+        {theme.dark ? <Sun size={16} /> : <Moon size={16} />}
       </button>
       <button onClick={load} className="text-muted hover:text-text p-2" title={t("nav.refresh")}>
         <RefreshCw size={16} />

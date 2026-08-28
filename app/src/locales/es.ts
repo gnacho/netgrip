@@ -10,6 +10,7 @@ export default {
   nav: {
     logout: "Salir",
     refresh: "Refrescar",
+    theme: "Cambiar tema",
     overview: "Resumen",
     services: "Servicios",
     wifi: "WiFi",

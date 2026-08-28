@@ -52,7 +52,7 @@ export function TelegramCard() {
 
   return (
     <Card title={t("telegram.title")} icon={Send}>
-      <p className="text-sm text-gray-400 mb-4">{t("telegram.description")}</p>
+      <p className="text-sm text-muted mb-4">{t("telegram.description")}</p>
 
       <label className="flex items-center gap-2 mb-4 text-sm">
         <input
@@ -66,41 +66,41 @@ export function TelegramCard() {
 
       <div className="space-y-3">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">{t("telegram.botToken")}</label>
+          <label className="block text-xs text-muted mb-1">{t("telegram.botToken")}</label>
           <div className="flex gap-2">
             <input
               type={showToken ? "text" : "password"}
               value={botToken}
               onChange={(e) => setBotToken(e.target.value)}
-              className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm"
+              className="input flex-1"
               placeholder="123456:ABC-DEF..."
             />
             <button
               type="button"
               onClick={() => setShowToken(!showToken)}
-              className="px-2 text-gray-400 hover:text-gray-200"
+              className="px-2 text-muted hover:text-text"
             >
               {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
-          {botName && <p className="text-xs text-gray-500 mt-1">{t("telegram.bot")}: @{botName}</p>}
+          {botName && <p className="text-xs text-muted mt-1">{t("telegram.bot")}: @{botName}</p>}
         </div>
 
         <div>
-          <label className="block text-xs text-gray-500 mb-1">{t("telegram.chatId")}</label>
+          <label className="block text-xs text-muted mb-1">{t("telegram.chatId")}</label>
           <input
             type="text"
             value={chatId}
             onChange={(e) => setChatId(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm"
+            className="input w-full"
             placeholder="-1001234567890"
           />
-          {chatName && <p className="text-xs text-gray-500 mt-1">{t("telegram.chat")}: {chatName}</p>}
+          {chatName && <p className="text-xs text-muted mt-1">{t("telegram.chat")}: {chatName}</p>}
         </div>
       </div>
 
       {msg && (
-        <p className={`text-sm mt-3 ${msg.type === "ok" ? "text-green-400" : "text-red-400"}`}>
+        <p className={`text-sm mt-3 ${msg.type === "ok" ? "text-ok" : "text-danger"}`}>
           {msg.text}
         </p>
       )}
@@ -109,14 +109,14 @@ export function TelegramCard() {
         <button
           onClick={save}
           disabled={saving || !botToken || !chatId}
-          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-1.5 rounded text-sm font-medium"
+          className="bg-accent hover:bg-accent/85 disabled:opacity-50 px-4 py-1.5 rounded text-sm font-medium text-white"
         >
           {saving ? t("telegram.sending") : t("telegram.save")}
         </button>
         <button
           onClick={test}
           disabled={testing || !enabled}
-          className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 px-4 py-1.5 rounded text-sm font-medium flex items-center gap-1"
+          className="bg-card border border-border hover:bg-border/50 disabled:opacity-50 px-4 py-1.5 rounded text-sm font-medium flex items-center gap-1"
         >
           <Send className="w-3 h-3" />
           {testing ? t("telegram.sending") : t("telegram.sendTest")}

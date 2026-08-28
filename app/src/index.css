@@ -1,24 +1,57 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-  --color-bg: #0b1118;
-  --color-card: #131c26;
-  --color-border: #22303f;
-  --color-text: #e5edf5;
-  --color-muted: #8ba3bb;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --color-bg: #f5f7fa;
+  --color-card: #ffffff;
+  --color-border: #e2e8f0;
+  --color-text: #1e293b;
+  --color-muted: #64748b;
   --color-accent: #2563eb;
-  --color-ok: #34d399;
-  --color-warn: #fbbf24;
-  --color-danger: #f87171;
+  --color-ok: #059669;
+  --color-warn: #d97706;
+  --color-danger: #dc2626;
 }
+
+@layer base {
+  :root.dark {
+    --color-bg: #0b1118;
+    --color-card: #131c26;
+    --color-border: #22303f;
+    --color-text: #e5edf5;
+    --color-muted: #8ba3bb;
+    --color-accent: #3b82f6;
+    --color-ok: #34d399;
+    --color-warn: #fbbf24;
+    --color-danger: #f87171;
+  }
+}
+
+:root { color-scheme: light; }
+:root.dark { color-scheme: dark; }
 
 body {
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
 }
 
-/* Hide native number input spinners (▲▼) for a cleaner field look */
+@layer components {
+  .input {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--color-text);
+  }
+  .input::placeholder {
+    color: var(--color-muted);
+  }
+}
+
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
