@@ -70,6 +70,11 @@ func Validate(op Op) error {
 		if len(op.Args) != 1 || !reService.MatchString(op.Args[0]) {
 			return fmt.Errorf("invalid %s args: %v", op.Kind, op.Args)
 		}
+	case "ip_link":
+		// Args: <iface> <up|down>
+		if len(op.Args) != 2 || !reService.MatchString(op.Args[0]) || (op.Args[1] != "up" && op.Args[1] != "down") {
+			return fmt.Errorf("invalid ip_link args: %v", op.Args)
+		}
 	case "initd":
 		if len(op.Args) != 2 || !reService.MatchString(op.Args[0]) || !initdActions[op.Args[1]] {
 			return fmt.Errorf("invalid initd args: %v", op.Args)
@@ -109,6 +114,8 @@ func Run(op Op) error {
 		cmd = exec.Command("wifi", append([]string{"reload"}, op.Args...)...)
 	case "ifup", "ifdown":
 		cmd = exec.Command(op.Kind, op.Args[0])
+	case "ip_link":
+		cmd = exec.Command("ip", "link", "set", op.Args[0], op.Args[1])
 	case "initd":
 		cmd = exec.Command("/etc/init.d/"+op.Args[0], op.Args[1])
 	}

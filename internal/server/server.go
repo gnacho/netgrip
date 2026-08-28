@@ -99,6 +99,15 @@ func New(rpcdURL string) *Server {
 	s.mux.HandleFunc("GET /api/clients", s.requireAuth(s.handleClients))
 	s.mux.HandleFunc("POST /api/clients/reserve", s.requireAuth(s.handleClientReserve))
 	s.mux.HandleFunc("POST /api/clients/block", s.requireAuth(s.handleClientBlock))
+	s.mux.HandleFunc("GET /api/config/snapshots", s.requireAuth(s.handleSnapshotsList))
+	s.mux.HandleFunc("POST /api/config/snapshot", s.requireAuth(s.handleSnapshotCreate))
+	s.mux.HandleFunc("DELETE /api/config/snapshot", s.requireAuth(s.handleSnapshotDelete))
+	s.mux.HandleFunc("GET /api/config/diff", s.requireAuth(s.handleSnapshotDiff))
+	s.mux.HandleFunc("POST /api/config/rollback", s.requireAuth(s.handleSnapshotRollback))
+	s.mux.HandleFunc("POST /api/ports/bounce", s.requireAuth(s.handlePortBounce))
+	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
+	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
+	s.mux.HandleFunc("GET /api/loops", s.requireAuth(s.handleLoops))
 	return s
 }
 
@@ -926,4 +935,106 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+func (s *Server) handleSnapshotsList(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"snapshots": modules.ListSnapshots()})
+}
+
+func (s *Server) handleSnapshotCreate(w http.ResponseWriter, _ *http.Request) {
+	snap, err := modules.CreateSnapshot()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, snap)
+}
+
+func (s *Server) handleSnapshotDelete(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "id query param required")
+		return
+	}
+	if err := modules.DeleteSnapshot(id); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handleSnapshotDiff(w http.ResponseWriter, r *http.Request) {
+	from := r.URL.Query().Get("from")
+	to := r.URL.Query().Get("to")
+	if from == "" || to == "" {
+		writeError(w, http.StatusBadRequest, "from and to query params required")
+		return
+	}
+	diffs, err := modules.DiffSnapshots(from, to)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"diffs": diffs})
+}
+
+type rollbackRequest struct {
+	ID string `json:"id"`
+}
+
+func (s *Server) handleSnapshotRollback(w http.ResponseWriter, r *http.Request) {
+	var req rollbackRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ID == "" {
+		writeError(w, http.StatusBadRequest, "snapshot id required")
+		return
+	}
+	if err := modules.RollbackSnapshot(req.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "applied"})
+}
+
+type bounceRequest struct {
+	Iface string `json:"iface"`
+}
+
+func (s *Server) handlePortBounce(w http.ResponseWriter, r *http.Request) {
+	var req bounceRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Iface == "" {
+		writeError(w, http.StatusBadRequest, "iface required")
+		return
+	}
+	result, err := modules.BounceLink(req.Iface)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, result)
+}
+
+func (s *Server) handleIGMPGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeIGMP())
+}
+
+type igmpSetRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
+func (s *Server) handleIGMPSet(w http.ResponseWriter, r *http.Request) {
+	var req igmpSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, err := modules.SetIGMP(req.Enabled)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, probe)
+}
+
+func (s *Server) handleLoops(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.DetectLoops())
 }
