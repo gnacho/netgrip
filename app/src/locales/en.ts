@@ -496,6 +496,16 @@ export default {
     tagged: "Tagged",
     notMember: "Not member",
   },
+  poe: {
+    title: "PoE (Power over Ethernet)",
+    budget: "Power budget",
+    port: "Port",
+    status: "Status",
+    power: "Power",
+    schedule: "Schedule",
+    addSchedule: "add schedule",
+    scheduleSaved: "PoE schedule saved",
+  },
   switchModes: {
     title: "Switch modes",
     intro: "Apply predefined VLAN and port configurations. Requires confirmation and restarts the network.",

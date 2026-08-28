@@ -548,3 +548,26 @@ export interface SwitchMode {
   name: string;
   description: string;
 }
+
+export interface PoEPort {
+  name: string;
+  enabled: boolean;
+  power_w: number;
+  class: string;
+  status: string;
+  schedule_on: string;
+  schedule_off: string;
+}
+
+export interface PoEProbe {
+  applicable: boolean;
+  total_budget_w: number;
+  used_w: number;
+  ports: PoEPort[];
+}
+
+export interface PoESchedule {
+  port: string;
+  on_time: string;
+  off_time: string;
+}

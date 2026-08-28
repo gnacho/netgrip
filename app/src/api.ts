@@ -389,4 +389,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, uplink_port: uplinkPort, confirm }),
     }),
+  poe: () =>
+    request<import("./types").PoEProbe>("/api/poe"),
+  setPoESchedule: (sched: import("./types").PoESchedule) =>
+    request<{ status: string; state: import("./types").PoEProbe }>("/api/poe/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(sched),
+    }),
 };

@@ -496,6 +496,16 @@ export default {
     tagged: "Con tag",
     notMember: "No miembro",
   },
+  poe: {
+    title: "PoE (Power over Ethernet)",
+    budget: "Presupuesto de energia",
+    port: "Puerto",
+    status: "Estado",
+    power: "Consumo",
+    schedule: "Horario",
+    addSchedule: "anadir horario",
+    scheduleSaved: "Horario PoE guardado",
+  },
   switchModes: {
     title: "Modos de switch",
     intro: "Aplica configuraciones predefinidas de VLANs y puertos. Requiere confirmacion y reinicia la red.",
