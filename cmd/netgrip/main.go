@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gnacho/netgrip/internal/modules"
 	"github.com/gnacho/netgrip/internal/server"
 )
 
@@ -18,6 +19,7 @@ func main() {
 	flag.Parse()
 
 	addr := fmt.Sprintf("%s:%d", *listen, *port)
+	modules.StartHistoryCollector()
 	log.Printf("netgrip %s listening on %s (rpcd: %s)", version, addr, *rpcdURL)
 	log.Fatal(http.ListenAndServe(addr, server.New(*rpcdURL, version)))
 }

@@ -444,6 +444,10 @@ export default {
     restarting: "Restarting...",
     error: "Update failed: {{msg}}",
   },
+  history: {
+    title: "History",
+    lastHours: "Last {{count}}h (5-min samples)",
+  },
   vlan: {
     title: "VLANs",
     intro: "Manage VLANs on the bridge. Click a cell to cycle: empty -> untagged (U) -> tagged (T) -> empty.",

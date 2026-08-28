@@ -444,6 +444,10 @@ export default {
     restarting: "Reiniciando...",
     error: "Fallo al actualizar: {{msg}}",
   },
+  history: {
+    title: "Historico",
+    lastHours: "Ultimas {{count}}h (muestras cada 5 min)",
+  },
   vlan: {
     title: "VLANs",
     intro: "Gestiona VLANs en el bridge. Pulsa una celda para cambiar: vacio -> sin tag (U) -> con tag (T) -> vacio.",
