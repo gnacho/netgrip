@@ -345,3 +345,30 @@ export interface Client {
   blocked: boolean;
   blockable: boolean;
 }
+
+export interface ConfigSnapshot {
+  id: string;
+  timestamp: number;
+  configs: number;
+}
+
+export interface ConfigDiff {
+  config: string;
+  before: string;
+  after: string;
+}
+
+export interface IGMPProbe {
+  applicable: boolean;
+  enabled: boolean;
+}
+
+export interface LoopEntry {
+  mac: string;
+  ports: string[];
+}
+
+export interface LoopResult {
+  loops: LoopEntry[];
+  has_hub: boolean;
+}

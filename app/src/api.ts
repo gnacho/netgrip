@@ -255,4 +255,32 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg),
     }),
+  snapshots: () =>
+    request<{ snapshots: import("./types").ConfigSnapshot[] }>("/api/config/snapshots"),
+  createSnapshot: () =>
+    request<import("./types").ConfigSnapshot>("/api/config/snapshot", { method: "POST" }),
+  deleteSnapshot: (id: string) =>
+    request<void>(`/api/config/snapshot?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
+  snapshotDiff: (from: string, to: string) =>
+    request<{ diffs: import("./types").ConfigDiff[] }>(`/api/config/diff?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+  rollbackSnapshot: (id: string) =>
+    request<{ status: string }>("/api/config/rollback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }),
+  bouncePort: (iface: string) =>
+    request<{ iface: string; ok: boolean }>("/api/ports/bounce", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ iface }),
+    }),
+  igmp: () => request<import("./types").IGMPProbe>("/api/igmp"),
+  setIgmp: (enabled: boolean) =>
+    request<import("./types").IGMPProbe>("/api/igmp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    }),
+  loops: () => request<import("./types").LoopResult>("/api/loops"),
 };

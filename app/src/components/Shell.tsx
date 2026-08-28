@@ -10,8 +10,9 @@ import { Services } from "../pages/Services";
 import { Ports } from "../pages/Ports";
 import { System } from "../pages/System";
 import { LanPage } from "../pages/Lan";
+import { ToolsPage } from "../pages/Tools";
 
-type Page = "overview" | "wifi" | "lan" | "services" | "ports" | "system";
+type Page = "overview" | "wifi" | "lan" | "services" | "ports" | "tools" | "system";
 
 const NAV: { id: Page; icon: LucideIcon; key: string }[] = [
   { id: "overview", icon: LayoutDashboard, key: "nav.overview" },
@@ -19,6 +20,7 @@ const NAV: { id: Page; icon: LucideIcon; key: string }[] = [
   { id: "lan", icon: Network, key: "nav.lan" },
   { id: "services", icon: Blocks, key: "nav.services" },
   { id: "ports", icon: ArrowLeftRight, key: "nav.ports" },
+  { id: "tools", icon: RefreshCw, key: "nav.tools" },
   { id: "system", icon: Wrench, key: "nav.system" },
 ];
 
@@ -120,6 +122,9 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
       )}
       {activePage === "ports" && (
         <Ports fwd={fwd} onFwdChange={setFwd} />
+      )}
+      {activePage === "tools" && (
+        <ToolsPage ethports={ethports ?? []} />
       )}
       {activePage === "system" && (
         <System board={board} update={update} onUpdateChange={setUpdate} packages={packages} onPackagesChange={setPackages} onLogout={onLogout} />
