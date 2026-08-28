@@ -592,3 +592,11 @@ export interface PortTemplateSave {
   admin_up: boolean;
   speed_mbps: number;
 }
+
+export interface RoleProfile {
+  id: string;
+  name: string;
+  description: string;
+  vid: number;
+  isolated: boolean;
+}

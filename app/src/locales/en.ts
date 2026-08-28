@@ -496,6 +496,15 @@ export default {
     tagged: "Tagged",
     notMember: "Not member",
   },
+  roles: {
+    title: "Role profiles",
+    intro: "Assign a role to a port with one click. Each role configures a VLAN and isolation rules.",
+    targetPort: "Target port",
+    selectPort: "Select port...",
+    isolated: "isolated",
+    applied: "Role applied to port {{port}}",
+    confirmMsg: "Apply to {{port}}?",
+  },
   portTemplates: {
     title: "Port templates",
     intro: "Save port configurations (VLANs, speed, state) as reusable templates.",

@@ -417,4 +417,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ template, ports }),
     }),
+  roleProfiles: () =>
+    request<{ roles: import("./types").RoleProfile[] }>("/api/roles"),
+  applyRoleProfile: (roleId: string, port: string) =>
+    request<{ status: string }>("/api/roles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role_id: roleId, port }),
+    }),
 };

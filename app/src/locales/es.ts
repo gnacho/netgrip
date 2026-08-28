@@ -496,6 +496,15 @@ export default {
     tagged: "Con tag",
     notMember: "No miembro",
   },
+  roles: {
+    title: "Perfiles de rol",
+    intro: "Asigna un rol a un puerto con un clic. Cada rol configura una VLAN y reglas de aislamiento.",
+    targetPort: "Puerto destino",
+    selectPort: "Seleccionar puerto...",
+    isolated: "aislado",
+    applied: "Rol aplicado al puerto {{port}}",
+    confirmMsg: "Aplicar a {{port}}?",
+  },
   portTemplates: {
     title: "Plantillas de puerto",
     intro: "Guarda configuraciones de puerto (VLANs, velocidad, estado) como plantillas reutilizables.",
