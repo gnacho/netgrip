@@ -1,8 +1,8 @@
 name: openwrt-package
 
-# Builds the OpenWrt packages for owpanel and attaches them to the release:
-# .ipk (24.10 SDK) and .apk (25.12 SDK), both for aarch64_cortex-a53
-# (covers qualcommax/ipq807x and mediatek/filogic routers).
+# Builds the OpenWrt packages for NetGrip and attaches them to the release:
+# .ipk (24.10 SDK) and .apk (25.12 SDK), for aarch64_cortex-a53
+# (covers qualcommax/ipq807x and mediatek/filogic routers) and x86_64.
 #
 # Triggered on v* tag pushes (the same event as any release workflow).
 # The `release` event is NOT reliable for releases published by another
@@ -33,9 +33,23 @@ jobs:
           - sdk-version: 24.10.5
             sdk-target: qualcommax/ipq807x
             format: ipk
+            arch: arm64
+            goarch: arm64
           - sdk-version: 25.12.5
             sdk-target: qualcommax/ipq807x
             format: apk
+            arch: arm64
+            goarch: arm64
+          - sdk-version: 24.10.5
+            sdk-target: x86/64
+            format: ipk
+            arch: amd64
+            goarch: amd64
+          - sdk-version: 25.12.5
+            sdk-target: x86/64
+            format: apk
+            arch: amd64
+            goarch: amd64
 
     steps:
       - uses: actions/checkout@v4
@@ -63,14 +77,14 @@ jobs:
         with:
           go-version: stable
 
-      - name: Cross-compile owpanel (arm64)
+      - name: Cross-compile netgrip (${{ matrix.arch }})
         env:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build \
-            -ldflags "-s -w" -o /tmp/owpanel ./cmd/owpanel
-          ls -la /tmp/owpanel
-          file /tmp/owpanel
+          GOOS=linux GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build \
+            -ldflags "-s -w" -o /tmp/netgrip ./cmd/netgrip
+          ls -la /tmp/netgrip
+          file /tmp/netgrip
 
       - name: Package ${{ matrix.format }} (SDK ${{ matrix.sdk-version }})
         env:
@@ -84,7 +98,7 @@ jobs:
             "${{ matrix.sdk-target }}" \
             "" \
             "${{ matrix.format }}" \
-            /tmp/owpanel
+            /tmp/netgrip
 
       - name: Upload to release
         env:
@@ -94,10 +108,10 @@ jobs:
           echo "Packages generated:"
           ls -la dist/packages/
           gh release upload "$TAG" dist/packages/*.${{ matrix.format }} --clobber
-          # Binary artifact (arm64) for manual deploys; the OpenWrt package is
+          # Binary artifact for manual deploys; the OpenWrt package is
           # still the recommended install path because it survives sysupgrade.
-          cp /tmp/owpanel /tmp/owpanel-linux-arm64
-          gh release upload "$TAG" /tmp/owpanel-linux-arm64 --clobber
+          cp /tmp/netgrip /tmp/netgrip-linux-${{ matrix.arch }}
+          gh release upload "$TAG" /tmp/netgrip-linux-${{ matrix.arch }} --clobber
 
   package-luci:
     runs-on: ubuntu-latest
@@ -110,6 +124,12 @@ jobs:
             format: ipk
           - sdk-version: 25.12.5
             sdk-target: qualcommax/ipq807x
+            format: apk
+          - sdk-version: 24.10.5
+            sdk-target: x86/64
+            format: ipk
+          - sdk-version: 25.12.5
+            sdk-target: x86/64
             format: apk
 
     steps:
