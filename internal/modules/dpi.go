@@ -99,7 +99,7 @@ func ProbeDPI() *DPIProbe {
 		totalFlows++
 	}
 
-	var protocols []DPIProtocol
+	protocols := make([]DPIProtocol, 0)
 	for _, p := range protoMap {
 		protocols = append(protocols, *p)
 	}
