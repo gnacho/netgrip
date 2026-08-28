@@ -503,3 +503,27 @@ export interface Template {
   description: string;
   destructive: boolean;
 }
+
+export interface SwitchPort {
+  name: string;
+  admin_up: boolean;
+  oper_up: boolean;
+  speed_mbps: number;
+  duplex: string;
+  poe_enabled: boolean;
+  poe_supported: boolean;
+  description: string;
+}
+
+export interface SwitchProbe {
+  applicable: boolean;
+  ports: SwitchPort[];
+}
+
+export interface SwitchPortEdit {
+  name: string;
+  admin_up?: boolean;
+  speed_mbps?: number;
+  poe_enabled?: boolean;
+  description?: string;
+}
