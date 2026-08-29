@@ -3,3 +3,4 @@
 /dist/
 /owpanel
 *.test
+/app/tsconfig.tsbuildinfo
