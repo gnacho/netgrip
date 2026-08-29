@@ -122,7 +122,7 @@ func ListFleet() ([]FleetNodeStatus, error) {
 	}
 
 	fleetMu.RLock()
-	var nodes []FleetNodeStatus
+	nodes := make([]FleetNodeStatus, 0, len(cfg.Nodes))
 	for _, n := range cfg.Nodes {
 		status, ok := fleetStatuses[n.ID]
 		if !ok {
@@ -189,7 +189,7 @@ func CheckAllFleet() ([]FleetNodeStatus, error) {
 	}()
 
 	fleetMu.Lock()
-	var nodes []FleetNodeStatus
+	nodes := []FleetNodeStatus{}
 	for status := range results {
 		fleetStatuses[status.ID] = status
 		nodes = append(nodes, status)
