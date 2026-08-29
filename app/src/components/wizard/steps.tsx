@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ArrowUpDown, AtSign, ChartColumn, CircleCheck, Cpu, Gauge, Info, KeyRound, Lightbulb,
+  ArrowUpDown, AtSign, ChartColumn, CircleCheck, Clock, Cpu, Gauge, Info, KeyRound, Lightbulb,
   Lock, Network, Package, Router, Shield, ShieldCheck, Shuffle, Users, Waypoints, Wifi,
 } from "lucide-react";
 import { api } from "../../api";
@@ -586,6 +586,8 @@ const PKG_ICONS: Record<string, typeof Shield> = {
   adguard: Shield,
 };
 
+type PkgMode = "all" | "demand" | null;
+
 export function PackagesStep({ items, onSaved, onSkip, onBack }: {
   items: OptionalPackage[];
   onSaved: (ids: string[]) => void;
@@ -593,12 +595,21 @@ export function PackagesStep({ items, onSaved, onSkip, onBack }: {
   onBack: () => void;
 }) {
   const { t } = useTranslation();
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Por defecto recomendamos instalar todo ya: los checkboxes nacen marcados.
+  const installableIds = () => items.filter((p) => !p.installed).map((p) => p.id);
+  const [mode, setMode] = useState<PkgMode>("all");
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(installableIds()));
   const [busy, setBusy] = useState(false);
   const [fatal, setFatal] = useState<string>();
   const [fails, setFails] = useState(0);
 
+  const chooseMode = (m: "all" | "demand") => {
+    setMode(m);
+    setSelected(m === "all" ? new Set(installableIds()) : new Set());
+  };
+
   const toggle = (id: string) => {
+    setMode(null); // el preset se sobreescribe a mano
     setSelected((s) => {
       const next = new Set(s);
       if (next.has(id)) next.delete(id);
@@ -622,6 +633,11 @@ export function PackagesStep({ items, onSaved, onSkip, onBack }: {
     }
   };
 
+  const MODES: { id: "all" | "demand"; icon: typeof Shield; title: string; desc: string; recommended?: boolean }[] = [
+    { id: "all", icon: Package, title: t("wizard.packages.modeAll"), desc: t("wizard.packages.modeAllDesc"), recommended: true },
+    { id: "demand", icon: Clock, title: t("wizard.packages.modeDemand"), desc: t("wizard.packages.modeDemandDesc") },
+  ];
+
   return (
     <StepShell
       illustration={<IlluFleet size={140} />}
@@ -641,54 +657,81 @@ export function PackagesStep({ items, onSaved, onSkip, onBack }: {
         </>
       }
     >
-      <div className="space-y-2.5">
-        {items.map((p) => {
-          const Icon = PKG_ICONS[p.id] ?? Package;
-          const checked = selected.has(p.id);
-          return (
-            <label
-              key={p.id}
-              className={`flex w-full cursor-pointer items-start gap-3 rounded-lg border p-4 ring-focus
-                transition-colors duration-[var(--dur-fast)] ${p.installed
-                  ? "border-border bg-surface-2 cursor-default"
-                  : checked
-                    ? "border-accent bg-accent-soft"
-                    : "border-border bg-surface hover:bg-surface-2"}`}
-            >
-              <input
-                type="checkbox"
-                className="sr-only"
-                checked={checked}
-                disabled={p.installed || busy}
-                onChange={() => toggle(p.id)}
-              />
-              <span
-                aria-hidden="true"
-                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors duration-[var(--dur-fast)]
-                  ${p.installed
-                    ? "border-border-strong bg-surface"
-                    : checked
-                      ? "border-accent bg-accent"
-                      : "border-border-strong bg-surface"}`}
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label={t("wizard.packages.title")}>
+          {MODES.map((m) => {
+            const active = mode === m.id;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                disabled={busy}
+                onClick={() => chooseMode(m.id)}
+                className={`flex flex-col items-start gap-1 rounded-lg border p-4 text-left ring-focus
+                  transition-colors duration-[var(--dur-fast)] disabled:opacity-60
+                  ${active ? "border-accent bg-accent-soft" : "border-border bg-surface hover:bg-surface-2"}`}
               >
-                {checked && <span className="h-2 w-2 rounded-sm bg-surface" />}
-              </span>
-              <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2 text-body font-medium">
-                  <Icon size={16} className={checked ? "text-accent" : "text-faint"} aria-hidden="true" />
-                  {t(`${p.i18n_key}.title`)}
+                  <m.icon size={16} className={active ? "text-accent" : "text-faint"} aria-hidden="true" />
+                  {m.title}
+                  {m.recommended && <Pill tone="accent">{t("wizard.packages.recommended")}</Pill>}
                 </span>
-                <span className="mt-0.5 block text-small text-muted">{t(`${p.i18n_key}.desc`)}</span>
-                <span className="mt-1 block font-mono text-caption text-faint">{p.packages.join(", ")}</span>
-              </span>
-              {p.installed && <Pill tone="ok">{t("wizard.packages.installed")}</Pill>}
-            </label>
-          );
-        })}
-        <p className="flex items-start gap-2 pt-1 text-small text-muted">
-          <Info size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
-          {t("wizard.packages.later")}
-        </p>
+                <span className="block text-small text-muted">{m.desc}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="space-y-2.5">
+          {items.map((p) => {
+            const Icon = PKG_ICONS[p.id] ?? Package;
+            const checked = selected.has(p.id);
+            return (
+              <label
+                key={p.id}
+                className={`flex w-full cursor-pointer items-start gap-3 rounded-lg border p-4 ring-focus
+                  transition-colors duration-[var(--dur-fast)] ${p.installed
+                    ? "border-border bg-surface-2 cursor-default"
+                    : checked
+                      ? "border-accent bg-accent-soft"
+                      : "border-border bg-surface hover:bg-surface-2"}`}
+              >
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={checked}
+                  disabled={p.installed || busy}
+                  onChange={() => toggle(p.id)}
+                />
+                <span
+                  aria-hidden="true"
+                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors duration-[var(--dur-fast)]
+                    ${p.installed
+                      ? "border-border-strong bg-surface"
+                      : checked
+                        ? "border-accent bg-accent"
+                        : "border-border-strong bg-surface"}`}
+                >
+                  {checked && <span className="h-2 w-2 rounded-sm bg-surface" />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2 text-body font-medium">
+                    <Icon size={16} className={checked ? "text-accent" : "text-faint"} aria-hidden="true" />
+                    {t(`${p.i18n_key}.title`)}
+                  </span>
+                  <span className="mt-0.5 block text-small text-muted">{t(`${p.i18n_key}.desc`)}</span>
+                  <span className="mt-1 block font-mono text-caption text-faint">{p.packages.join(", ")}</span>
+                </span>
+                {p.installed && <Pill tone="ok">{t("wizard.packages.installed")}</Pill>}
+              </label>
+            );
+          })}
+          <p className="flex items-start gap-2 pt-1 text-small text-muted">
+            <Info size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
+            {t("wizard.packages.later")}
+          </p>
+        </div>
       </div>
     </StepShell>
   );
