@@ -125,20 +125,37 @@ página de [Releases](https://github.com/gnacho/netgrip/releases/latest). Hay
 dos formatos construidos con el SDK de OpenWrt: `.apk` (OpenWrt 25.12 en
 adelante) y `.ipk` (OpenWrt 24.10).
 
-### OpenWrt 25.12 (apk)
+### Instalación rápida (una línea)
+
+Entra por SSH al router y ejecuta:
+
+```sh
+wget -qO- https://raw.githubusercontent.com/gnacho/netgrip/main/install.sh | sh
+```
+
+El script elige el paquete adecuado para la arquitectura del router
+(`aarch64` o `x86_64`) y su gestor de paquetes (`apk` en OpenWrt 25.12+,
+`opkg` en 24.10), instala la última release, activa y arranca el servicio, y
+te imprime la URL del panel. Si prefieres revisarlo antes, lee
+[install.sh](install.sh); para instalar una versión concreta, ejecuta
+`NETGRIP_VERSION=vX.Y.Z sh install.sh`.
+
+### Instalación manual
+
+#### OpenWrt 25.12 (apk)
 
 ```sh
 # Cópialo al router y luego:
-apk add netgrip-0.12.0-r1.aarch64_cortex-a53.apk
+apk add netgrip-0.24.0-r1-arm64.apk
 /etc/init.d/netgrip enable
 /etc/init.d/netgrip start
 ```
 
-### OpenWrt 24.10 (ipk)
+#### OpenWrt 24.10 (ipk)
 
 ```sh
 # Cópialo al router y luego:
-opkg install netgrip_0.12.0-1_aarch64_cortex-a53.ipk
+opkg install netgrip_0.24.0-1_aarch64_cortex-a53.ipk
 /etc/init.d/netgrip enable
 /etc/init.d/netgrip start
 ```
