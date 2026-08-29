@@ -281,6 +281,26 @@ func TestApplyNetPulseAgentDisabled(t *testing.T) {
 	}
 }
 
+// TestAdoptIgnoresHeartbeatAlone: el heartbeat de /tmp lo escribe también el
+// agente embebido (runtime compartido); solo, NO debe considerarse artefacto
+// standalone ni disparar el cleanup.
+func TestAdoptIgnoresHeartbeatAlone(t *testing.T) {
+	p := tmpPaths(t)
+	mustWrite(t, p.env, "NETPULSE_SERVER=http://s\nNETPULSE_TOKEN=t\nNETPULSE_SLUG=s\nNETPULSE_ENABLED=1\n")
+	mustWrite(t, p.heartbeat, "1234")
+
+	acted, err := adoptNetPulseStandalone(p)
+	if err != nil {
+		t.Fatalf("adopt: %v", err)
+	}
+	if acted {
+		t.Fatal("el heartbeat solo no debe disparar la limpieza")
+	}
+	if !fileExists(p.heartbeat) {
+		t.Fatal("el heartbeat en uso por el embebido debe conservarse")
+	}
+}
+
 // TestAdoptRemovesWatchdogAndCron (#141): el cleanup también retira el
 // watchdog, su heartbeat y la línea del cron, conservando el resto del
 // crontab.

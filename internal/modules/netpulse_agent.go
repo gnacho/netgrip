@@ -329,12 +329,13 @@ func adoptNetPulseStandalone(p netpulsePaths) (bool, error) {
 }
 
 // netPulseStandaloneArtifacts dice si hay artefactos del standalone (init.d,
-// binario, watchdog, heartbeat o línea cron) presentes.
+// binario, watchdog o línea cron) presentes. El heartbeat de /tmp NO cuenta:
+// también lo escribe el agente embebido en cada push, así que solo se retira
+// como parte del cleanup cuando hay standalone real.
 func netPulseStandaloneArtifacts(p netpulsePaths) bool {
 	return fileExists(p.initScript) ||
 		fileExists(p.agentBin) ||
 		fileExists(p.watchdogBin) ||
-		fileExists(p.heartbeat) ||
 		netPulseCronLineExists(p.cronFile)
 }
 
