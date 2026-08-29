@@ -99,6 +99,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/ethports", s.requireAuth(s.handleEthPorts))
 	s.mux.HandleFunc("GET /api/dawn", s.requireAuth(s.handleDawn))
 	s.mux.HandleFunc("GET /api/clients", s.requireAuth(s.handleClients))
+	s.mux.HandleFunc("GET /api/clients/meta", s.requireAuth(s.handleClientMeta))
+	s.mux.HandleFunc("POST /api/clients/meta", s.requireAuth(s.handleSetClientMeta))
 	s.mux.HandleFunc("POST /api/clients/reserve", s.requireAuth(s.handleClientReserve))
 	s.mux.HandleFunc("POST /api/clients/block", s.requireAuth(s.handleClientBlock))
 	s.mux.HandleFunc("GET /api/config/snapshots", s.requireAuth(s.handleSnapshotsList))
@@ -916,6 +918,30 @@ func (s *Server) handleDawn(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) handleClients(w http.ResponseWriter, r *http.Request) {
 	requesterIP, _, _ := strings.Cut(r.RemoteAddr, ":")
 	writeJSON(w, map[string]any{"clients": modules.ListClients(requesterIP), "ts": time.Now().UnixMilli()})
+}
+
+func (s *Server) handleClientMeta(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.GetClientMeta())
+}
+
+type setClientMetaRequest struct {
+	MAC        string `json:"mac"`
+	Name       string `json:"name"`
+	DeviceType string `json:"device_type"`
+}
+
+func (s *Server) handleSetClientMeta(w http.ResponseWriter, r *http.Request) {
+	var req setClientMetaRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	res, err := modules.SetClientMeta(req.MAC, req.Name, req.DeviceType)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, res)
 }
 
 type clientReserveRequest struct {

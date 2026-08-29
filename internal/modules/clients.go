@@ -17,7 +17,8 @@ type Client struct {
 	Name       string `json:"name"`
 	IP         string `json:"ip,omitempty"`
 	MAC        string `json:"mac"`
-	Type       string `json:"type"` // wifi24 | wifi5 | cable
+	Type       string `json:"type"`                    // wifi24 | wifi5 | cable
+	DeviceType string `json:"device_type,omitempty"`   // user-assigned: pc | phone | ...
 	Iface      string `json:"iface,omitempty"`
 	Signal     int    `json:"signal,omitempty"`
 	RxBytes    int64  `json:"rx_bytes"` // client upload (AP rx)
@@ -113,6 +114,17 @@ func ListClients(requesterIP string) []Client {
 				c.Blockable = executor.ServiceEnabled("firewall")
 				clients = append(clients, c)
 			}
+		}
+	}
+
+	// Apply user-assigned metadata (custom name + device type) overrides.
+	meta := clientMeta()
+	for i, c := range clients {
+		if m, ok := meta[strings.ToLower(c.MAC)]; ok {
+			if m.Name != "" {
+				clients[i].Name = m.Name
+			}
+			clients[i].DeviceType = m.DeviceType
 		}
 	}
 
