@@ -1,13 +1,33 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Gauge } from "lucide-react";
+import { Gauge, Play } from "lucide-react";
 import { api } from "../../api";
-import type { SQMProbe } from "../../types";
+import type { BufferbloatResult, SQMProbe } from "../../types";
 import {
-  ActionBanner, Card, Field, Pill, SettingRow, SkeletonRows, Toggle,
+  ActionBanner, Button, Card, Field, Pill, SettingRow, SkeletonRows, Toggle,
 } from "../ui";
 import { useActionCycle } from "../wifi/action";
 import { TechName } from "./shared";
+
+function GradePill({ grade }: { grade: string }) {
+  const tone = grade === "A" || grade === "B" ? "ok" : grade === "C" ? "warn" : "danger";
+  return <Pill tone={tone}>{grade}</Pill>;
+}
+
+function Sparkline({ values }: { values: number[] }) {
+  if (values.length < 2) return null;
+  const w = 200;
+  const h = 32;
+  const pad = 2;
+  const max = Math.max(...values, 1);
+  const step = (w - pad * 2) / (values.length - 1);
+  const points = values.map((v, i) => `${pad + i * step},${h - pad - (v / max) * (h - pad * 2)}`).join(" ");
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-8 mt-1" preserveAspectRatio="none">
+      <polyline points={points} fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent" />
+    </svg>
+  );
+}
 
 /**
  * Prioridad de tráfico (SQM/CAKE) — "Que Internet no se atasque"
@@ -24,6 +44,9 @@ export function SqmCard({ probe, onChange, index = 0 }: {
   const [doneMsg, setDoneMsg] = useState<string>();
   const [download, setDownload] = useState("");
   const [upload, setUpload] = useState("");
+  const [latest, setLatest] = useState<BufferbloatResult>();
+  const [history, setHistory] = useState<BufferbloatResult[]>([]);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     if (probe) {
@@ -31,6 +54,27 @@ export function SqmCard({ probe, onChange, index = 0 }: {
       setUpload(probe.upload || "");
     }
   }, [probe]);
+
+  useEffect(() => {
+    api.bufferbloatHistory().then((r) => {
+      const entries = r.entries ?? [];
+      setHistory(entries);
+      if (entries.length > 0) setLatest(entries[entries.length - 1]);
+    }).catch(() => {});
+  }, []);
+
+  const runTest = async () => {
+    setTesting(true);
+    try {
+      const result = await api.runBufferbloatTest();
+      setLatest(result);
+      setHistory((prev) => [...prev, result].slice(-50));
+    } catch {
+      setDoneMsg(t("sqm.testFailed"));
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const active = probe?.active ?? false;
   const hasWan = probe?.has_wan ?? false;
@@ -98,6 +142,28 @@ export function SqmCard({ probe, onChange, index = 0 }: {
               <div>
                 <p className="text-caption text-muted">{t("sqm.rateHelp")}</p>
                 <p className="text-caption text-faint mt-0.5 font-mono">{t("sqm.rateExample")}</p>
+              </div>
+              <div className="pt-2 border-t border-border/60">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-eyebrow text-faint">{t("sqm.bufferbloat")}</span>
+                  {latest ? <GradePill grade={latest.grade} /> : <span className="text-caption text-muted">{t("sqm.notTested")}</span>}
+                </div>
+                {latest && (
+                  <div className="grid grid-cols-3 gap-2 text-caption mb-1.5">
+                    <div><span className="text-muted">{t("sqm.baseline")}:</span> {latest.baseline_ms} ms</div>
+                    <div><span className="text-muted">{t("sqm.loaded")}:</span> {latest.loaded_ms} ms</div>
+                    <div><span className="text-muted">{t("sqm.delta")}:</span> {latest.delta_ms} ms</div>
+                  </div>
+                )}
+                <Button variant="secondary" size="sm" onClick={runTest} loading={testing} icon={Play}>
+                  {testing ? t("sqm.testing") : t("sqm.runTest")}
+                </Button>
+                {history.length >= 2 && (
+                  <div className="mt-2">
+                    <span className="text-[10px] text-muted">{t("sqm.lastTests")}</span>
+                    <Sparkline values={history.slice(-10).map((h) => h.delta_ms)} />
+                  </div>
+                )}
               </div>
             </div>
           )}

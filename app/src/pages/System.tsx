@@ -7,6 +7,7 @@ import { TelegramCard } from "../components/system/TelegramCard";
 import { ModeCard } from "../components/system/ModeCard";
 import { IdentityCard } from "../components/system/IdentityCard";
 import { NetPulseCard } from "../components/system/NetPulseCard";
+import { ConfigBackupCard } from "../components/ConfigBackupCard";
 import { NetPulseStandaloneBanner, NetPulseStatusChip } from "../components/system/NetPulseStatus";
 import { useTranslation } from "react-i18next";
 

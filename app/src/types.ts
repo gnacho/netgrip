@@ -129,6 +129,15 @@ export interface SQMProbe {
   upload: string;
 }
 
+export interface BufferbloatResult {
+  baseline_ms: number;
+  loaded_ms: number;
+  delta_ms: number;
+  grade: string;
+  timestamp: string;
+  samples_loaded: number[];
+}
+
 export interface OVPNClient {
   name: string;
 }

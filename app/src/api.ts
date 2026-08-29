@@ -287,6 +287,10 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg),
     }),
+  runBufferbloatTest: () =>
+    request<import("./types").BufferbloatResult>("/api/sqm/test", { method: "POST" }),
+  bufferbloatHistory: () =>
+    request<{ entries: import("./types").BufferbloatResult[] }>("/api/sqm/history"),
   setDdns: (cfg: {
     enabled: boolean;
     service_name?: string;
@@ -536,6 +540,17 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg),
     }),
+  pushConfigGet: () =>
+    request<{ server_url: string; router_id: string; token: string }>("/api/push-config"),
+  pushConfigSet: (server_url: string, router_id: string, token: string) =>
+    request<{ status: string }>("/api/push-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ server_url, router_id, token }),
+    }),
+  pushSnapshot: () =>
+    request<{ ok: boolean; snapshot_id?: string; error?: string }>("/api/push-config/push", { method: "POST" }),
+
 };
 
 /** API pública: delega en `src/demo` cuando el modo demo está activo.

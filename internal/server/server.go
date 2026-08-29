@@ -62,6 +62,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/ddns", s.requireAuth(s.handleDDNSSet))
 	s.mux.HandleFunc("GET /api/sqm", s.requireAuth(s.handleSQMGet))
 	s.mux.HandleFunc("POST /api/sqm", s.requireAuth(s.handleSQMSet))
+	s.mux.HandleFunc("POST /api/sqm/test", s.requireAuth(s.handleBufferbloatTest))
+	s.mux.HandleFunc("GET /api/sqm/history", s.requireAuth(s.handleBufferbloatHistory))
 	s.mux.HandleFunc("GET /api/openvpn", s.requireAuth(s.handleOVPNGet))
 	s.mux.HandleFunc("POST /api/openvpn", s.requireAuth(s.handleOVPNSet))
 	s.mux.HandleFunc("POST /api/openvpn/clients", s.requireAuth(s.handleOVPNClientAdd))
@@ -168,6 +170,11 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/mac-acl", s.requireAuth(s.handleMACACLSet))
 	s.mux.HandleFunc("GET /api/netpulse", s.requireAuth(s.handleNetPulseGet))
 	s.mux.HandleFunc("POST /api/netpulse", s.requireAuth(s.handleNetPulseSet))
+	s.mux.HandleFunc("GET /api/push-config", s.requireAuth(s.handlePushConfigGet))
+	s.mux.HandleFunc("POST /api/push-config", s.requireAuth(s.handlePushConfigSet))
+	s.mux.HandleFunc("POST /api/push-config/push", s.requireAuth(s.handlePushSnapshot))
+	s.mux.HandleFunc("POST /api/executor/apply", s.handleExecutorApply)
+	s.mux.HandleFunc("GET /api/executor/token", s.requireAuth(s.handleExecutorToken))
 	return s
 }
 
@@ -513,6 +520,19 @@ func (s *Server) handleSQMSet(w http.ResponseWriter, r *http.Request) {
 	}
 	probe, rolledBack, err := modules.SetSQM(cfg)
 	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleBufferbloatTest(w http.ResponseWriter, _ *http.Request) {
+	result, err := modules.RunBufferbloatTest()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, result)
+}
+
+func (s *Server) handleBufferbloatHistory(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"entries": modules.GetBufferbloatHistory()})
 }
 
 func (s *Server) handleOVPNGet(w http.ResponseWriter, _ *http.Request) {
@@ -1712,4 +1732,48 @@ func (s *Server) handleNetPulseSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, netPulseState())
+}
+
+func (s *Server) handleExecutorToken(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]string{"token": modules.GetExecutorToken()})
+}
+
+func (s *Server) handleExecutorApply(w http.ResponseWriter, r *http.Request) {
+	auth := r.Header.Get("Authorization")
+	if !strings.HasPrefix(auth, "Bearer ") || !modules.ValidateExecutorToken(strings.TrimPrefix(auth, "Bearer ")) {
+		writeError(w, http.StatusUnauthorized, "invalid or missing executor token")
+		return
+	}
+	var req modules.ExecutorRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	resp := modules.ExecuteOps(req)
+	if !resp.Ok {
+		writeJSON(w, resp)
+		return
+	}
+	writeJSON(w, resp)
+}
+
+func (s *Server) handlePushConfigGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.GetPushConfig())
+}
+
+func (s *Server) handlePushConfigSet(w http.ResponseWriter, r *http.Request) {
+	var cfg modules.PushConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := modules.SetPushConfig(cfg); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "saved"})
+}
+
+func (s *Server) handlePushSnapshot(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.PushLatestSnapshot())
 }
