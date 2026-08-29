@@ -7,7 +7,8 @@ import (
 	"sync"
 )
 
-const clientMetaPath = "/etc/netgrip/clients.json"
+// clientMetaPath is a var so tests can point it at a temp dir.
+var clientMetaPath = "/etc/netgrip/clients.json"
 
 // ClientMeta is user-assigned metadata for one client (its MAC).
 type ClientMeta struct {
@@ -20,12 +21,25 @@ var (
 	clientMetaData map[string]ClientMeta
 )
 
-// clientMeta reads the persisted metadata map (MAC -> metadata), once.
+// clientMeta reads a COPY of the persisted metadata map (MAC -> metadata).
+// Callers get a snapshot: never hand out the live map (readers would race
+// with writers).
 func clientMeta() map[string]ClientMeta {
 	clientMetaMu.Lock()
 	defer clientMetaMu.Unlock()
+	loadClientMetaLocked()
+	out := make(map[string]ClientMeta, len(clientMetaData))
+	for k, v := range clientMetaData {
+		out[k] = v
+	}
+	return out
+}
+
+// loadClientMetaLocked loads the map from disk on first use. Caller MUST hold
+// clientMetaMu.
+func loadClientMetaLocked() {
 	if clientMetaData != nil {
-		return clientMetaData
+		return
 	}
 	clientMetaData = map[string]ClientMeta{}
 	if data, err := os.ReadFile(clientMetaPath); err == nil {
@@ -34,10 +48,10 @@ func clientMeta() map[string]ClientMeta {
 	if clientMetaData == nil {
 		clientMetaData = map[string]ClientMeta{}
 	}
-	return clientMetaData
 }
 
-// saveClientMeta persists the metadata map to disk.
+// saveClientMeta persists the metadata map to disk. Caller MUST hold
+// clientMetaMu (reads clientMetaData without locking).
 func saveClientMeta() error {
 	data, err := json.MarshalIndent(clientMetaData, "", "  ")
 	if err != nil {
@@ -58,20 +72,26 @@ func GetClientMeta() clientMetaPayload {
 }
 
 // SetClientMeta assigns a custom name and/or device type to a client MAC and
-// persists it. Returns the updated metadata map.
+// persists it. Returns the updated metadata map. Self-deadlock fixed
+// (29-Ago-2026): the old version called GetClientMeta() while holding
+// clientMetaMu and hung every POST /api/clients/meta.
 func SetClientMeta(mac, name, deviceType string) (clientMetaPayload, error) {
 	mac = normalizeMac(mac)
 	if mac == "" {
 		return clientMetaPayload{}, os.ErrInvalid
 	}
-	mu := clientMeta()
-	mu[mac] = ClientMeta{Name: name, DeviceType: deviceType}
 	clientMetaMu.Lock()
 	defer clientMetaMu.Unlock()
+	loadClientMetaLocked()
+	clientMetaData[mac] = ClientMeta{Name: name, DeviceType: deviceType}
 	if err := saveClientMeta(); err != nil {
 		return clientMetaPayload{}, err
 	}
-	return GetClientMeta(), nil
+	out := make(map[string]ClientMeta, len(clientMetaData))
+	for k, v := range clientMetaData {
+		out[k] = v
+	}
+	return clientMetaPayload{Meta: out}, nil
 }
 
 // normalizeMac lowercases and trims a MAC, returning "" if not a valid shape.
