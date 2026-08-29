@@ -223,8 +223,34 @@ func TestValidateNetPulseTarget(t *testing.T) {
 	}
 }
 
-// TestApplyNetPulseAgentDisabled: con NETPULSE_ENABLED=0 (o config
-// incompleta) no se arranca ninguna goroutine.
+// TestStartNetPulseAgentKeepsBaseContextAlive: regresión del bug visto en rt3
+// (29-Ago-2026). StartNetPulseAgent dejaba npCancel apuntando al cancel del
+// ctx base de señales y applyNetPulseAgent lo ejecutaba al "parar el agente
+// anterior", cancelando el contexto base: el agente nacía muerto ("context
+// canceled" en el primer push). Tras el fix, npCancel solo representa la
+// goroutine del agente y el ctx base sobrevive a los rearranques.
+func TestStartNetPulseAgentKeepsBaseContextAlive(t *testing.T) {
+	if fileExists(prodNetPulsePaths().standaloneEnv) || fileExists(prodNetPulsePaths().env) {
+		t.Skip("máquina con config netpulse real: el test no debe tocar artefactos de producción")
+	}
+	StopNetPulseAgent()
+	defer StopNetPulseAgent()
+
+	StartNetPulseAgent("test")
+
+	npMu.Lock()
+	base := npBaseCtx
+	npMu.Unlock()
+	if base == nil {
+		t.Fatal("npBaseCtx debe existir tras StartNetPulseAgent")
+	}
+	select {
+	case <-base.Done():
+		t.Fatal("el ctx base quedó cancelado tras el arranque: el agente embebido nacería muerto")
+	default:
+	}
+}
+
 func TestApplyNetPulseAgentDisabled(t *testing.T) {
 	StopNetPulseAgent()
 	defer StopNetPulseAgent()

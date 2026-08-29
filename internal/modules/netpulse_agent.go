@@ -63,13 +63,14 @@ type NetPulseInfo struct {
 }
 
 var (
-	npMu       sync.Mutex
-	npBaseCtx  context.Context
-	npCancel   context.CancelFunc
-	npStatus   runtime.Status
-	npVersion  string
-	npStarted  bool
-	netPulseRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+	npMu         sync.Mutex
+	npBaseCtx    context.Context
+	npBaseCancel context.CancelFunc // cancela el ctx de señales (parada del proceso)
+	npCancel     context.CancelFunc // cancela SOLO la goroutine del agente vigente
+	npStatus     runtime.Status
+	npVersion    string
+	npStarted    bool
+	netPulseRe   = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 )
 
 // StartNetPulseAgent arranca el agente embebido (llamar una vez desde main).
@@ -83,7 +84,10 @@ func StartNetPulseAgent(version string) {
 	}
 	npStarted = true
 	npVersion = version
-	npBaseCtx, npCancel = signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	// npBaseCancel vive aparte de npCancel: applyNetPulseAgent cancela npCancel
+	// para rearrancar la goroutine y NUNCA debe tumbar el ctx base de señales
+	// (bug encontrado en rt3: el primer arranque nacía ya cancelado).
+	npBaseCtx, npBaseCancel = signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	npMu.Unlock()
 
 	if err := AdoptStandaloneAgent(); err != nil {
@@ -92,14 +96,19 @@ func StartNetPulseAgent(version string) {
 	applyNetPulseAgent(prodNetPulsePaths())
 }
 
-// StopNetPulseAgent para la goroutine del agente (tests y apagado limpio).
+// StopNetPulseAgent para la goroutine del agente y el ctx de señales (tests y
+// apagado limpio).
 func StopNetPulseAgent() {
 	npMu.Lock()
 	defer npMu.Unlock()
 	if npCancel != nil {
 		npCancel()
+		npCancel = nil
 	}
-	npCancel = nil
+	if npBaseCancel != nil {
+		npBaseCancel()
+		npBaseCancel = nil
+	}
 	npStatus.Running = false
 }
 
@@ -346,7 +355,11 @@ func applyNetPulseAgent(p netpulsePaths) {
 	npCancel = cancel
 	npMu.Unlock()
 
-	log.Printf("netpulse: embedded agent starting (slug=%s server=%s interval=%s)", opts.Slug, opts.Server, opts.Interval)
+	interval := opts.Interval
+	if interval <= 0 {
+		interval = runtime.DefaultInterval
+	}
+	log.Printf("netpulse: embedded agent starting (slug=%s server=%s interval=%s)", opts.Slug, opts.Server, interval)
 	go func() {
 		if err := runtime.Run(ctx, opts); err != nil {
 			log.Printf("netpulse: agent stopped: %v", err)
