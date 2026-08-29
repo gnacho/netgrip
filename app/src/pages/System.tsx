@@ -7,7 +7,14 @@ import { TelegramCard } from "../components/system/TelegramCard";
 import { ModeCard } from "../components/system/ModeCard";
 import { IdentityCard } from "../components/system/IdentityCard";
 import { NetPulseCard } from "../components/system/NetPulseCard";
+import { NetPulseStandaloneBanner, NetPulseStatusChip } from "../components/system/NetPulseStatus";
 import { useTranslation } from "react-i18next";
+
+// Hidden by design (#146): zero-touch NetPulse integration. The embedded
+// agent is always on and self-enrolls, so the manual configuration card has
+// no place in the UI for now. Code (component, i18n keys, API) is kept
+// compiled; flip this flag to bring the card back.
+const NETPULSE_CARD_HIDDEN = true;
 
 function GroupLabel({ children }: { children: ReactNode }) {
   return <p className="text-eyebrow text-faint mb-2 animate-fade-up">{children}</p>;
@@ -36,9 +43,11 @@ export function System({ board, update: _update, onUpdateChange: _onUpdateChange
       {/* Este equipo */}
       <section className="flex flex-col gap-[var(--card-gap)]">
         <GroupLabel>{t("system.groupDevice")}</GroupLabel>
+        <NetPulseStandaloneBanner />
+        <NetPulseStatusChip />
         <ModeCard index={0} />
         <IdentityCard index={1} board={board} />
-        <NetPulseCard index={2} />
+        {!NETPULSE_CARD_HIDDEN && <NetPulseCard index={2} />}
       </section>
     </div>
   );

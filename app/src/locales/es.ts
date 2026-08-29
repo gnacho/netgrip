@@ -1549,6 +1549,8 @@ export default {
     relMin: "hace {{n}} min",
     relHour: "hace {{n}} h",
     standaloneNotice: "Se ha detectado un agente netpulse independiente instalado aparte. Es incompatible con NetGrip (que ya lleva el agente integrado), así que se ha sustituido: la configuración se ha conservado y el agente externo se ha retirado.",
+    chipConnected: "NetPulse: conectado a {{server}} · {{time}}",
+    chipSearching: "NetPulse: buscando servidor",
   },
   dpi: {
     title: "Trafico por aplicacion",

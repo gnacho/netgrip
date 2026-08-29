@@ -707,11 +707,19 @@ export interface NetPulseAgentStatus {
   lastError: string;
 }
 
+export interface NetPulseDiscovery {
+  foundServer: string | null;
+  lastDiscoveryAt: string | null;
+  lastEnrollNote: string;
+}
+
 export interface NetPulseState {
   enabled: boolean;
   configured: boolean;
   server: string;
   slug: string;
+  phase: string; // "connected" | "searching" (always-on, #146)
+  discovery?: NetPulseDiscovery;
   status: NetPulseAgentStatus;
   standaloneReplacedAt: string | null;
 }

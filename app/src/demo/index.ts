@@ -375,6 +375,8 @@ export const demoApi: typeof api = {
   // netpulse (agente embebido): estado sano y push reciente en la demo
   netpulse: () => get({
     ...state.netpulse,
+    phase: "connected",
+    discovery: { foundServer: "https://netpulse.example.com", lastDiscoveryAt: new Date(Date.now() - 60_000).toISOString(), lastEnrollNote: "" },
     status: { running: true, pushOk: true, lastPush: new Date(Date.now() - 15_000).toISOString(), lastError: "" },
     standaloneReplacedAt: null,
   }),
@@ -388,6 +390,8 @@ export const demoApi: typeof api = {
     };
     return {
       ...state.netpulse,
+      phase: cfg.enabled ? "connected" : "searching",
+      discovery: { foundServer: cfg.server || state.netpulse.server, lastDiscoveryAt: new Date().toISOString(), lastEnrollNote: "" },
       status: { running: cfg.enabled, pushOk: cfg.enabled, lastPush: cfg.enabled ? new Date().toISOString() : null, lastError: "" },
       standaloneReplacedAt: null,
     };

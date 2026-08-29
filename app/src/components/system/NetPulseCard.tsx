@@ -3,20 +3,14 @@ import { useTranslation } from "react-i18next";
 import { Activity, Server } from "lucide-react";
 import { api } from "../../api";
 import type { NetPulseState } from "../../types";
-import { Banner, Button, Card, Field, SettingRow, StatusDot, useToast } from "../ui";
+import { relTime } from "./NetPulseStatus";
+import { Button, Card, Field, SettingRow, StatusDot, useToast } from "../ui";
 
 const STATUS_POLL_MS = 10_000;
-const STANDALONE_DISMISS_KEY = "netpulse-standalone-dismissed";
 
-/** relTime: "hace 3 min" / "3 min ago" a partir de un ts ISO (o null). */
-function relTime(iso: string | null, t: (k: string, opts?: Record<string, unknown>) => string): string {
-  if (!iso) return t("netpulse.never");
-  const secs = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
-  if (secs < 60) return t("netpulse.relSec", { n: secs });
-  const mins = Math.round(secs / 60);
-  if (mins < 60) return t("netpulse.relMin", { n: mins });
-  return t("netpulse.relHour", { n: Math.round(mins / 60) });
-}
+// El aviso de standalone sustituido (#143) vive en NetPulseStandaloneBanner:
+// esta card está oculta por diseño (#146, integración zero-touch sin
+// superficie de config) y el banner debe verse aunque la card no se pinte.
 
 export function NetPulseCard({ index = 0 }: { index?: number }) {
   const { t } = useTranslation();
@@ -28,11 +22,6 @@ export function NetPulseCard({ index = 0 }: { index?: number }) {
   const [enabled, setEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [, forceTick] = useState(0);
-  // Aviso de standalone sustituido: dismissible; reaparece solo si hay una
-  // detección NUEVA (timestamp posterior al descartado, guardado local).
-  const [standaloneDismissed, setStandaloneDismissed] = useState<string>(() =>
-    localStorage.getItem(STANDALONE_DISMISS_KEY) ?? "",
-  );
 
   const refresh = () => {
     api.netpulse().then((s) => {
@@ -72,22 +61,9 @@ export function NetPulseCard({ index = 0 }: { index?: number }) {
     : status.pushOk
       ? t("netpulse.pushOk", { time: relTime(status.lastPush, t) })
       : t("netpulse.pushFail", { time: relTime(status.lastPush, t) });
-  const showStandaloneNotice = !!state?.standaloneReplacedAt &&
-    new Date(state.standaloneReplacedAt).getTime() > new Date(standaloneDismissed || 0).getTime();
-
-  const dismissStandalone = () => {
-    const now = new Date().toISOString();
-    localStorage.setItem(STANDALONE_DISMISS_KEY, now);
-    setStandaloneDismissed(now);
-  };
 
   return (
     <Card index={index} title={t("netpulse.title")} icon={Activity}>
-      {showStandaloneNotice && (
-        <Banner tone="warn" className="mb-3" onDismiss={dismissStandalone}>
-          {t("netpulse.standaloneNotice")}
-        </Banner>
-      )}
       <SettingRow
         title={t("netpulse.enabled")}
         description={t("netpulse.description")}
