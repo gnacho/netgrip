@@ -10,12 +10,12 @@ import (
 )
 
 type NlbwmonProbe struct {
-	Installed          bool   `json:"installed"`
-	Running            bool   `json:"running"`
-	Generations        int    `json:"generations"`
-	CommitInterval     int    `json:"commit_interval"`
-	PreallocDays       int    `json:"prealloc_days"`
-	ProtocolDatabase   bool   `json:"protocol_database"`
+	Installed        bool `json:"installed"`
+	Running          bool `json:"running"`
+	Generations      int  `json:"generations"`
+	CommitInterval   int  `json:"commit_interval"`
+	PreallocDays     int  `json:"prealloc_days"`
+	ProtocolDatabase bool `json:"protocol_database"`
 }
 
 func ProbeNlbwmon() *NlbwmonProbe {
@@ -47,8 +47,15 @@ type NlbwmonConfig struct {
 }
 
 func SetNlbwmon(cfg NlbwmonConfig) (*NlbwmonProbe, bool, error) {
+	freshInstall := false
 	if !ProbeNlbwmon().Installed {
-		return nil, false, fmt.Errorf("nlbwmon is not installed")
+		if cfg.Enabled == nil || !*cfg.Enabled {
+			return nil, false, fmt.Errorf("nlbwmon is not installed")
+		}
+		if err := executor.Run(executor.Op{Kind: "pkg_add", Args: []string{"nlbwmon"}}); err != nil {
+			return nil, false, fmt.Errorf("install nlbwmon: %w", err)
+		}
+		freshInstall = true
 	}
 	snap, err := executor.Snapshot("nlbwmon")
 	if err != nil {
@@ -62,6 +69,9 @@ func SetNlbwmon(cfg NlbwmonConfig) (*NlbwmonProbe, bool, error) {
 			action = "disable"
 		}
 		ops = append(ops, executor.Op{Kind: "initd", Args: []string{"nlbwmon", action}})
+		if freshInstall && *cfg.Enabled {
+			ops = append(ops, executor.Op{Kind: "initd", Args: []string{"nlbwmon", "start"}})
+		}
 	}
 	if cfg.Generations != nil {
 		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{"nlbwmon.core.database_generations", strconv.Itoa(*cfg.Generations)}})

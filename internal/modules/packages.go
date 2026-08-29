@@ -18,6 +18,83 @@ type PkgUpgrade struct {
 	Available string `json:"available"`
 }
 
+// OptionalPkg is one catalog entry: a service whose OpenWrt packages can be
+// installed on demand (wizard) or are auto-installed on first enable.
+type OptionalPkg struct {
+	ID        string   `json:"id"`
+	Packages  []string `json:"packages"`
+	I18nKey   string   `json:"i18n_key"`
+	Module    string   `json:"module"`
+	Installed bool     `json:"installed"`
+}
+
+var optionalCatalog = []OptionalPkg{
+	{ID: "wireguard", Packages: []string{"wireguard-tools", "kmod-wireguard"}, I18nKey: "wizard.packages.wireguard", Module: "wireguard"},
+	{ID: "ddns", Packages: []string{"ddns-scripts"}, I18nKey: "wizard.packages.ddns", Module: "ddns"},
+	{ID: "openvpn", Packages: []string{"openvpn-openssl", "openvpn-easy-rsa"}, I18nKey: "wizard.packages.openvpn", Module: "openvpn"},
+	{ID: "sqm", Packages: []string{"sqm-scripts"}, I18nKey: "wizard.packages.sqm", Module: "sqm"},
+	{ID: "nlbwmon", Packages: []string{"nlbwmon"}, I18nKey: "wizard.packages.nlbwmon", Module: "nlbwmon"},
+	{ID: "nft-qos", Packages: []string{"nft-qos"}, I18nKey: "wizard.packages.nftqos", Module: "nftqos"},
+	{ID: "tailscale", Packages: []string{"tailscale"}, I18nKey: "wizard.packages.tailscale", Module: "tailscale"},
+	{ID: "adguard", Packages: []string{"adguardhome"}, I18nKey: "wizard.packages.adguard", Module: "adguard"},
+}
+
+// pkgInstalled reports whether one package is installed (apk on 25.12+,
+// opkg on older releases).
+func pkgInstalled(name string) bool {
+	if _, err := exec.LookPath("apk"); err == nil {
+		return exec.Command("apk", "info", "-e", name).Run() == nil
+	}
+	out, err := exec.Command("opkg", "list-installed", name).Output()
+	return err == nil && strings.HasPrefix(string(out), name+" ")
+}
+
+func optionalPkgInstalled(entry OptionalPkg) bool {
+	for _, p := range entry.Packages {
+		if !pkgInstalled(p) {
+			return false
+		}
+	}
+	return true
+}
+
+// ListOptionalPackages returns the catalog with live installed flags.
+func ListOptionalPackages() []OptionalPkg {
+	out := make([]OptionalPkg, 0, len(optionalCatalog))
+	for _, e := range optionalCatalog {
+		e.Installed = optionalPkgInstalled(e)
+		out = append(out, e)
+	}
+	return out
+}
+
+// InstallOptionalPackages installs the catalog entries with the given ids.
+// Ids are validated against the catalog; already installed entries are
+// skipped. Returns the ids actually installed.
+func InstallOptionalPackages(ids []string) ([]string, error) {
+	installed := []string{}
+	for _, id := range ids {
+		var entry *OptionalPkg
+		for i := range optionalCatalog {
+			if optionalCatalog[i].ID == id {
+				entry = &optionalCatalog[i]
+				break
+			}
+		}
+		if entry == nil {
+			return nil, fmt.Errorf("unknown package set: %q", id)
+		}
+		if optionalPkgInstalled(*entry) {
+			continue
+		}
+		if err := executor.Run(executor.Op{Kind: "pkg_add", Args: entry.Packages}); err != nil {
+			return nil, fmt.Errorf("install %s: %w", id, err)
+		}
+		installed = append(installed, id)
+	}
+	return installed, nil
+}
+
 var rePkgLine = regexp.MustCompile(`^(\S+)-([0-9][^\s]*)\s+\S+\s+\{[^}]*\}\s+\([^)]*\)\s+\[upgradable from:\s+([^\]]+)\]$`)
 var rePkgName = regexp.MustCompile(`^[a-z0-9][a-z0-9+_.-]*$`)
 

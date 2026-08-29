@@ -67,6 +67,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/openvpn/clients", s.requireAuth(s.handleOVPNClientAdd))
 	s.mux.HandleFunc("POST /api/openvpn/clients/delete", s.requireAuth(s.handleOVPNClientDelete))
 	s.mux.HandleFunc("GET /api/packages", s.requireAuth(s.handlePackagesGet))
+	s.mux.HandleFunc("GET /api/packages/optional", s.requireAuth(s.handleOptionalPackagesGet))
 	s.mux.HandleFunc("POST /api/packages/upgrade", s.requireAuth(s.handlePackageUpgrade))
 	s.mux.HandleFunc("GET /api/iotwifi", s.requireAuth(s.handleIoTGet))
 	s.mux.HandleFunc("POST /api/iotwifi", s.requireAuth(s.handleIoTSet))
@@ -146,6 +147,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/selfupdate/status", s.requireAuth(s.handleSelfUpdateStatus))
 	s.mux.HandleFunc("POST /api/selfupdate", s.requireAuth(s.handleSelfUpdateApply))
 	s.mux.HandleFunc("GET /api/wizard", s.requireAuth(s.handleWizardGet))
+	s.mux.HandleFunc("POST /api/wizard/packages", s.requireAuth(s.handleWizardPackages))
 	s.mux.HandleFunc("POST /api/wizard/complete", s.requireAuth(s.handleWizardComplete))
 	s.mux.HandleFunc("GET /api/drift", s.requireAuth(s.handleDriftGet))
 	s.mux.HandleFunc("GET /api/telegram", s.requireAuth(s.handleTelegramGet))
@@ -590,6 +592,28 @@ type packageUpgradeRequest struct {
 	Name string `json:"name"`
 }
 
+func (s *Server) handleOptionalPackagesGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"packages": modules.ListOptionalPackages()})
+}
+
+type wizardPackagesRequest struct {
+	IDs []string `json:"ids"`
+}
+
+func (s *Server) handleWizardPackages(w http.ResponseWriter, r *http.Request) {
+	var req wizardPackagesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	installed, err := modules.InstallOptionalPackages(req.IDs)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"installed": installed})
+}
+
 func (s *Server) handlePackageUpgrade(w http.ResponseWriter, r *http.Request) {
 	var req packageUpgradeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -714,10 +738,10 @@ func (s *Server) handleAccessGet(w http.ResponseWriter, _ *http.Request) {
 
 type accessSetRequest struct {
 	// Exactly one of the following targets is applied per request.
-	Target       string                `json:"target"` // luci | ssh | panel_session
-	Luci         modules.LuciAccess    `json:"luci"`
-	SSH          modules.SSHAccess     `json:"ssh"`
-	SessionTtlM  int                   `json:"session_ttl_minutes"`
+	Target      string             `json:"target"` // luci | ssh | panel_session
+	Luci        modules.LuciAccess `json:"luci"`
+	SSH         modules.SSHAccess  `json:"ssh"`
+	SessionTtlM int                `json:"session_ttl_minutes"`
 }
 
 func (s *Server) handleAccessSet(w http.ResponseWriter, r *http.Request) {
