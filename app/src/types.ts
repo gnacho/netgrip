@@ -158,6 +158,14 @@ export interface PkgUpgrade {
   available: string;
 }
 
+export interface OptionalPackage {
+  id: string;
+  packages: string[];
+  i18n_key: string;
+  module: string;
+  installed: boolean;
+}
+
 export interface IoTProbe {
   active: boolean;
   ssid: string;
@@ -347,6 +355,7 @@ export interface Client {
   ip?: string;
   mac: string;
   type: "wifi24" | "wifi5" | "cable";
+  device_type?: string;
   iface?: string;
   signal?: number;
   rx_bytes: number;
@@ -357,6 +366,11 @@ export interface Client {
   blocked: boolean;
   blockable: boolean;
 }
+
+export type DeviceType =
+  | "pc" | "phone" | "tablet" | "camera" | "wearable" | "laptop" | "printer"
+  | "audio" | "tv" | "iot" | "gaming" | "gateway" | "nas" | "server"
+  | "appliance" | "ac" | "speaker" | "other";
 
 export interface ConfigSnapshot {
   id: string;
@@ -693,4 +707,39 @@ export interface MACACLPort {
 export interface MACACLProbe {
   applicable: boolean;
   ports: MACACLPort[];
+}
+
+export interface NetPulseAgentStatus {
+  running: boolean;
+  pushOk: boolean;
+  lastPush: string | null;
+  lastError: string;
+}
+
+export interface NetPulseDiscovery {
+  foundServer: string | null;
+  lastDiscoveryAt: string | null;
+  lastEnrollNote: string;
+}
+
+export interface NetPulseState {
+  enabled: boolean;
+  configured: boolean;
+  server: string;
+  slug: string;
+  phase: string; // "connected" | "searching" (always-on, #146)
+  discovery?: NetPulseDiscovery;
+  status: NetPulseAgentStatus;
+  standaloneReplacedAt: string | null;
+}
+
+export interface NetPulseSet {
+  server: string;
+  slug: string;
+  token: string;
+  enabled: boolean;
+  serverFp?: string;
+  interval?: string;
+  wanTarget?: string;
+  gwTarget?: string;
 }

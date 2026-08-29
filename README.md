@@ -119,20 +119,37 @@ Download the right package for your router and its OpenWrt version from the
 two formats built from the OpenWrt SDK: `.apk` (OpenWrt 25.12 and later) and
 `.ipk` (OpenWrt 24.10).
 
-### OpenWrt 25.12 (apk)
+### Quick install (one line)
+
+SSH into the router and run:
+
+```sh
+wget -qO- https://raw.githubusercontent.com/gnacho/netgrip/main/install.sh | sh
+```
+
+The script picks the right package for the router's architecture (`aarch64`
+or `x86_64`) and package manager (`apk` on OpenWrt 25.12+, `opkg` on 24.10),
+installs the latest release, enables and starts the service, and prints the
+panel URL. If you prefer to review it first, read
+[install.sh](install.sh); to install a specific release, run
+`NETGRIP_VERSION=vX.Y.Z sh install.sh`.
+
+### Manual install
+
+#### OpenWrt 25.12 (apk)
 
 ```sh
 # Copy it to the router, then:
-apk add netgrip-0.12.0-r1.aarch64_cortex-a53.apk
+apk add netgrip-0.24.0-r1-arm64.apk
 /etc/init.d/netgrip enable
 /etc/init.d/netgrip start
 ```
 
-### OpenWrt 24.10 (ipk)
+#### OpenWrt 24.10 (ipk)
 
 ```sh
 # Copy it to the router, then:
-opkg install netgrip_0.12.0-1_aarch64_cortex-a53.ipk
+opkg install netgrip_0.24.0-1_aarch64_cortex-a53.ipk
 /etc/init.d/netgrip enable
 /etc/init.d/netgrip start
 ```

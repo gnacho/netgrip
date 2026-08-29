@@ -293,7 +293,7 @@ func sshHealthy(cfg SSHAccess) bool {
 }
 
 const (
-	sslDir  = "/etc/netgrip/ssl"
+	sslDir   = "/etc/netgrip/ssl"
 	certPath = sslDir + "/cert.pem"
 	keyPath  = sslDir + "/key.pem"
 )

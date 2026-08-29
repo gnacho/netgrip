@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api } from "./api";
+import { api, isDemo } from "./api";
 import { Login } from "./pages/Login";
 import { Shell } from "./components/Shell";
 import { Wizard } from "./pages/Wizard";
@@ -10,6 +10,15 @@ export default function App() {
   const [wizardDone, setWizardDone] = useState(true);
 
   const checkSession = useCallback(async () => {
+    // Modo demo §9: saltar login directamente al shell.
+    // Con `?wizard=1` se fuerza el asistente de primera configuración,
+    // para poder previsualizarlo sin un router recién flasheado.
+    if (isDemo()) {
+      setAuthed(true);
+      setWizardDone(!new URLSearchParams(window.location.search).has("wizard"));
+      setChecking(false);
+      return;
+    }
     try {
       await api.me();
       setAuthed(true);

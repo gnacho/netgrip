@@ -1,150 +1,174 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Eye, EyeOff, X } from "lucide-react";
-import QRCode from "qrcode";
+import { EyeOff, KeyRound, RadioTower, Shuffle, Wifi } from "lucide-react";
 import { api } from "../api";
 import type { WifiUI } from "../types";
+import {
+  ActionBanner, Banner, Button, Field, Input, Modal, Pill, SegmentedControl, SettingRow,
+} from "./ui";
+import { QrBox, useWifiQr } from "./wifi/qr";
+import { useActionCycle } from "./wifi/action";
 
+type Sec = "psk2" | "sae" | "sae-mixed" | "none";
+
+function toSec(encryption: string): Sec {
+  if (encryption === "sae" || encryption === "sae-mixed" || encryption === "none") return encryption;
+  return "psk2"; // psk2, psk-mixed y variantes antiguas → WPA2
+}
+
+function generateKey(): string {
+  const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const buf = new Uint32Array(14);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, (n) => chars[n % chars.length]).join("");
+}
+
+/**
+ * Modal de edición WiFi (wifi.md §2): nombre, seguridad segmentada, clave con
+ * generador, red oculta, emisión de la banda, QR en vivo y aviso de reinicio.
+ * Guardar → ActionBanner applying/verifying; rollback → "sigue como estaba".
+ */
 export function WifiEditModal({ iface, onClose, onSaved }: {
   iface: WifiUI;
   onClose: () => void;
-  onSaved: (networkIf: WifiUI) => void;
+  onSaved: (updated: WifiUI, sessionKey?: string) => void;
 }) {
   const { t } = useTranslation();
   const [ssid, setSsid] = useState(iface.ssid);
   const [key, setKey] = useState("");
-  const [showKey, setShowKey] = useState(false);
-  const [encryption, setEncryption] = useState(iface.encryption || "psk2");
+  const [sec, setSec] = useState<Sec>(toSec(iface.encryption));
   const [hidden, setHidden] = useState(iface.hidden);
-  const [mac, setMac] = useState(iface.mac);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ tone: "ok" | "danger"; text: string } | undefined>();
-  const [qr, setQr] = useState<string>();
-
-  // The PSK is write-only (never returned by the backend). We can only build
-  // a join QR from a key the user types now; we never show a QR for a stored
-  // key we cannot read back.
-  useEffect(() => {
-    (async () => {
-      if (!ssid.trim() || key.length < 8) { setQr(undefined); return; }
-      try {
-        const uri = `WIFI:T:WPA;S:${ssid};P:${key};;`;
-        setQr(await QRCode.toDataURL(uri, { width: 180, margin: 1, errorCorrectionLevel: "M" }));
-      } catch {
-        setQr(undefined);
-      }
-    })();
-  }, [ssid, key, encryption]);
-
-  useEffect(() => {
-    setSsid(iface.ssid); setKey(""); setEncryption(iface.encryption || "psk2");
-    setHidden(iface.hidden); setMac(iface.mac);
-  }, [iface]);
-
-  const save = async () => {
-    setBusy(true); setMsg(undefined);
-    try {
-      const edit: { section: string; ssid: string; encryption: string; hidden: boolean; key?: string; mac?: string } = {
-        section: iface.section, ssid, encryption, hidden,
-      };
-      if (key) edit.key = key;
-      if (mac) edit.mac = mac;
-      const res = await api.setWifi(edit);
-      onSaved(res.state);
-      setMsg({ tone: "ok", text: t("access.saved") });
-    } catch (err) {
-      setMsg({ tone: "danger", text: err instanceof Error ? err.message : String(err) });
-    } finally {
-      setBusy(false);
-    }
-  };
+  const [emitting, setEmitting] = useState(!iface.disabled);
+  const { phase, detail, busy, run } = useActionCycle();
 
   const bandLabel = iface.band === "5g" ? t("wifi.band5") : t("wifi.band24");
+  const keyError = key.length > 0 && key.length < 8 ? t("wifi.keyMin") : undefined;
+  const qr = useWifiQr(ssid, key, sec, 160);
+
+  const segments: { value: Sec; label: string }[] = [
+    { value: "psk2", label: "WPA2" },
+    { value: "sae", label: "WPA3" },
+    { value: "sae-mixed", label: "WPA2/WPA3" },
+  ];
+  if (iface.encryption === "none") segments.push({ value: "none", label: t("wifi.open") });
+
+  const save = () => {
+    run(async () => {
+      const edit: { section: string; ssid: string; encryption: string; hidden: boolean; disabled: boolean; key?: string } = {
+        section: iface.section,
+        ssid,
+        encryption: sec,
+        hidden,
+        disabled: !emitting,
+      };
+      if (key) edit.key = key;
+      return api.setWifi(edit);
+    }).then((res) => {
+      if (res?.status === "applied") {
+        onSaved(res.state, key || undefined);
+        setTimeout(onClose, 900);
+      }
+    });
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="bg-card border border-border rounded-xl w-full max-w-md p-4 gap-3 flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <header className="flex items-center gap-2">
-          <div className="flex items-center gap-2 flex-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-accent" />
-            <h2 className="text-sm font-medium">{bandLabel}</h2>
+    <Modal
+      open
+      onClose={onClose}
+      title={
+        <span className="flex items-center gap-2 min-w-0">
+          <span className="truncate" title={t("wifi.editTitle")}>{t("wifi.editTitle")}</span>
+          <span className="shrink-0"><Pill tone="accent">{bandLabel}</Pill></span>
+        </span>
+      }
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+          <Button onClick={save} loading={busy} disabled={!ssid.trim() || !!keyError}>
+            {t("access.save")}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <Field label={t("wifi.ssid")}>
+          <Input icon={Wifi} value={ssid} onChange={(e) => setSsid(e.target.value)} maxLength={32} />
+        </Field>
+
+        <Field label={t("wifi.encryption")} hint={t("wifi.securityCaption")}>
+          <SegmentedControl
+            ariaLabel={t("wifi.encryption")}
+            options={segments}
+            value={sec}
+            onChange={setSec}
+            size="sm"
+          />
+        </Field>
+
+        <Field
+          label={t("wifi.key")}
+          hint={!key && iface.has_key ? t("wifi.keepKey") : undefined}
+          error={keyError}
+        >
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Input
+                type="password"
+                mono
+                icon={KeyRound}
+                value={key}
+                onChange={(e) => setKey(e.target.value)}
+                placeholder={iface.has_key ? "••••••••" : ""}
+                autoComplete="new-password"
+                error={!!keyError}
+              />
+            </div>
+            <Button variant="secondary" size="sm" icon={Shuffle} className="h-[var(--input-h)]" onClick={() => setKey(generateKey())}>
+              {t("wifi.generateKey")}
+            </Button>
           </div>
-          <button onClick={onClose} className="text-muted hover:text-text p-1"><X size={16} /></button>
-        </header>
+        </Field>
 
-        <Row label={t("wifi.editBand")} value={
-          <span className="text-sm text-muted">{bandLabel}</span>
-        } />
+        <div className="rounded-md border border-border/60 px-3 divide-y divide-border/60">
+          <SettingRow
+            icon={EyeOff}
+            iconTone="teal"
+            title={t("wifi.hiddenNet")}
+            description={t("wifi.hiddenDesc")}
+            help={t("help.hidden.body")}
+            helpTitle={t("help.hidden.title")}
+            checked={hidden}
+            onChange={setHidden}
+          />
+          <SettingRow
+            icon={RadioTower}
+            iconTone="teal"
+            title={t("wifi.emitBand")}
+            description={t("wifi.emitBandDesc")}
+            checked={emitting}
+            onChange={setEmitting}
+          />
+        </div>
 
-        <Row label={t("wifi.ssid")} value={
-          <input value={ssid} onChange={(e) => setSsid(e.target.value)}
-            className="bg-bg border border-border rounded-lg px-2 py-1 text-sm text-right outline-none focus:border-accent w-48" />
-        } />
-
-        <Row label={t("wifi.encryption")} value={
-          <select value={encryption} onChange={(e) => setEncryption(e.target.value)}
-            className="bg-bg border border-border rounded-lg px-2 py-1 text-sm outline-none focus:border-accent">
-            <option value="psk2">WPA2-PSK</option>
-            <option value="psk-mixed">WPA/WPA2 Mixed</option>
-            <option value="sae">SAE (WPA3)</option>
-            <option value="sae-mixed">WPA2/WPA3</option>
-            <option value="none">Open</option>
-          </select>
-        } />
-
-        <Row label={t("wifi.key")} value={
-          <div className="relative">
-            <input type={showKey ? "text" : "password"} value={key}
-              onChange={(e) => setKey(e.target.value)} placeholder={iface.has_key ? "••••••••" : ""}
-              autoComplete="new-password"
-              className="bg-bg border border-border rounded-lg px-2 py-1 text-sm text-right outline-none focus:border-accent w-48 pr-7" />
-            <button type="button" onClick={() => setShowKey(!showKey)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-text">
-              {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
-            </button>
+        {qr ? (
+          <div className="flex flex-col items-center gap-1.5 py-1">
+            <QrBox data={qr} size={160} />
+            <p className="text-caption text-muted">{t("wifi.scanQr")}</p>
           </div>
-        } />
-
-        <Row label={t("wifi.visibility")} value={
-          <select value={hidden ? "hidden" : "shown"} onChange={(e) => setHidden(e.target.value === "hidden")}
-            className="bg-bg border border-border rounded-lg px-2 py-1 text-sm outline-none focus:border-accent">
-            <option value="shown">{t("wifi.visible")}</option>
-            <option value="hidden">{t("wifi.hiddenLabel")}</option>
-          </select>
-        } />
-
-        <Row label={t("wifi.bssid")} value={
-          <span className="font-mono text-xs text-muted">{iface.bssid}</span>
-        } />
-
-        {qr && (
-          <div className="flex flex-col items-center gap-1 py-2">
-            <img src={qr} alt="QR" className="w-40 h-40 rounded-lg border border-border" />
-            <p className="text-[10px] text-muted">{t("wifi.qrNote")}</p>
-          </div>
+        ) : (
+          <p className="text-small text-muted text-center">{t("wifi.qrNote")}</p>
         )}
 
-        {msg && <p className={`text-xs ${msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
+        <Banner tone="warn">{t("wifi.saveRestartWarn")}</Banner>
 
-        <div className="flex justify-end gap-2 mt-1">
-          <button onClick={onClose} className="text-sm text-muted hover:text-text px-3 py-1.5 rounded-lg border border-border">
-            {t("wifi.cancel")}
-          </button>
-          <button onClick={save} disabled={busy || !ssid.trim()}
-            className="text-sm bg-accent hover:bg-accent/85 disabled:opacity-40 rounded-lg px-4 py-1.5 font-medium">
-            {busy ? "…" : t("access.save")}
-          </button>
-        </div>
+        {phase && (
+          <ActionBanner
+            phase={phase}
+            text={phase === "done" ? t("wifi.savedOk") : phase === "failed" ? t("wifi.rollbackNote") : undefined}
+            detail={detail}
+          />
+        )}
       </div>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-1 border-b border-border/40 last:border-0">
-      <span className="text-xs text-muted shrink-0">{label}</span>
-      <div className="shrink-0">{value}</div>
-    </div>
+    </Modal>
   );
 }

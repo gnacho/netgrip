@@ -94,7 +94,7 @@ func CheckSelfUpdate(currentVersion string) *SelfUpdateCheck {
 
 	result.Latest = release.TagName
 	result.Notes = release.Body
-	result.Available = release.TagName != currentVersion && release.TagName != ""
+	result.Available = isNewerVersion(release.TagName, currentVersion)
 
 	for _, a := range release.Assets {
 		if a.Name == assetName {
@@ -233,4 +233,40 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	return out.Close()
+}
+
+// isNewerVersion reports whether tag is strictly newer than current.
+// Both accept an optional "v" prefix; comparison is numeric per semver
+// field (major.minor.patch). Unparseable versions fall back to
+// inequality so dev builds still see updates. The old inequality-only
+// check nagged forever after updating (v0.23.0 vs "v0.23.0") and
+// reported downgrades as updates (0.23.0 vs v0.22.1).
+func isNewerVersion(tag, current string) bool {
+	if tag == "" {
+		return false
+	}
+	nt, okT := parseSemver(tag)
+	nc, okC := parseSemver(current)
+	if !okT || !okC {
+		return normalizeVer(tag) != normalizeVer(current)
+	}
+	for i := 0; i < 3; i++ {
+		if nt[i] != nc[i] {
+			return nt[i] > nc[i]
+		}
+	}
+	return false
+}
+
+func normalizeVer(v string) string {
+	return strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(v), "v"), "V")
+}
+
+// parseSemver extracts major.minor.patch; ok=false when it does not parse.
+func parseSemver(v string) (out [3]int, ok bool) {
+	var a, b, c int
+	if n, _ := fmt.Sscanf(normalizeVer(v), "%d.%d.%d", &a, &b, &c); n != 3 {
+		return out, false
+	}
+	return [3]int{a, b, c}, true
 }

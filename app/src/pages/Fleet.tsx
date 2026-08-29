@@ -1,195 +1,455 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Download, Plus, RefreshCw, Server, Trash2 } from "lucide-react";
+import { CloudOff, Download, ExternalLink, Lock, Network, Plus, RefreshCw, Router, Server, Trash2, Wifi } from "lucide-react";
 import { api } from "../api";
 import type { FleetNodeStatus } from "../types";
-import { Card } from "../components/Card";
+import {
+  AdvancedDisclosure, Button, Card, ConfirmDialog, EmptyState, Field,
+  IconTile, KeyValue, Modal, Pill, Skeleton, useToast,
+} from "../components/ui";
+import { IlluFleet } from "../components/ui/illustrations";
+
+/** Enlace sutil a NetPulse (fleet.md §5). Repo de la app hermana. */
+const NETPULSE_URL = "https://github.com/gnacho/netpulse";
+
+/** Rol/tipo deducido del nombre (fleet.md §2: "Punto de acceso", "Switch"). */
+function roleKey(name: string): "roleAp" | "roleSwitch" | "roleDevice" {
+  const n = name.toLowerCase();
+  if (/(^|[-_])(ap|wap)([-_.]|$)|wifi|punto/.test(n)) return "roleAp";
+  if (/switch|(^|[-_])sw([-_]|$)/.test(n)) return "roleSwitch";
+  return "roleDevice";
+}
+
+/** Icono lucide por clase de equipo (design-rev2 §5): AP → Wifi, switch →
+ *  Network, resto → Router. Siempre en IconTile tone teal (red). */
+function roleIcon(name: string) {
+  const role = roleKey(name);
+  return role === "roleAp" ? Wifi : role === "roleSwitch" ? Network : Router;
+}
+
+/** address puede venir con o sin esquema; el panel vive en http(s)://address. */
+function panelUrl(address: string): string {
+  return /^https?:\/\//i.test(address) ? address : `http://${address}`;
+}
+
+/** ID interno por defecto a partir del nombre (slug sin espacios). */
+function slugify(name: string): string {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
 
 export function FleetPage() {
   const { t } = useTranslation();
-  const [nodes, setNodes] = useState<FleetNodeStatus[]>([]);
-  const [loading, setLoading] = useState(true);
+  const toast = useToast();
+  const [nodes, setNodes] = useState<FleetNodeStatus[]>();
+  const [error, setError] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
-  const [checking, setChecking] = useState(false);
+  const [checkingAll, setCheckingAll] = useState(false);
+  const [toRemove, setToRemove] = useState<FleetNodeStatus>();
+  const [toUpdate, setToUpdate] = useState<FleetNodeStatus>();
+  const [dialogBusy, setDialogBusy] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    setError(false);
     try {
       const data = await api.fleet();
       setNodes(data.nodes ?? []);
     } catch {
-      // ignore
-    } finally {
-      setLoading(false);
+      setError(true);
     }
-  };
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
-  const handleAdd = async (node: { id: string; name: string; address: string; password: string }) => {
-    await api.addFleetNode(node);
-    setShowAdd(false);
-    load();
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm(t("fleet.confirmDelete"))) return;
-    await api.deleteFleetNode(id);
-    load();
-  };
-
-  const handleCheck = async (id: string) => {
-    setChecking(true);
-    try {
-      const status = await api.checkFleetNode(id);
-      setNodes((prev) => prev.map((n) => (n.id === id ? status : n)));
-    } catch {
-      // ignore
-    } finally {
-      setChecking(false);
-    }
-  };
-
-  const handleCheckAll = async () => {
-    setChecking(true);
+  const checkAll = async () => {
+    setCheckingAll(true);
     try {
       const data = await api.checkAllFleet();
       setNodes(data.nodes ?? []);
     } catch {
-      // ignore
+      // el próximo "Comprobar todos" lo reintenta
+    } finally {
+      setCheckingAll(false);
+    }
+  };
+
+  const checkedOne = (status: FleetNodeStatus) => {
+    setNodes((prev) => prev?.map((n) => (n.id === status.id ? status : n)));
+  };
+
+  const doRemove = async () => {
+    if (!toRemove) return;
+    setDialogBusy(true);
+    try {
+      await api.deleteFleetNode(toRemove.id);
+      setNodes((prev) => prev?.filter((n) => n.id !== toRemove.id));
+      toast.push({ tone: "ok", text: t("fleet.removedOk", { name: toRemove.name }) });
+      setToRemove(undefined);
+    } catch (e) {
+      toast.push({ tone: "danger", text: t("common.loadError"), detail: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setDialogBusy(false);
+    }
+  };
+
+  const doUpdate = async () => {
+    if (!toUpdate) return;
+    setDialogBusy(true);
+    try {
+      await api.updateFleetNode(toUpdate.id);
+      setNodes((prev) => prev?.map((n) => (n.id === toUpdate.id
+        ? { ...n, current_version: n.latest_version, update_available: false }
+        : n)));
+      toast.push({ tone: "ok", text: t("fleet.updatedOk", { name: toUpdate.name }) });
+      setToUpdate(undefined);
+    } catch (e) {
+      toast.push({ tone: "danger", text: t("common.loadError"), detail: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setDialogBusy(false);
+    }
+  };
+
+  const loading = !nodes && !error;
+
+  return (
+    <div className="flex flex-col gap-[var(--card-gap)]">
+      {/* ════ Cabecera: Tu red NetGrip (fleet.md §1) ════ */}
+      <Card
+        index={0}
+        icon={Server}
+        iconTone="teal"
+        title={t("fleet.headerTitle")}
+        action={
+          <div className="flex gap-2 shrink-0">
+            <Button
+              variant="secondary" size="sm" icon={RefreshCw}
+              loading={checkingAll} disabled={loading || error || nodes?.length === 0}
+              onClick={checkAll}
+            >
+              {checkingAll ? t("fleet.checking") : t("fleet.checkAll")}
+            </Button>
+            <Button size="sm" icon={Plus} onClick={() => setShowAdd(true)}>
+              {t("fleet.addNode")}
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-small text-muted">{t("fleet.headerIntro")}</p>
+
+        {error ? (
+          <EmptyState
+            small
+            illustration={<CloudOff size={24} />}
+            title={t("common.loadError")}
+            action={<Button variant="secondary" size="sm" onClick={load}>{t("common.retry")}</Button>}
+          />
+        ) : loading ? (
+          <div className="flex flex-col gap-[var(--card-gap)] mt-4">
+            <Skeleton className="h-32" />
+            <Skeleton className="h-32" />
+          </div>
+        ) : nodes!.length === 0 ? (
+          <EmptyState
+            illustration={<IlluFleet size={140} />}
+            title={t("fleet.emptyTitle")}
+            body={t("fleet.emptyBody")}
+            action={<Button icon={Plus} onClick={() => setShowAdd(true)}>{t("fleet.addFirst")}</Button>}
+          />
+        ) : null}
+      </Card>
+
+      {/* ════ Grid de tarjetas de equipo (fleet.md §2) ════ */}
+      {!loading && !error && nodes && nodes.length > 0 && (
+        <div className="flex flex-col gap-[var(--card-gap)]">
+          {nodes.map((node, i) => (
+            <NodeCard
+              key={node.id}
+              node={node}
+              index={i}
+              checkingAll={checkingAll}
+              onChecked={checkedOne}
+              onAskUpdate={() => setToUpdate(node)}
+              onAskRemove={() => setToRemove(node)}
+            />
+          ))}
+          {/* Card punteada "Añadir equipo" */}
+          <button
+            type="button"
+            onClick={() => setShowAdd(true)}
+            style={{ "--i": Math.min(nodes.length, 7), animationDelay: `${nodes.length * 70}ms` } as CSSProperties}
+            className="animate-fade-up rounded-lg border border-dashed border-border-strong p-4
+              flex items-center justify-center gap-2 text-muted hover:text-accent hover:border-accent
+              transition-colors duration-[var(--dur-fast)] ring-focus"
+          >
+            <Plus size={20} aria-hidden="true" />
+            <span className="text-body font-medium">{t("fleet.addNode")}</span>
+          </button>
+        </div>
+      )}
+
+      {/* ════ Enlace sutil a NetPulse (fleet.md §5) ════ */}
+      <p className="text-center text-small text-muted">
+        {t("fleet.netpulseHint")}{" "}
+        <a href={NETPULSE_URL} target="_blank" rel="noopener noreferrer"
+          className="text-accent hover:text-accent-hover ring-focus rounded-sm">
+          {t("fleet.netpulseLink")} →
+        </a>
+      </p>
+
+      <AddNodeModal
+        open={showAdd}
+        onClose={() => setShowAdd(false)}
+        onAdded={(name) => {
+          setShowAdd(false);
+          toast.push({ tone: "ok", text: t("fleet.addedOk", { name }) });
+          load();
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!toUpdate}
+        onClose={() => setToUpdate(undefined)}
+        onConfirm={doUpdate}
+        title={t("fleet.updateTitle", { name: toUpdate?.name ?? "" })}
+        consequence={t("fleet.updateConsequence", { name: toUpdate?.name ?? "" })}
+        confirmLabel={t("fleet.updateConfirm")}
+        busy={dialogBusy}
+      />
+      <ConfirmDialog
+        open={!!toRemove}
+        onClose={() => setToRemove(undefined)}
+        onConfirm={doRemove}
+        title={t("fleet.removeTitle", { name: toRemove?.name ?? "" })}
+        consequence={t("fleet.removeConsequence")}
+        confirmLabel={t("fleet.removeConfirm")}
+        busy={dialogBusy}
+      />
+    </div>
+  );
+}
+
+/* ══════════════ Card de equipo (fleet.md §2) ══════════════ */
+
+function NodeCard({ node, index, checkingAll, onChecked, onAskUpdate, onAskRemove }: {
+  node: FleetNodeStatus;
+  index: number;
+  checkingAll: boolean;
+  onChecked: (n: FleetNodeStatus) => void;
+  onAskUpdate: () => void;
+  onAskRemove: () => void;
+}) {
+  const { t } = useTranslation();
+  const [checking, setChecking] = useState(false);
+
+  const pulsing = checking || checkingAll;
+  const open = () => window.open(panelUrl(node.address), "_blank", "noopener,noreferrer");
+
+  const check = async () => {
+    setChecking(true);
+    try {
+      onChecked(await api.checkFleetNode(node.id));
+    } catch (e) {
+      onChecked({ ...node, reachable: false, error: e instanceof Error ? e.message : String(e) });
     } finally {
       setChecking(false);
     }
   };
 
-  const handleUpdate = async (id: string) => {
-    if (!confirm(t("fleet.confirmUpdate"))) return;
-    try {
-      await api.updateFleetNode(id);
-      setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, update_available: false } : n)));
-    } catch {
-      // ignore
-    }
-  };
-
-  if (loading) return <p className="text-muted">{t("fleet.loading")}</p>;
+  const dotTone = pulsing ? "bg-faint animate-pulse-dot" : node.reachable ? "bg-ok" : "bg-danger";
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card title={t("fleet.title")} icon={Server}>
-        <p className="text-xs text-muted mb-3">{t("fleet.intro")}</p>
-
-        <div className="flex items-center gap-2 mb-3">
-          <button onClick={handleCheckAll} disabled={checking || nodes.length === 0}
-            className="px-3 py-1.5 bg-accent/15 hover:bg-accent/25 border border-accent/30 rounded text-xs disabled:opacity-50">
-            {checking ? t("fleet.checking") : t("fleet.checkAll")}
-          </button>
-          <button onClick={() => setShowAdd(true)}
-            className="px-3 py-1.5 bg-card border border-border rounded text-xs hover:bg-card/80">
-            <Plus size={14} className="inline mr-1" />{t("fleet.addNode")}
-          </button>
+    <article
+      style={{ "--i": Math.min(index, 7), animationDelay: `${index * 70}ms` } as CSSProperties}
+      className="animate-fade-up rounded-lg border border-border bg-surface p-4 shadow-card flex flex-col"
+    >
+      <div className="flex items-start gap-2.5">
+        <span className="relative shrink-0">
+          <IconTile icon={roleIcon(node.name)} tone="teal" />
+          <span
+            aria-hidden="true"
+            className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-surface transition-colors duration-200 ${dotTone}`}
+          />
+        </span>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-h2 truncate">{node.name}</h2>
+          <p className="text-caption text-muted">{t(`fleet.${roleKey(node.name)}`)}</p>
         </div>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          {pulsing ? (
+            <Pill tone="muted">{t("fleet.checking")}</Pill>
+          ) : node.reachable ? (
+            <Pill tone="ok">{t("fleet.online")}</Pill>
+          ) : (
+            <span title={node.error}>
+              <Pill tone="danger">{t("fleet.offline")}</Pill>
+            </span>
+          )}
+          {node.update_available && !pulsing && (
+            <Pill tone="warn">{t("fleet.updatePill", { version: `v${node.latest_version}` })}</Pill>
+          )}
+        </div>
+      </div>
 
-        {nodes.length === 0 ? (
-          <p className="text-sm text-muted">{t("fleet.empty")}</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-muted border-b border-border">
-                  <th className="text-left py-2 px-2">{t("fleet.name")}</th>
-                  <th className="text-left py-2 px-2">{t("fleet.address")}</th>
-                  <th className="text-left py-2 px-2">{t("fleet.version")}</th>
-                  <th className="text-left py-2 px-2">{t("fleet.status")}</th>
-                  <th className="text-right py-2 px-2">{t("fleet.actions")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {nodes.map((node) => (
-                  <tr key={node.id} className="border-b border-border/50 hover:bg-card/50">
-                    <td className="py-2 px-2 font-medium">{node.name}</td>
-                    <td className="py-2 px-2 text-xs text-muted">{node.address}</td>
-                    <td className="py-2 px-2 text-xs">
-                      {node.reachable ? `${node.current_version}` : "-"}
-                      {node.update_available && (
-                        <span className="text-accent ml-1">({t("fleet.updateAvailable")})</span>
-                      )}
-                    </td>
-                    <td className="py-2 px-2">
-                      {node.error ? (
-                        <span className="text-danger text-xs">{node.error}</span>
-                      ) : node.reachable ? (
-                        <span className="text-success text-xs flex items-center gap-1">
-                          <Check size={12} />{t("fleet.online")}
-                        </span>
-                      ) : (
-                        <span className="text-muted text-xs">-</span>
-                      )}
-                    </td>
-                    <td className="py-2 px-2 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => handleCheck(node.id)} disabled={checking}
-                          className="p-1 text-muted hover:text-text disabled:opacity-50" title={t("fleet.check")}>
-                          <RefreshCw size={14} />
-                        </button>
-                        {node.update_available && (
-                          <button onClick={() => handleUpdate(node.id)}
-                            className="p-1 text-accent hover:text-accent/80" title={t("fleet.update")}>
-                            <Download size={14} />
-                          </button>
-                        )}
-                        <button onClick={() => handleDelete(node.id)}
-                          className="p-1 text-muted hover:text-danger" title={t("fleet.delete")}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      <KeyValue
+        className="mt-2"
+        items={[
+          {
+            label: t("fleet.address"),
+            value: (
+              <button type="button" onClick={open}
+                className="text-accent hover:text-accent-hover ring-focus rounded-sm cursor-pointer">
+                {node.address}
+              </button>
+            ),
+            mono: true,
+          },
+          {
+            label: t("fleet.versionCurrent"),
+            value: node.reachable && node.current_version ? `v${node.current_version}` : "—",
+            mono: true,
+          },
+        ]}
+      />
+
+      {node.error && !pulsing && (
+        <AdvancedDisclosure label={t("fleet.technicalDetail")} className="mt-1">
+          <pre className="max-h-32 overflow-auto rounded-sm bg-surface-2 border border-border p-2 font-mono text-caption whitespace-pre-wrap">
+            {node.error}
+          </pre>
+        </AdvancedDisclosure>
+      )}
+
+      {/* Acciones: fila inferior pegada abajo, 44px touch en móvil (fleet.md §6) */}
+      <div className="flex-1 min-h-3" aria-hidden="true" />
+      <div className="pt-3 border-t border-border/60 flex flex-wrap items-center gap-1">
+        <Button size="sm" icon={ExternalLink} onClick={open} className="max-sm:h-11">
+          {t("fleet.openPanel")}
+        </Button>
+        <Button variant="ghost" size="sm" icon={RefreshCw} loading={checking} onClick={check} className="max-sm:h-11">
+          {t("fleet.check")}
+        </Button>
+        {node.update_available && (
+          <Button variant="ghost" size="sm" icon={Download} onClick={onAskUpdate} className="max-sm:h-11">
+            {t("fleet.update")}
+          </Button>
         )}
-      </Card>
-
-      {showAdd && <AddNodeDialog onAdd={handleAdd} onCancel={() => setShowAdd(false)} />}
-    </div>
+        <Button variant="ghost" size="sm" icon={Trash2} onClick={onAskRemove}
+          aria-label={t("fleet.removeTitle", { name: node.name })}
+          className="ml-auto max-sm:h-11">
+          {t("fleet.remove")}
+        </Button>
+      </div>
+    </article>
   );
 }
 
-function AddNodeDialog({ onAdd, onCancel }: {
-  onAdd: (node: { id: string; name: string; address: string; password: string }) => void;
-  onCancel: () => void;
+/* ══════════════ Añadir equipo (fleet.md §3) ══════════════ */
+
+function AddNodeModal({ open, onClose, onAdded }: {
+  open: boolean;
+  onClose: () => void;
+  onAdded: (name: string) => void;
 }) {
   const { t } = useTranslation();
-  const [id, setId] = useState("");
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
+  const [id, setId] = useState("");
   const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [fail, setFail] = useState<string>();
+
+  const reset = () => {
+    setName(""); setAddress(""); setId(""); setPassword(""); setFail(undefined); setBusy(false);
+  };
+
+  const close = () => { reset(); onClose(); };
+
+  const submit = async () => {
+    setBusy(true);
+    setFail(undefined);
+    try {
+      await api.addFleetNode({ id: id.trim() || slugify(name), name: name.trim(), address: address.trim(), password });
+      reset();
+      onAdded(name.trim());
+    } catch (e) {
+      // Validación llana (fleet.md §3) + detalle crudo para el admin técnico.
+      setFail(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const valid = name.trim().length > 0 && address.trim().length > 0;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-card border border-border rounded-lg p-4 w-full max-w-md">
-        <h3 className="text-sm font-semibold mb-3">{t("fleet.addNode")}</h3>
-        <div className="flex flex-col gap-2 mb-4">
-          <input value={id} onChange={(e) => setId(e.target.value)} placeholder={t("fleet.nodeId")}
-            className="px-3 py-2 bg-bg border border-border rounded text-sm" />
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("fleet.nodeName")}
-            className="px-3 py-2 bg-bg border border-border rounded text-sm" />
-          <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t("fleet.nodeAddress")}
-            className="px-3 py-2 bg-bg border border-border rounded text-sm" />
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("fleet.nodePassword")}
-            className="px-3 py-2 bg-bg border border-border rounded text-sm" />
-        </div>
-        <div className="flex justify-end gap-2">
-          <button onClick={onCancel} className="px-3 py-1.5 text-sm text-muted hover:text-text">
-            {t("fleet.cancel")}
-          </button>
-          <button onClick={() => onAdd({ id, name, address, password })} disabled={!id || !name || !address}
-            className="px-3 py-1.5 bg-accent text-white rounded text-sm disabled:opacity-50">
-            {t("fleet.add")}
-          </button>
-        </div>
+    <Modal
+      open={open}
+      onClose={close}
+      title={t("fleet.addTitle")}
+      footer={
+        <>
+          <Button variant="ghost" onClick={close}>{t("common.cancel")}</Button>
+          <Button onClick={submit} disabled={!valid} loading={busy}>
+            {busy ? t("fleet.addChecking") : t("fleet.add")}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <Field
+          label={t("fleet.nameLabel")}
+          inputProps={{
+            value: name,
+            onChange: (e) => setName(e.target.value),
+            placeholder: t("fleet.namePlaceholder"),
+            autoFocus: true,
+          }}
+        />
+        <Field
+          label={t("fleet.addressLabel")}
+          hint={t("fleet.addressHint")}
+          mono
+          inputProps={{
+            value: address,
+            onChange: (e) => setAddress(e.target.value),
+            placeholder: "192.168.8.2:8080",
+          }}
+        />
+        <AdvancedDisclosure label={t("common.advanced")}>
+          <div className="flex flex-col gap-3 pt-1">
+            <Field
+              label={t("fleet.nodeIdLabel")}
+              hint={t("fleet.nodeIdHint")}
+              mono
+              inputProps={{
+                value: id,
+                onChange: (e) => setId(e.target.value),
+                placeholder: slugify(name) || t("fleet.namePlaceholder"),
+              }}
+            />
+            <Field
+              label={t("fleet.passwordLabel")}
+              hint={t("fleet.passwordHint")}
+              icon={Lock}
+              inputProps={{
+                type: "password",
+                value: password,
+                onChange: (e) => setPassword(e.target.value),
+              }}
+            />
+          </div>
+        </AdvancedDisclosure>
+
+        {fail && (
+          <div className="rounded-md bg-danger-soft px-3.5 py-3 animate-banner-in" role="alert">
+            <p className="text-small text-danger">{t("fleet.addError")}</p>
+            <AdvancedDisclosure label={t("fleet.technicalDetail")} className="mt-1">
+              <pre className="max-h-32 overflow-auto rounded-sm bg-surface/60 border border-border p-2 font-mono text-caption whitespace-pre-wrap">
+                {fail}
+              </pre>
+            </AdvancedDisclosure>
+          </div>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 }

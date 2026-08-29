@@ -16,17 +16,17 @@ type VLANPort struct {
 }
 
 type VLAN struct {
-	VID      int        `json:"vid"`
-	Name     string     `json:"name"`
-	Device   string     `json:"device"`
-	Ports    []VLANPort `json:"ports"`
-	Default  bool       `json:"default"`
+	VID     int        `json:"vid"`
+	Name    string     `json:"name"`
+	Device  string     `json:"device"`
+	Ports   []VLANPort `json:"ports"`
+	Default bool       `json:"default"`
 }
 
 type VLANProbe struct {
-	Applicable bool   `json:"applicable"`
-	Bridge     string `json:"bridge"`
-	VLANs      []VLAN `json:"vlans"`
+	Applicable bool     `json:"applicable"`
+	Bridge     string   `json:"bridge"`
+	VLANs      []VLAN   `json:"vlans"`
 	Ports      []string `json:"ports"`
 }
 

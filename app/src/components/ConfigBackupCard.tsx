@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CloudUpload } from "lucide-react";
 import { api } from "../api";
-import { Card } from "./Card";
+import { Button, Card, Input } from "./ui";
 
-export function ConfigBackupCard() {
+export function ConfigBackupCard({ index = 0 }: { index?: number }) {
   const { t } = useTranslation();
   const [serverURL, setServerURL] = useState("");
   const [routerID, setRouterID] = useState("");
@@ -50,55 +50,46 @@ export function ConfigBackupCard() {
   };
 
   return (
-    <Card title={t("backup.title")} icon={CloudUpload}>
+    <Card index={index} title={t("backup.title")} icon={CloudUpload}>
       <p className="text-xs text-muted mb-3">{t("backup.description")}</p>
       <div className="space-y-2">
         <div>
           <label className="block text-xs text-muted mb-1">{t("backup.serverURL")}</label>
-          <input
+          <Input
             value={serverURL}
             onChange={(e) => setServerURL(e.target.value)}
-            className="input w-full"
+            className="w-full"
             placeholder="https://netpulse.example.com"
           />
         </div>
         <div>
           <label className="block text-xs text-muted mb-1">{t("backup.routerID")}</label>
-          <input
+          <Input
             value={routerID}
             onChange={(e) => setRouterID(e.target.value)}
-            className="input w-full"
+            className="w-full"
             placeholder="rt1"
           />
         </div>
         <div>
           <label className="block text-xs text-muted mb-1">{t("backup.token")}</label>
-          <input
+          <Input
             type="password"
             value={token}
             onChange={(e) => setToken(e.target.value)}
-            className="input w-full"
+            className="w-full"
             placeholder="API token (optional)"
           />
         </div>
       </div>
       {msg && <p className={`text-xs mt-2 ${msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
       <div className="flex gap-2 mt-3">
-        <button
-          onClick={save}
-          disabled={saving || !serverURL || !routerID}
-          className="bg-accent hover:bg-accent/85 disabled:opacity-50 text-white px-3 py-1.5 rounded text-sm font-medium"
-        >
+        <Button onClick={save} disabled={saving || !serverURL || !routerID}>
           {saving ? t("backup.saving") : t("backup.save")}
-        </button>
-        <button
-          onClick={push}
-          disabled={pushing || !serverURL || !routerID}
-          className="bg-card border border-border hover:bg-border/50 disabled:opacity-50 px-3 py-1.5 rounded text-sm font-medium flex items-center gap-1"
-        >
-          <CloudUpload size={14} />
+        </Button>
+        <Button variant="secondary" onClick={push} disabled={pushing || !serverURL || !routerID} icon={CloudUpload}>
           {pushing ? t("backup.pushing") : t("backup.pushNow")}
-        </button>
+        </Button>
       </div>
     </Card>
   );

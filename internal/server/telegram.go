@@ -72,7 +72,7 @@ func (s *Server) handleTelegramTest(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"telegram not configured or disabled"}`, http.StatusBadRequest)
 		return
 	}
-	text := "✅ <b>owpanel</b> Telegram notifications configured successfully."
+	text := "✅ <b>NetGrip</b> Telegram notifications configured successfully."
 	if err := modules.SendTelegram(cfg, text, true); err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
 		return

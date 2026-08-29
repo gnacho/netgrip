@@ -85,12 +85,12 @@ func (m *Monitor) checkWan(cfg TelegramConfig) {
 	}
 
 	if isUp {
-		text := fmt.Sprintf("✅ <b>owpanel</b>\n🌐 WAN recovered — Internet connection restored")
+		text := fmt.Sprintf("✅ <b>NetGrip</b>\n🌐 WAN recovered — Internet connection restored")
 		if err := SendTelegram(cfg, text, true); err != nil {
 			log.Printf("[monitor] telegram WAN up: %v", err)
 		}
 	} else {
-		text := fmt.Sprintf("🔴 <b>owpanel</b>\n🌐 WAN down — Internet connection lost")
+		text := fmt.Sprintf("🔴 <b>NetGrip</b>\n🌐 WAN down — Internet connection lost")
 		if err := SendTelegram(cfg, text, true); err != nil {
 			log.Printf("[monitor] telegram WAN down: %v", err)
 		}
@@ -133,7 +133,7 @@ func (m *Monitor) checkNewClients(cfg TelegramConfig) {
 		if name == "" {
 			name = "Unknown device"
 		}
-		text := fmt.Sprintf("📱 <b>owpanel</b>\nNew client: <b>%s</b>\nMAC: %s · %s",
+		text := fmt.Sprintf("📱 <b>NetGrip</b>\nNew client: <b>%s</b>\nMAC: %s · %s",
 			htmlEsc(name), c.MAC, c.Type)
 		if err := SendTelegram(cfg, text, false); err != nil {
 			log.Printf("[monitor] telegram new client: %v", err)

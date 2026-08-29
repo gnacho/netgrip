@@ -344,11 +344,11 @@ func init() {
 func ProbeDrift() *DriftProbe {
 	snaps := ListSnapshots()
 	if len(snaps) == 0 {
-		return &DriftProbe{HasBaseline: false}
+		return &DriftProbe{HasBaseline: false, Configs: []DriftConfig{}}
 	}
 	latest := snaps[0]
 	dir := filepath.Join(snapshotDir, latest.ID)
-	var changed []DriftConfig
+	changed := make([]DriftConfig, 0, len(uciConfigs))
 	for _, cfg := range uciConfigs {
 		baseContent, err := os.ReadFile(filepath.Join(dir, cfg+".uci"))
 		if err != nil {

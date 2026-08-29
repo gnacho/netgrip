@@ -1,5 +1,35 @@
 export class UnauthorizedError extends Error {}
 
+/**
+ * Modo demo §9: activo con `?demo=1` en la URL, localStorage
+ * "netgrip:demo"="1" o build con VITE_DEMO=1. Cuando está activo, cada
+ * método de `api` delega en `src/demo` (escenario García).
+ */
+export function isDemo(): boolean {
+  try {
+    if (import.meta.env.VITE_DEMO === "1") return true;
+    if (new URLSearchParams(window.location.search).get("demo") === "1") {
+      localStorage.setItem("netgrip:demo", "1");
+      return true;
+    }
+    return localStorage.getItem("netgrip:demo") === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function enableDemo() {
+  try {
+    localStorage.setItem("netgrip:demo", "1");
+  } catch { /* sin persistencia */ }
+}
+
+export function disableDemo() {
+  try {
+    localStorage.removeItem("netgrip:demo");
+  } catch { /* sin persistencia */ }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init);
   if (res.status === 401) throw new UnauthorizedError();
@@ -11,7 +41,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export const api = {
+const realApi = {
   login: (password: string) =>
     request<void>("/api/login", {
       method: "POST",
@@ -37,6 +67,13 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mac, type, blocked }),
+    }),
+  clientMeta: () => request<{ meta: Record<string, { name: string; device_type: string }> }>("/api/clients/meta"),
+  setClientMeta: (mac: string, name: string, device_type: string) =>
+    request<{ meta: Record<string, { name: string; device_type: string }> }>("/api/clients/meta", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mac, name, device_type }),
     }),
   ipv6: () => request<import("./types").IPv6Probe>("/api/ipv6"),
   setIpv6: (enabled: boolean) =>
@@ -210,6 +247,14 @@ export const api = {
       body: JSON.stringify(cfg),
     }),
   packages: () => request<{ upgradable: import("./types").PkgUpgrade[] }>("/api/packages"),
+  optionalPackages: () =>
+    request<{ packages: import("./types").OptionalPackage[] }>("/api/packages/optional"),
+  wizardPackages: (ids: string[]) =>
+    request<{ installed: string[] }>("/api/wizard/packages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }),
   upgradePackage: (name: string) =>
     request<{ upgradable: import("./types").PkgUpgrade[] }>("/api/packages/upgrade", {
       method: "POST",
@@ -487,6 +532,14 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ port, mode, macs }),
     }),
+  netpulse: () =>
+    request<import("./types").NetPulseState>("/api/netpulse"),
+  setNetPulse: (cfg: import("./types").NetPulseSet) =>
+    request<import("./types").NetPulseState>("/api/netpulse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
   pushConfigGet: () =>
     request<{ server_url: string; router_id: string; token: string }>("/api/push-config"),
   pushConfigSet: (server_url: string, router_id: string, token: string) =>
@@ -497,4 +550,28 @@ export const api = {
     }),
   pushSnapshot: () =>
     request<{ ok: boolean; snapshot_id?: string; error?: string }>("/api/push-config/push", { method: "POST" }),
+
 };
+
+/** API pública: delega en `src/demo` cuando el modo demo está activo.
+ *  El demo se importa de forma perezosa (dynamic import) para que las
+ *  fixtures NO viajen en el bundle de producción embebido en el router. */
+type DemoModule = typeof import("./demo");
+let demoPromise: Promise<DemoModule> | undefined;
+const loadDemo = () => (demoPromise ??= import("./demo"));
+
+export const api = new Proxy(realApi, {
+  get(target, prop) {
+    const real = (target as Record<string | symbol, unknown>)[prop];
+    if (typeof real !== "function") return real;
+    return (...args: unknown[]) => {
+      if (isDemo()) {
+        return loadDemo().then((m) => {
+          const demo = m.demoApi as unknown as Record<string | symbol, (...a: unknown[]) => unknown>;
+          return demo[prop](...args);
+        });
+      }
+      return (real as (...a: unknown[]) => unknown)(...args);
+    };
+  },
+});

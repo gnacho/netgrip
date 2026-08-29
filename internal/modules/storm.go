@@ -13,12 +13,12 @@ import (
 const stormConfPath = "/etc/netgrip/storm.conf"
 
 type StormPort struct {
-	Port             string `json:"port"`
-	LinkSpeedMbps    int    `json:"link_speed_mbps"`
-	BroadcastKbps    int    `json:"broadcast_kbps"`
-	MulticastKbps    int    `json:"multicast_kbps"`
-	UnknownUnicastKbps int  `json:"unknown_unicast_kbps"`
-	Active           bool   `json:"active"`
+	Port               string `json:"port"`
+	LinkSpeedMbps      int    `json:"link_speed_mbps"`
+	BroadcastKbps      int    `json:"broadcast_kbps"`
+	MulticastKbps      int    `json:"multicast_kbps"`
+	UnknownUnicastKbps int    `json:"unknown_unicast_kbps"`
+	Active             bool   `json:"active"`
 }
 
 type StormProbe struct {

@@ -69,6 +69,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/openvpn/clients", s.requireAuth(s.handleOVPNClientAdd))
 	s.mux.HandleFunc("POST /api/openvpn/clients/delete", s.requireAuth(s.handleOVPNClientDelete))
 	s.mux.HandleFunc("GET /api/packages", s.requireAuth(s.handlePackagesGet))
+	s.mux.HandleFunc("GET /api/packages/optional", s.requireAuth(s.handleOptionalPackagesGet))
 	s.mux.HandleFunc("POST /api/packages/upgrade", s.requireAuth(s.handlePackageUpgrade))
 	s.mux.HandleFunc("GET /api/iotwifi", s.requireAuth(s.handleIoTGet))
 	s.mux.HandleFunc("POST /api/iotwifi", s.requireAuth(s.handleIoTSet))
@@ -101,6 +102,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/ethports", s.requireAuth(s.handleEthPorts))
 	s.mux.HandleFunc("GET /api/dawn", s.requireAuth(s.handleDawn))
 	s.mux.HandleFunc("GET /api/clients", s.requireAuth(s.handleClients))
+	s.mux.HandleFunc("GET /api/clients/meta", s.requireAuth(s.handleClientMeta))
+	s.mux.HandleFunc("POST /api/clients/meta", s.requireAuth(s.handleSetClientMeta))
 	s.mux.HandleFunc("POST /api/clients/reserve", s.requireAuth(s.handleClientReserve))
 	s.mux.HandleFunc("POST /api/clients/block", s.requireAuth(s.handleClientBlock))
 	s.mux.HandleFunc("GET /api/config/snapshots", s.requireAuth(s.handleSnapshotsList))
@@ -146,6 +149,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/selfupdate/status", s.requireAuth(s.handleSelfUpdateStatus))
 	s.mux.HandleFunc("POST /api/selfupdate", s.requireAuth(s.handleSelfUpdateApply))
 	s.mux.HandleFunc("GET /api/wizard", s.requireAuth(s.handleWizardGet))
+	s.mux.HandleFunc("POST /api/wizard/packages", s.requireAuth(s.handleWizardPackages))
 	s.mux.HandleFunc("POST /api/wizard/complete", s.requireAuth(s.handleWizardComplete))
 	s.mux.HandleFunc("GET /api/drift", s.requireAuth(s.handleDriftGet))
 	s.mux.HandleFunc("GET /api/telegram", s.requireAuth(s.handleTelegramGet))
@@ -164,6 +168,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/storage", s.requireAuth(s.handleStorageSet))
 	s.mux.HandleFunc("GET /api/mac-acl", s.requireAuth(s.handleMACACLGet))
 	s.mux.HandleFunc("POST /api/mac-acl", s.requireAuth(s.handleMACACLSet))
+	s.mux.HandleFunc("GET /api/netpulse", s.requireAuth(s.handleNetPulseGet))
+	s.mux.HandleFunc("POST /api/netpulse", s.requireAuth(s.handleNetPulseSet))
 	s.mux.HandleFunc("GET /api/push-config", s.requireAuth(s.handlePushConfigGet))
 	s.mux.HandleFunc("POST /api/push-config", s.requireAuth(s.handlePushConfigSet))
 	s.mux.HandleFunc("POST /api/push-config/push", s.requireAuth(s.handlePushSnapshot))
@@ -608,6 +614,28 @@ type packageUpgradeRequest struct {
 	Name string `json:"name"`
 }
 
+func (s *Server) handleOptionalPackagesGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"packages": modules.ListOptionalPackages()})
+}
+
+type wizardPackagesRequest struct {
+	IDs []string `json:"ids"`
+}
+
+func (s *Server) handleWizardPackages(w http.ResponseWriter, r *http.Request) {
+	var req wizardPackagesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	installed, err := modules.InstallOptionalPackages(req.IDs)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"installed": installed})
+}
+
 func (s *Server) handlePackageUpgrade(w http.ResponseWriter, r *http.Request) {
 	var req packageUpgradeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -732,10 +760,10 @@ func (s *Server) handleAccessGet(w http.ResponseWriter, _ *http.Request) {
 
 type accessSetRequest struct {
 	// Exactly one of the following targets is applied per request.
-	Target       string                `json:"target"` // luci | ssh | panel_session
-	Luci         modules.LuciAccess    `json:"luci"`
-	SSH          modules.SSHAccess     `json:"ssh"`
-	SessionTtlM  int                   `json:"session_ttl_minutes"`
+	Target      string             `json:"target"` // luci | ssh | panel_session
+	Luci        modules.LuciAccess `json:"luci"`
+	SSH         modules.SSHAccess  `json:"ssh"`
+	SessionTtlM int                `json:"session_ttl_minutes"`
 }
 
 func (s *Server) handleAccessSet(w http.ResponseWriter, r *http.Request) {
@@ -936,6 +964,30 @@ func (s *Server) handleDawn(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) handleClients(w http.ResponseWriter, r *http.Request) {
 	requesterIP, _, _ := strings.Cut(r.RemoteAddr, ":")
 	writeJSON(w, map[string]any{"clients": modules.ListClients(requesterIP), "ts": time.Now().UnixMilli()})
+}
+
+func (s *Server) handleClientMeta(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.GetClientMeta())
+}
+
+type setClientMetaRequest struct {
+	MAC        string `json:"mac"`
+	Name       string `json:"name"`
+	DeviceType string `json:"device_type"`
+}
+
+func (s *Server) handleSetClientMeta(w http.ResponseWriter, r *http.Request) {
+	var req setClientMetaRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	res, err := modules.SetClientMeta(req.MAC, req.Name, req.DeviceType)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, res)
 }
 
 type clientReserveRequest struct {
@@ -1590,6 +1642,96 @@ func (s *Server) handleMACACLSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "applied"})
+}
+
+// netPulseState is the shared GET/POST response shape. The agent token is
+// NEVER included (write-only from the UI).
+func netPulseState() map[string]any {
+	info := modules.NetPulseInfoNow()
+	var lastPush any
+	if !info.Status.LastPush.IsZero() {
+		lastPush = info.Status.LastPush.UTC().Format(time.RFC3339)
+	}
+	var standaloneReplacedAt any
+	if !info.StandaloneReplacedAt.IsZero() {
+		standaloneReplacedAt = info.StandaloneReplacedAt.UTC().Format(time.RFC3339)
+	}
+	var lastDiscovery any
+	if !info.Discovery.LastDiscovery.IsZero() {
+		lastDiscovery = info.Discovery.LastDiscovery.UTC().Format(time.RFC3339)
+	}
+	return map[string]any{
+		"enabled":    info.Enabled,
+		"configured": info.Configured,
+		"server":     info.Server,
+		"slug":       info.Slug,
+		"phase":      info.Phase,
+		"discovery": map[string]any{
+			"foundServer":     info.Discovery.FoundServer,
+			"lastDiscoveryAt": lastDiscovery,
+			"lastEnrollNote":  info.Discovery.LastEnrollNote,
+		},
+		"standaloneReplacedAt": standaloneReplacedAt,
+		"status": map[string]any{
+			"running":   info.Status.Running,
+			"pushOk":    info.Status.PushOk,
+			"lastPush":  lastPush,
+			"lastError": info.Status.LastError,
+		},
+	}
+}
+
+func (s *Server) handleNetPulseGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, netPulseState())
+}
+
+type netPulseSetRequest struct {
+	Server    string `json:"server"`
+	Slug      string `json:"slug"`
+	Token     string `json:"token"`
+	Enabled   bool   `json:"enabled"`
+	ServerFP  string `json:"serverFp"`
+	Interval  string `json:"interval"`
+	WanTarget string `json:"wanTarget"`
+	GwTarget  string `json:"gwTarget"`
+}
+
+func (s *Server) handleNetPulseSet(w http.ResponseWriter, r *http.Request) {
+	var req netPulseSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	// Validate target fields whenever they are provided (or when enabling).
+	if req.Server != "" || req.Slug != "" || req.Enabled {
+		if err := modules.ValidateNetPulseTarget(req.Server, req.Slug); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+	// Token is optional on update: keep the stored one when empty, but a
+	// first enable needs one to actually push.
+	if req.Token == "" && req.Enabled {
+		if old, err := modules.ReadNetPulseConfig("/etc/netgrip/netpulse.env"); err != nil || old.Token == "" {
+			writeError(w, http.StatusBadRequest, "token required")
+			return
+		}
+	}
+	cfg := modules.NetPulseConfig{
+		Server:    req.Server,
+		Slug:      req.Slug,
+		Token:     req.Token,
+		ServerFP:  req.ServerFP,
+		Interval:  req.Interval,
+		WanTarget: req.WanTarget,
+		GwTarget:  req.GwTarget,
+		Enabled:   req.Enabled,
+	}
+	if err := modules.SetNetPulseConfig(cfg); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, netPulseState())
 }
 
 func (s *Server) handleExecutorToken(w http.ResponseWriter, _ *http.Request) {
