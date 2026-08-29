@@ -49,15 +49,25 @@ func prodNetPulsePaths() netpulsePaths {
 
 // NetPulseConfig es la config persistida en el env file.
 type NetPulseConfig struct {
-	Server    string
-	Slug      string
-	Token     string
-	ServerFP  string
-	Interval  string // "30", "15s", "1m"
-	WanTarget string
-	GwTarget  string
-	Enabled   bool
+	Server        string
+	Slug          string
+	Token         string
+	ServerFP      string
+	Interval      string // "30", "15s", "1m"
+	WanTarget     string
+	GwTarget      string
+	Enabled       bool
+	DiscoveryPort string // NETPULSE_DISCOVERY_PORT (opcional; default 5140)
 }
+
+// Fases del agente always-on (#146): siempre corriendo.
+const (
+	// NetPulsePhaseConnected: push-eando contra el server configurado.
+	NetPulsePhaseConnected = "connected"
+	// NetPulsePhaseSearching: sin config válida o server no alcanzable; el
+	// descubrimiento zero-touch sigue buscando (#147).
+	NetPulsePhaseSearching = "searching"
+)
 
 // NetPulseInfo es la vista de solo lectura para la API (nunca el token).
 type NetPulseInfo struct {
@@ -66,6 +76,8 @@ type NetPulseInfo struct {
 	Server               string
 	Slug                 string
 	Status               runtime.Status
+	Phase                string // connected | searching (no hay estado off)
+	Discovery            netPulseDiscoveryState
 	StandaloneReplacedAt time.Time // última detección+sustitución del standalone
 }
 
@@ -90,8 +102,10 @@ func noteNetPulseStandaloneReplaced() {
 }
 
 // StartNetPulseAgent arranca el agente embebido (llamar una vez desde main).
-// Adopta una instalación standalone previa y, si la config está habilitada y
-// es válida, corre runtime.Run en una goroutine que muere con SIGTERM/SIGINT.
+// Adopta una instalación standalone previa y corre el agente ALWAYS-ON
+// (#146): con config válida pushea; sin ella (o con el server caído) queda
+// en searching y el descubrimiento zero-touch (#147) busca un server en la
+// LAN que lo acepte.
 func StartNetPulseAgent(version string) {
 	npMu.Lock()
 	if npStarted {
@@ -100,6 +114,7 @@ func StartNetPulseAgent(version string) {
 	}
 	npStarted = true
 	npVersion = version
+	npStartedAt = time.Now()
 	// npBaseCancel vive aparte de npCancel: applyNetPulseAgent cancela npCancel
 	// para rearrancar la goroutine y NUNCA debe tumbar el ctx base de señales
 	// (bug encontrado en rt3: el primer arranque nacía ya cancelado).
@@ -113,6 +128,7 @@ func StartNetPulseAgent(version string) {
 	}
 	applyNetPulseAgent(prodNetPulsePaths())
 	go netPulseRecheckLoop(prodNetPulsePaths(), 60*time.Second)
+	go netPulseDiscoveryLoop(prodNetPulsePaths(), netPulseDiscoveryEvery)
 }
 
 // netPulseRecheckLoop re-comprueba periódicamente si el standalone ha
@@ -173,15 +189,27 @@ func NetPulseInfoNow() NetPulseInfo {
 	}
 	npMu.Lock()
 	replaced := npStandaloneReplaced
+	st := npStatus
 	npMu.Unlock()
 	return NetPulseInfo{
 		Enabled:              cfg.Enabled,
 		Configured:           cfg.Server != "" && cfg.Slug != "" && cfg.Token != "",
 		Server:               cfg.Server,
 		Slug:                 cfg.Slug,
-		Status:               NetPulseStatus(),
+		Status:               st,
+		Phase:                netPulsePhaseOf(st),
+		Discovery:            netPulseDiscoverySnapshot(),
 		StandaloneReplacedAt: replaced,
 	}
+}
+
+// netPulsePhaseOf: connected solo con el agente corriendo, último push OK y
+// reciente; cualquier otra cosa es searching (no existe el estado off).
+func netPulsePhaseOf(st runtime.Status) string {
+	if netPulseStatusConnected(st) {
+		return NetPulsePhaseConnected
+	}
+	return NetPulsePhaseSearching
 }
 
 // ReadNetPulseConfig parsea el env file de NetGrip (KEY=VALUE).
@@ -192,14 +220,15 @@ func ReadNetPulseConfig(path string) (NetPulseConfig, error) {
 	}
 	kv := parseNetPulseEnv(string(data))
 	return NetPulseConfig{
-		Server:    kv["NETPULSE_SERVER"],
-		Slug:      kv["NETPULSE_SLUG"],
-		Token:     kv["NETPULSE_TOKEN"],
-		ServerFP:  kv["NETPULSE_SERVER_FP"],
-		Interval:  kv["NETPULSE_INTERVAL"],
-		WanTarget: kv["NETPULSE_WAN_TARGET"],
-		GwTarget:  kv["NETPULSE_GW_TARGET"],
-		Enabled:   kv["NETPULSE_ENABLED"] == "1",
+		Server:        kv["NETPULSE_SERVER"],
+		Slug:          kv["NETPULSE_SLUG"],
+		Token:         kv["NETPULSE_TOKEN"],
+		ServerFP:      kv["NETPULSE_SERVER_FP"],
+		Interval:      kv["NETPULSE_INTERVAL"],
+		WanTarget:     kv["NETPULSE_WAN_TARGET"],
+		GwTarget:      kv["NETPULSE_GW_TARGET"],
+		Enabled:       kv["NETPULSE_ENABLED"] == "1",
+		DiscoveryPort: kv["NETPULSE_DISCOVERY_PORT"],
 	}, nil
 }
 
@@ -235,7 +264,12 @@ func ValidateNetPulseTarget(server, slug string) error {
 // SetNetPulseConfig persiste la config (token vacío conserva el actual) y
 // rearranca la goroutine del agente sin reiniciar el proceso.
 func SetNetPulseConfig(cfg NetPulseConfig) error {
-	p := prodNetPulsePaths()
+	return setNetPulseConfigAt(prodNetPulsePaths(), cfg)
+}
+
+// setNetPulseConfigAt es SetNetPulseConfig con rutas inyectables (tests y
+// enrollment zero-touch sobre un env de prueba).
+func setNetPulseConfigAt(p netpulsePaths, cfg NetPulseConfig) error {
 	if cfg.Token == "" {
 		if old, err := ReadNetPulseConfig(p.env); err == nil {
 			cfg.Token = old.Token
@@ -270,6 +304,9 @@ func writeNetPulseEnv(path string, cfg NetPulseConfig) error {
 	}
 	if cfg.GwTarget != "" {
 		b.WriteString("NETPULSE_GW_TARGET=" + cfg.GwTarget + "\n")
+	}
+	if cfg.DiscoveryPort != "" {
+		b.WriteString("NETPULSE_DISCOVERY_PORT=" + cfg.DiscoveryPort + "\n")
 	}
 	enabled := "0"
 	if cfg.Enabled {
@@ -413,8 +450,11 @@ func fileExists(path string) bool {
 }
 
 // applyNetPulseAgent (re)arranca la goroutine del agente según el env file:
-// para la anterior, y si la config está habilitada y es válida lanza
-// runtime.Run con un ctx derivado del base (SIGTERM) del proceso.
+// para la anterior y, si la config es válida, lanza runtime.Run con un ctx
+// derivado del base (SIGTERM) del proceso. Agente ALWAYS-ON (#146):
+// NETPULSE_ENABLED se ignora (se trata como 1; se sigue persistiendo por
+// compatibilidad) y una config incompleta NO apaga nada: el agente queda en
+// searching y el descubrimiento (#147) puede completarla solo.
 func applyNetPulseAgent(p netpulsePaths) {
 	npMu.Lock()
 	if npCancel != nil {
@@ -431,15 +471,13 @@ func applyNetPulseAgent(p netpulsePaths) {
 
 	cfg, err := ReadNetPulseConfig(p.env)
 	if err != nil {
-		return // sin config: agente desactivado
+		cfg = NetPulseConfig{}
 	}
-
 	if !cfg.Enabled {
-		log.Printf("netpulse: agent disabled (NETPULSE_ENABLED=0)")
-		return
+		log.Printf("netpulse: NETPULSE_ENABLED=0 ignorado: el agente embebido es always-on (#146)")
 	}
 	if cfg.Server == "" || cfg.Slug == "" || cfg.Token == "" {
-		log.Printf("netpulse: config incomplete (server/slug/token), agent not started")
+		log.Printf("netpulse: config incompleta (server/slug/token), agente en searching; el descubrimiento buscará un server (#147)")
 		return
 	}
 

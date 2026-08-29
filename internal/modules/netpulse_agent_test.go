@@ -254,7 +254,10 @@ func TestStartNetPulseAgentKeepsBaseContextAlive(t *testing.T) {
 	}
 }
 
-func TestApplyNetPulseAgentDisabled(t *testing.T) {
+// TestApplyNetPulseAgentAlwaysOn (#146): NETPULSE_ENABLED ya no apaga el
+// agente (se ignora y se trata como 1); solo una config incompleta deja el
+// agente sin goroutine (fase searching a la espera de discovery).
+func TestApplyNetPulseAgentAlwaysOn(t *testing.T) {
 	StopNetPulseAgent()
 	defer StopNetPulseAgent()
 	p := tmpPaths(t)
@@ -264,8 +267,8 @@ func TestApplyNetPulseAgentDisabled(t *testing.T) {
 	npMu.Lock()
 	started := npCancel != nil
 	npMu.Unlock()
-	if started {
-		t.Fatal("NETPULSE_ENABLED=0: no debe arrancar el agente")
+	if !started {
+		t.Fatal("NETPULSE_ENABLED=0 se ignora: el agente debe arrancar igualmente")
 	}
 
 	mustWrite(t, p.env, "NETPULSE_SERVER=http://s\nNETPULSE_SLUG=s\nNETPULSE_ENABLED=1\n")
@@ -274,7 +277,7 @@ func TestApplyNetPulseAgentDisabled(t *testing.T) {
 	started = npCancel != nil
 	npMu.Unlock()
 	if started {
-		t.Fatal("config incompleta (sin token): no debe arrancar el agente")
+		t.Fatal("config incompleta (sin token): no debe arrancar la goroutine (queda en searching)")
 	}
 	if NetPulseStatus().Running {
 		t.Fatal("status.Running debe ser false sin agente")
