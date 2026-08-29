@@ -310,6 +310,18 @@ export const demoApi: typeof api = {
   stormControl: () => get(D.demoStorm),
   setStormControl: async () => { await wait(800, 1500); return { status: "ok" }; },
   macAcl: () => get(D.demoMacAcl),
+  runBufferbloatTest: async () => {
+    await wait(2500, 4000);
+    return { timestamp: new Date().toISOString(), baseline_ms: 8, loaded_ms: 14, delta_ms: 6, grade: "A", samples_loaded: [12, 14, 11, 13] };
+  },
+  bufferbloatHistory: () => get({ entries: [
+    { ts: Date.now() / 1000 - 86400, baseline_ms: 8, loaded_ms: 90, delta_ms: 82, grade: "C", timestamp: new Date(Date.now() * 1000 - 86400 * 1000).toISOString(), samples_loaded: [12, 14, 11, 13] },
+    { ts: Date.now() / 1000 - 43200, baseline_ms: 8, loaded_ms: 30, delta_ms: 22, grade: "B", timestamp: new Date(Date.now() * 1000 - 43200 * 1000).toISOString(), samples_loaded: [12, 14, 11, 13] },
+    { ts: Date.now() / 1000 - 600, baseline_ms: 8, loaded_ms: 14, delta_ms: 6, grade: "A", timestamp: new Date(Date.now() * 1000 - 600 * 1000).toISOString(), samples_loaded: [12, 14, 11, 13] },
+  ] }),
+  pushConfigGet: () => get({ server_url: "https://netpulse.example.com", router_id: "rt1", token: "" }),
+  pushConfigSet: async () => { await wait(600, 1200); return { status: "saved" }; },
+  pushSnapshot: async () => { await wait(1200, 2000); return { ok: true, snapshot_id: "20260829-210000" }; },
   setMacAcl: async () => { await wait(800, 1500); return { status: "ok" }; },
   templates: () => get({ templates: D.demoTemplates }),
   applyTemplate: async () => { await wait(800, 1500); return { status: "ok" }; },
