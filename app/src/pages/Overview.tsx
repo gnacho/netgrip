@@ -667,7 +667,7 @@ function DriftSection({ drift, onChange }: { drift?: DriftProbe; onChange: (d: D
       )}
 
       <Modal open={diffOpen} onClose={() => setDiffOpen(false)} title={t("drift.viewChanges")} wide>
-        {drift.configs.map((cfg) => (
+        {(drift.configs ?? []).map((cfg) => (
           <div key={cfg.config} className="mb-3 last:mb-0">
             <p className="text-small font-semibold mb-1">{cfg.config}</p>
             <div className="rounded-sm border border-border bg-surface-2 p-2 font-mono text-caption max-h-56 overflow-y-auto">

@@ -34,7 +34,7 @@ type StorageProbe struct {
 func ProbeStorage() StorageProbe {
 	devices := detectUSBStorage()
 	if len(devices) == 0 {
-		return StorageProbe{Applicable: false}
+		return StorageProbe{Applicable: false, Devices: []StorageDevice{}, Services: []StorageService{}}
 	}
 
 	services := []StorageService{

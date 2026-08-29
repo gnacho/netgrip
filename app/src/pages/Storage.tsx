@@ -88,7 +88,7 @@ export function StoragePage() {
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
-            {probe.devices.map((d, i) => (
+            {(probe.devices ?? []).map((d, i) => (
               <DiskCard key={d.path || d.name} disk={d} index={i} />
             ))}
           </div>
@@ -105,7 +105,7 @@ export function StoragePage() {
           <p className="text-small text-muted">{t("storage.noServices")}</p>
         ) : (
           <div className="flex flex-col divide-y divide-border/60">
-            {probe.services.map((svc) => (
+            {(probe.services ?? []).map((svc) => (
               <ServiceRow key={svc.name} svc={svc} onChanged={refresh} />
             ))}
           </div>
