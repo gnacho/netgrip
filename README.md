@@ -8,10 +8,15 @@
 <p align="center">
   <a href="https://github.com/gnacho/netgrip/releases"><img alt="Release" src="https://img.shields.io/github/v/release/gnacho/netgrip"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/gnacho/netgrip"></a>
+  <a href="https://netgrip.cloudless.club"><img alt="Website" src="https://img.shields.io/badge/website-netgrip.cloudless.club-2E6BE6"></a>
+  <a href="https://demo.netgrip.cloudless.club"><img alt="Live demo" src="https://img.shields.io/badge/demo-demo.netgrip.cloudless.club-0D9488"></a>
 </p>
 
 <p align="center">
-  <img alt="NetGrip overview: system and WAN cards, a live traffic chart and the ethernet port panel, all in a dark theme" src="assets/hero-en.png" width="800">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/hero-en-dark.png">
+    <img alt="NetGrip overview: system and WAN cards, a live traffic chart and the ethernet port panel, in light theme" src="assets/hero-en-light.png" width="800">
+  </picture>
 </p>
 
 NetGrip is a lightweight companion panel that runs on an OpenWrt router. It
@@ -20,6 +25,10 @@ sits next to LuCI, not instead of it: the dashboard plus service toggles
 configuration with a snapshot, a health check and an automatic rollback. It
 runs as a single static binary, so a handful of clicks replace reading router
 config files.
+
+Try it without installing anything: the **[online demo](https://demo.netgrip.cloudless.club)**
+runs on sample data and nothing is applied for real. The project website is
+**[netgrip.cloudless.club](https://netgrip.cloudless.club)**.
 
 ## Why does this exist?
 
@@ -83,17 +92,26 @@ running on my home routers since I first built the two-file spike.
 
 ## Screenshots
 
-**Overview - system, WAN, live traffic and the ethernet port panel**
+All screenshots come from the public demo, so the data is sample data.
 
-<img alt="Overview with the system and WAN cards, a traffic chart and the ethernet port chassis" src="assets/hero-en.png" width="800">
+**Overview - health, WAN, live traffic and the ethernet port panel**
 
-**Services - WireGuard, DDNS, IPv6 and SQM toggles**
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/hero-en-dark.png">
+  <img alt="Overview with the system and WAN cards, a traffic chart and the ethernet port chassis, in light theme" src="assets/hero-en-light.png" width="800">
+</picture>
 
-<img alt="Services page with a WireGuard card, DDNS, IPv6 and SQM toggles" src="assets/screenshot-services-en.png" width="800">
+**Clients - who is on the network, with signal and live usage**
 
-**System - firmware update, security, Router/AP mode and access settings**
+<img alt="Clients page: sortable table with device names, connection type, signal and usage per client" src="assets/screenshot-clients-en.png" width="800">
 
-<img alt="System page with the firmware update card, security, Router/AP mode and access settings" src="assets/screenshot-system-en.png" width="800">
+**Services - one card per service: WireGuard, OpenVPN, DDNS, SQM, firewall...**
+
+<img alt="Services page with cards for WireGuard, DDNS, SQM and the visual firewall" src="assets/screenshot-services-en.png" width="800">
+
+**System - access, security, Router/AP mode and the first-run wizard**
+
+<img alt="System page with access settings, security, Router/AP mode and update cards" src="assets/screenshot-system-en.png" width="800">
 
 ## Installation
 
