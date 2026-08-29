@@ -30,6 +30,9 @@ type netpulsePaths struct {
 	standaloneEnv string // /etc/netpulse-agent.env
 	initScript    string // /etc/init.d/netpulse-agent
 	agentBin      string // /usr/sbin/netpulse-agent
+	watchdogBin   string // /usr/sbin/netpulse-watchdog
+	heartbeat     string // /tmp/netpulse-agent.heartbeat
+	cronFile      string // /etc/crontabs/root
 }
 
 func prodNetPulsePaths() netpulsePaths {
@@ -38,6 +41,9 @@ func prodNetPulsePaths() netpulsePaths {
 		standaloneEnv: "/etc/netpulse-agent.env",
 		initScript:    "/etc/init.d/netpulse-agent",
 		agentBin:      "/usr/sbin/netpulse-agent",
+		watchdogBin:   "/usr/sbin/netpulse-watchdog",
+		heartbeat:     "/tmp/netpulse-agent.heartbeat",
+		cronFile:      "/etc/crontabs/root",
 	}
 }
 
@@ -55,23 +61,33 @@ type NetPulseConfig struct {
 
 // NetPulseInfo es la vista de solo lectura para la API (nunca el token).
 type NetPulseInfo struct {
-	Enabled    bool
-	Configured bool // server+slug+token presentes
-	Server     string
-	Slug       string
-	Status     runtime.Status
+	Enabled              bool
+	Configured           bool // server+slug+token presentes
+	Server               string
+	Slug                 string
+	Status               runtime.Status
+	StandaloneReplacedAt time.Time // última detección+sustitución del standalone
 }
 
 var (
-	npMu         sync.Mutex
-	npBaseCtx    context.Context
-	npBaseCancel context.CancelFunc // cancela el ctx de señales (parada del proceso)
-	npCancel     context.CancelFunc // cancela SOLO la goroutine del agente vigente
-	npStatus     runtime.Status
-	npVersion    string
-	npStarted    bool
-	netPulseRe   = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+	npMu                 sync.Mutex
+	npBaseCtx            context.Context
+	npBaseCancel         context.CancelFunc // cancela el ctx de señales (parada del proceso)
+	npCancel             context.CancelFunc // cancela SOLO la goroutine del agente vigente
+	npStatus             runtime.Status
+	npVersion            string
+	npStarted            bool
+	npStandaloneReplaced time.Time
+	netPulseRe           = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 )
+
+// noteNetPulseStandaloneReplaced registra una detección del standalone (para
+// que la UI pueda avisar de que fue sustituido).
+func noteNetPulseStandaloneReplaced() {
+	npMu.Lock()
+	npStandaloneReplaced = time.Now()
+	npMu.Unlock()
+}
 
 // StartNetPulseAgent arranca el agente embebido (llamar una vez desde main).
 // Adopta una instalación standalone previa y, si la config está habilitada y
@@ -90,10 +106,40 @@ func StartNetPulseAgent(version string) {
 	npBaseCtx, npBaseCancel = signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	npMu.Unlock()
 
-	if err := AdoptStandaloneAgent(); err != nil {
+	if acted, err := AdoptStandaloneAgent(); err != nil {
 		log.Printf("netpulse: adopt standalone agent: %v", err)
+	} else if acted {
+		noteNetPulseStandaloneReplaced()
 	}
 	applyNetPulseAgent(prodNetPulsePaths())
+	go netPulseRecheckLoop(prodNetPulsePaths(), 60*time.Second)
+}
+
+// netPulseRecheckLoop re-comprueba periódicamente si el standalone ha
+// reaparecido (reinstalación manual) y re-lanza la adopción. Barato: sin
+// artefactos es solo un par de stat por pasada.
+func netPulseRecheckLoop(p netpulsePaths, every time.Duration) {
+	t := time.NewTicker(every)
+	defer t.Stop()
+	for {
+		npMu.Lock()
+		base := npBaseCtx
+		npMu.Unlock()
+		if base == nil {
+			return
+		}
+		select {
+		case <-base.Done():
+			return
+		case <-t.C:
+			if acted, err := adoptNetPulseStandalone(p); err != nil {
+				log.Printf("netpulse: standalone recheck: %v", err)
+			} else if acted {
+				log.Printf("netpulse: standalone agent reappeared; adopted and removed it again")
+				noteNetPulseStandaloneReplaced()
+			}
+		}
+	}
 }
 
 // StopNetPulseAgent para la goroutine del agente y el ctx de señales (tests y
@@ -125,12 +171,16 @@ func NetPulseInfoNow() NetPulseInfo {
 	if err != nil {
 		cfg = NetPulseConfig{}
 	}
+	npMu.Lock()
+	replaced := npStandaloneReplaced
+	npMu.Unlock()
 	return NetPulseInfo{
-		Enabled:    cfg.Enabled,
-		Configured: cfg.Server != "" && cfg.Slug != "" && cfg.Token != "",
-		Server:     cfg.Server,
-		Slug:       cfg.Slug,
-		Status:     NetPulseStatus(),
+		Enabled:              cfg.Enabled,
+		Configured:           cfg.Server != "" && cfg.Slug != "" && cfg.Token != "",
+		Server:               cfg.Server,
+		Slug:                 cfg.Slug,
+		Status:               NetPulseStatus(),
+		StandaloneReplacedAt: replaced,
 	}
 }
 
@@ -241,41 +291,91 @@ func dirOf(path string) string {
 // config nueva conservando las keys soportadas y añade NETPULSE_ENABLED=1;
 // después apaga y borra el standalone (mejor esfuerzo). Si la migración ya
 // ocurrió antes (solo existe el env nuevo), también retira artefactos
-// standalone que hayan quedado (init.d, binario).
-func AdoptStandaloneAgent() error {
+// standalone que hayan quedado (init.d, binario, watchdog, cron). Devuelve
+// true cuando detectó (y retiró) artefactos del standalone.
+func AdoptStandaloneAgent() (bool, error) {
 	return adoptNetPulseStandalone(prodNetPulsePaths())
 }
 
-func adoptNetPulseStandalone(p netpulsePaths) error {
-	standalone, standaloneErr := os.Stat(p.standaloneEnv)
+func adoptNetPulseStandalone(p netpulsePaths) (bool, error) {
+	standaloneEnvExists := fileExists(p.standaloneEnv)
 	envExists := fileExists(p.env)
 
-	if standaloneErr == nil && !standalone.IsDir() && !envExists {
+	if standaloneEnvExists && !envExists {
 		cfg, err := ReadNetPulseConfig(p.standaloneEnv)
 		if err != nil {
-			return fmt.Errorf("parse %s: %w", p.standaloneEnv, err)
+			return false, fmt.Errorf("parse %s: %w", p.standaloneEnv, err)
 		}
 		cfg.Enabled = true
 		if err := writeNetPulseEnv(p.env, cfg); err != nil {
-			return fmt.Errorf("write %s: %w", p.env, err)
+			return false, fmt.Errorf("write %s: %w", p.env, err)
 		}
 		log.Printf("netpulse: migrated standalone config %s -> %s (enabled)", p.standaloneEnv, p.env)
 		cleanupNetPulseStandalone(p, true)
-		return nil
+		return true, nil
 	}
 
 	if envExists {
 		// Migración previa (o config creada desde la UI): retirar restos del
 		// standalone si volvieran a aparecer. El env viejo NO se toca si no
 		// se consumió en esta pasada.
-		cleanupNetPulseStandalone(p, false)
+		if netPulseStandaloneArtifacts(p) {
+			cleanupNetPulseStandalone(p, false)
+			return true, nil
+		}
 	}
-	return nil
+	return false, nil
 }
 
-// cleanupNetPulseStandalone retira el servicio y artefactos standalone, todo
-// mejor esfuerzo. withEnv incluye el env file viejo (solo cuando la
-// migración de esta misma pasada lo dejó copiado a /etc/netgrip).
+// netPulseStandaloneArtifacts dice si hay artefactos del standalone (init.d,
+// binario, watchdog, heartbeat o línea cron) presentes.
+func netPulseStandaloneArtifacts(p netpulsePaths) bool {
+	return fileExists(p.initScript) ||
+		fileExists(p.agentBin) ||
+		fileExists(p.watchdogBin) ||
+		fileExists(p.heartbeat) ||
+		netPulseCronLineExists(p.cronFile)
+}
+
+// netPulseCronLineExists: true si el crontab contiene una línea del watchdog.
+func netPulseCronLineExists(path string) bool {
+	data, err := os.ReadFile(path)
+	return err == nil && strings.Contains(string(data), "netpulse-watchdog")
+}
+
+// removeNetPulseCronLine borra del crontab las líneas del watchdog del
+// standalone conservando el resto; devuelve true si modificó el fichero.
+func removeNetPulseCronLine(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	var kept []string
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.Contains(line, "netpulse-watchdog") {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	out := strings.Join(kept, "\n")
+	if out == string(data) {
+		return false
+	}
+	mode := os.FileMode(0o600)
+	if st, err := os.Stat(path); err == nil {
+		mode = st.Mode().Perm()
+	}
+	if err := os.WriteFile(path, []byte(out), mode); err != nil {
+		log.Printf("netpulse: clean cron %s: %v", path, err)
+		return false
+	}
+	return true
+}
+
+// cleanupNetPulseStandalone retira el servicio y artefactos standalone (init.d,
+// binario, watchdog, heartbeat y línea cron), todo mejor esfuerzo. withEnv
+// incluye el env file viejo (solo cuando la migración de esta misma pasada lo
+// dejó copiado a /etc/netgrip).
 func cleanupNetPulseStandalone(p netpulsePaths, withEnv bool) {
 	if fileExists(p.initScript) {
 		if out, err := exec.Command(p.initScript, "stop").CombinedOutput(); err != nil {
@@ -290,8 +390,13 @@ func cleanupNetPulseStandalone(p netpulsePaths, withEnv bool) {
 			log.Printf("netpulse: removed %s", p.initScript)
 		}
 	}
-	if err := os.Remove(p.agentBin); err == nil {
-		log.Printf("netpulse: removed %s", p.agentBin)
+	for _, bin := range []string{p.agentBin, p.watchdogBin, p.heartbeat} {
+		if err := os.Remove(bin); err == nil {
+			log.Printf("netpulse: removed %s", bin)
+		}
+	}
+	if removeNetPulseCronLine(p.cronFile) {
+		log.Printf("netpulse: removed netpulse-watchdog cron line from %s", p.cronFile)
 	}
 	if withEnv {
 		if err := os.Remove(p.standaloneEnv); err == nil {

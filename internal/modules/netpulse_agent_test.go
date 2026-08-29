@@ -16,6 +16,9 @@ func tmpPaths(t *testing.T) netpulsePaths {
 		standaloneEnv: filepath.Join(root, "netpulse-agent.env"),
 		initScript:    filepath.Join(root, "init.d", "netpulse-agent"),
 		agentBin:      filepath.Join(root, "sbin", "netpulse-agent"),
+		watchdogBin:   filepath.Join(root, "sbin", "netpulse-watchdog"),
+		heartbeat:     filepath.Join(root, "tmp", "netpulse-agent.heartbeat"),
+		cronFile:      filepath.Join(root, "crontabs", "root"),
 	}
 }
 
@@ -45,7 +48,7 @@ func TestAdoptMigratesEnvAndRemovesArtifacts(t *testing.T) {
 	mustWrite(t, p.initScript, "#!/bin/sh\n")
 	mustWrite(t, p.agentBin, "fake-binary")
 
-	if err := adoptNetPulseStandalone(p); err != nil {
+	if _, err := adoptNetPulseStandalone(p); err != nil {
 		t.Fatalf("adopt: %v", err)
 	}
 
@@ -87,7 +90,7 @@ func TestAdoptMigratesEnvAndRemovesArtifacts(t *testing.T) {
 func TestAdoptIdempotentSecondRun(t *testing.T) {
 	p := tmpPaths(t)
 	mustWrite(t, p.standaloneEnv, sampleStandaloneEnv)
-	if err := adoptNetPulseStandalone(p); err != nil {
+	if _, err := adoptNetPulseStandalone(p); err != nil {
 		t.Fatalf("primera pasada: %v", err)
 	}
 	before, err := os.ReadFile(p.env)
@@ -95,7 +98,7 @@ func TestAdoptIdempotentSecondRun(t *testing.T) {
 		t.Fatalf("ReadFile: %v", err)
 	}
 
-	if err := adoptNetPulseStandalone(p); err != nil {
+	if _, err := adoptNetPulseStandalone(p); err != nil {
 		t.Fatalf("segunda pasada: %v", err)
 	}
 	after, err := os.ReadFile(p.env)
@@ -115,7 +118,7 @@ func TestAdoptRemovesLeftoversAfterPreviousMigration(t *testing.T) {
 	mustWrite(t, p.initScript, "#!/bin/sh\n")
 	mustWrite(t, p.agentBin, "fake")
 
-	if err := adoptNetPulseStandalone(p); err != nil {
+	if _, err := adoptNetPulseStandalone(p); err != nil {
 		t.Fatalf("adopt: %v", err)
 	}
 	if _, err := os.Stat(p.initScript); !os.IsNotExist(err) {
@@ -134,7 +137,7 @@ func TestAdoptDoesNotOverwriteExistingEnv(t *testing.T) {
 	mustWrite(t, p.standaloneEnv, sampleStandaloneEnv)
 	mustWrite(t, p.env, "NETPULSE_SERVER=http://otro\nNETPULSE_TOKEN=tk\nNETPULSE_SLUG=otro-slug\nNETPULSE_ENABLED=1\n")
 
-	if err := adoptNetPulseStandalone(p); err != nil {
+	if _, err := adoptNetPulseStandalone(p); err != nil {
 		t.Fatalf("adopt: %v", err)
 	}
 	data, _ := os.ReadFile(p.env)
@@ -149,7 +152,7 @@ func TestAdoptDoesNotOverwriteExistingEnv(t *testing.T) {
 
 func TestAdoptNoopWithoutArtifacts(t *testing.T) {
 	p := tmpPaths(t)
-	if err := adoptNetPulseStandalone(p); err != nil {
+	if _, err := adoptNetPulseStandalone(p); err != nil {
 		t.Fatalf("adopt sin artefactos: %v", err)
 	}
 	if fileExists(p.env) {
@@ -275,5 +278,129 @@ func TestApplyNetPulseAgentDisabled(t *testing.T) {
 	}
 	if NetPulseStatus().Running {
 		t.Fatal("status.Running debe ser false sin agente")
+	}
+}
+
+// TestAdoptRemovesWatchdogAndCron (#141): el cleanup también retira el
+// watchdog, su heartbeat y la línea del cron, conservando el resto del
+// crontab.
+func TestAdoptRemovesWatchdogAndCron(t *testing.T) {
+	p := tmpPaths(t)
+	mustWrite(t, p.env, "NETPULSE_SERVER=http://s\nNETPULSE_TOKEN=t\nNETPULSE_SLUG=s\nNETPULSE_ENABLED=1\n")
+	mustWrite(t, p.watchdogBin, "#!/bin/sh\n")
+	mustWrite(t, p.heartbeat, "")
+	mustWrite(t, p.cronFile, "0 3 * * * /sbin/logread rotate\n*/1 * * * * /usr/sbin/netpulse-watchdog\n17 4 * * * /usr/sbin/ntpd -q\n")
+
+	if _, err := adoptNetPulseStandalone(p); err != nil {
+		t.Fatalf("adopt: %v", err)
+	}
+	for path, what := range map[string]string{
+		p.watchdogBin: "watchdog",
+		p.heartbeat:   "heartbeat",
+	} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("%s debe desaparecer tras la limpieza", what)
+		}
+	}
+	data, err := os.ReadFile(p.cronFile)
+	if err != nil {
+		t.Fatalf("crontab debe conservarse: %v", err)
+	}
+	content := string(data)
+	if strings.Contains(content, "netpulse-watchdog") {
+		t.Fatalf("la línea del watchdog debe desaparecer del crontab:\n%s", content)
+	}
+	for _, want := range []string{"/sbin/logread rotate", "/usr/sbin/ntpd -q"} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("el crontab debe conservar %q:\n%s", want, content)
+		}
+	}
+}
+
+// TestAdoptMigracionCompletaRetiraWatchdogYCron: la migración inicial (env
+// standalone presente, sin env nuevo) también limpia watchdog+heartbeat+cron.
+func TestAdoptMigracionCompletaRetiraWatchdogYCron(t *testing.T) {
+	p := tmpPaths(t)
+	mustWrite(t, p.standaloneEnv, sampleStandaloneEnv)
+	mustWrite(t, p.watchdogBin, "#!/bin/sh\n")
+	mustWrite(t, p.heartbeat, "")
+	mustWrite(t, p.cronFile, "*/1 * * * * /usr/sbin/netpulse-watchdog\n")
+
+	acted, err := adoptNetPulseStandalone(p)
+	if err != nil {
+		t.Fatalf("adopt: %v", err)
+	}
+	if !acted {
+		t.Fatal("la migración inicial debe reportar acted=true")
+	}
+	if fileExists(p.watchdogBin) || fileExists(p.heartbeat) || netPulseCronLineExists(p.cronFile) {
+		t.Fatal("watchdog/heartbeat/cron deben desaparecer tras la migración inicial")
+	}
+	if !fileExists(p.env) {
+		t.Fatal("el env nuevo debe existir tras la migración")
+	}
+}
+
+// TestAdoptWithoutCronFile: sin crontab no pasa nada (mejor esfuerzo).
+func TestAdoptWithoutCronFile(t *testing.T) {
+	p := tmpPaths(t)
+	mustWrite(t, p.env, "NETPULSE_SERVER=http://s\nNETPULSE_TOKEN=t\nNETPULSE_SLUG=s\nNETPULSE_ENABLED=1\n")
+	if _, err := adoptNetPulseStandalone(p); err != nil {
+		t.Fatalf("adopt sin crontab: %v", err)
+	}
+	if netPulseCronLineExists(p.cronFile) {
+		t.Fatal("cronLineExists debe ser false sin fichero")
+	}
+}
+
+// TestAdoptReturnsFalseWithoutArtifacts: sin artefactos no reporta acción.
+func TestAdoptReturnsFalseWithoutArtifacts(t *testing.T) {
+	p := tmpPaths(t)
+	acted, err := adoptNetPulseStandalone(p)
+	if err != nil {
+		t.Fatalf("adopt: %v", err)
+	}
+	if acted {
+		t.Fatal("sin artefactos no debe reportar acted")
+	}
+}
+
+// TestRecheckCleansReinstalledStandalone (#143): si el standalone reaparece
+// (reinstalación manual), la pasada de re-chequeo lo retira de nuevo y queda
+// registrada la detección para la UI.
+func TestRecheckCleansReinstalledStandalone(t *testing.T) {
+	p := tmpPaths(t)
+	mustWrite(t, p.env, "NETPULSE_SERVER=http://s\nNETPULSE_TOKEN=t\nNETPULSE_SLUG=s\nNETPULSE_ENABLED=1\n")
+	if acted, _ := adoptNetPulseStandalone(p); acted {
+		t.Fatal("estado limpio no debe reportar acted")
+	}
+
+	// Alguien reinstala el standalone encima.
+	mustWrite(t, p.initScript, "#!/bin/sh\n")
+	mustWrite(t, p.agentBin, "fake")
+	mustWrite(t, p.watchdogBin, "fake")
+	mustWrite(t, p.cronFile, "*/1 * * * * /usr/sbin/netpulse-watchdog\n")
+
+	acted, err := adoptNetPulseStandalone(p)
+	if err != nil {
+		t.Fatalf("recheck: %v", err)
+	}
+	if !acted {
+		t.Fatal("la reinstalación debe detectarse (acted=true)")
+	}
+	for path, what := range map[string]string{
+		p.initScript:  "init.d",
+		p.agentBin:    "binario",
+		p.watchdogBin: "watchdog",
+	} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("%s reaparecido debe desaparecer tras el recheck", what)
+		}
+	}
+	if netPulseCronLineExists(p.cronFile) {
+		t.Fatal("la línea cron debe desaparecer tras el recheck")
+	}
+	if !fileExists(p.env) {
+		t.Fatal("el env de netgrip debe conservarse")
 	}
 }
