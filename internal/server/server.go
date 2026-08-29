@@ -164,6 +164,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/storage", s.requireAuth(s.handleStorageSet))
 	s.mux.HandleFunc("GET /api/mac-acl", s.requireAuth(s.handleMACACLGet))
 	s.mux.HandleFunc("POST /api/mac-acl", s.requireAuth(s.handleMACACLSet))
+	s.mux.HandleFunc("GET /api/netpulse", s.requireAuth(s.handleNetPulseGet))
+	s.mux.HandleFunc("POST /api/netpulse", s.requireAuth(s.handleNetPulseSet))
 	return s
 }
 
@@ -1596,4 +1598,79 @@ func (s *Server) handleMACACLSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "applied"})
+}
+
+// netPulseState is the shared GET/POST response shape. The agent token is
+// NEVER included (write-only from the UI).
+func netPulseState() map[string]any {
+	info := modules.NetPulseInfoNow()
+	var lastPush any
+	if !info.Status.LastPush.IsZero() {
+		lastPush = info.Status.LastPush.UTC().Format(time.RFC3339)
+	}
+	return map[string]any{
+		"enabled":    info.Enabled,
+		"configured": info.Configured,
+		"server":     info.Server,
+		"slug":       info.Slug,
+		"status": map[string]any{
+			"running":   info.Status.Running,
+			"pushOk":    info.Status.PushOk,
+			"lastPush":  lastPush,
+			"lastError": info.Status.LastError,
+		},
+	}
+}
+
+func (s *Server) handleNetPulseGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, netPulseState())
+}
+
+type netPulseSetRequest struct {
+	Server    string `json:"server"`
+	Slug      string `json:"slug"`
+	Token     string `json:"token"`
+	Enabled   bool   `json:"enabled"`
+	ServerFP  string `json:"serverFp"`
+	Interval  string `json:"interval"`
+	WanTarget string `json:"wanTarget"`
+	GwTarget  string `json:"gwTarget"`
+}
+
+func (s *Server) handleNetPulseSet(w http.ResponseWriter, r *http.Request) {
+	var req netPulseSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	// Validate target fields whenever they are provided (or when enabling).
+	if req.Server != "" || req.Slug != "" || req.Enabled {
+		if err := modules.ValidateNetPulseTarget(req.Server, req.Slug); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+	// Token is optional on update: keep the stored one when empty, but a
+	// first enable needs one to actually push.
+	if req.Token == "" && req.Enabled {
+		if old, err := modules.ReadNetPulseConfig("/etc/netgrip/netpulse.env"); err != nil || old.Token == "" {
+			writeError(w, http.StatusBadRequest, "token required")
+			return
+		}
+	}
+	cfg := modules.NetPulseConfig{
+		Server:    req.Server,
+		Slug:      req.Slug,
+		Token:     req.Token,
+		ServerFP:  req.ServerFP,
+		Interval:  req.Interval,
+		WanTarget: req.WanTarget,
+		GwTarget:  req.GwTarget,
+		Enabled:   req.Enabled,
+	}
+	if err := modules.SetNetPulseConfig(cfg); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, netPulseState())
 }
