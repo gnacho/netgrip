@@ -24,7 +24,31 @@ permissions:
   contents: write
 
 jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Create release if missing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          # Los jobs de empaquetado suben en paralelo: la release debe existir
+          # ANTES (antes se creaba a mano y el primer job en llegar moría 404).
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --generate-notes
+
   package:
+    needs: create-release
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -122,6 +146,7 @@ jobs:
           gh release upload "$TAG" /tmp/netgrip-linux-${{ matrix.arch }} --clobber
 
   package-luci:
+    needs: create-release
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
