@@ -10,13 +10,13 @@ import (
 )
 
 type PoEPort struct {
-	Name       string  `json:"name"`
-	Enabled    bool    `json:"enabled"`
-	PowerW     float64 `json:"power_w"`
-	Class      string  `json:"class"`
-	Status     string  `json:"status"`
-	ScheduleOn string  `json:"schedule_on"`
-	ScheduleOff string `json:"schedule_off"`
+	Name        string  `json:"name"`
+	Enabled     bool    `json:"enabled"`
+	PowerW      float64 `json:"power_w"`
+	Class       string  `json:"class"`
+	Status      string  `json:"status"`
+	ScheduleOn  string  `json:"schedule_on"`
+	ScheduleOff string  `json:"schedule_off"`
 }
 
 type PoEProbe struct {
@@ -106,9 +106,9 @@ func parsePoeUtilStatus(p *PoEProbe, output string) {
 }
 
 type PoESchedule struct {
-	Port     string `json:"port"`
-	OnTime   string `json:"on_time"`
-	OffTime  string `json:"off_time"`
+	Port    string `json:"port"`
+	OnTime  string `json:"on_time"`
+	OffTime string `json:"off_time"`
 }
 
 func SetPoESchedule(sched PoESchedule) (*PoEProbe, error) {

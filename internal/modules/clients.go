@@ -17,8 +17,8 @@ type Client struct {
 	Name       string `json:"name"`
 	IP         string `json:"ip,omitempty"`
 	MAC        string `json:"mac"`
-	Type       string `json:"type"`                    // wifi24 | wifi5 | cable
-	DeviceType string `json:"device_type,omitempty"`   // user-assigned: pc | phone | ...
+	Type       string `json:"type"`                  // wifi24 | wifi5 | cable
+	DeviceType string `json:"device_type,omitempty"` // user-assigned: pc | phone | ...
 	Iface      string `json:"iface,omitempty"`
 	Signal     int    `json:"signal,omitempty"`
 	RxBytes    int64  `json:"rx_bytes"` // client upload (AP rx)

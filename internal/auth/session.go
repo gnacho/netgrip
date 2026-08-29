@@ -16,11 +16,13 @@ import (
 // restarts (the old in-memory map logged everyone out on every restart).
 //
 // Format: epoch.expiry.nonce.signature
-//   signature = hex(hmac-sha256(secret, "epoch.expiry.nonce"))
+//
+//	signature = hex(hmac-sha256(secret, "epoch.expiry.nonce"))
 //
 // secret: /etc/netgrip.secret (32 random bytes, 0600, created on first use)
 // epoch:  /etc/netgrip.epoch (integer; bumped on password change so all
-//         previously issued tokens die at once)
+//
+//	previously issued tokens die at once)
 const (
 	secretPath = "/etc/netgrip.secret"
 	epochPath  = "/etc/netgrip.epoch"

@@ -9,17 +9,17 @@ import (
 )
 
 type DPIProtocol struct {
-	Name    string `json:"name"`
-	Bytes   int64  `json:"bytes"`
-	Flows   int    `json:"flows"`
+	Name     string `json:"name"`
+	Bytes    int64  `json:"bytes"`
+	Flows    int    `json:"flows"`
 	Category string `json:"category"`
 }
 
 type DPIProbe struct {
-	Applicable  bool          `json:"applicable"`
-	TotalBytes  int64         `json:"total_bytes"`
-	TotalFlows  int           `json:"total_flows"`
-	Protocols   []DPIProtocol `json:"protocols"`
+	Applicable bool          `json:"applicable"`
+	TotalBytes int64         `json:"total_bytes"`
+	TotalFlows int           `json:"total_flows"`
+	Protocols  []DPIProtocol `json:"protocols"`
 }
 
 var portMap = map[int]struct{ name, category string }{

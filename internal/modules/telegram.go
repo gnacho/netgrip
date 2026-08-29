@@ -109,7 +109,7 @@ func ValidateTelegram(botToken, chatID string) (botName string, chatTitle string
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 
 	var meResp struct {
-		OK     bool   `json:"ok"`
+		OK     bool `json:"ok"`
 		Result struct {
 			Username  string `json:"username"`
 			FirstName string `json:"first_name"`
@@ -136,7 +136,7 @@ func ValidateTelegram(botToken, chatID string) (botName string, chatTitle string
 	body2, _ := io.ReadAll(io.LimitReader(resp2.Body, 4096))
 
 	var chatResp struct {
-		OK     bool   `json:"ok"`
+		OK     bool `json:"ok"`
 		Result struct {
 			Title     string `json:"title"`
 			FirstName string `json:"first_name"`

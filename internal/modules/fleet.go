@@ -25,14 +25,14 @@ type FleetConfig struct {
 }
 
 type FleetNodeStatus struct {
-	ID             string `json:"id"`
-	Name           string `json:"name"`
-	Address        string `json:"address"`
-	Reachable      bool   `json:"reachable"`
-	CurrentVersion string `json:"current_version"`
-	LatestVersion  string `json:"latest_version"`
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Address         string `json:"address"`
+	Reachable       bool   `json:"reachable"`
+	CurrentVersion  string `json:"current_version"`
+	LatestVersion   string `json:"latest_version"`
 	UpdateAvailable bool   `json:"update_available"`
-	Error          string `json:"error,omitempty"`
+	Error           string `json:"error,omitempty"`
 }
 
 type FleetStatus struct {
@@ -40,7 +40,7 @@ type FleetStatus struct {
 }
 
 var (
-	fleetMu sync.RWMutex
+	fleetMu       sync.RWMutex
 	fleetStatuses = make(map[string]FleetNodeStatus)
 )
 

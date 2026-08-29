@@ -11,14 +11,14 @@ import (
 )
 
 type SwitchPort struct {
-	Name        string `json:"name"`
-	AdminUp     bool   `json:"admin_up"`
-	OperUp      bool   `json:"oper_up"`
-	SpeedMbps   int    `json:"speed_mbps"`
-	Duplex      string `json:"duplex"`
-	PoeEnabled  bool   `json:"poe_enabled"`
-	PoeSupported bool  `json:"poe_supported"`
-	Description string `json:"description"`
+	Name         string `json:"name"`
+	AdminUp      bool   `json:"admin_up"`
+	OperUp       bool   `json:"oper_up"`
+	SpeedMbps    int    `json:"speed_mbps"`
+	Duplex       string `json:"duplex"`
+	PoeEnabled   bool   `json:"poe_enabled"`
+	PoeSupported bool   `json:"poe_supported"`
+	Description  string `json:"description"`
 }
 
 type SwitchProbe struct {
@@ -35,7 +35,7 @@ func ProbeSwitchPorts() *SwitchProbe {
 	var result []SwitchPort
 	for _, name := range ports {
 		p := SwitchPort{
-			Name: name,
+			Name:        name,
 			Description: uciGet("netgrip.ports." + sanitizeUCIKey(name) + ".description"),
 		}
 

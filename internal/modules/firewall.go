@@ -19,13 +19,13 @@ type FWZone struct {
 }
 
 type FWRule struct {
-	Name    string `json:"name"`
-	Section string `json:"section"`
-	Src     string `json:"src"`
-	Dest    string `json:"dest"`
-	Proto   string `json:"proto"`
+	Name     string `json:"name"`
+	Section  string `json:"section"`
+	Src      string `json:"src"`
+	Dest     string `json:"dest"`
+	Proto    string `json:"proto"`
 	DestPort string `json:"dest_port"`
-	Target  string `json:"target"`
+	Target   string `json:"target"`
 }
 
 type FirewallProbe struct {

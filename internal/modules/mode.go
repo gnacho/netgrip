@@ -13,7 +13,7 @@ import (
 // (dnsmasq and firewall off) is an AP reconverting the WAN into a LAN
 // port. Hardware class detects switches (no WiFi, many ports).
 type ModeProbe struct {
-	Mode          string `json:"mode"` // router | ap
+	Mode          string `json:"mode"`           // router | ap
 	HardwareClass string `json:"hardware_class"` // router | ap | switch
 	WanInBridge   bool   `json:"wan_in_bridge"`
 	WanConfigured bool   `json:"wan_configured"`
