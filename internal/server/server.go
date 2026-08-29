@@ -1637,11 +1637,11 @@ func netPulseState() map[string]any {
 		standaloneReplacedAt = info.StandaloneReplacedAt.UTC().Format(time.RFC3339)
 	}
 	return map[string]any{
-		"enabled":                info.Enabled,
-		"configured":             info.Configured,
-		"server":                 info.Server,
-		"slug":                   info.Slug,
-		"standalone_replaced_at": standaloneReplacedAt,
+		"enabled":              info.Enabled,
+		"configured":           info.Configured,
+		"server":               info.Server,
+		"slug":                 info.Slug,
+		"standaloneReplacedAt": standaloneReplacedAt,
 		"status": map[string]any{
 			"running":   info.Status.Running,
 			"pushOk":    info.Status.PushOk,
