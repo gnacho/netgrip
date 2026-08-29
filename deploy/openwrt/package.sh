@@ -82,6 +82,26 @@ CTRL
 
 cat > "$PKG_DIR/CONTROL/postinst" << 'POSTINST'
 #!/bin/sh
+if [ -n "$IPKG_INSTROOT" ]; then exit 0; fi
+# apk does not overwrite an existing /etc/init.d script (it stages the new
+# one as .apk-new). The packaged init script must win on upgrades.
+if [ -f /etc/init.d/netgrip.apk-new ]; then
+  cp /etc/init.d/netgrip.apk-new /etc/init.d/netgrip
+  rm -f /etc/init.d/netgrip.apk-new
+  chmod 755 /etc/init.d/netgrip
+fi
+# A standalone netpulse agent must not keep running next to netgrip: netgrip
+# embeds the agent, running both is NOT supported. Stop it now (closing the
+# double-push window); the first netgrip start adopts its config and removes
+# the rest of the standalone artifacts.
+if [ -f /etc/netpulse-agent.env ] || [ -f /usr/sbin/netpulse-agent ] || [ -f /etc/init.d/netpulse-agent ]; then
+  echo "netgrip: standalone netpulse-agent detected."
+  echo "netgrip: netgrip embeds the netpulse agent, running both is NOT supported."
+  echo "netgrip: its config will be adopted and the standalone removed on first start."
+  if [ -x /etc/init.d/netpulse-agent ]; then
+    /etc/init.d/netpulse-agent stop >/dev/null 2>&1 || true
+  fi
+fi
 /etc/init.d/netgrip enable 2>/dev/null || true
 /etc/init.d/netgrip restart 2>/dev/null || true
 # Survive sysupgrades: the apk registry does not survive, but the
