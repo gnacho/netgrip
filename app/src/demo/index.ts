@@ -376,6 +376,7 @@ export const demoApi: typeof api = {
   netpulse: () => get({
     ...state.netpulse,
     status: { running: true, pushOk: true, lastPush: new Date(Date.now() - 15_000).toISOString(), lastError: "" },
+    standaloneReplacedAt: null,
   }),
   setNetPulse: async (cfg) => {
     await wait(800, 1500);
@@ -388,6 +389,7 @@ export const demoApi: typeof api = {
     return {
       ...state.netpulse,
       status: { running: cfg.enabled, pushOk: cfg.enabled, lastPush: cfg.enabled ? new Date().toISOString() : null, lastError: "" },
+      standaloneReplacedAt: null,
     };
   },
 

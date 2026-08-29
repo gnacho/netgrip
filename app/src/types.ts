@@ -713,6 +713,7 @@ export interface NetPulseState {
   server: string;
   slug: string;
   status: NetPulseAgentStatus;
+  standaloneReplacedAt: string | null;
 }
 
 export interface NetPulseSet {

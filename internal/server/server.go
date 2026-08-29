@@ -1632,11 +1632,16 @@ func netPulseState() map[string]any {
 	if !info.Status.LastPush.IsZero() {
 		lastPush = info.Status.LastPush.UTC().Format(time.RFC3339)
 	}
+	var standaloneReplacedAt any
+	if !info.StandaloneReplacedAt.IsZero() {
+		standaloneReplacedAt = info.StandaloneReplacedAt.UTC().Format(time.RFC3339)
+	}
 	return map[string]any{
-		"enabled":    info.Enabled,
-		"configured": info.Configured,
-		"server":     info.Server,
-		"slug":       info.Slug,
+		"enabled":                info.Enabled,
+		"configured":             info.Configured,
+		"server":                 info.Server,
+		"slug":                   info.Slug,
+		"standalone_replaced_at": standaloneReplacedAt,
 		"status": map[string]any{
 			"running":   info.Status.Running,
 			"pushOk":    info.Status.PushOk,

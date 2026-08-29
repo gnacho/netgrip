@@ -1443,7 +1443,12 @@ export default {
     },
     packages: {
       title: "Optional services",
-      body: "These services don't ship with every router. Tick the ones you want and we'll install them now.",
+      body: "These services don't ship with every router. Install them all now, or let them install on their own as you use them.",
+      modeAll: "Install all now",
+      modeAllDesc: "They are downloaded and installed right away; enabling a service from the panel later needs no wait.",
+      modeDemand: "As I use them",
+      modeDemandDesc: "Nothing is installed now; each service installs its package the first time you enable it.",
+      recommended: "Recommended",
       install_one: "Install {{count}}",
       install_other: "Install {{count}}",
       installed: "Installed",
@@ -1542,6 +1547,7 @@ export default {
     relSec: "{{n}} s ago",
     relMin: "{{n}} min ago",
     relHour: "{{n}} h ago",
+    standaloneNotice: "A separate standalone netpulse agent was detected. It is incompatible with NetGrip (which embeds its own agent), so it has been replaced: the configuration was kept and the external agent was removed.",
   },
   dpi: {
     title: "Traffic by Application",
