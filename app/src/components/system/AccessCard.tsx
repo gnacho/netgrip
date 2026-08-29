@@ -88,11 +88,11 @@ export function AccessCard({ index = 2 }: { index?: number }) {
       {!probe ? (
         <SkeletonRows rows={3} />
       ) : (
-        <div className="flex flex-col gap-1">
-          <p className="text-caption text-muted mb-1">{t("access.disclaimer")}</p>
+        <div className="flex flex-col gap-3">
+          <p className="text-caption text-muted">{t("access.disclaimer")}</p>
 
-          <div className="divide-y divide-border/60">
-            <div className="flex items-center gap-3 py-2">
+          <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+            <div className="flex items-center gap-3 py-2 border-b border-border/60">
               <span className="text-body font-medium flex-1 min-w-0">{t("access.sessionTtl")}</span>
               <div className="flex items-center gap-1.5 shrink-0">
                 <Input type="number" mono min={1} max={100000} value={ttlMin || ""}
@@ -101,7 +101,7 @@ export function AccessCard({ index = 2 }: { index?: number }) {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 py-2">
+            <div className="flex items-center gap-3 py-2 border-b border-border/60">
               <span className="text-body font-medium flex-1 min-w-0">{t("access.luciPorts")}</span>
               <div className="flex items-center gap-1.5 shrink-0">
                 {numPort(luciHttp, setLuciHttp, t("access.luciHttp"))}
@@ -110,12 +110,12 @@ export function AccessCard({ index = 2 }: { index?: number }) {
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-3 py-2">
+            <div className="flex items-center justify-between gap-3 py-2 border-b border-border/60">
               <span className="text-body font-medium">{t("access.forceHttps")}</span>
               <Toggle checked={luciForce} onChange={setLuciForce} label={t("access.forceHttps")} />
             </div>
 
-            <div className="flex items-center justify-between gap-3 py-2">
+            <div className="flex items-center justify-between gap-3 py-2 border-b border-border/60">
               <div className="min-w-0">
                 <span className="text-body font-medium">{t("access.enableSsh")}</span>
                 <p className="text-caption text-muted">{t("access.sshHint")}</p>
@@ -126,19 +126,19 @@ export function AccessCard({ index = 2 }: { index?: number }) {
                 <Toggle checked={sshEnabled} onChange={setSshEnabled} label={t("access.enableSsh")} />
               </div>
             </div>
-
-            <div className="flex items-center gap-2 py-2">
-              <ShieldCheck size={14} className={hasCert ? "text-ok" : "text-faint"} aria-hidden="true" />
-              <span className="text-small flex-1">{hasCert ? t("access.httpsReady") : t("access.httpsNone")}</span>
-              {!hasCert && (
-                <Button variant="secondary" size="sm" onClick={genCert} loading={certBusy}>
-                  {t("access.httpsGenerate")}
-                </Button>
-              )}
-            </div>
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex items-center gap-2 pt-1">
+            <ShieldCheck size={14} className={hasCert ? "text-ok" : "text-faint"} aria-hidden="true" />
+            <span className="text-small flex-1">{hasCert ? t("access.httpsReady") : t("access.httpsNone")}</span>
+            {!hasCert && (
+              <Button variant="secondary" size="sm" onClick={genCert} loading={certBusy}>
+                {t("access.httpsGenerate")}
+              </Button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
             <Button onClick={saveAll} loading={busy} disabled={ttlMin <= 0}>{t("access.save")}</Button>
           </div>
           {phase && (
