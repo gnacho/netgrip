@@ -11,7 +11,8 @@ import (
 	"time"
 )
 
-const fleetConfigPath = "/etc/owpanel/fleet.json"
+const fleetConfigPath = "/etc/netgrip/fleet.json"
+const legacyFleetConfigPath = "/etc/owpanel/fleet.json"
 
 type FleetNode struct {
 	ID       string `json:"id"`
@@ -46,10 +47,20 @@ var (
 
 func LoadFleetConfig() (FleetConfig, error) {
 	data, err := os.ReadFile(fleetConfigPath)
-	if os.IsNotExist(err) {
-		return FleetConfig{Nodes: []FleetNode{}}, nil
+	if os.IsNotExist(err) && fileExists(legacyFleetConfigPath) {
+		// Migrate a pre-rename fleet file if present (one shot, best effort).
+		if legacy, lerr := os.ReadFile(legacyFleetConfigPath); lerr == nil {
+			if merr := SaveFleetConfigFromBytes(legacy); merr == nil {
+				_ = os.Remove(legacyFleetConfigPath)
+			}
+			data = legacy
+			err = nil
+		}
 	}
 	if err != nil {
+		if os.IsNotExist(err) {
+			return FleetConfig{Nodes: []FleetNode{}}, nil
+		}
 		return FleetConfig{}, err
 	}
 	var cfg FleetConfig
@@ -60,13 +71,18 @@ func LoadFleetConfig() (FleetConfig, error) {
 }
 
 func SaveFleetConfig(cfg FleetConfig) error {
-	if err := os.MkdirAll("/etc/owpanel", 0755); err != nil {
+	if err := os.MkdirAll("/etc/netgrip", 0755); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
 	}
+	return SaveFleetConfigFromBytes(data)
+}
+
+// SaveFleetConfigFromBytes writes raw fleet JSON to the current path.
+func SaveFleetConfigFromBytes(data []byte) error {
 	return os.WriteFile(fleetConfigPath, data, 0600)
 }
 
