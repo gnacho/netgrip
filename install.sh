@@ -70,20 +70,20 @@ command -v wget >/dev/null 2>&1 || command -v curl >/dev/null 2>&1 \
 
 # ------------------------------------------------------------ latest tag --
 latest_tag() {
-  # The releases/latest page redirects to .../tag/vX.Y.Z; assets carry the
-  # version in their names, so the tag must be resolved first.
-  if command -v wget >/dev/null 2>&1; then
-    # Headers (with the Location redirect) go to stderr; capture only that.
-    wget -S -T 20 -O /dev/null "$RELEASES_URL/latest" 2>&1 >/dev/null \
-      | grep -i '^[[:space:]]*Location:' | tail -n 1 \
-      | sed -n 's|.*/tag/\(v[0-9][^[:space:]]*\).*|\1|p'
-    return 0
-  fi
+  # Assets carry the version in their names, so the tag must be resolved
+  # first. busybox wget has no -S/header mode, so both paths use the GitHub
+  # API (small JSON, "tag_name" extracted with sed).
+  _api="https://api.github.com/repos/${REPO}/releases/latest"
+  _tag=""
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSI -o /dev/null -w '%{url_effective}\n' "$RELEASES_URL/latest" 2>/dev/null \
-      | sed -n 's|.*/tag/\(v[0-9][^[:space:]]*\).*|\1|p'
-    return 0
+    _tag=$(curl -fsSL --connect-timeout 20 "$_api" 2>/dev/null \
+      | sed -n 's/.*"tag_name": *"\(v[0-9][^"]*\)".*/\1/p' | head -n 1)
   fi
+  if [ -z "$_tag" ] && command -v wget >/dev/null 2>&1; then
+    _tag=$(wget -q -T 30 -O - "$_api" 2>/dev/null \
+      | sed -n 's/.*"tag_name": *"\(v[0-9][^"]*\)".*/\1/p' | head -n 1)
+  fi
+  echo "$_tag"
 }
 
 if [ -z "$VERSION" ]; then
@@ -135,7 +135,7 @@ fi
 lan_ip() {
   if command -v ubus >/dev/null 2>&1 && command -v jsonfilter >/dev/null 2>&1; then
     ubus call network.interface.lan status 2>/dev/null \
-      | jsonfilter -e '@.ipv4-address[0].address' 2>/dev/null && return 0
+      | jsonfilter -e '@["ipv4-address"][0].address' 2>/dev/null && return 0
   fi
   if command -v uci >/dev/null 2>&1; then
     uci -q get network.lan.ipaddr 2>/dev/null && return 0
