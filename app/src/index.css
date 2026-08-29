@@ -1,21 +1,292 @@
 @import "tailwindcss";
 
+/* NetGrip design tokens — design-rev2.md §1/§2 (Tailwind v4, CSS-only).
+   Paleta neutra fría, CERO marrón. Sistema de acentos con variantes soft. */
 @theme {
-  --color-bg: #0b1118;
-  --color-card: #131c26;
-  --color-border: #22303f;
-  --color-text: #e5edf5;
-  --color-muted: #8ba3bb;
-  --color-accent: #2563eb;
-  --color-ok: #34d399;
-  --color-warn: #fbbf24;
-  --color-danger: #f87171;
+  /* superficies */
+  --color-bg: #F6F7F9;
+  --color-surface: #FFFFFF;
+  --color-fill: #EFF2F6;
+  /* compat: las páginas usan surface-2 (zonas hundidas = fill) */
+  --color-surface-2: var(--color-fill);
+  --color-border: #E4E7ED;
+  --color-border-strong: #D3D8E0;
+
+  /* texto */
+  --color-text: #1B1F27;
+  --color-muted: #5D6675;
+  --color-faint: #8A93A3;
+
+  /* sistema de acentos §1 (pleno + soft; reasignados en .dark) */
+  --color-accent: #2E6BE6;
+  --color-accent-hover: #1F56C9;
+  --color-accent-soft: #E8EFFC;
+  --color-on-accent: #FFFFFF;
+  --color-teal: #0D9488;
+  --color-teal-soft: #E0F4F1;
+  --color-success: #1F9D55;
+  --color-success-soft: #E3F4EA;
+  --color-warn: #C77414;
+  --color-warn-soft: #FBF0DD;
+  --color-danger: #D64545;
+  --color-danger-soft: #FBE7E7;
+  --color-violet: #7C6FCE;
+  --color-violet-soft: #EFEDFB;
+
+  /* compat: ok = success (las páginas usan ok/ok-soft) */
+  --color-ok: var(--color-success);
+  --color-ok-soft: var(--color-success-soft);
+
+  /* series de gráficos §1: accent → teal → violet → warn */
+  --color-chart-rx: var(--color-success);
+  --color-chart-tx: var(--color-accent);
+  --color-chart-grid: var(--color-border);
+
+  /* compat: las páginas antiguas usan --color-card (siguen compilando/renderizando) */
+  --color-card: var(--color-surface);
+
+  /* tipografía §3 */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  /* radios §4 */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* sombras §4 (reasignadas en .dark) */
+  --shadow-card: 0 1px 2px rgba(28, 25, 23, 0.05);
+  --shadow-elevated: 0 4px 16px rgba(28, 25, 23, 0.10), 0 1px 3px rgba(28, 25, 23, 0.06);
+}
+
+.dark {
+  --color-bg: #0E1013;
+  --color-surface: #16191E;
+  --color-fill: #1E2229;
+  --color-border: #262B33;
+  --color-border-strong: #333A45;
+
+  --color-text: #E9ECF1;
+  --color-muted: #98A1AF;
+  --color-faint: #6B7482;
+
+  --color-accent: #5B8DEF;
+  --color-accent-hover: #7AA3F2;
+  --color-accent-soft: #1C2A45;
+  --color-on-accent: #0F1522;
+  --color-teal: #34C9B5;
+  --color-teal-soft: #12332F;
+  --color-success: #3FB97F;
+  --color-success-soft: #14301F;
+  --color-warn: #E5A44B;
+  --color-warn-soft: #3A2A12;
+  --color-danger: #E46868;
+  --color-danger-soft: #3A1B1B;
+  --color-violet: #9A8FF0;
+  --color-violet-soft: #26223D;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+:root {
+  /* movimiento §5 */
+  --dur-fast: 120ms;
+  --dur-med: 200ms;
+  --dur-slow: 320ms;
+  --ease-soft: cubic-bezier(0.2, 0.6, 0.2, 1);
+
+  /* densidad §2 (comfortable por defecto; compact reasigna abajo) */
+  --card-pad: 22px;
+  --card-gap: 20px;
+  --row-min-h: 60px;
+  --row-pad-y: 14px;
+  --input-h: 44px;
+  --font-scale: 1;
+}
+
+/* Vista compacta §2: el atributo va en <html> (script anti-FOUC + DensityToggle) */
+html[data-density="compact"] {
+  --card-pad: 14px;
+  --card-gap: 12px;
+  --row-min-h: 44px;
+  --row-pad-y: 8px;
+  --input-h: 36px;
+  --font-scale: 0.92;
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
 }
 
 body {
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.3125rem;
+}
+
+/* ── Escala tipográfica §3 (clases propias; rem base 16px) ── */
+.text-display {
+  font-size: 1.625rem; /* 26px móvil */
+  line-height: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+@media (min-width: 768px) {
+  .text-display {
+    font-size: 1.875rem; /* 30px desktop */
+    line-height: 2.25rem;
+  }
+}
+.text-h1 {
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.text-h2 {
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}
+.text-eyebrow {
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.text-body {
+  font-size: 0.875rem;
+  line-height: 1.3125rem;
+}
+.text-small {
+  font-size: 0.8125rem;
+  line-height: 1.1875rem;
+}
+.text-caption {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+}
+.stat-xl {
+  font-size: 2.125rem;
+  line-height: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.stat-lg {
+  font-size: 1.625rem;
+  line-height: 2rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.stat-md {
+  font-size: 1.25rem;
+  line-height: 1.625rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Densidad compacta §2: captions a 11px y títulos de tarjeta un paso abajo */
+html[data-density="compact"] .text-caption {
+  font-size: 0.6875rem; /* 11px */
+  line-height: 0.9375rem;
+}
+html[data-density="compact"] .text-h2 {
+  font-size: 0.875rem; /* 14px */
+  line-height: 1.25rem;
+}
+
+/* ── Movimiento §5 ── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.65; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes banner-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
+  75% { transform: translateX(-4px); }
+}
+
+.animate-fade-up {
+  animation: fade-up var(--dur-slow) var(--ease-soft) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+.animate-banner-in {
+  animation: banner-in var(--dur-med) var(--ease-soft) both;
+}
+.animate-spin-once {
+  animation: spin 900ms linear;
+}
+.animate-spin-loop {
+  animation: spin 900ms linear infinite;
+}
+.animate-pulse-dot {
+  animation: pulse-dot 1.6s var(--ease-soft) infinite;
+}
+.animate-shake {
+  animation: shake 240ms var(--ease-soft);
+}
+
+/* Skeleton shimmer §6.15 */
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-2) 25%,
+    var(--color-border) 50%,
+    var(--color-surface-2) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* Gauges y sparklines §6.8/§6.10 */
+.draw-in {
+  transition: stroke-dashoffset 600ms var(--ease-soft);
+}
+.draw-in-stroke {
+  transition: stroke-dashoffset 600ms var(--ease-soft), stroke 300ms var(--ease-soft);
+}
+
+/* Foco visible §6 */
+.ring-focus:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Hide native number input spinners (▲▼) for a cleaner field look */

@@ -1,9 +1,22 @@
 <!doctype html>
-<html lang="es" class="dark">
+<html lang="es">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>NetGrip</title>
+    <script>
+      // Tema antes del primer paint (evita FOUC). Claro por defecto; solo se
+      // respeta prefers-color-scheme si el usuario no eligió tema todavía.
+      (function () {
+        try {
+          var t = localStorage.getItem("netgrip:theme");
+          var dark = t === "dark" || (!t && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) document.documentElement.classList.add("dark");
+          var d = localStorage.getItem("netgrip:density");
+          document.documentElement.dataset.density = d === "compact" ? "compact" : "comfortable";
+        } catch (e) { /* sin tema */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

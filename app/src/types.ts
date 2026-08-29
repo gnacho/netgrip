@@ -338,6 +338,7 @@ export interface Client {
   ip?: string;
   mac: string;
   type: "wifi24" | "wifi5" | "cable";
+  device_type?: string;
   iface?: string;
   signal?: number;
   rx_bytes: number;
@@ -348,6 +349,11 @@ export interface Client {
   blocked: boolean;
   blockable: boolean;
 }
+
+export type DeviceType =
+  | "pc" | "phone" | "tablet" | "camera" | "wearable" | "laptop" | "printer"
+  | "audio" | "tv" | "iot" | "gaming" | "gateway" | "nas" | "server"
+  | "appliance" | "ac" | "speaker" | "other";
 
 export interface ConfigSnapshot {
   id: string;
