@@ -278,6 +278,7 @@ export default {
     groupFresh: "Mantenerse al día",
     groupProtection: "Protección",
     groupDevice: "Este equipo",
+    groupMaintenance: "Mantenimiento",
     identityTitle: "Identidad y reinicio",
     reboot: "Reiniciar el router",
     rebootConfirmTitle: "Reiniciar el router",
