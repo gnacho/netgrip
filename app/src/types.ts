@@ -149,6 +149,14 @@ export interface PkgUpgrade {
   available: string;
 }
 
+export interface OptionalPackage {
+  id: string;
+  packages: string[];
+  i18n_key: string;
+  module: string;
+  installed: boolean;
+}
+
 export interface IoTProbe {
   active: boolean;
   ssid: string;

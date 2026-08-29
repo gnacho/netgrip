@@ -1441,6 +1441,46 @@ export default {
       toggleDesc: "Your phone joins your home network from anywhere.",
       after: "When you're done, go to Services → WireGuard to add your phone with a QR code.",
     },
+    packages: {
+      title: "Optional services",
+      body: "These services don't ship with every router. Tick the ones you want and we'll install them now.",
+      install_one: "Install {{count}}",
+      install_other: "Install {{count}}",
+      installed: "Installed",
+      later: "You don't have to decide now: if you enable a service later from the panel, its package installs automatically.",
+      wireguard: {
+        title: "WireGuard",
+        desc: "Lightweight VPN to reach your network from outside.",
+      },
+      ddns: {
+        title: "Dynamic DNS",
+        desc: "A fixed address for your router even if your IP changes.",
+      },
+      openvpn: {
+        title: "OpenVPN",
+        desc: "Classic VPN server with exportable clients.",
+      },
+      sqm: {
+        title: "Bandwidth control",
+        desc: "Shares the connection and keeps calls and games lag-free.",
+      },
+      nlbwmon: {
+        title: "Per-device usage",
+        desc: "Tracks how much traffic each device on the network uses.",
+      },
+      nftqos: {
+        title: "Per-device limits",
+        desc: "Speed cap per IP address (nft-qos).",
+      },
+      tailscale: {
+        title: "Tailscale",
+        desc: "Mesh VPN with no router ports to open.",
+      },
+      adguard: {
+        title: "AdGuard Home",
+        desc: "Filters ads and trackers for the whole network.",
+      },
+    },
     done: {
       title: "All set",
       body: "Here's what's now set up:",
@@ -1455,6 +1495,8 @@ export default {
       guest: "Guest Wi-Fi on ({{ssid}})",
       iot: "Gadget Wi-Fi on ({{ssid}})",
       wg: "VPN ready to connect from anywhere",
+      pkgs_one: "One optional service installed",
+      pkgs_other: "{{count}} optional services installed",
     },
     step: {
       welcome: "Welcome",
@@ -1464,6 +1506,7 @@ export default {
       guest: "Guests",
       iot: "Smart gadgets",
       wireguard: "VPN",
+      packages: "Extras",
       done: "Done",
     },
   },

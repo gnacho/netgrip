@@ -2,17 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check } from "lucide-react";
 import { api } from "../api";
-import type { GuestProbe, IoTProbe, ModeProbe, WGProbe, WifiUI, WizardState } from "../types";
+import type {
+  GuestProbe, IoTProbe, ModeProbe, OptionalPackage, WGProbe, WifiUI, WizardState,
+} from "../types";
 import { Banner, Button, SkeletonRows, Stepper } from "../components/ui";
 import { Logo } from "../components/ui/illustrations";
 import type { WizardRecord } from "../components/wizard/common";
 import {
-  DoneStep, ExtraNetStep, ModeStep, PasswordStep, WelcomeStep, WifiStep, WireguardStep,
+  DoneStep, ExtraNetStep, ModeStep, PackagesStep, PasswordStep, WelcomeStep, WifiStep, WireguardStep,
 } from "../components/wizard/steps";
 
-type Step = "welcome" | "mode" | "password" | "wifi" | "guest" | "iot" | "wireguard" | "done";
+type Step = "welcome" | "mode" | "password" | "wifi" | "guest" | "iot" | "wireguard" | "packages" | "done";
 
-const ALL_STEPS: Step[] = ["welcome", "mode", "password", "wifi", "guest", "iot", "wireguard", "done"];
+const ALL_STEPS: Step[] = ["welcome", "mode", "password", "wifi", "guest", "iot", "wireguard", "packages", "done"];
 
 /**
  * Wizard de primer arranque (wizard.md): setup guiado estilo GL.iNet, una
@@ -28,6 +30,7 @@ export function Wizard({ onDone }: { onDone: () => void }) {
   const [guest, setGuest] = useState<GuestProbe>();
   const [iot, setIot] = useState<IoTProbe>();
   const [wg, setWg] = useState<WGProbe>();
+  const [optPkgs, setOptPkgs] = useState<OptionalPackage[]>();
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [step, setStep] = useState<Step>("welcome");
@@ -39,13 +42,14 @@ export function Wizard({ onDone }: { onDone: () => void }) {
     setLoadError(false);
     try {
       // api.mode() es opcional: si el backend no lo expone, el wizard sigue.
-      const [ws, mp, wf, g, i, w] = await Promise.all([
+      const [ws, mp, wf, g, i, w, op] = await Promise.all([
         api.wizardState(),
         api.mode().catch(() => undefined),
         api.wifi(),
         api.guestwifi(),
         api.iotwifi(),
         api.wireguard(),
+        api.optionalPackages().catch(() => undefined),
       ]);
       setWstate(ws);
       setMode(mp);
@@ -53,6 +57,7 @@ export function Wizard({ onDone }: { onDone: () => void }) {
       setGuest(g);
       setIot(i);
       setWg(w);
+      setOptPkgs(op?.packages);
       setLoaded(true);
     } catch {
       setLoadError(true);
@@ -88,11 +93,13 @@ export function Wizard({ onDone }: { onDone: () => void }) {
             return isGateway;
           case "wireguard":
             return wgInstalled;
+          case "packages":
+            return !!optPkgs && optPkgs.length > 0;
           default:
             return true;
         }
       }),
-    [mode, hasWifi, isGateway, wgInstalled],
+    [mode, hasWifi, isGateway, wgInstalled, optPkgs],
   );
 
   const currentIdx = Math.max(0, steps.indexOf(step));
@@ -196,6 +203,21 @@ export function Wizard({ onDone }: { onDone: () => void }) {
             onApplied={(state) => {
               setWg(state);
               setRecord((r) => ({ ...r, wg: true }));
+              next();
+            }}
+            onSkip={next}
+            onBack={prev}
+          />
+        ) : null;
+      case "packages":
+        return optPkgs ? (
+          <PackagesStep
+            items={optPkgs}
+            onSaved={(ids) => {
+              setOptPkgs((prev) =>
+                prev?.map((p) => (ids.includes(p.id) ? { ...p, installed: true } : p)),
+              );
+              setRecord((r) => (ids.length > 0 ? { ...r, pkgs: ids } : r));
               next();
             }}
             onSkip={next}

@@ -143,6 +143,13 @@ export const demoPackages: T.PkgUpgrade[] = [
   { name: "kmod-usb-storage", current: "6.6.89-1", available: "6.6.93-1" },
 ];
 
+export const demoOptionalPackages: T.OptionalPackage[] = [
+  { id: "wireguard", packages: ["wireguard-tools", "kmod-wireguard"], i18n_key: "wizard.packages.wireguard", module: "wireguard", installed: true },
+  { id: "nlbwmon", packages: ["nlbwmon"], i18n_key: "wizard.packages.nlbwmon", module: "nlbwmon", installed: false },
+  { id: "tailscale", packages: ["tailscale"], i18n_key: "wizard.packages.tailscale", module: "tailscale", installed: false },
+  { id: "adguard", packages: ["adguardhome"], i18n_key: "wizard.packages.adguard", module: "adguard", installed: false },
+];
+
 export const demoIot: T.IoTProbe = {
   active: true,
   ssid: "CasaGarcia-IoT",

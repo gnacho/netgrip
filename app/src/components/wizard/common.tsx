@@ -11,6 +11,7 @@ export interface WizardRecord {
   guest?: string;
   iot?: string;
   wg?: boolean;
+  pkgs?: string[];
 }
 
 /**

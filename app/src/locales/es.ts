@@ -1442,6 +1442,46 @@ export default {
       toggleDesc: "Tu móvil entra en tu red desde cualquier sitio.",
       after: "Cuando termines, ve a Servicios → WireGuard para añadir tu móvil con un QR.",
     },
+    packages: {
+      title: "Servicios opcionales",
+      body: "Estos servicios no vienen de serie en todos los routers. Marca los que quieras y los instalamos ahora.",
+      install_one: "Instalar {{count}}",
+      install_other: "Instalar {{count}}",
+      installed: "Instalado",
+      later: "No hace falta decidir ahora: si activas un servicio más adelante desde el panel, su paquete se instala automáticamente.",
+      wireguard: {
+        title: "WireGuard",
+        desc: "VPN ligera para entrar en tu red desde fuera.",
+      },
+      ddns: {
+        title: "DNS dinámico",
+        desc: "Una dirección fija para tu router aunque tu IP cambie.",
+      },
+      openvpn: {
+        title: "OpenVPN",
+        desc: "Servidor VPN clásico con clientes exportables.",
+      },
+      sqm: {
+        title: "Control del ancho de banda",
+        desc: "Reparte la conexión y evita lag en videollamadas y juegos.",
+      },
+      nlbwmon: {
+        title: "Consumo por dispositivo",
+        desc: "Contabiliza el tráfico de cada equipo de la red.",
+      },
+      nftqos: {
+        title: "Límites por equipo",
+        desc: "Tope de velocidad por dirección IP (nft-qos).",
+      },
+      tailscale: {
+        title: "Tailscale",
+        desc: "VPN en malla sin abrir puertos en el router.",
+      },
+      adguard: {
+        title: "AdGuard Home",
+        desc: "Filtra anuncios y rastreadores para toda la red.",
+      },
+    },
     done: {
       title: "Todo listo",
       body: "Esto es lo que ha quedado configurado:",
@@ -1456,6 +1496,8 @@ export default {
       guest: "WiFi de invitados activo ({{ssid}})",
       iot: "WiFi para aparatos activo ({{ssid}})",
       wg: "VPN lista para conectar desde fuera",
+      pkgs_one: "Un servicio opcional instalado",
+      pkgs_other: "{{count}} servicios opcionales instalados",
     },
     step: {
       welcome: "Bienvenida",
@@ -1465,6 +1507,7 @@ export default {
       guest: "Visitas",
       iot: "Aparatos",
       wireguard: "VPN",
+      packages: "Extras",
       done: "Listo",
     },
   },

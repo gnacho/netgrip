@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  CircleCheck, Cpu, Info, KeyRound, Lightbulb, Lock, Network, Router, Shield, Shuffle, Users, Wifi,
+  ArrowUpDown, AtSign, ChartColumn, CircleCheck, Cpu, Gauge, Info, KeyRound, Lightbulb,
+  Lock, Network, Package, Router, Shield, ShieldCheck, Shuffle, Users, Waypoints, Wifi,
 } from "lucide-react";
 import { api } from "../../api";
-import type { GuestProbe, IoTProbe, ModeProbe, ModuleResult, WGProbe, WifiUI } from "../../types";
+import type {
+  GuestProbe, IoTProbe, ModeProbe, ModuleResult, OptionalPackage, WGProbe, WifiUI,
+} from "../../types";
 import {
-  ActionBanner, Banner, Button, ConfirmDialog, Field, Input, SegmentedControl, SettingRow,
+  ActionBanner, Banner, Button, ConfirmDialog, Field, Input, Pill, SegmentedControl, SettingRow,
 } from "../ui";
 import {
   IlluDevices, IlluFleet, IlluParty, IlluRouter, IlluShield, IlluWifiWaves,
@@ -570,7 +573,128 @@ export function WireguardStep({ wg, onApplied, onSkip, onBack }: {
   );
 }
 
-/* ── 8. done ────────────────────────────────────────────────────────────── */
+/* ── 8. packages (servicios opcionales instalables) ─────────────────────── */
+
+const PKG_ICONS: Record<string, typeof Shield> = {
+  wireguard: ShieldCheck,
+  ddns: AtSign,
+  openvpn: Lock,
+  sqm: Gauge,
+  nlbwmon: ChartColumn,
+  "nft-qos": ArrowUpDown,
+  tailscale: Waypoints,
+  adguard: Shield,
+};
+
+export function PackagesStep({ items, onSaved, onSkip, onBack }: {
+  items: OptionalPackage[];
+  onSaved: (ids: string[]) => void;
+  onSkip: () => void;
+  onBack: () => void;
+}) {
+  const { t } = useTranslation();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [fatal, setFatal] = useState<string>();
+  const [fails, setFails] = useState(0);
+
+  const toggle = (id: string) => {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const save = async () => {
+    if (selected.size === 0) { onSkip(); return; }
+    setBusy(true);
+    setFatal(undefined);
+    try {
+      const res = await api.wizardPackages([...selected]);
+      onSaved(res.installed);
+    } catch (e) {
+      setFatal(e instanceof Error ? e.message : t("error.network"));
+      setFails((f) => f + 1);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <StepShell
+      illustration={<IlluFleet size={140} />}
+      title={t("wizard.packages.title")}
+      body={t("wizard.packages.body")}
+      footer={
+        <>
+          {fatal && <Banner tone="danger" className="mt-4">{fatal}</Banner>}
+          <StepFooter
+            onBack={onBack}
+            onNext={save}
+            busy={busy}
+            onSkip={onSkip}
+            fails={fails}
+            nextLabel={selected.size > 0 ? t("wizard.packages.install", { count: selected.size }) : undefined}
+          />
+        </>
+      }
+    >
+      <div className="space-y-2.5">
+        {items.map((p) => {
+          const Icon = PKG_ICONS[p.id] ?? Package;
+          const checked = selected.has(p.id);
+          return (
+            <label
+              key={p.id}
+              className={`flex w-full cursor-pointer items-start gap-3 rounded-lg border p-4 ring-focus
+                transition-colors duration-[var(--dur-fast)] ${p.installed
+                  ? "border-border bg-surface-2 cursor-default"
+                  : checked
+                    ? "border-accent bg-accent-soft"
+                    : "border-border bg-surface hover:bg-surface-2"}`}
+            >
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={checked}
+                disabled={p.installed || busy}
+                onChange={() => toggle(p.id)}
+              />
+              <span
+                aria-hidden="true"
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors duration-[var(--dur-fast)]
+                  ${p.installed
+                    ? "border-border-strong bg-surface"
+                    : checked
+                      ? "border-accent bg-accent"
+                      : "border-border-strong bg-surface"}`}
+              >
+                {checked && <span className="h-2 w-2 rounded-sm bg-surface" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2 text-body font-medium">
+                  <Icon size={16} className={checked ? "text-accent" : "text-faint"} aria-hidden="true" />
+                  {t(`${p.i18n_key}.title`)}
+                </span>
+                <span className="mt-0.5 block text-small text-muted">{t(`${p.i18n_key}.desc`)}</span>
+                <span className="mt-1 block font-mono text-caption text-faint">{p.packages.join(", ")}</span>
+              </span>
+              {p.installed && <Pill tone="ok">{t("wizard.packages.installed")}</Pill>}
+            </label>
+          );
+        })}
+        <p className="flex items-start gap-2 pt-1 text-small text-muted">
+          <Info size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
+          {t("wizard.packages.later")}
+        </p>
+      </div>
+    </StepShell>
+  );
+}
+
+/* ── 9. done ────────────────────────────────────────────────────────────── */
 
 export function DoneStep({ record, onFinish }: { record: WizardRecord; onFinish: () => void }) {
   const { t } = useTranslation();
@@ -583,6 +707,7 @@ export function DoneStep({ record, onFinish }: { record: WizardRecord; onFinish:
   if (record.guest) rows.push(t("wizard.summary.guest", { ssid: record.guest }));
   if (record.iot) rows.push(t("wizard.summary.iot", { ssid: record.iot }));
   if (record.wg) rows.push(t("wizard.summary.wg"));
+  if (record.pkgs?.length) rows.push(t("wizard.summary.pkgs", { count: record.pkgs.length }));
 
   return (
     <StepShell

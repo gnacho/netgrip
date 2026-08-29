@@ -34,6 +34,7 @@ const state = {
   lan: structuredClone(D.demoLan),
   dns: structuredClone(D.demoDns),
   packages: [...D.demoPackages],
+  optionalPkgs: structuredClone(D.demoOptionalPackages),
   drift: structuredClone(D.demoDriftClean),
   snapshots: [...D.demoSnapshots],
   vlans: structuredClone(D.demoVlans),
@@ -311,6 +312,12 @@ export const demoApi: typeof api = {
   updateCheck: () => get(D.demoUpdate),
   startUpdate: async () => { await wait(800, 1500); return { started: true, reboot_pending: true }; },
   packages: () => get({ upgradable: state.packages }),
+  optionalPackages: () => get({ packages: state.optionalPkgs }),
+  wizardPackages: async (ids) => {
+    await wait(800, 1500);
+    for (const p of state.optionalPkgs) if (ids.includes(p.id)) p.installed = true;
+    return { installed: ids };
+  },
   upgradePackage: async (name) => {
     await wait(800, 1500);
     state.packages = state.packages.filter((p) => p.name !== name);

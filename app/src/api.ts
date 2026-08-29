@@ -247,6 +247,14 @@ const realApi = {
       body: JSON.stringify(cfg),
     }),
   packages: () => request<{ upgradable: import("./types").PkgUpgrade[] }>("/api/packages"),
+  optionalPackages: () =>
+    request<{ packages: import("./types").OptionalPackage[] }>("/api/packages/optional"),
+  wizardPackages: (ids: string[]) =>
+    request<{ installed: string[] }>("/api/wizard/packages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }),
   upgradePackage: (name: string) =>
     request<{ upgradable: import("./types").PkgUpgrade[] }>("/api/packages/upgrade", {
       method: "POST",
