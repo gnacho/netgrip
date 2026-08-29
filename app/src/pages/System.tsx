@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import type { Board, PkgUpgrade, UpdateCheck } from "../types";
-import { UpdateCard } from "../components/system/UpdateCard";
 import { SecurityCard } from "../components/system/SecurityCard";
 import { RemoteAccessCard } from "../components/system/RemoteAccessCard";
 import { AccessCard } from "../components/system/AccessCard";
@@ -14,7 +13,7 @@ function GroupLabel({ children }: { children: ReactNode }) {
   return <p className="text-eyebrow text-faint mb-2 animate-fade-up">{children}</p>;
 }
 
-export function System({ board, update, onUpdateChange, packages: _packages, onPackagesChange, onLogout }: {
+export function System({ board, update: _update, onUpdateChange: _onUpdateChange, packages: _packages, onPackagesChange: _onPackagesChange, onLogout }: {
   board: Board | undefined;
   update: UpdateCheck | undefined;
   onUpdateChange: (u: UpdateCheck) => void;
@@ -25,12 +24,6 @@ export function System({ board, update, onUpdateChange, packages: _packages, onP
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-6">
-      {/* Mantenerse al día */}
-      <section>
-        <GroupLabel>{t("system.groupFresh")}</GroupLabel>
-        <UpdateCard board={board} update={update} onChange={onUpdateChange} onPackagesChange={onPackagesChange} />
-      </section>
-
       {/* Protección */}
       <section className="flex flex-col gap-[var(--card-gap)]">
         <GroupLabel>{t("system.groupProtection")}</GroupLabel>
