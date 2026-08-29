@@ -8,10 +8,15 @@
 <p align="center">
   <a href="https://github.com/gnacho/netgrip/releases"><img alt="Release" src="https://img.shields.io/github/v/release/gnacho/netgrip"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/gnacho/netgrip"></a>
+  <a href="https://netgrip.cloudless.club"><img alt="Web" src="https://img.shields.io/badge/web-netgrip.cloudless.club-2E6BE6"></a>
+  <a href="https://demo.netgrip.cloudless.club"><img alt="Demo" src="https://img.shields.io/badge/demo-demo.netgrip.cloudless.club-0D9488"></a>
 </p>
 
 <p align="center">
-  <img alt="Vista rápida de NetGrip: tarjetas de sistema y WAN, una gráfica de tráfico en vivo y el panel de puertos ethernet, en tema oscuro" src="assets/hero-es.png" width="800">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/hero-es-dark.png">
+    <img alt="Vista rápida de NetGrip: tarjetas de sistema y WAN, una gráfica de tráfico en vivo y el panel de puertos ethernet, en tema claro" src="assets/hero-es-light.png" width="800">
+  </picture>
 </p>
 
 NetGrip es un panel companion ligero que corre en un router OpenWrt.
@@ -20,6 +25,10 @@ Acompaña a LuCI, no lo sustituye: un dashboard y toggles de servicios
 configuración real con snapshot, health check y rollback automático. Corre
 como un único binario estático, así que unos pocos clics sustituyen a leer
 ficheros de configuración del router.
+
+Pruébalo sin instalar nada: la **[demo online](https://demo.netgrip.cloudless.club)**
+funciona con datos de ejemplo y no se aplica nada de verdad. La web del
+proyecto es **[netgrip.cloudless.club](https://netgrip.cloudless.club)**.
 
 ## ¿Por qué existe esto?
 
@@ -88,17 +97,26 @@ funcionando en los routers de casa desde el primer spike de dos ficheros.
 
 ## Capturas
 
-**Inicio - sistema, WAN, tráfico en vivo y el panel de puertos ethernet**
+Todas las capturas salen de la demo pública, así que los datos son de ejemplo.
 
-<img alt="Inicio con las tarjetas de sistema y WAN, una gráfica de tráfico y el chasis de puertos ethernet" src="assets/hero-es.png" width="800">
+**Inicio - salud, WAN, tráfico en vivo y el panel de puertos ethernet**
 
-**Servicios - toggles de WireGuard, DDNS, IPv6 y SQM**
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/hero-es-dark.png">
+  <img alt="Inicio con las tarjetas de sistema y WAN, una gráfica de tráfico y el chasis de puertos ethernet, en tema claro" src="assets/hero-es-light.png" width="800">
+</picture>
 
-<img alt="Página de servicios con una tarjeta de WireGuard, DDNS, IPv6 y el toggle SQM" src="assets/screenshot-services-es.png" width="800">
+**Clientes - quién está en la red, con señal y uso en vivo**
 
-**Sistema - actualización de firmware, seguridad, modo Router/AP y ajustes de acceso**
+<img alt="Página de clientes: tabla ordenable con nombres de dispositivos, tipo de conexión, señal y uso por cliente" src="assets/screenshot-clients-es.png" width="800">
 
-<img alt="Página de sistema con la tarjeta de actualización de firmware, seguridad, modo Router/AP y ajustes de acceso" src="assets/screenshot-system-es.png" width="800">
+**Servicios - una tarjeta por servicio: WireGuard, OpenVPN, DDNS, SQM, cortafuegos...**
+
+<img alt="Página de servicios con tarjetas de WireGuard, DDNS, SQM y el cortafuegos visual" src="assets/screenshot-services-es.png" width="800">
+
+**Sistema - acceso, seguridad, modo Router/AP y el asistente de primer arranque**
+
+<img alt="Página de sistema con ajustes de acceso, seguridad, modo Router/AP y tarjetas de actualización" src="assets/screenshot-system-es.png" width="800">
 
 ## Instalación
 
