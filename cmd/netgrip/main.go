@@ -21,6 +21,7 @@ func main() {
 	addr := fmt.Sprintf("%s:%d", *listen, *port)
 	modules.StartHistoryCollector()
 	modules.StartMonitor()
+	modules.StartNetPulseAgent(version)
 	log.Printf("netgrip %s listening on %s (rpcd: %s)", version, addr, *rpcdURL)
 	log.Fatal(http.ListenAndServe(addr, server.New(*rpcdURL, version)))
 }

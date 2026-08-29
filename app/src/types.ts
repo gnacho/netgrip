@@ -699,3 +699,29 @@ export interface MACACLProbe {
   applicable: boolean;
   ports: MACACLPort[];
 }
+
+export interface NetPulseAgentStatus {
+  running: boolean;
+  pushOk: boolean;
+  lastPush: string | null;
+  lastError: string;
+}
+
+export interface NetPulseState {
+  enabled: boolean;
+  configured: boolean;
+  server: string;
+  slug: string;
+  status: NetPulseAgentStatus;
+}
+
+export interface NetPulseSet {
+  server: string;
+  slug: string;
+  token: string;
+  enabled: boolean;
+  serverFp?: string;
+  interval?: string;
+  wanTarget?: string;
+  gwTarget?: string;
+}

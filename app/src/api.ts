@@ -528,6 +528,14 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ port, mode, macs }),
     }),
+  netpulse: () =>
+    request<import("./types").NetPulseState>("/api/netpulse"),
+  setNetPulse: (cfg: import("./types").NetPulseSet) =>
+    request<import("./types").NetPulseState>("/api/netpulse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
 };
 
 /** API pública: delega en `src/demo` cuando el modo demo está activo.

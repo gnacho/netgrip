@@ -86,7 +86,8 @@ cat > "$PKG_DIR/CONTROL/postinst" << 'POSTINST'
 /etc/init.d/netgrip restart 2>/dev/null || true
 # Survive sysupgrades: the apk registry does not survive, but the
 # preserved files do, so procd starts the panel on first boot.
-for f in /usr/sbin/netgrip /etc/init.d/netgrip /etc/rc.d/S99netgrip /usr/libexec/netgrip-restore-rules; do
+# /etc/netgrip/ keeps the netpulse embedded-agent env across upgrades.
+for f in /usr/sbin/netgrip /etc/init.d/netgrip /etc/rc.d/S99netgrip /usr/libexec/netgrip-restore-rules /etc/netgrip/; do
   grep -qxF "$f" /etc/sysupgrade.conf 2>/dev/null || echo "$f" >> /etc/sysupgrade.conf
 done
 exit 0
