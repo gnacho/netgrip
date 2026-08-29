@@ -62,6 +62,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/ddns", s.requireAuth(s.handleDDNSSet))
 	s.mux.HandleFunc("GET /api/sqm", s.requireAuth(s.handleSQMGet))
 	s.mux.HandleFunc("POST /api/sqm", s.requireAuth(s.handleSQMSet))
+	s.mux.HandleFunc("POST /api/sqm/test", s.requireAuth(s.handleBufferbloatTest))
+	s.mux.HandleFunc("GET /api/sqm/history", s.requireAuth(s.handleBufferbloatHistory))
 	s.mux.HandleFunc("GET /api/openvpn", s.requireAuth(s.handleOVPNGet))
 	s.mux.HandleFunc("POST /api/openvpn", s.requireAuth(s.handleOVPNSet))
 	s.mux.HandleFunc("POST /api/openvpn/clients", s.requireAuth(s.handleOVPNClientAdd))
@@ -507,6 +509,19 @@ func (s *Server) handleSQMSet(w http.ResponseWriter, r *http.Request) {
 	}
 	probe, rolledBack, err := modules.SetSQM(cfg)
 	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleBufferbloatTest(w http.ResponseWriter, _ *http.Request) {
+	result, err := modules.RunBufferbloatTest()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, result)
+}
+
+func (s *Server) handleBufferbloatHistory(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"entries": modules.GetBufferbloatHistory()})
 }
 
 func (s *Server) handleOVPNGet(w http.ResponseWriter, _ *http.Request) {
