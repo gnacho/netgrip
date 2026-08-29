@@ -346,6 +346,7 @@ func applyNetPulseAgent(p netpulsePaths) {
 		GwTarget:  cfg.GwTarget,
 		EnvFile:   p.env,
 		Version:   version,
+		Kind:      "netgrip",
 		OnStatus:  storeNetPulseStatus,
 		OnUpgrade: netPulseUpgradeNoop,
 	}
