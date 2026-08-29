@@ -455,7 +455,7 @@ func applyNetPulseAgent(p netpulsePaths) {
 		Version:   version,
 		Kind:      "netgrip",
 		OnStatus:  storeNetPulseStatus,
-		OnUpgrade: netPulseUpgradeNoop,
+		OnUpgrade: netPulseUpgradeTrigger,
 	}
 
 	ctx, cancel := context.WithCancel(base)
@@ -500,9 +500,18 @@ func storeNetPulseStatus(st runtime.Status) {
 	npMu.Unlock()
 }
 
-// netPulseUpgradeNoop: el self-upgrade integrado intercambia el binario del
-// agente standalone; embebido en netgrip el ciclo de updates lo lleva el
-// propio netgrip, así que el evento se ignora (logueado).
-func netPulseUpgradeNoop(data string) {
-	log.Printf("netpulse: upgrade event ignored (agent embedded in netgrip; update netgrip instead)")
+// netPulseUpgradeTrigger: evento SSE "upgrade" del servidor NetPulse (#363):
+// NetGrip se actualiza a sí mismo con su propio updater (sus releases de
+// GitHub, sha verificado); el servidor solo dispara. Si ya está en la última,
+// no hace nada (el guard de downgrades vive en el self-update).
+func netPulseUpgradeTrigger(data string) {
+	check := CheckSelfUpdate(npVersion)
+	if check == nil || !check.Available {
+		log.Printf("netpulse: upgrade solicitado por el servidor: ya en la última (%s)", npVersion)
+		return
+	}
+	log.Printf("netpulse: upgrade solicitado por el servidor → %s", check.Latest)
+	if err := StartSelfUpdate(npVersion); err != nil {
+		log.Printf("netpulse: self-update falló: %v", err)
+	}
 }
