@@ -7,6 +7,7 @@ import { AccessCard } from "../components/system/AccessCard";
 import { TelegramCard } from "../components/system/TelegramCard";
 import { ModeCard } from "../components/system/ModeCard";
 import { IdentityCard } from "../components/system/IdentityCard";
+import { NetPulseCard } from "../components/system/NetPulseCard";
 import { useTranslation } from "react-i18next";
 
 function GroupLabel({ children }: { children: ReactNode }) {
@@ -44,6 +45,7 @@ export function System({ board, update, onUpdateChange, packages: _packages, onP
         <GroupLabel>{t("system.groupDevice")}</GroupLabel>
         <ModeCard index={0} />
         <IdentityCard index={1} board={board} />
+        <NetPulseCard index={2} />
       </section>
     </div>
   );

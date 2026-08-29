@@ -47,6 +47,12 @@ const state = {
   storage: structuredClone(D.demoStorage),
   fleet: structuredClone(D.demoFleet),
   telegram: { ...D.demoTelegram },
+  netpulse: {
+    enabled: true,
+    configured: true,
+    server: "https://netpulse.example.com",
+    slug: "garcia-gw",
+  },
   portTemplates: [...D.demoPortTemplates],
   hasCert: true,
   history: D.buildDemoHistory(),
@@ -358,6 +364,25 @@ export const demoApi: typeof api = {
     return { ok: true, botName: "NetGripCasaBot", chatName: "Familia García" };
   },
   telegramTest: async () => { await wait(400, 900); return { ok: true } },
+
+  // netpulse (agente embebido): estado sano y push reciente en la demo
+  netpulse: () => get({
+    ...state.netpulse,
+    status: { running: true, pushOk: true, lastPush: new Date(Date.now() - 15_000).toISOString(), lastError: "" },
+  }),
+  setNetPulse: async (cfg) => {
+    await wait(800, 1500);
+    state.netpulse = {
+      enabled: cfg.enabled,
+      configured: cfg.enabled ? true : state.netpulse.configured,
+      server: cfg.server || state.netpulse.server,
+      slug: cfg.slug || state.netpulse.slug,
+    };
+    return {
+      ...state.netpulse,
+      status: { running: cfg.enabled, pushOk: cfg.enabled, lastPush: cfg.enabled ? new Date().toISOString() : null, lastError: "" },
+    };
+  },
 
   // wifi
   wifi: () => get({ interfaces: state.wifi }),
