@@ -70,31 +70,28 @@ export function UpdateCard({ board, update, onChange, onPackagesChange }: {
     : update ? `OpenWrt ${update.version_from}` : "…";
 
   const blocked = update ? !update.safe_to_proceed && !update.safe_with_reinstall : false;
-  const updateLabel = update?.same_version
-    ? t("update.upgradePackages", { count: update?.out_of_date_packages ?? 0 })
-    : t("update.updateNow");
+  // Firmware upgrade only (#155): the packages branch (same_version) is
+  // intentionally hidden - package management belongs to LuCI / CLI.
+  const showUpgrade = update !== undefined && update.available && !update.same_version;
 
   return (
     <Card index={0} title={t("update.title")} icon={Download}
-      iconTone={update?.available ? "warn" : "ok"} help="firmware">
+      iconTone={showUpgrade ? "warn" : "ok"} help="firmware">
       {update === undefined ? (
         <SkeletonRows rows={3} />
       ) : update.owut_present === false ? (
         <Banner tone="warn">{t("update.noOwut")}</Banner>
-      ) : !update.available ? (
-        /* al día */
+      ) : !showUpgrade ? (
+        /* al día (firmware-wise) */
         <div className="flex flex-col items-start gap-2.5">
           <div className="flex items-center gap-3">
             <IconTile icon={CircleCheck} tone="ok" size={44} />
             <div>
               <p className="text-h2">{t("update.heroUpToDate")}</p>
-              <p className="text-caption text-muted mt-0.5">{currentCaption}</p>
-            </div>
+            <p className="text-caption text-muted mt-0.5">{currentCaption}</p>
           </div>
-          {update.out_of_date_packages > 0 && (
-            <p className="text-small text-muted">{t("update.outOfDate", { count: update.out_of_date_packages })}</p>
-          )}
-          <Button variant="ghost" size="sm" onClick={recheck} loading={checking}>{t("update.checkNow")}</Button>
+        </div>
+        <Button variant="ghost" size="sm" onClick={recheck} loading={checking}>{t("update.checkNow")}</Button>
         </div>
       ) : (
         /* hay actualización: héroe warn (design-rev2 §5) + detalles */
@@ -113,9 +110,6 @@ export function UpdateCard({ board, update, onChange, onPackagesChange }: {
               ))}
             </ul>
           )}
-          {update.out_of_date_packages > 0 && (
-            <p className="text-caption text-muted">{t("update.outOfDate", { count: update.out_of_date_packages })}</p>
-          )}
           {!update.safe_to_proceed && (
             <Banner tone="warn">
               {update.missing_packages.length > 0
@@ -126,7 +120,7 @@ export function UpdateCard({ board, update, onChange, onPackagesChange }: {
           )}
           <div className="flex items-center gap-2">
             <Button onClick={() => setConfirm(true)} disabled={blocked || phase !== "idle"}>
-              {updateLabel}
+              {t("update.updateNow")}
             </Button>
             <Button variant="ghost" size="sm" onClick={recheck} loading={checking}>{t("update.checkNow")}</Button>
           </div>
@@ -143,7 +137,7 @@ export function UpdateCard({ board, update, onChange, onPackagesChange }: {
         onConfirm={start}
         title={t("update.confirmTitle")}
         consequence={t("update.confirmConsequence")}
-        confirmLabel={updateLabel}
+        confirmLabel={t("update.updateNow")}
       />
 
       <WaitOverlay
