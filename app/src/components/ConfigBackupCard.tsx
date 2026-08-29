@@ -4,7 +4,7 @@ import { CloudUpload } from "lucide-react";
 import { api } from "../api";
 import { Button, Card, Input } from "./ui";
 
-export function ConfigBackupCard() {
+export function ConfigBackupCard({ index = 0 }: { index?: number }) {
   const { t } = useTranslation();
   const [serverURL, setServerURL] = useState("");
   const [routerID, setRouterID] = useState("");
@@ -50,7 +50,7 @@ export function ConfigBackupCard() {
   };
 
   return (
-    <Card title={t("backup.title")} icon={CloudUpload}>
+    <Card index={index} title={t("backup.title")} icon={CloudUpload}>
       <p className="text-xs text-muted mb-3">{t("backup.description")}</p>
       <div className="space-y-2">
         <div>
@@ -89,7 +89,7 @@ export function ConfigBackupCard() {
         </Button>
         <Button variant="secondary" onClick={push} disabled={pushing || !serverURL || !routerID} icon={CloudUpload}>
           {pushing ? t("backup.pushing") : t("backup.pushNow")}
-        </button>
+        </Button>
       </div>
     </Card>
   );

@@ -49,6 +49,7 @@ export function System({ board, update: _update, onUpdateChange: _onUpdateChange
         <ModeCard index={0} />
         <IdentityCard index={1} board={board} />
         {!NETPULSE_CARD_HIDDEN && <NetPulseCard index={2} />}
+        <ConfigBackupCard index={3} />
       </section>
     </div>
   );
