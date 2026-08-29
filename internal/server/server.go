@@ -164,6 +164,11 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/storage", s.requireAuth(s.handleStorageSet))
 	s.mux.HandleFunc("GET /api/mac-acl", s.requireAuth(s.handleMACACLGet))
 	s.mux.HandleFunc("POST /api/mac-acl", s.requireAuth(s.handleMACACLSet))
+	s.mux.HandleFunc("GET /api/push-config", s.requireAuth(s.handlePushConfigGet))
+	s.mux.HandleFunc("POST /api/push-config", s.requireAuth(s.handlePushConfigSet))
+	s.mux.HandleFunc("POST /api/push-config/push", s.requireAuth(s.handlePushSnapshot))
+	s.mux.HandleFunc("POST /api/executor/apply", s.handleExecutorApply)
+	s.mux.HandleFunc("GET /api/executor/token", s.requireAuth(s.handleExecutorToken))
 	return s
 }
 
@@ -1585,4 +1590,48 @@ func (s *Server) handleMACACLSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "applied"})
+}
+
+func (s *Server) handleExecutorToken(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]string{"token": modules.GetExecutorToken()})
+}
+
+func (s *Server) handleExecutorApply(w http.ResponseWriter, r *http.Request) {
+	auth := r.Header.Get("Authorization")
+	if !strings.HasPrefix(auth, "Bearer ") || !modules.ValidateExecutorToken(strings.TrimPrefix(auth, "Bearer ")) {
+		writeError(w, http.StatusUnauthorized, "invalid or missing executor token")
+		return
+	}
+	var req modules.ExecutorRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	resp := modules.ExecuteOps(req)
+	if !resp.Ok {
+		writeJSON(w, resp)
+		return
+	}
+	writeJSON(w, resp)
+}
+
+func (s *Server) handlePushConfigGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.GetPushConfig())
+}
+
+func (s *Server) handlePushConfigSet(w http.ResponseWriter, r *http.Request) {
+	var cfg modules.PushConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := modules.SetPushConfig(cfg); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "saved"})
+}
+
+func (s *Server) handlePushSnapshot(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.PushLatestSnapshot())
 }
