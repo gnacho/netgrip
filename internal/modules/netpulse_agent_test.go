@@ -375,7 +375,8 @@ func TestRecheckCleansReinstalledStandalone(t *testing.T) {
 		t.Fatal("estado limpio no debe reportar acted")
 	}
 
-	// Alguien reinstala el standalone encima.
+	// Alguien reinstala el standalone encima (env incluido).
+	mustWrite(t, p.standaloneEnv, sampleStandaloneEnv)
 	mustWrite(t, p.initScript, "#!/bin/sh\n")
 	mustWrite(t, p.agentBin, "fake")
 	mustWrite(t, p.watchdogBin, "fake")
@@ -389,9 +390,10 @@ func TestRecheckCleansReinstalledStandalone(t *testing.T) {
 		t.Fatal("la reinstalación debe detectarse (acted=true)")
 	}
 	for path, what := range map[string]string{
-		p.initScript:  "init.d",
-		p.agentBin:    "binario",
-		p.watchdogBin: "watchdog",
+		p.initScript:    "init.d",
+		p.agentBin:      "binario",
+		p.watchdogBin:   "watchdog",
+		p.standaloneEnv: "env standalone",
 	} {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			t.Fatalf("%s reaparecido debe desaparecer tras el recheck", what)

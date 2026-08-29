@@ -317,10 +317,11 @@ func adoptNetPulseStandalone(p netpulsePaths) (bool, error) {
 
 	if envExists {
 		// Migración previa (o config creada desde la UI): retirar restos del
-		// standalone si volvieran a aparecer. El env viejo NO se toca si no
-		// se consumió en esta pasada.
+		// standalone si volvieran a aparecer. El env standalone se retira
+		// junto al resto (la reinstalación lo trae de nuevo); si lo único
+		// que hay es un env suelto sin artefactos, se conserva.
 		if netPulseStandaloneArtifacts(p) {
-			cleanupNetPulseStandalone(p, false)
+			cleanupNetPulseStandalone(p, fileExists(p.standaloneEnv))
 			return true, nil
 		}
 	}
