@@ -44,7 +44,7 @@ export interface HealthInput {
  * Health score §8.1 de design.md. Función pura (testeable) calculada en el
  * cliente solo con datos ya disponibles en el Shell.
  */
-export function computeHealthScore({ system, wan, drift, update, packages, mode, wireless }: HealthInput): HealthScore {
+export function computeHealthScore({ system, wan, drift, mode, wireless }: HealthInput): HealthScore {
   let score = 100;
   const reasons: HealthReason[] = [];
 
@@ -98,11 +98,8 @@ export function computeHealthScore({ system, wan, drift, update, packages, mode,
     reasons.push({ key: "drift", page: "overview", anchor: "drift" });
   }
 
-  // Mantenimiento pendiente
-  if (update?.available || (packages && packages.length > 0)) {
-    score -= 5;
-    reasons.push({ key: "update", page: "system" });
-  }
+  // Mantenimiento pendiente: updates del sistema NO cuentan (política: NetGrip
+  // no gestiona actualizaciones; esa superficie vive en LuCI/CLI).
 
   // Todas las radios apagadas
   if (mode?.has_wifi && wireless && wireless.length > 0 && wireless.every((r) => !r.up)) {
@@ -120,9 +117,9 @@ export function computeHealthScore({ system, wan, drift, update, packages, mode,
 
 /** Hook §8: mismo cálculo, memoizado sobre los datos del Shell. */
 export function useHealthScore(input: HealthInput): HealthScore {
-  const { system, wan, drift, update, packages, mode, wireless } = input;
+  const { system, wan, drift, mode, wireless } = input;
   return useMemo(
-    () => computeHealthScore({ system, wan, drift, update, packages, mode, wireless }),
-    [system, wan, drift, update, packages, mode, wireless],
+    () => computeHealthScore({ system, wan, drift, mode, wireless }),
+    [system, wan, drift, mode, wireless],
   );
 }
