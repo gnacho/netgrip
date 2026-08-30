@@ -14,11 +14,15 @@ type CableTestResult struct {
 }
 
 type CableTestProbe struct {
-	Applicable bool              `json:"applicable"`
-	Ports      []CableTestResult `json:"ports"`
+	Applicable  bool              `json:"applicable"`
+	MissingTool string            `json:"missing_tool,omitempty"`
+	Ports       []CableTestResult `json:"ports"`
 }
 
 func ProbeCableTest() CableTestProbe {
+	if _, err := exec.LookPath("ethtool"); err != nil {
+		return CableTestProbe{Applicable: false, MissingTool: "ethtool"}
+	}
 	portMap := bridgePorts()
 	if len(portMap) == 0 {
 		return CableTestProbe{Applicable: false}

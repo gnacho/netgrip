@@ -1169,6 +1169,7 @@ export default {
     cableFailsAt: "falla a {{length}}",
     cableUnsupported: "No soportado en esta boca",
     cableNotApplicable: "Este modelo no puede hacer el test de cable.",
+    cableMissingTool: "Instala el paquete '{{tool}}' para poder hacer el test de cable.",
     loopsTitle: "Bucles y switches tontos",
     loopsDesc: "Detecta cables que vuelven al router por otro sitio (un bucle tumba toda la red).",
     loopsRun: "Buscar bucles ahora",

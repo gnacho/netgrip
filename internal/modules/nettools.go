@@ -270,7 +270,7 @@ func DetectLoops() *LoopResult {
 			macPorts[mac] = append(macPorts[mac], port)
 		}
 	}
-	var loops []LoopEntry
+	loops := make([]LoopEntry, 0)
 	hasHub := false
 	wifiPorts := map[string]bool{}
 	for name := range bridgePorts() {

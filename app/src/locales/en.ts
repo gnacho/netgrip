@@ -1168,6 +1168,7 @@ export default {
     cableFailsAt: "fails at {{length}}",
     cableUnsupported: "Not supported on this port",
     cableNotApplicable: "This model can't run the cable test.",
+    cableMissingTool: "Install the package '{{tool}}' to enable the cable test.",
     loopsTitle: "Loops and dumb switches",
     loopsDesc: "Detects cables that find their way back to the router (a loop takes the whole network down).",
     loopsRun: "Look for loops now",
