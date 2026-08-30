@@ -89,6 +89,12 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Título de la pestaña (#159): "nombre del router | NetGrip"; antes del
+  // primer dato de board se queda en "NetGrip" (igual que en el login).
+  useEffect(() => {
+    document.title = board?.hostname ? `${board.hostname} | NetGrip` : "NetGrip";
+  }, [board?.hostname]);
+
   // Error de red §11: reintento automático con backoff (5s, 10s, 30s).
   useEffect(() => {
     if (!loadError) return;
