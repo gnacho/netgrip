@@ -89,6 +89,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/offload", s.requireAuth(s.handleOffloadGet))
 	s.mux.HandleFunc("POST /api/offload", s.requireAuth(s.handleOffloadSet))
 	s.mux.HandleFunc("GET /api/wifi", s.requireAuth(s.handleWifiGet))
+	s.mux.HandleFunc("GET /api/wifi/key", s.requireAuth(s.handleWifiKey))
 	s.mux.HandleFunc("POST /api/wifi", s.requireAuth(s.handleWifiSet))
 	s.mux.HandleFunc("GET /api/lan", s.requireAuth(s.handleLANGet))
 	s.mux.HandleFunc("POST /api/lan", s.requireAuth(s.handleLANSet))
@@ -102,6 +103,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/ethports", s.requireAuth(s.handleEthPorts))
 	s.mux.HandleFunc("GET /api/dawn", s.requireAuth(s.handleDawn))
 	s.mux.HandleFunc("GET /api/clients", s.requireAuth(s.handleClients))
+	s.mux.HandleFunc("GET /api/clients/blocked", s.requireAuth(s.handleClientsBlocked))
 	s.mux.HandleFunc("GET /api/clients/meta", s.requireAuth(s.handleClientMeta))
 	s.mux.HandleFunc("POST /api/clients/meta", s.requireAuth(s.handleSetClientMeta))
 	s.mux.HandleFunc("POST /api/clients/reserve", s.requireAuth(s.handleClientReserve))
@@ -841,6 +843,15 @@ func (s *Server) handleWifiGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, map[string]any{"interfaces": ui})
 }
 
+func (s *Server) handleWifiKey(w http.ResponseWriter, r *http.Request) {
+	section := r.URL.Query().Get("section")
+	if section == "" {
+		writeError(w, http.StatusBadRequest, "section is required")
+		return
+	}
+	writeJSON(w, map[string]any{"key": modules.WifiKey(section)})
+}
+
 func (s *Server) handleWifiSet(w http.ResponseWriter, r *http.Request) {
 	var edit modules.WifiEdit
 	if err := json.NewDecoder(r.Body).Decode(&edit); err != nil {
@@ -963,7 +974,11 @@ func (s *Server) handleDawn(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleClients(w http.ResponseWriter, r *http.Request) {
 	requesterIP, _, _ := strings.Cut(r.RemoteAddr, ":")
-	writeJSON(w, map[string]any{"clients": modules.ListClients(requesterIP), "ts": time.Now().UnixMilli()})
+	writeJSON(w, map[string]any{"clients": modules.ListClients(requesterIP), "bands": modules.AvailableBands(), "ts": time.Now().UnixMilli()})
+}
+
+func (s *Server) handleClientsBlocked(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"blocked": modules.BlockedClients(), "ts": time.Now().UnixMilli()})
 }
 
 func (s *Server) handleClientMeta(w http.ResponseWriter, _ *http.Request) {
@@ -1013,6 +1028,7 @@ func (s *Server) handleClientReserve(w http.ResponseWriter, r *http.Request) {
 type clientBlockRequest struct {
 	MAC     string `json:"mac"`
 	Type    string `json:"type"`
+	Band    string `json:"band,omitempty"`
 	Blocked bool   `json:"blocked"`
 }
 
@@ -1022,7 +1038,7 @@ func (s *Server) handleClientBlock(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	_, rolledBack, err := modules.SetClientBlocked(req.MAC, req.Type, req.Blocked)
+	_, rolledBack, err := modules.SetClientBlocked(req.MAC, req.Type, req.Band, req.Blocked)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return

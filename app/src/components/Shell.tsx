@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftRight, Blocks, Download, HardDrive, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, Smartphone, Wifi, Wrench } from "lucide-react";
+import { ArrowLeftRight, Blocks, ChartColumn, Download, HardDrive, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, Smartphone, Wifi, Wrench } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
 import type { Board, Client, DawnAP, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, ModeProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
@@ -18,8 +18,9 @@ import { LanPage } from "../pages/Lan";
 import { ToolsPage } from "../pages/Tools";
 import { FleetPage } from "../pages/Fleet";
 import { StoragePage } from "../pages/Storage";
+import { DpiPage } from "../pages/Dpi";
 
-export type Page = "overview" | "clients" | "coverage" | "wifi" | "lan" | "services" | "ports" | "tools" | "fleet" | "storage" | "system";
+export type Page = "overview" | "clients" | "coverage" | "wifi" | "lan" | "services" | "ports" | "tools" | "fleet" | "storage" | "system" | "dpi";
 
 const NAV_ICONS: Record<Page, LucideIcon> = {
   overview: LayoutDashboard,
@@ -33,12 +34,13 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
   storage: HardDrive,
   fleet: Server,
   system: Settings,
+  dpi: ChartColumn,
 };
 
 /** Nav agrupada §7.1 (tareas, nombres llanos §7.2). */
 const NAV_GROUPS: { group: string | null; items: Page[] }[] = [
   { group: null, items: ["overview"] },
-  { group: "nav.group.network", items: ["clients", "coverage", "wifi", "lan", "ports"] },
+  { group: "nav.group.network", items: ["clients", "coverage", "wifi", "lan", "ports", "dpi"] },
   { group: "nav.group.services", items: ["services"] },
   { group: "nav.group.router", items: ["tools", "storage", "fleet", "system"] },
 ];
@@ -311,6 +313,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
       {activePage === "storage" && (
         <StoragePage />
       )}
+      {activePage === "dpi" && <DpiPage />}
       {activePage === "system" && (
         <System board={board} update={update} onUpdateChange={setUpdate} onLogout={onLogout} />
       )}

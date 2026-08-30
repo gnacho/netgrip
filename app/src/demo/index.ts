@@ -90,6 +90,7 @@ function nextNetdev() {
 }
 
 let clientsTs = Date.now();
+const DEMO_BANDS = ["2g", "5g"];
 function nextClients() {
   const ts = Date.now();
   const dt = Math.max(0.5, (ts - clientsTs) / 1000);
@@ -100,7 +101,7 @@ function nextClients() {
     c.rx_bytes += Math.round(6e5 * factor * noise * dt);
     c.tx_bytes += Math.round(1.2e5 * factor * (2 - noise) * dt);
   }
-  return { ts, clients: state.clients };
+  return { ts, clients: state.clients, bands: DEMO_BANDS };
 }
 
 export const demoApi: typeof api = {
@@ -118,16 +119,38 @@ export const demoApi: typeof api = {
   wireless: () => get(state.wireless),
   leases: () => get(D.demoLeases),
   clients: async () => { await wait(150, 400); return nextClients(); },
+  blockedClients: async () => {
+    await wait(80, 200);
+    const blocked = state.clients
+      .filter((c) => c.blocked || (c.blocked_on?.length ?? 0) > 0)
+      .map((c): import("../types").BlockedClient => ({
+        mac: c.mac,
+        type: c.type === "cable" ? "cable" : "wifi",
+        bands: c.blocked_on,
+        blocked_everywhere: !!c.blocked,
+      }));
+    return { blocked, ts: Date.now() };
+  },
   reserveClient: async (mac, _ip, reserved) => {
     await wait(800, 1200);
     const c = state.clients.find((x) => x.mac === mac);
     if (c) c.reserved = reserved;
     return { status: "ok" };
   },
-  blockClient: async (mac, _type, blocked) => {
+  blockClient: async (mac, _type, blocked, band) => {
     await wait(800, 1200);
     const c = state.clients.find((x) => x.mac === mac);
-    if (c) c.blocked = blocked;
+    if (!c) return { status: "ok" };
+    if (band) {
+      const on = new Set(c.blocked_on ?? []);
+      if (blocked) on.add(band); else on.delete(band);
+      const list = [...on].sort();
+      c.blocked_on = list.length ? list : undefined;
+      c.blocked = DEMO_BANDS.every((b) => on.has(b));
+    } else {
+      c.blocked = blocked;
+      c.blocked_on = blocked ? [...DEMO_BANDS] : undefined;
+    }
     return { status: "ok" };
   },
   clientMeta: async () => {
@@ -411,6 +434,7 @@ export const demoApi: typeof api = {
 
   // wifi
   wifi: () => get({ interfaces: state.wifi }),
+  wifiKey: async () => { await wait(80, 200); return { key: "demo-passkey-1234" }; },
   setWifi: async (edit) => {
     const w = state.wifi.find((x) => x.section === edit.section);
     if (w) {
