@@ -151,6 +151,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/selfupdate/status", s.requireAuth(s.handleSelfUpdateStatus))
 	s.mux.HandleFunc("POST /api/selfupdate", s.requireAuth(s.handleSelfUpdateApply))
 	s.mux.HandleFunc("GET /api/wizard", s.requireAuth(s.handleWizardGet))
+	s.mux.HandleFunc("GET /api/wizard/setup", s.requireAuth(s.handleWizardSetupGet))
+	s.mux.HandleFunc("POST /api/wizard/setup", s.requireAuth(s.handleWizardSetupPost))
 	s.mux.HandleFunc("POST /api/wizard/packages", s.requireAuth(s.handleWizardPackages))
 	s.mux.HandleFunc("POST /api/wizard/complete", s.requireAuth(s.handleWizardComplete))
 	s.mux.HandleFunc("GET /api/drift", s.requireAuth(s.handleDriftGet))
@@ -622,6 +624,37 @@ func (s *Server) handleOptionalPackagesGet(w http.ResponseWriter, _ *http.Reques
 
 type wizardPackagesRequest struct {
 	IDs []string `json:"ids"`
+}
+
+func (s *Server) handleWizardSetupGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{
+		"manager":  modules.DetectPkgManager(),
+		"groups":   modules.ProbeSetupPackages(),
+	})
+}
+
+type wizardSetupRequest struct {
+	Mode   string   `json:"mode"`
+	Groups []string `json:"groups"`
+}
+
+func (s *Server) handleWizardSetupPost(w http.ResponseWriter, r *http.Request) {
+	var req wizardSetupRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	mode := modules.SetupMode(req.Mode)
+	installed, err := modules.InstallSetupPackages(mode, req.Groups)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if err := modules.WizardSetupChoice(mode); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"installed": installed})
 }
 
 func (s *Server) handleWizardPackages(w http.ResponseWriter, r *http.Request) {

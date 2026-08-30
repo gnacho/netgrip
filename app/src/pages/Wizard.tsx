@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 import { api } from "../api";
 import type {
   GuestProbe, IoTProbe, ModeProbe, OptionalPackage, WGProbe, WifiUI, WizardState,
+  WizardSetupProbe,
 } from "../types";
 import { Banner, Button, SkeletonRows, Stepper } from "../components/ui";
 import { Logo } from "../components/ui/illustrations";
@@ -31,6 +32,7 @@ export function Wizard({ onDone }: { onDone: () => void }) {
   const [iot, setIot] = useState<IoTProbe>();
   const [wg, setWg] = useState<WGProbe>();
   const [optPkgs, setOptPkgs] = useState<OptionalPackage[]>();
+  const [setup, setSetup] = useState<WizardSetupProbe>();
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [step, setStep] = useState<Step>("welcome");
@@ -42,7 +44,7 @@ export function Wizard({ onDone }: { onDone: () => void }) {
     setLoadError(false);
     try {
       // api.mode() es opcional: si el backend no lo expone, el wizard sigue.
-      const [ws, mp, wf, g, i, w, op] = await Promise.all([
+      const [ws, mp, wf, g, i, w, op, sp] = await Promise.all([
         api.wizardState(),
         api.mode().catch(() => undefined),
         api.wifi(),
@@ -50,6 +52,7 @@ export function Wizard({ onDone }: { onDone: () => void }) {
         api.iotwifi(),
         api.wireguard(),
         api.optionalPackages().catch(() => undefined),
+        api.wizardSetup().catch(() => undefined),
       ]);
       setWstate(ws);
       setMode(mp);
@@ -58,6 +61,7 @@ export function Wizard({ onDone }: { onDone: () => void }) {
       setIot(i);
       setWg(w);
       setOptPkgs(op?.packages);
+      setSetup(sp);
       setLoaded(true);
     } catch {
       setLoadError(true);
@@ -132,16 +136,18 @@ export function Wizard({ onDone }: { onDone: () => void }) {
       case "welcome":
         return <WelcomeStep onStart={next} onSkipAll={finish} />;
       case "setup":
-        return (
+        return setup ? (
           <SetupDependenciesStep
+            probe={setup}
             onBack={prev}
-            onNext={() => {
-              setRecord((r) => ({ ...r, pkgs: [] }));
+            onInstall={async (mode, groups) => {
+              await api.installWizardSetup(mode, groups);
+              setSetup((s) => s ? { ...s, groups: s.groups.map((g) => ({ ...g, packages: [] })) } : s);
               next();
             }}
             onSkip={next}
           />
-        );
+        ) : null;
       case "mode":
         return mode ? (
           <ModeStep

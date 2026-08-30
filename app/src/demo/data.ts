@@ -401,6 +401,16 @@ export const demoSelfUpdate: T.SelfUpdateCheck = {
 
 export const demoWizard: T.WizardState = { completed: true, mode: "router" };
 
+export const demoWizardSetup: T.WizardSetupProbe = {
+  manager: "apk",
+  groups: [
+    { id: "core", title_key: "wizard.setup.required", packages: ["rpcd-mod-file"] },
+    { id: "netpulse", title_key: "wizard.setup.netpulse", packages: ["tailscale"] },
+    { id: "diagnostics", title_key: "wizard.setup.diagnostics", packages: ["ethtool-full", "tcpdump-mini"] },
+    { id: "extras", title_key: "wizard.setup.extras", packages: [] },
+  ],
+};
+
 export const demoIgmp: T.IGMPProbe = { applicable: true, enabled: true };
 
 export const demoLoops: T.LoopResult = { loops: [], has_hub: false };

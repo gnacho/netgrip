@@ -352,6 +352,14 @@ const realApi = {
     request<import("./types").SelfUpdateStatus>("/api/selfupdate/status"),
   wizardState: () =>
     request<import("./types").WizardState>("/api/wizard"),
+  wizardSetup: () =>
+    request<import("./types").WizardSetupProbe>("/api/wizard/setup"),
+  installWizardSetup: (mode: string, groups?: string[]) =>
+    request<{ installed: string[] }>("/api/wizard/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode, groups }),
+    }),
   wizardComplete: () =>
     request<{ status: string }>("/api/wizard/complete", { method: "POST" }),
   drift: () =>

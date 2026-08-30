@@ -427,6 +427,17 @@ export interface WizardState {
   mode: "router" | "ap";
 }
 
+export interface WizardSetupGroup {
+  id: string;
+  title_key: string;
+  packages: string[];
+}
+
+export interface WizardSetupProbe {
+  manager: "apk" | "opkg";
+  groups: WizardSetupGroup[];
+}
+
 export interface DriftLine {
   kind: "added" | "removed";
   text: string;

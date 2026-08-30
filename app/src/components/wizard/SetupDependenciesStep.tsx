@@ -1,47 +1,38 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Check, ChevronDown, ChevronUp, Info, ListChecks, Package, ShieldCheck,
+  Check, ChevronDown, ChevronUp, Download, Info, ListChecks, Package, ShieldCheck,
   Sparkles, Wrench,
 } from "lucide-react";
 import { Banner, Pill } from "../ui";
 import { IlluRouter } from "../ui/illustrations";
+import type { WizardSetupGroup, WizardSetupProbe } from "../../types";
 import { Reveal, StepFooter, StepShell } from "./common";
 
 type InstallMode = "full" | "minimal" | "custom";
 
-interface PkgGroup {
-  id: string;
-  title: string;
-  pkgs: string[];
-}
-
-const REQUIRED: PkgGroup = {
-  id: "required",
-  title: "wizard.setup.required",
-  pkgs: ["curl", "ca-certificates", "rpcd-mod-file"],
-};
-
-const RECOMMENDED: PkgGroup[] = [
-  { id: "netpulse", title: "wizard.setup.netpulse", pkgs: ["tailscale", "wireguard-tools"] },
-  { id: "diagnostics", title: "wizard.setup.diagnostics", pkgs: ["ethtool-full", "tcpdump-mini"] },
-  { id: "extras", title: "wizard.setup.extras", pkgs: ["sqm-scripts", "nlbwmon"] },
-];
-
 /**
- * Mockup del paso inicial de preparación del router.
+ * Paso inicial de preparación del router.
  * Ofrece tres niveles: recomendado, mínimo y personalizado.
- * Las acciones reales (apk/opkg) vendrán en la implementación final.
  */
-export function SetupDependenciesStep({ onNext, onBack, onSkip }: {
-  onNext: () => void;
+export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
+  probe: WizardSetupProbe;
+  onInstall: (mode: InstallMode, groups: string[]) => void;
   onBack: () => void;
   onSkip: () => void;
 }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<InstallMode>("full");
   const [showDetails, setShowDetails] = useState(false);
-  const [busy] = useState(false); // reservado para la acción real
+  const [busy, setBusy] = useState(false);
+
+  const groupByID = (id: string) => probe.groups.find((g) => g.id === id);
+  const selectedGroupIDs = mode === "minimal"
+    ? ["core"]
+    : mode === "full"
+      ? probe.groups.map((g) => g.id)
+      : [];
+  const selectedPkgs = selectedGroupIDs.flatMap((id) => groupByID(id)?.packages ?? []);
 
   const modes: { id: InstallMode; icon: typeof Package; title: string; desc: string; pill?: string }[] = [
     {
@@ -65,11 +56,21 @@ export function SetupDependenciesStep({ onNext, onBack, onSkip }: {
     },
   ];
 
-  const selectedPkgs = mode === "minimal"
-    ? REQUIRED.pkgs
-    : mode === "full"
-      ? [...REQUIRED.pkgs, ...RECOMMENDED.flatMap((g) => g.pkgs)]
-      : [];
+  const install = async () => {
+    setBusy(true);
+    try {
+      await onInstall(mode, selectedGroupIDs);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const allInstalled = selectedPkgs.length === 0;
+  const nextLabel = mode === "custom"
+    ? t("wizard.setup.customize")
+    : allInstalled
+      ? t("wizard.continue")
+      : t("wizard.setup.installNow");
 
   return (
     <StepShell
@@ -86,9 +87,10 @@ export function SetupDependenciesStep({ onNext, onBack, onSkip }: {
           </Banner>
           <StepFooter
             onBack={onBack}
-            onNext={onNext}
+            onNext={install}
             busy={busy}
-            nextLabel={mode === "custom" ? t("wizard.setup.customize") : t("wizard.setup.installNow")}
+            nextDisabled={mode === "custom"}
+            nextLabel={nextLabel}
             onSkip={onSkip}
           />
         </div>
@@ -106,6 +108,7 @@ export function SetupDependenciesStep({ onNext, onBack, onSkip }: {
                 role="radio"
                 aria-checked={active}
                 onClick={() => setMode(m.id)}
+                disabled={busy}
                 className={`flex items-start gap-3 rounded-xl border p-4 text-left ring-focus transition-all duration-[var(--dur-fast)]
                   ${active
                     ? "border-accent bg-accent-soft shadow-sm"
@@ -131,31 +134,29 @@ export function SetupDependenciesStep({ onNext, onBack, onSkip }: {
           })}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowDetails((s) => !s)}
-          className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface p-3 text-left text-small font-medium text-text hover:bg-surface-2 transition-colors"
-        >
-          <span className="flex items-center gap-2">
-            <Package size={16} className="text-faint" />
-            {mode === "custom"
-              ? t("wizard.setup.seeCatalog")
-              : t("wizard.setup.seeWhatInstalls", { count: selectedPkgs.length })}
-          </span>
-          {showDetails ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
+        {mode !== "custom" && (
+          <button
+            type="button"
+            onClick={() => setShowDetails((s) => !s)}
+            className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-surface p-3 text-left text-small font-medium text-text hover:bg-surface-2 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Package size={16} className="text-faint" />
+              {allInstalled
+                ? t("wizard.continue")
+                : t("wizard.setup.seeWhatInstalls", { count: selectedPkgs.length })}
+            </span>
+            {showDetails ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+        )}
 
         <Reveal open={showDetails}>
           <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
-            <PkgList group={REQUIRED} included={selectedPkgs} />
-            {mode !== "minimal" && RECOMMENDED.map((g) => (
-              <PkgList key={g.id} group={g} included={selectedPkgs} />
-            ))}
-            {mode === "custom" && (
-              <div className="rounded-lg border border-dashed border-border bg-bg p-4 text-center text-small text-muted">
-                {t("wizard.setup.customHint")}
-              </div>
-            )}
+            {selectedGroupIDs.map((id) => {
+              const g = groupByID(id);
+              if (!g) return null;
+              return <PkgList key={id} group={g} manager={probe.manager} />;
+            })}
           </div>
         </Reveal>
 
@@ -168,26 +169,33 @@ export function SetupDependenciesStep({ onNext, onBack, onSkip }: {
   );
 }
 
-function PkgList({ group, included }: { group: PkgGroup; included: string[] }) {
+function PkgList({ group, manager }: { group: WizardSetupGroup; manager: string }) {
   const { t } = useTranslation();
+  const command = manager === "apk" ? `apk add ${group.packages.join(" ")}` : `opkg install ${group.packages.join(" ")}`;
   return (
     <div>
-      <h3 className="text-small font-medium text-text mb-2">{t(group.title)}</h3>
-      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {group.pkgs.map((pkg) => {
-          const checked = included.includes(pkg);
-          return (
-            <li
-              key={pkg}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-small
-                ${checked ? "border-ok/30 bg-ok/5 text-text" : "border-border bg-surface-2 text-faint"}`}
-            >
-              <Check size={14} className={checked ? "text-ok" : "text-border-strong"} />
-              <span className="font-mono">{pkg}</span>
-            </li>
-          );
-        })}
-      </ul>
+      <h3 className="text-small font-medium text-text mb-2">{t(group.title_key)}</h3>
+      {group.packages.length === 0 ? (
+        <p className="text-small text-ok flex items-center gap-1.5">
+          <Check size={14} />
+          {t("wizard.packages.installed")}
+        </p>
+      ) : (
+        <>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {group.packages.map((pkg) => (
+              <li
+                key={pkg}
+                className="flex items-center gap-2 rounded-lg border border-ok/30 bg-ok/5 px-3 py-2 text-small text-text"
+              >
+                <Download size={14} className="text-ok" />
+                <span className="font-mono">{pkg}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 font-mono text-caption text-faint">{command}</p>
+        </>
+      )}
     </div>
   );
 }
