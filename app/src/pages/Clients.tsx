@@ -45,6 +45,28 @@ function SignalBars({ signal }: { signal?: number }) {
   );
 }
 
+const BAND_KEYS: Record<string, string> = { "2g": "clients.band2g", "5g": "clients.band5g", "6g": "clients.band6g" };
+
+/** Pill de bloqueo (#160): total (todas las bandas) vs parcial (p. ej. solo 5 GHz). */
+function BlockedPill({ c }: { c: Client }) {
+  const { t } = useTranslation();
+  if (c.blocked) return <Pill tone="danger">{t("clients.blocked")}</Pill>;
+  if (c.blocked_on?.length) {
+    const bands = c.blocked_on.map((b) => t(BAND_KEYS[b] ?? b)).join(" + ");
+    return <Pill tone="warn">{t("clients.blockedOn", { bands })}</Pill>;
+  }
+  return null;
+}
+
+function blockedDetail(c: Client, t: (k: string, o?: Record<string, string>) => string): string {
+  if (c.blocked) return t("clients.on");
+  if (c.blocked_on?.length) {
+    const bands = c.blocked_on.map((b) => t(BAND_KEYS[b] ?? b)).join(" + ");
+    return t("clients.blockedOn", { bands });
+  }
+  return t("clients.off");
+}
+
 function connectionKey(c: Client): string {
   return c.type === "wifi5" ? "5G" : c.type === "wifi24" ? "2.4G" : "Cable";
 }
@@ -195,7 +217,7 @@ export function ClientsPage() {
           <span className="flex items-center gap-1.5">
             <span className="truncate text-body font-medium">{c.name || <span className="font-mono text-small">{c.mac}</span>}</span>
             {c.self && <Pill tone="accent">{t("overview.thisDevice")}</Pill>}
-            {c.blocked && <Pill tone="danger">{t("clients.blocked")}</Pill>}
+            <BlockedPill c={c} />
             {c.reserved && <Pill tone="muted">{t("overview.fixed")}</Pill>}
           </span>
           <span className="block text-caption text-muted">
@@ -464,7 +486,7 @@ function DetailClientModal({ client, rate, onClose }: {
           <DetailRow label={t("clients.reserved")}
             value={client.reserved ? t("clients.on") : t("clients.off")} />
           <DetailRow label={t("clients.block")}
-            value={client.blocked ? t("clients.on") : t("clients.off")} />
+            value={blockedDetail(client, t)} />
           <DetailRow label={t("clients.ip")} value={client.ip ?? "—"} mono />
         </div>
       </div>

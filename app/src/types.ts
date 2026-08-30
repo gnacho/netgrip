@@ -364,6 +364,7 @@ export interface Client {
   reserved: boolean;
   reservable: boolean;
   blocked: boolean;
+  blocked_on?: string[];
   blockable: boolean;
 }
 

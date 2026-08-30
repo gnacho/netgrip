@@ -37,10 +37,10 @@ export function useTheme() {
     return () => mq.removeEventListener("change", handler);
   }, [choice]);
 
+  // Toggle binario (#158): alterna claro/oscuro. Desde "auto" salta al
+  // opuesto del tema efectivo, para que un clic siempre cambie algo visible.
   const toggle = useCallback(() => {
-    const order: ThemeChoice[] = ["light", "auto", "dark"];
-    const i = order.indexOf(choice);
-    apply(order[(i + 1) % 3]);
+    apply(resolvedDark(choice) ? "light" : "dark");
   }, [choice, apply]);
 
   return { theme: choice, isDark: resolvedDark(choice), setTheme: apply, toggle };

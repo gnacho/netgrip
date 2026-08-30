@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CircleCheck, Download } from "lucide-react";
 import { api } from "../../api";
-import type { Board, PkgUpgrade, UpdateCheck } from "../../types";
+import type { Board, UpdateCheck } from "../../types";
 import { Banner, Button, Card, ConfirmDialog, IconTile, SkeletonRows, useToast } from "../ui";
 import { WaitOverlay, useMeBack } from "./WaitOverlay";
 
@@ -17,11 +17,10 @@ function plainWarning(w: string, t: (k: string) => string): string {
   return w;
 }
 
-export function UpdateCard({ board, update, onChange, onPackagesChange }: {
+export function UpdateCard({ board, update, onChange }: {
   board: Board | undefined;
   update: UpdateCheck | undefined;
   onChange: (u: UpdateCheck) => void;
-  onPackagesChange: (p: PkgUpgrade[]) => void;
 }) {
   const { t } = useTranslation();
   const { push } = useToast();
@@ -45,7 +44,6 @@ export function UpdateCard({ board, update, onChange, onPackagesChange }: {
     push({ tone: "ok", text: t("update.doneToast") });
     // refresco para que el badge del Shell quede coherente
     api.updateCheck().then(onChange).catch(() => {});
-    api.packages().then((r) => onPackagesChange(r.upgradable)).catch(() => {});
   };
 
   // sondeo /api/me cada 5 s (sigue aunque el overlay pase a segundo plano)

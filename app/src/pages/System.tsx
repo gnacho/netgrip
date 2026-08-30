@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Board, PkgUpgrade, UpdateCheck } from "../types";
+import type { Board, UpdateCheck } from "../types";
 import { SecurityCard } from "../components/system/SecurityCard";
 import { RemoteAccessCard } from "../components/system/RemoteAccessCard";
 import { AccessCard } from "../components/system/AccessCard";
@@ -9,6 +9,7 @@ import { IdentityCard } from "../components/system/IdentityCard";
 import { NetPulseCard } from "../components/system/NetPulseCard";
 import { ConfigBackupCard } from "../components/ConfigBackupCard";
 import { UpdateCard } from "../components/system/UpdateCard";
+import { OptionsCard } from "../components/system/OptionsCard";
 import { NetPulseStandaloneBanner, NetPulseStatusChip } from "../components/system/NetPulseStatus";
 import { useTranslation } from "react-i18next";
 
@@ -22,12 +23,10 @@ function GroupLabel({ children }: { children: ReactNode }) {
   return <p className="text-eyebrow text-faint mb-2 animate-fade-up">{children}</p>;
 }
 
-export function System({ board, update, onUpdateChange, packages: _packages, onPackagesChange, onLogout }: {
+export function System({ board, update, onUpdateChange, onLogout }: {
   board: Board | undefined;
   update: UpdateCheck | undefined;
   onUpdateChange: (u: UpdateCheck) => void;
-  packages: PkgUpgrade[] | undefined;
-  onPackagesChange: (p: PkgUpgrade[]) => void;
   onLogout: () => void;
 }) {
   const { t } = useTranslation();
@@ -62,8 +61,14 @@ export function System({ board, update, onUpdateChange, packages: _packages, onP
           board={board}
           update={update}
           onChange={onUpdateChange}
-          onPackagesChange={onPackagesChange}
         />
+      </section>
+
+      {/* Opciones (#158): preferencias de la interfaz (idioma, densidad,
+          tema). La barra superior solo conserva el toggle rápido de tema. */}
+      <section className="flex flex-col gap-[var(--card-gap)]">
+        <GroupLabel>{t("system.groupOptions")}</GroupLabel>
+        <OptionsCard index={0} />
       </section>
     </div>
   );

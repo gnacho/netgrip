@@ -3,9 +3,9 @@ import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import { ArrowLeftRight, Blocks, Download, HardDrive, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, Smartphone, Wifi, Wrench } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
-import type { Board, Client, DawnAP, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, ModeProbe, OVPNProbe, PkgUpgrade, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
+import type { Board, Client, DawnAP, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, ModeProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
-import { Badge, Banner, Button, DensityToggle, Drawer, LangToggle, Pill, StatusDot, ThemeToggle, ToastProvider } from "./ui";
+import { Badge, Banner, Button, Drawer, Pill, StatusDot, ThemeToggle, ToastProvider } from "./ui";
 import { Logo } from "./ui/illustrations";
 import { Overview } from "../pages/Overview";
 import { CoveragePage } from "../pages/Coverage";
@@ -64,7 +64,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   const [ethports, setEthports] = useState<EthPort[]>();
   const [dawnAps, setDawnAps] = useState<DawnAP[]>();
   const [dawnError, setDawnError] = useState(false);
-  const [packages, setPackages] = useState<PkgUpgrade[]>();
   const [selfUpdate, setSelfUpdate] = useState<SelfUpdateCheck>();
   const [drift, setDrift] = useState<DriftProbe>();
   const [storage, setStorage] = useState<StorageProbe>();
@@ -90,6 +89,12 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Título de la pestaña (#159): "nombre del router | NetGrip"; antes del
+  // primer dato de board se queda en "NetGrip" (igual que en el login).
+  useEffect(() => {
+    document.title = board?.hostname ? `${board.hostname} | NetGrip` : "NetGrip";
+  }, [board?.hostname]);
+
   // Error de red §11: reintento automático con backoff (5s, 10s, 30s).
   useEffect(() => {
     if (!loadError) return;
@@ -112,7 +117,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     api.guestwifi().then(setGuest).catch(() => {});
     api.ethports().then((r) => setEthports(r.ports)).catch(() => {});
     api.dawn().then((r) => { setDawnAps(r.aps); setDawnError(false); }).catch(() => setDawnError(true));
-    api.packages().then((r) => setPackages(r.upgradable)).catch(() => {});
     api.selfUpdateCheck().then(setSelfUpdate).catch(() => {});
     api.drift().then(setDrift).catch(() => {});
     api.storage().then(setStorage).catch(() => {});
@@ -120,7 +124,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     api.clients().then((r) => setClients(r.clients)).catch(() => {});
   }, []);
 
-  const health = useHealthScore({ system, wan, drift, update, packages, mode, wireless });
+  const health = useHealthScore({ system, wan, drift, mode, wireless });
 
   // In AP mode the router is not the gateway: hide pages that only apply to
   // the gateway (LAN config with dnsmasq, port forwarding).
@@ -142,14 +146,16 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   };
   const activePage = NAV_GROUPS.some((g) => g.items.includes(page)) && visible(page) ? page : "overview";
 
-  // Badges §7.1
+  // Badges §7.1. Sistema (#157): solo cuenta una versión de firmware
+  // realmente nueva; los paquetes actualizables y las reconstrucciones
+  // same_version NO son alertas (la paquetería vive en LuCI/CLI).
   const servicesActive = [wg?.active, ddns?.active, sqm?.active, ipv6?.state === "enabled", ovpn?.active, ts?.running]
     .filter(Boolean).length;
-  const systemPending = (update?.available ? 1 : 0) + (packages?.length ?? 0);
+  const firmwarePending = update?.available && !update.same_version ? 1 : 0;
   const badgeFor = (id: Page): { n: number; tone: "accent" | "warn" } | undefined => {
     if (id === "clients" && clients && clients.length > 0) return { n: clients.length, tone: "accent" };
     if (id === "services" && servicesActive > 0) return { n: servicesActive, tone: "accent" };
-    if (id === "system" && systemPending > 0) return { n: systemPending, tone: "warn" };
+    if (id === "system" && firmwarePending > 0) return { n: firmwarePending, tone: "warn" };
     return undefined;
   };
 
@@ -209,7 +215,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   const bottomItems: Page[] = (
     isSwitch
       ? (["overview", "ports", "tools"] as Page[])
-      : (["overview", "wifi", "services", systemPending > 0 ? "system" : "tools"] as Page[])
+      : (["overview", "wifi", "services", firmwarePending > 0 ? "system" : "tools"] as Page[])
   ).filter(visible);
 
   const demo = isDemo();
@@ -235,8 +241,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
           </p>
         </div>
       </div>
-      <div className="hidden md:block"><LangToggle /></div>
-      <div className="hidden md:block"><DensityToggle /></div>
       <div className="hidden md:block"><ThemeToggle /></div>
       <button
         type="button"
@@ -308,7 +312,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         <StoragePage />
       )}
       {activePage === "system" && (
-        <System board={board} update={update} onUpdateChange={setUpdate} packages={packages} onPackagesChange={setPackages} onLogout={onLogout} />
+        <System board={board} update={update} onUpdateChange={setUpdate} onLogout={onLogout} />
       )}
     </>
   );
@@ -376,17 +380,12 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         </button>
       </nav>
 
-      {/* Drawer Menú móvil: lista completa agrupada + idioma/tema */}
+      {/* Drawer Menú móvil: lista completa agrupada + toggle de tema
+          (idioma y densidad viven en Sistema > Opciones, #158) */}
       <Drawer open={menuOpen} onClose={() => setMenuOpen(false)} title={t("nav.menu")}>
         {navList(false, () => setMenuOpen(false))}
         <div className="mt-5 pt-4 border-t border-border flex items-center justify-between">
-          <LangToggle />
-          <span className="flex items-center gap-1">
-            <DensityToggle />
-            <ThemeToggle />
-          </span>
-        </div>
-        <div className="mt-3">
+          <ThemeToggle />
           <Pill tone={health.tone}>{t(health.labelKey)}</Pill>
         </div>
       </Drawer>

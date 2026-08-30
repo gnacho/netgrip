@@ -3,8 +3,10 @@ package modules
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -14,20 +16,21 @@ import (
 
 // Client is one network client in the clients table.
 type Client struct {
-	Name       string `json:"name"`
-	IP         string `json:"ip,omitempty"`
-	MAC        string `json:"mac"`
-	Type       string `json:"type"`                  // wifi24 | wifi5 | cable
-	DeviceType string `json:"device_type,omitempty"` // user-assigned: pc | phone | ...
-	Iface      string `json:"iface,omitempty"`
-	Signal     int    `json:"signal,omitempty"`
-	RxBytes    int64  `json:"rx_bytes"` // client upload (AP rx)
-	TxBytes    int64  `json:"tx_bytes"` // client download (AP tx)
-	Self       bool   `json:"self"`
-	Reserved   bool   `json:"reserved"`
-	Reservable bool   `json:"reservable"`
-	Blocked    bool   `json:"blocked"`
-	Blockable  bool   `json:"blockable"`
+	Name       string   `json:"name"`
+	IP         string   `json:"ip,omitempty"`
+	MAC        string   `json:"mac"`
+	Type       string   `json:"type"`                  // wifi24 | wifi5 | cable
+	DeviceType string   `json:"device_type,omitempty"` // user-assigned: pc | phone | ...
+	Iface      string   `json:"iface,omitempty"`
+	Signal     int      `json:"signal,omitempty"`
+	RxBytes    int64    `json:"rx_bytes"` // client upload (AP rx)
+	TxBytes    int64    `json:"tx_bytes"` // client download (AP tx)
+	Self       bool     `json:"self"`
+	Reserved   bool     `json:"reserved"`
+	Reservable bool     `json:"reservable"`
+	Blocked    bool     `json:"blocked"`
+	BlockedOn  []string `json:"blocked_on,omitempty"` // bands with a deny entry (partial blocks)
+	Blockable  bool     `json:"blockable"`
 }
 
 var reMac = regexp.MustCompile(`^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$`)
@@ -43,7 +46,7 @@ func ListClients(requesterIP string) []Client {
 		byMac[strings.ToLower(l.MAC)] = l
 	}
 	reserved := reservedMACs()
-	blocked := blockedMACs()
+	denied, availBands := blockedBands()
 	dnsmasqUp := executor.ServiceRunning("dnsmasq")
 	isAP := ProbeMode().Mode == "ap"
 
@@ -65,8 +68,11 @@ func ListClients(requesterIP string) []Client {
 					Signal:    wc.Signal,
 					RxBytes:   wc.RxBytes,
 					TxBytes:   wc.TxBytes,
-					Blocked:   blocked[mac],
 					Blockable: true,
+				}
+				if on := denied[mac]; len(on) > 0 {
+					c.BlockedOn = bandsList(on)
+					c.Blocked = blockedEverywhere(on, availBands)
 				}
 				if l, ok := byMac[mac]; ok {
 					c.Name = l.Hostname
@@ -100,7 +106,7 @@ func ListClients(requesterIP string) []Client {
 			}
 			for _, mac := range macs {
 				mac = strings.ToLower(mac)
-				c := Client{MAC: mac, Type: "cable", Iface: port, Blocked: blocked[mac]}
+				c := Client{MAC: mac, Type: "cable", Iface: port, Blocked: len(denied[mac]) > 0}
 				if l, ok := byMac[mac]; ok {
 					c.Name = l.Hostname
 					c.IP = l.IP
@@ -160,9 +166,17 @@ func gatewaySSH(command string) (string, error) {
 	if gw == "" {
 		return "", fmt.Errorf("no default gateway")
 	}
+	// #161: routers set up before the rename keep the key under the old
+	// owpanel_ro filename; use it when the netgrip_ro key is not there.
+	key := "/root/.ssh/netgrip_ro"
+	if _, err := os.Stat(key); err != nil {
+		if _, errLegacy := os.Stat("/root/.ssh/owpanel_ro"); errLegacy == nil {
+			key = "/root/.ssh/owpanel_ro"
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "ssh", "-y", "-i", "/root/.ssh/netgrip_ro", "root@"+gw, command).Output()
+	out, err := exec.CommandContext(ctx, "ssh", "-y", "-i", key, "root@"+gw, command).Output()
 	if err != nil {
 		return "", fmt.Errorf("gateway ssh: %w", err)
 	}
@@ -226,23 +240,64 @@ func reservedMACs() map[string]bool {
 	return reserved
 }
 
-func blockedMACs() map[string]bool {
-	blocked := map[string]bool{}
+// blockedBands maps each denied MAC to the set of bands whose wifi-iface
+// carries a macfilter=deny entry for it (#160). Available bands come from
+// every wifi-iface, so a deny on all bands (what the in-app block action
+// writes) can be told apart from a single-band deny (e.g. steering bans).
+func blockedBands() (denied map[string]map[string]bool, avail map[string]bool) {
+	denied = map[string]map[string]bool{}
+	avail = map[string]bool{}
 	out, err := exec.Command("sh", "-c", "uci show wireless | grep '=wifi-iface' | cut -d. -f2 | cut -d= -f1").Output()
 	if err != nil {
-		return blocked
+		return denied, avail
 	}
 	for _, section := range strings.Fields(string(out)) {
+		radio := uciGet("wireless." + section + ".device")
+		if radio == "" {
+			continue
+		}
+		band := uciGet("wireless." + radio + ".band")
+		if band == "" {
+			continue
+		}
+		avail[band] = true
 		if uciGet("wireless."+section+".macfilter") != "deny" {
 			continue
 		}
 		for _, mac := range strings.Fields(strings.ToLower(uciGet("wireless." + section + ".maclist"))) {
-			if reMac.MatchString(mac) {
-				blocked[mac] = true
+			if !reMac.MatchString(mac) {
+				continue
 			}
+			if denied[mac] == nil {
+				denied[mac] = map[string]bool{}
+			}
+			denied[mac][band] = true
 		}
 	}
-	return blocked
+	return denied, avail
+}
+
+// bandsList flattens a band set into a stable order.
+func bandsList(set map[string]bool) []string {
+	list := make([]string, 0, len(set))
+	for b := range set {
+		list = append(list, b)
+	}
+	sort.Strings(list)
+	return list
+}
+
+// blockedEverywhere reports whether the deny covers every available band.
+func blockedEverywhere(set, avail map[string]bool) bool {
+	if len(avail) == 0 || len(set) < len(avail) {
+		return false
+	}
+	for b := range avail {
+		if !set[b] {
+			return false
+		}
+	}
+	return true
 }
 
 func hostSections() []string {
