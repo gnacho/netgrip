@@ -50,12 +50,22 @@ export default {
   },
   theme: {
     light: "Claro",
+    system: "Sistema",
     dark: "Oscuro",
     toggle: "Cambiar tema",
   },
   density: {
     comfortable: "Vista cómoda",
     compact: "Vista compacta",
+  },
+  options: {
+    title: "Opciones",
+    language: "Idioma",
+    density: "Diseño",
+    theme: "Tema",
+    langAuto: "Auto",
+    comfortable: "Cómodo",
+    compact: "Compacto",
   },
   demo: {
     banner: "Modo demo: los datos son de ejemplo, nada se aplica de verdad.",
@@ -279,6 +289,7 @@ export default {
     groupProtection: "Protección",
     groupDevice: "Este equipo",
     groupMaintenance: "Mantenimiento",
+    groupOptions: "Opciones",
     identityTitle: "Identidad y reinicio",
     reboot: "Reiniciar el router",
     rebootConfirmTitle: "Reiniciar el router",

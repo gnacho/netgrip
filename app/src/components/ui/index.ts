@@ -14,7 +14,7 @@ export { Skeleton, SkeletonRows, SkeletonChart } from "./Skeleton";
 export { Modal, Drawer, ConfirmDialog } from "./overlay";
 export { ToastProvider, useToast, type ToastTone } from "./Toast";
 export { SegmentedControl, type Segment } from "./SegmentedControl";
-export { ThemeToggle, LangToggle, DensityToggle } from "./controls";
+export { ThemeToggle, LangToggle, DensityToggle, useDensity, useLang } from "./controls";
 export { AdvancedDisclosure } from "./AdvancedDisclosure";
 export { Button } from "./Button";
 export { Field, Input } from "./Field";

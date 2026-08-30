@@ -2,9 +2,7 @@ import { useMemo } from "react";
 import type {
   DriftProbe,
   ModeProbe,
-  PkgUpgrade,
   SystemInfo,
-  UpdateCheck,
   WanStatus,
   WirelessRadio,
 } from "../types";
@@ -34,8 +32,6 @@ export interface HealthInput {
   system?: SystemInfo;
   wan?: WanStatus;
   drift?: DriftProbe;
-  update?: UpdateCheck;
-  packages?: PkgUpgrade[];
   mode?: ModeProbe;
   wireless?: WirelessRadio[];
 }

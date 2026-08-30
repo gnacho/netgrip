@@ -50,12 +50,22 @@ export default {
   },
   theme: {
     light: "Light",
+    system: "System",
     dark: "Dark",
     toggle: "Toggle theme",
   },
   density: {
     comfortable: "Comfortable view",
     compact: "Compact view",
+  },
+  options: {
+    title: "Options",
+    language: "Language",
+    density: "Layout",
+    theme: "Theme",
+    langAuto: "Auto",
+    comfortable: "Comfortable",
+    compact: "Compact",
   },
   demo: {
     banner: "Demo mode: data is sample data, nothing is really applied.",
@@ -279,6 +289,7 @@ export default {
     groupProtection: "Protection",
     groupDevice: "This device",
     groupMaintenance: "Maintenance",
+    groupOptions: "Options",
     identityTitle: "Identity and reboot",
     reboot: "Reboot the router",
     rebootConfirmTitle: "Reboot the router",
