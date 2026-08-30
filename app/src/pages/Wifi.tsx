@@ -40,6 +40,8 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
   const [qrOpen, setQrOpen] = useState<WifiUI | undefined>();
   const [blockedOpen, setBlockedOpen] = useState<"2g" | "5g" | undefined>();
   const [confirmOff, setConfirmOff] = useState(false);
+  const { phase, detail, busy, run, clear } = useActionCycle();
+  const [killMsg, setKillMsg] = useState<string>();
 
   const refreshBlocked = useCallback(async () => {
     try {
@@ -60,19 +62,6 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
       setError(true);
     }
   }, [refreshBlocked]);
-  const { phase, detail, busy, run, clear } = useActionCycle();
-  const [killMsg, setKillMsg] = useState<string>();
-
-  const load = useCallback(async () => {
-    setError(false);
-    try {
-      const [w, r] = await Promise.all([api.wifi(), api.wireless()]);
-      setIfaces(w.interfaces);
-      setRadios(r);
-    } catch {
-      setError(true);
-    }
-  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -150,7 +139,6 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
                 index={i + 1}
                 passkey={keys[iface.section]}
                 blocked={blocked.filter((b) => b.type === "wifi" && (b.bands ?? []).includes(iface.band))}
-                meta={meta}
                 onEdit={() => setEditing(iface)}
                 onEnlargeQr={() => setQrOpen(iface)}
                 onManageBlocked={() => setBlockedOpen(iface.band as "2g" | "5g")}
@@ -216,13 +204,12 @@ function mainIfaces(ifaces: WifiUI[], guest: GuestProbe | undefined, iot: IoTPro
 
 /* ══════════════ Tarjeta full-width por radio (#168) ══════════════ */
 
-function RadioCard({ iface, radio, index, passkey, blocked, meta, onEdit, onEnlargeQr, onManageBlocked }: {
+function RadioCard({ iface, radio, index, passkey, blocked, onEdit, onEnlargeQr, onManageBlocked }: {
   iface: WifiUI;
   radio: WirelessRadio | undefined;
   index: number;
   passkey?: string;
   blocked: BlockedClient[];
-  meta: Record<string, { name: string; device_type: string }>;
   onEdit: () => void;
   onEnlargeQr: () => void;
   onManageBlocked: () => void;
