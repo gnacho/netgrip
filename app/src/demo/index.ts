@@ -119,6 +119,18 @@ export const demoApi: typeof api = {
   wireless: () => get(state.wireless),
   leases: () => get(D.demoLeases),
   clients: async () => { await wait(150, 400); return nextClients(); },
+  blockedClients: async () => {
+    await wait(80, 200);
+    const blocked = state.clients
+      .filter((c) => c.blocked || (c.blocked_on?.length ?? 0) > 0)
+      .map((c): import("../types").BlockedClient => ({
+        mac: c.mac,
+        type: c.type === "cable" ? "cable" : "wifi",
+        bands: c.blocked_on,
+        blocked_everywhere: !!c.blocked,
+      }));
+    return { blocked, ts: Date.now() };
+  },
   reserveClient: async (mac, _ip, reserved) => {
     await wait(800, 1200);
     const c = state.clients.find((x) => x.mac === mac);

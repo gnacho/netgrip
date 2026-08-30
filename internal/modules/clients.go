@@ -491,6 +491,68 @@ func sectionsForBand(sections []string, band string, bandOf func(string) string)
 	return out, nil
 }
 
+// BlockedClient is a MAC with an active block, whether or not the
+// device is currently associated.
+type BlockedClient struct {
+	MAC               string   `json:"mac"`
+	Type              string   `json:"type"`              // wifi | cable
+	Bands             []string `json:"bands,omitempty"`   // wifi only: 2g / 5g / 6g
+	BlockedEverywhere bool     `json:"blocked_everywhere"`
+}
+
+// BlockedClients lists every MAC that is currently denied somewhere:
+// wireless clients via macfilter=deny in any wifi-iface (#160), wired
+// clients via a firewall REJECT rule (#96). Unlike ListClients, this
+// does NOT require the device to be associated right now, so the
+// modal can unblock a client that got kicked off the radios.
+func BlockedClients() []BlockedClient {
+	denied, avail := blockedBands()
+	out := make([]BlockedClient, 0, len(denied))
+	for mac, set := range denied {
+		bands := bandsList(set)
+		out = append(out, BlockedClient{
+			MAC:               mac,
+			Type:              "wifi",
+			Bands:             bands,
+			BlockedEverywhere: blockedEverywhere(set, avail),
+		})
+	}
+	// Wired: firewall rules written by setCableBlocked.
+	cmdOut, _ := exec.Command("sh", "-c", "uci show firewall | grep 'src_mac='").Output()
+	for _, line := range strings.Split(string(cmdOut), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.Contains(line, "=netgrip-block-") {
+			continue
+		}
+		// firewall.netgrip_block_<mac>.src_mac='<mac>'
+		eq := strings.Index(line, ".src_mac=")
+		if eq < 0 {
+			continue
+		}
+		start := strings.LastIndex(line[:eq], ".")
+		if start < 0 {
+			continue
+		}
+		mac := strings.ToLower(strings.Trim(line[eq+len(".src_mac="):], "'\""))
+		if !reMac.MatchString(mac) {
+			continue
+		}
+		already := false
+		for i := range out {
+			if out[i].MAC == mac {
+				out[i].Type = "cable"
+				already = true
+				break
+			}
+		}
+		if !already {
+			out = append(out, BlockedClient{MAC: mac, Type: "cable"})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].MAC < out[j].MAC })
+	return out
+}
+
 // AvailableBands lists the wireless bands this router serves, for the
 // clients payload (band selector in the block dialog).
 func AvailableBands() []string {

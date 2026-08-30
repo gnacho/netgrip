@@ -102,6 +102,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/ethports", s.requireAuth(s.handleEthPorts))
 	s.mux.HandleFunc("GET /api/dawn", s.requireAuth(s.handleDawn))
 	s.mux.HandleFunc("GET /api/clients", s.requireAuth(s.handleClients))
+	s.mux.HandleFunc("GET /api/clients/blocked", s.requireAuth(s.handleClientsBlocked))
 	s.mux.HandleFunc("GET /api/clients/meta", s.requireAuth(s.handleClientMeta))
 	s.mux.HandleFunc("POST /api/clients/meta", s.requireAuth(s.handleSetClientMeta))
 	s.mux.HandleFunc("POST /api/clients/reserve", s.requireAuth(s.handleClientReserve))
@@ -964,6 +965,10 @@ func (s *Server) handleDawn(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) handleClients(w http.ResponseWriter, r *http.Request) {
 	requesterIP, _, _ := strings.Cut(r.RemoteAddr, ":")
 	writeJSON(w, map[string]any{"clients": modules.ListClients(requesterIP), "bands": modules.AvailableBands(), "ts": time.Now().UnixMilli()})
+}
+
+func (s *Server) handleClientsBlocked(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"blocked": modules.BlockedClients(), "ts": time.Now().UnixMilli()})
 }
 
 func (s *Server) handleClientMeta(w http.ResponseWriter, _ *http.Request) {

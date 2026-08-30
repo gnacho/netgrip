@@ -56,6 +56,7 @@ const realApi = {
   wireless: () => request<import("./types").WirelessRadio[]>("/api/wireless"),
   leases: () => request<import("./types").Lease[]>("/api/leases"),
   clients: () => request<{ clients: import("./types").Client[]; bands: string[]; ts: number }>("/api/clients"),
+  blockedClients: () => request<{ blocked: import("./types").BlockedClient[]; ts: number }>("/api/clients/blocked"),
   reserveClient: (mac: string, ip: string, reserved: boolean) =>
     request<{ status: string }>("/api/clients/reserve", {
       method: "POST",

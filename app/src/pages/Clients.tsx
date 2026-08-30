@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown, Ban, MoreVertical, Pencil, Pin, Search, Smartphone, Wifi, Cable, Eye } from "lucide-react";
 import { api } from "../api";
-import type { Client, DeviceType } from "../types";
+import type { BlockedClient, Client, DeviceType } from "../types";
 import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Modal, Pill, SkeletonRows } from "../components/ui";
 import { DEVICE_TYPES, DEVICE_TYPE_KEYS, deviceTypeIcon } from "../components/clients/catalog";
 import { IlluDevices } from "../components/ui/illustrations";
@@ -102,9 +102,20 @@ export function ClientsPage() {
   const [editTarget, setEditTarget] = useState<Client>();
   const [detailTarget, setDetailTarget] = useState<Client>();
   const [blockTarget, setBlockTarget] = useState<Client>();
+  const [blockedTarget, setBlockedTarget] = useState<boolean>();
+  const [blockedList, setBlockedList] = useState<BlockedClient[]>([]);
   const [actionError, setActionError] = useState<string>();
 
   const lastSnap = useRef<Record<string, { rx: number; tx: number; ts: number }>>({});
+
+  const loadBlocked = useCallback(async () => {
+    try {
+      const r = await api.blockedClients();
+      setBlockedList(r.blocked ?? []);
+    } catch {
+      // non-fatal: the button just shows no badge
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setError(false);
@@ -131,7 +142,7 @@ export function ClientsPage() {
     }
   }, []);
 
-  useEffect(() => { load(); const id = setInterval(load, 5000); return () => clearInterval(id); }, [load]);
+  useEffect(() => { load(); loadBlocked(); const id = setInterval(load, 5000); return () => clearInterval(id); }, [load, loadBlocked]);
 
   const filtered = useMemo(() => {
     if (!clients) return undefined;
@@ -187,11 +198,25 @@ export function ClientsPage() {
     try {
       await api.blockClient(c.mac, c.type, blocked, band);
       await load();
+      await loadBlocked();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : t("clients.failed"));
     } finally {
       setBusyMac(undefined);
       setBlockTarget(undefined);
+    }
+  };
+
+  const unblockFromList = async (mac: string, type: string, band?: string) => {
+    setBusyMac(mac); setActionError(undefined);
+    try {
+      await api.blockClient(mac, type, false, band);
+      await load();
+      await loadBlocked();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : t("clients.failed"));
+    } finally {
+      setBusyMac(undefined);
     }
   };
 
@@ -310,10 +335,21 @@ export function ClientsPage() {
       </Card>
 
       <Card index={1} title={t("clients.title")} icon={Cable} iconTone="teal"
-        action={<div className="relative hidden sm:block">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)}
-            placeholder={t("clients.search")} className="w-56 pl-8" aria-label={t("clients.search")} />
+        action={<div className="flex items-center gap-1">
+          <button type="button" onClick={() => setBlockedTarget(true)}
+            title={t("clients.blockedCount", { count: blockedList.length })}
+            aria-label={t("clients.blockedCount", { count: blockedList.length })}
+            className="inline-flex h-8 items-center gap-1 rounded-sm px-2 text-muted hover:text-text ring-focus transition-colors">
+            <Ban size={14} aria-hidden="true" />
+            {blockedList.length > 0 && (
+              <span className="text-caption" style={{ fontVariantNumeric: "tabular-nums" }}>{blockedList.length}</span>
+            )}
+          </button>
+          <div className="relative hidden sm:block">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("clients.search")} className="w-56 pl-8" aria-label={t("clients.search")} />
+          </div>
         </div>}>
         {error ? (
           <EmptyState small title={t("common.loadError")} action={<Button variant="secondary" size="sm" onClick={load}>{t("common.retry")}</Button>} />
@@ -403,6 +439,15 @@ export function ClientsPage() {
           onClose={() => setBlockTarget(undefined)}
         />
       )}
+
+      <BlockedListModal
+        open={!!blockedTarget}
+        blocked={blockedList}
+        clients={clients ?? []}
+        busyMac={busyMac}
+        onUnblock={unblockFromList}
+        onClose={() => setBlockedTarget(undefined)}
+      />
     </div>
   );
 }
@@ -504,6 +549,76 @@ function DetailClientModal({ client, rate, onClose }: {
           <DetailRow label={t("clients.ip")} value={client.ip ?? "—"} mono />
         </div>
       </div>
+    </Modal>
+  );
+}
+
+/** Modal con la lista de clientes bloqueados (#166), accesibles aunque
+ *  estén expulsados de las radios. */
+function BlockedListModal({ open, blocked, clients, busyMac, onUnblock, onClose }: {
+  open: boolean;
+  blocked: BlockedClient[];
+  clients: Client[];
+  busyMac?: string;
+  onUnblock: (mac: string, type: string, band?: string) => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const nameFor = (mac: string) => clients.find((c) => c.mac === mac)?.name;
+  return (
+    <Modal open={open} onClose={onClose} title={t("clients.blockedTitle", { count: blocked.length })}
+      footer={<Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}>
+      {blocked.length === 0 ? (
+        <EmptyState small title={t("clients.blockedEmpty")} />
+      ) : (
+        <ul className="flex flex-col divide-y divide-border/60">
+          {blocked.map((b) => {
+            const name = nameFor(b.mac);
+            const wifiBands = b.type === "wifi" ? (b.bands ?? []) : [];
+            return (
+              <li key={b.mac} className="flex items-center gap-3 py-2.5">
+                <Ban size={15} className="text-danger shrink-0" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-small font-medium">{name ?? <span className="font-mono">{b.mac}</span>}</p>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {b.type === "cable" ? (
+                      <Pill tone="muted">{t("overview.cable")}</Pill>
+                    ) : wifiBands.map((band) => (
+                      <Pill key={band} tone="warn">{t(BAND_KEYS[band] ?? band)}</Pill>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5 justify-end shrink-0">
+                  {b.type === "cable" ? (
+                    <button type="button" disabled={busyMac === b.mac}
+                      onClick={() => onUnblock(b.mac, "cable")}
+                      className="text-small text-danger hover:underline ring-focus disabled:opacity-40">
+                      {t("clients.unblock")}
+                    </button>
+                  ) : (
+                    <>
+                      {wifiBands.map((band) => (
+                        <button key={band} type="button" disabled={busyMac === b.mac}
+                          onClick={() => onUnblock(b.mac, "wifi", band)}
+                          className="text-small text-muted hover:text-text ring-focus disabled:opacity-40">
+                          {t(BAND_KEYS[band] ?? band)}
+                        </button>
+                      ))}
+                      {wifiBands.length > 0 && (
+                        <button type="button" disabled={busyMac === b.mac}
+                          onClick={() => onUnblock(b.mac, "wifi")}
+                          className="text-small text-danger hover:underline ring-focus disabled:opacity-40">
+                          {wifiBands.length > 1 ? t("clients.unblockAll") : t("clients.unblock")}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </Modal>
   );
 }
