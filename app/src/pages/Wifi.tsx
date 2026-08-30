@@ -4,12 +4,11 @@ import { Ban, CloudOff, Copy, Eye, EyeOff, Pencil, QrCode as QrCodeIcon, Wifi as
 import { api } from "../api";
 import type { BlockedClient, GuestProbe, IoTProbe, WifiUI, WirelessRadio } from "../types";
 import {
-  ActionBanner, Button, Card, ConfirmDialog, EmptyState,
-  Modal, Pill, SettingRow, Skeleton,
+  Button, Card, EmptyState,
+  Modal, Pill, Skeleton,
 } from "../components/ui";
 import { IlluWifiWaves } from "../components/ui/illustrations";
 import { QrBox, useWifiQr } from "../components/wifi/qr";
-import { useActionCycle } from "../components/wifi/action";
 import { WifiEditModal } from "../components/WifiEditModal";
 import { GuestWifiCard } from "../components/GuestWifiCard";
 import { IotWifiCard } from "../components/IotWifiCard";
@@ -39,9 +38,6 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
   const [meta, setMeta] = useState<Record<string, { name: string; device_type: string }>>({});
   const [qrOpen, setQrOpen] = useState<WifiUI | undefined>();
   const [blockedOpen, setBlockedOpen] = useState<"2g" | "5g" | undefined>();
-  const [confirmOff, setConfirmOff] = useState(false);
-  const { phase, detail, busy, run, clear } = useActionCycle();
-  const [killMsg, setKillMsg] = useState<string>();
 
   const refreshBlocked = useCallback(async () => {
     try {
@@ -81,34 +77,9 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
   const secondarySsids = [guest?.ssid, iot?.ssid].filter(Boolean);
   const main = (ifaces ?? []).filter((i) => !secondary.includes(i.ifname) && !secondarySsids.includes(i.ssid));
 
-  const anyOn = main.some((i) => !i.disabled);
-  const clientCount = main.reduce((n, i) => n + (i.disabled ? 0 : i.clients.length), 0);
-
   const saved = (updated: WifiUI, sessionKey?: string) => {
     setIfaces((prev) => prev?.map((p) => (p.section === updated.section ? updated : p)));
     if (sessionKey) setKeys((k) => ({ ...k, [updated.section]: sessionKey }));
-  };
-
-  const setAll = (on: boolean) => {
-    setKillMsg(on ? t("wifi.allOnOk") : t("wifi.allOffOk"));
-    run(async () => {
-      let last: Awaited<ReturnType<typeof api.setWifi>> | undefined;
-      for (const i of main) {
-        if (i.disabled === on) continue;
-        const r = await api.setWifi({ section: i.section, disabled: !on });
-        if (r.status !== "applied") return r;
-        last = r;
-      }
-      if (!last) throw new Error("nothing to change");
-      return last;
-    }).then(async (res) => {
-      if (res?.status === "applied") {
-        try {
-          const w = await api.wifi();
-          setIfaces(w.interfaces);
-        } catch { /* se refrescará en el próximo load */ }
-      }
-    });
   };
 
   return (
@@ -144,18 +115,6 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
                 onManageBlocked={() => setBlockedOpen(iface.band as "2g" | "5g")}
               />
             ))}
-            <div className="border-t border-border/60 pt-3">
-              <SettingRow
-                title={t("wifi.killAll")}
-                description={t("wifi.killAllDesc", { count: clientCount })}
-                checked={anyOn}
-                busy={busy}
-                onChange={(v) => (v ? setAll(true) : setConfirmOff(true))}
-              />
-              {phase && (
-                <ActionBanner phase={phase} text={phase === "done" ? killMsg : undefined} detail={detail} onDone={clear} />
-              )}
-            </div>
           </div>
         )}
       </Card>
@@ -182,15 +141,6 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
           await refreshBlocked();
         }}
         onClose={() => setBlockedOpen(undefined)}
-      />
-
-      <ConfirmDialog
-        open={confirmOff}
-        onClose={() => setConfirmOff(false)}
-        onConfirm={() => { setConfirmOff(false); setAll(false); }}
-        title={t("wifi.killAllConfirmTitle")}
-        consequence={t("wifi.killAllConsequence")}
-        confirmLabel={t("wifi.killAllConfirm")}
       />
     </div>
   );
