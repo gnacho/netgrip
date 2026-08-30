@@ -353,7 +353,9 @@ func SetClientReservation(mac, ip string, reserved bool) (*[]Client, bool, error
 // SetClientBlocked blocks or unblocks a client. WiFi clients go into the
 // macfilter deny list of every wireless iface (with a radio reload);
 // wired clients need a firewall REJECT rule (gateway/firewall only).
-func SetClientBlocked(mac, typ string, blocked bool) (*[]Client, bool, error) {
+// band selects the scope for WiFi: "" (all bands), "2g", "5g" or "6g";
+// unblocking with band "" removes every deny entry (#163).
+func SetClientBlocked(mac, typ, band string, blocked bool) (*[]Client, bool, error) {
 	mac = strings.ToLower(mac)
 	if !reMac.MatchString(mac) {
 		return nil, false, fmt.Errorf("invalid mac")
@@ -372,6 +374,10 @@ func SetClientBlocked(mac, typ string, blocked bool) (*[]Client, bool, error) {
 	}
 
 	sections := wifiIfaceSections()
+	sections, err = sectionsForBand(sections, band, ifaceBand)
+	if err != nil {
+		return nil, false, err
+	}
 	var ops []executor.Op
 	for _, section := range sections {
 		base := "wireless." + section
@@ -454,6 +460,42 @@ func wifiIfaceSections() []string {
 		return []string{}
 	}
 	return strings.Fields(string(out))
+}
+
+// ifaceBand resolves the band ("2g"/"5g"/...) of a wifi-iface section via
+// its parent radio device.
+func ifaceBand(section string) string {
+	radio := uciGet("wireless." + section + ".device")
+	if radio == "" {
+		return ""
+	}
+	return uciGet("wireless." + radio + ".band")
+}
+
+// sectionsForBand filters wifi-iface sections down to one band. An empty
+// band returns every section; an unknown band (not served by any radio)
+// is an error so callers cannot silently no-op (#163).
+func sectionsForBand(sections []string, band string, bandOf func(string) string) ([]string, error) {
+	if band == "" {
+		return sections, nil
+	}
+	var out []string
+	for _, section := range sections {
+		if bandOf(section) == band {
+			out = append(out, section)
+		}
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("no wireless interface on band %s", band)
+	}
+	return out, nil
+}
+
+// AvailableBands lists the wireless bands this router serves, for the
+// clients payload (band selector in the block dialog).
+func AvailableBands() []string {
+	_, avail := blockedBands()
+	return bandsList(avail)
 }
 
 func radiosForSections(sections []string) []string {

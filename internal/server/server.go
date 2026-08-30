@@ -963,7 +963,7 @@ func (s *Server) handleDawn(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleClients(w http.ResponseWriter, r *http.Request) {
 	requesterIP, _, _ := strings.Cut(r.RemoteAddr, ":")
-	writeJSON(w, map[string]any{"clients": modules.ListClients(requesterIP), "ts": time.Now().UnixMilli()})
+	writeJSON(w, map[string]any{"clients": modules.ListClients(requesterIP), "bands": modules.AvailableBands(), "ts": time.Now().UnixMilli()})
 }
 
 func (s *Server) handleClientMeta(w http.ResponseWriter, _ *http.Request) {
@@ -1013,6 +1013,7 @@ func (s *Server) handleClientReserve(w http.ResponseWriter, r *http.Request) {
 type clientBlockRequest struct {
 	MAC     string `json:"mac"`
 	Type    string `json:"type"`
+	Band    string `json:"band,omitempty"`
 	Blocked bool   `json:"blocked"`
 }
 
@@ -1022,7 +1023,7 @@ func (s *Server) handleClientBlock(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	_, rolledBack, err := modules.SetClientBlocked(req.MAC, req.Type, req.Blocked)
+	_, rolledBack, err := modules.SetClientBlocked(req.MAC, req.Type, req.Band, req.Blocked)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return

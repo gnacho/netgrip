@@ -92,6 +92,7 @@ function ConnectionChip({ c }: { c: Client }) {
 export function ClientsPage() {
   const { t } = useTranslation();
   const [clients, setClients] = useState<Client[]>();
+  const [bands, setBands] = useState<string[]>([]);
   const [rates, setRates] = useState<Record<string, { rx: number; tx: number }>>({});
   const [error, setError] = useState(false);
   const [query, setQuery] = useState("");
@@ -109,6 +110,7 @@ export function ClientsPage() {
     setError(false);
     try {
       const c = await api.clients();
+      setBands(c.bands ?? []);
       const now = Date.now();
       const newRates: Record<string, { rx: number; tx: number }> = {};
       for (const cl of c.clients) {
@@ -180,10 +182,10 @@ export function ClientsPage() {
     }
   };
 
-  const block = async (c: Client, blocked: boolean) => {
+  const block = async (c: Client, blocked: boolean, band?: string) => {
     setBusyMac(c.mac); setActionError(undefined);
     try {
-      await api.blockClient(c.mac, c.type, blocked);
+      await api.blockClient(c.mac, c.type, blocked, band);
       await load();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : t("clients.failed"));
@@ -263,7 +265,9 @@ export function ClientsPage() {
       )}
       {c.blockable && !c.self && (
         <button type="button" disabled={busyMac === c.mac}
-          onClick={() => c.blocked ? block(c, false) : setBlockTarget(c)}
+          onClick={() => c.type === "cable"
+            ? (c.blocked ? block(c, false, "") : setBlockTarget(c))
+            : setBlockTarget(c)}
           title={c.blocked ? t("overview.unblock") : t("overview.block")}
           aria-label={c.blocked ? t("overview.unblock") : t("overview.block")}
           className={`inline-flex h-8 w-8 items-center justify-center rounded-sm ring-focus transition-colors disabled:opacity-40
@@ -380,15 +384,25 @@ export function ClientsPage() {
         onClose={() => setEditTarget(undefined)}
       />
 
-      <ConfirmDialog
-        open={!!blockTarget}
-        onClose={() => setBlockTarget(undefined)}
-        onConfirm={() => blockTarget && block(blockTarget, true)}
-        title={t("overview.blockTitle", { name: blockTarget?.name ?? blockTarget?.mac ?? "" })}
-        consequence={t("overview.blockBody")}
-        confirmLabel={t("overview.blockConfirm")}
-        busy={busyMac === blockTarget?.mac}
-      />
+      {blockTarget && blockTarget.type === "cable" ? (
+        <ConfirmDialog
+          open={!!blockTarget}
+          onClose={() => setBlockTarget(undefined)}
+          onConfirm={() => blockTarget && block(blockTarget, true, "")}
+          title={t("overview.blockTitle", { name: blockTarget?.name ?? blockTarget?.mac ?? "" })}
+          consequence={t("overview.blockBody")}
+          confirmLabel={t("overview.blockConfirm")}
+          busy={busyMac === blockTarget?.mac}
+        />
+      ) : (
+        <BlockBandModal
+          client={blockTarget}
+          bands={bands}
+          busy={busyMac === blockTarget?.mac}
+          onApply={(blocked, band) => blockTarget && block(blockTarget, blocked, band || undefined)}
+          onClose={() => setBlockTarget(undefined)}
+        />
+      )}
     </div>
   );
 }
@@ -489,6 +503,76 @@ function DetailClientModal({ client, rate, onClose }: {
             value={blockedDetail(client, t)} />
           <DetailRow label={t("clients.ip")} value={client.ip ?? "—"} mono />
         </div>
+      </div>
+    </Modal>
+  );
+}
+
+/** Modal de gestión de bloqueo por banda (#163): bloquear en una banda,
+ *  desbloquear por banda o todo. */
+function BlockBandModal({ client, bands, busy, onApply, onClose }: {
+  client?: Client;
+  bands: string[];
+  busy: boolean;
+  onApply: (blocked: boolean, band: string) => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const [scope, setScope] = useState<string>("");
+  useEffect(() => { setScope(""); }, [client]);
+  if (!client) return null;
+  const blockedBands = client.blocked_on ?? [];
+  const hasBlocks = client.blocked || blockedBands.length > 0;
+  const scopeBlocked = scope === "" ? client.blocked : blockedBands.includes(scope);
+  return (
+    <Modal open onClose={onClose} title={t("clients.blockManageTitle", { name: client.name ?? client.mac })}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+          <Button onClick={() => onApply(true, scope)} loading={busy} disabled={!scope || scopeBlocked}>
+            {t("clients.blockApply")}
+          </Button>
+        </>
+      }>
+      <div className="flex flex-col gap-5">
+        {hasBlocks && (
+          <section>
+            <p className="mb-2 text-caption text-muted">{t("clients.unblockTitle")}</p>
+            <div className="flex flex-wrap gap-2">
+              {blockedBands.map((b) => (
+                <button key={b} type="button" disabled={busy}
+                  onClick={() => onApply(false, b)}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-small ring-focus transition-colors hover:bg-surface-2 disabled:opacity-40">
+                  <Ban size={13} className="text-danger" aria-hidden="true" />
+                  {t(BAND_KEYS[b] ?? b)}
+                </button>
+              ))}
+              {blockedBands.length > 1 && (
+                <button type="button" disabled={busy} onClick={() => onApply(false, "")}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-danger/40 bg-danger/5 px-3 py-1.5 text-small text-danger ring-focus transition-colors hover:bg-danger/10 disabled:opacity-40">
+                  {t("clients.unblockAll")}
+                </button>
+              )}
+            </div>
+          </section>
+        )}
+        <section>
+          <p className="mb-2 text-caption text-muted">{t("clients.blockScope")}</p>
+          <div className="grid grid-cols-3 gap-2">
+            <button type="button" onClick={() => setScope("")}
+              className={`rounded-md border p-3 text-small text-left ring-focus transition-colors ${scope === "" ? "border-accent bg-accent/5 font-medium" : "border-border hover:bg-surface-2"}`}>
+              <span className="block">{t("clients.blockAllBands")}</span>
+              <span className="block text-caption text-muted mt-1">{t("clients.blockAllHint")}</span>
+            </button>
+            {bands.map((b) => (
+              <button key={b} type="button" onClick={() => setScope(b)}
+                className={`rounded-md border p-3 text-small text-left ring-focus transition-colors ${scope === b ? "border-accent bg-accent/5 font-medium" : "border-border hover:bg-surface-2"}`}>
+                <span className="block">{t(BAND_KEYS[b] ?? b)}</span>
+                <span className="block text-caption text-muted mt-1">{t("clients.blockBandHint")}</span>
+              </button>
+            ))}
+          </div>
+        </section>
       </div>
     </Modal>
   );
