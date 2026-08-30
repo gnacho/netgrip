@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CloudOff, Copy, Eye, EyeOff, Pencil, QrCode as QrCodeIcon, Wifi as WifiIcon } from "lucide-react";
+import { Ban, CloudOff, Copy, Eye, EyeOff, Pencil, QrCode as QrCodeIcon, Wifi as WifiIcon } from "lucide-react";
 import { api } from "../api";
-import type { GuestProbe, IoTProbe, WifiUI, WirelessRadio } from "../types";
+import type { BlockedClient, GuestProbe, IoTProbe, WifiUI, WirelessRadio } from "../types";
 import {
   ActionBanner, Button, Card, ConfirmDialog, EmptyState,
   Modal, Pill, SettingRow, Skeleton,
@@ -35,8 +35,31 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
   const [error, setError] = useState(false);
   const [editing, setEditing] = useState<WifiUI>();
   const [keys, setKeys] = useState<Record<string, string>>({});
+  const [blocked, setBlocked] = useState<BlockedClient[]>([]);
+  const [meta, setMeta] = useState<Record<string, { name: string; device_type: string }>>({});
   const [qrOpen, setQrOpen] = useState<WifiUI | undefined>();
+  const [blockedOpen, setBlockedOpen] = useState<"2g" | "5g" | undefined>();
   const [confirmOff, setConfirmOff] = useState(false);
+
+  const refreshBlocked = useCallback(async () => {
+    try {
+      const r = await api.blockedClients();
+      setBlocked(r.blocked ?? []);
+    } catch { /* no crítico */ }
+  }, []);
+
+  const load = useCallback(async () => {
+    setError(false);
+    try {
+      const [w, r, m] = await Promise.all([api.wifi(), api.wireless(), api.clientMeta()]);
+      setIfaces(w.interfaces);
+      setRadios(r);
+      setMeta(m.meta ?? {});
+      await refreshBlocked();
+    } catch {
+      setError(true);
+    }
+  }, [refreshBlocked]);
   const { phase, detail, busy, run, clear } = useActionCycle();
   const [killMsg, setKillMsg] = useState<string>();
 
@@ -126,8 +149,11 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
                 radio={radios?.find((r) => r.name === iface.radio)}
                 index={i + 1}
                 passkey={keys[iface.section]}
+                blocked={blocked.filter((b) => b.type === "wifi" && (b.bands ?? []).includes(iface.band))}
+                meta={meta}
                 onEdit={() => setEditing(iface)}
                 onEnlargeQr={() => setQrOpen(iface)}
+                onManageBlocked={() => setBlockedOpen(iface.band as "2g" | "5g")}
               />
             ))}
             <div className="border-t border-border/60 pt-3">
@@ -159,6 +185,17 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
         onClose={() => setQrOpen(undefined)}
       />
 
+      <WifiBlockedModal
+        band={blockedOpen}
+        blocked={blocked.filter((b) => b.type === "wifi" && (b.bands ?? []).includes(blockedOpen ?? ""))}
+        meta={meta}
+        onUnblock={async (mac, band) => {
+          await api.blockClient(mac, "wifi", false, band);
+          await refreshBlocked();
+        }}
+        onClose={() => setBlockedOpen(undefined)}
+      />
+
       <ConfirmDialog
         open={confirmOff}
         onClose={() => setConfirmOff(false)}
@@ -179,13 +216,16 @@ function mainIfaces(ifaces: WifiUI[], guest: GuestProbe | undefined, iot: IoTPro
 
 /* ══════════════ Tarjeta full-width por radio (#168) ══════════════ */
 
-function RadioCard({ iface, radio, index, passkey, onEdit, onEnlargeQr }: {
+function RadioCard({ iface, radio, index, passkey, blocked, meta, onEdit, onEnlargeQr, onManageBlocked }: {
   iface: WifiUI;
   radio: WirelessRadio | undefined;
   index: number;
   passkey?: string;
+  blocked: BlockedClient[];
+  meta: Record<string, { name: string; device_type: string }>;
   onEdit: () => void;
   onEnlargeQr: () => void;
+  onManageBlocked: () => void;
 }) {
   const { t } = useTranslation();
   const band = iface.band === "5g" ? "band5" : "band24";
@@ -260,8 +300,15 @@ function RadioCard({ iface, radio, index, passkey, onEdit, onEnlargeQr }: {
             <p className="text-small text-muted">{t("wifi.bandOffHint")}</p>
           )}
 
-          <div className="pt-1">
+          <div className="pt-1 flex flex-wrap items-center gap-2">
             <Button variant="secondary" size="sm" icon={Pencil} onClick={onEdit}>{t("wifi.bandSettings")}</Button>
+            {blocked.length > 0 && (
+              <button type="button" onClick={onManageBlocked}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-surface px-2.5 py-1 text-small text-muted hover:text-text hover:bg-surface-2 ring-focus transition-colors">
+                <Ban size={13} className="text-danger" aria-hidden="true" />
+                <span>{t("wifi.manageBlocked", { count: blocked.length })}</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -287,6 +334,75 @@ function RadioCard({ iface, radio, index, passkey, onEdit, onEnlargeQr }: {
     </Card>
   );
 }
+
+/* ══════════════ Modal de bloqueados por banda (#168) ══════════════ */
+
+function WifiBlockedModal({ band, blocked, meta, onUnblock, onClose }: {
+  band: "2g" | "5g" | undefined;
+  blocked: BlockedClient[];
+  meta: Record<string, { name: string; device_type: string }>;
+  onUnblock: (mac: string, band?: string) => Promise<void> | void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState<string>();
+  const bandLabel = band ? t(band === "5g" ? "wifi.band5" : "wifi.band24") : "";
+  const nameFor = (mac: string) => meta[mac]?.name;
+
+  const doUnblock = async (mac: string, bandScope?: string) => {
+    setBusy(mac + ":" + (bandScope ?? ""));
+    try {
+      await onUnblock(mac, bandScope);
+    } finally {
+      setBusy(undefined);
+    }
+  };
+
+  return (
+    <Modal open={!!band} onClose={onClose}
+      title={t("wifi.blockedTitle", { band: bandLabel, count: blocked.length })}
+      footer={<Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}>
+      {blocked.length === 0 ? (
+        <EmptyState small title={t("clients.blockedEmpty")} />
+      ) : (
+        <ul className="flex flex-col divide-y divide-border/60">
+          {blocked.map((b) => {
+            const name = nameFor(b.mac);
+            const thisBusy = busy?.startsWith(b.mac + ":");
+            return (
+              <li key={b.mac} className="flex items-center gap-3 py-2.5">
+                <Ban size={15} className="text-danger shrink-0" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-small font-medium">{name ?? <span className="font-mono">{b.mac}</span>}</p>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {(b.bands ?? []).map((x) => (
+                      <Pill key={x} tone={x === band ? "warn" : "muted"}>{t(x === "5g" ? "wifi.band5" : "wifi.band24")}</Pill>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <button type="button" disabled={thisBusy}
+                    onClick={() => doUnblock(b.mac, band)}
+                    className="text-small text-muted hover:text-text ring-focus disabled:opacity-40">
+                    {t("wifi.unblockBand")}
+                  </button>
+                  {(b.bands?.length ?? 0) > 1 && (
+                    <button type="button" disabled={thisBusy}
+                      onClick={() => doUnblock(b.mac)}
+                      className="text-small text-danger hover:underline ring-focus disabled:opacity-40">
+                      {t("clients.unblockAll")}
+                    </button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Modal>
+  );
+}
+
 
 /* ══════════════ Modal QR ampliado con clave copiable (#168) ══════════════ */
 
