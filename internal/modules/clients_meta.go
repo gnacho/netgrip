@@ -16,49 +16,43 @@ type ClientMeta struct {
 	DeviceType string `json:"device_type,omitempty"`
 }
 
-var (
-	clientMetaMu   sync.Mutex
-	clientMetaData map[string]ClientMeta
-)
+// clientMetaMu serialises writes; reads re-parse the JSON on every call
+// so manual edits to the file take effect without a service restart
+// (#165). The JSON is tiny (one entry per renamed client) so the cost
+// is negligible.
+var clientMetaMu sync.Mutex
 
-// clientMeta reads a COPY of the persisted metadata map (MAC -> metadata).
-// Callers get a snapshot: never hand out the live map (readers would race
-// with writers).
+// clientMeta reads the metadata map (MAC -> metadata) fresh from disk.
 func clientMeta() map[string]ClientMeta {
 	clientMetaMu.Lock()
 	defer clientMetaMu.Unlock()
-	loadClientMetaLocked()
-	out := make(map[string]ClientMeta, len(clientMetaData))
-	for k, v := range clientMetaData {
-		out[k] = v
+	return readClientMetaLocked()
+}
+
+// readClientMetaLocked parses the JSON on disk into a new map. Caller
+// MUST hold clientMetaMu (the write path mutates the same file).
+func readClientMetaLocked() map[string]ClientMeta {
+	out := map[string]ClientMeta{}
+	if data, err := os.ReadFile(clientMetaPath); err == nil {
+		_ = json.Unmarshal(data, &out)
 	}
 	return out
 }
 
-// loadClientMetaLocked loads the map from disk on first use. Caller MUST hold
-// clientMetaMu.
-func loadClientMetaLocked() {
-	if clientMetaData != nil {
-		return
+// writeClientMeta persists the metadata map to disk. An empty map
+// removes the file so a full reset is observable on disk. Caller MUST
+// hold clientMetaMu.
+func writeClientMeta(data map[string]ClientMeta) error {
+	_ = os.MkdirAll("/etc/netgrip", 0o750)
+	if len(data) == 0 {
+		_ = os.Remove(clientMetaPath)
+		return nil
 	}
-	clientMetaData = map[string]ClientMeta{}
-	if data, err := os.ReadFile(clientMetaPath); err == nil {
-		_ = json.Unmarshal(data, &clientMetaData)
-	}
-	if clientMetaData == nil {
-		clientMetaData = map[string]ClientMeta{}
-	}
-}
-
-// saveClientMeta persists the metadata map to disk. Caller MUST hold
-// clientMetaMu (reads clientMetaData without locking).
-func saveClientMeta() error {
-	data, err := json.MarshalIndent(clientMetaData, "", "  ")
+	buf, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		return err
 	}
-	_ = os.MkdirAll("/etc/netgrip", 0o750)
-	return os.WriteFile(clientMetaPath, data, 0o600)
+	return os.WriteFile(clientMetaPath, buf, 0o600)
 }
 
 // clientMetaPayload is the response shape for GET /api/clients/meta.
@@ -71,10 +65,9 @@ func GetClientMeta() clientMetaPayload {
 	return clientMetaPayload{Meta: clientMeta()}
 }
 
-// SetClientMeta assigns a custom name and/or device type to a client MAC and
-// persists it. Returns the updated metadata map. Self-deadlock fixed
-// (29-Ago-2026): the old version called GetClientMeta() while holding
-// clientMetaMu and hung every POST /api/clients/meta.
+// SetClientMeta assigns a custom name and/or device type to a client
+// MAC and persists it. If both fields are empty the entry is removed
+// entirely (#165). Returns the updated metadata map.
 func SetClientMeta(mac, name, deviceType string) (clientMetaPayload, error) {
 	mac = normalizeMac(mac)
 	if mac == "" {
@@ -82,16 +75,16 @@ func SetClientMeta(mac, name, deviceType string) (clientMetaPayload, error) {
 	}
 	clientMetaMu.Lock()
 	defer clientMetaMu.Unlock()
-	loadClientMetaLocked()
-	clientMetaData[mac] = ClientMeta{Name: name, DeviceType: deviceType}
-	if err := saveClientMeta(); err != nil {
+	data := readClientMetaLocked()
+	if name == "" && deviceType == "" {
+		delete(data, mac)
+	} else {
+		data[mac] = ClientMeta{Name: name, DeviceType: deviceType}
+	}
+	if err := writeClientMeta(data); err != nil {
 		return clientMetaPayload{}, err
 	}
-	out := make(map[string]ClientMeta, len(clientMetaData))
-	for k, v := range clientMetaData {
-		out[k] = v
-	}
-	return clientMetaPayload{Meta: out}, nil
+	return clientMetaPayload{Meta: data}, nil
 }
 
 // normalizeMac lowercases and trims a MAC, returning "" if not a valid shape.

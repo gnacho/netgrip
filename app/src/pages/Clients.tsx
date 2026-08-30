@@ -711,11 +711,18 @@ function EditClientModal({ client, busy, onSave, onClose }: {
   }, [client]);
 
   if (!client) return null;
+  const hasCustom = (client.name && client.name !== client.mac) || !!client.device_type;
 
   return (
     <Modal open onClose={onClose} title={t("clients.editTitle")}
       footer={
         <>
+          {hasCustom && (
+            <Button variant="ghost" onClick={() => onSave(client.mac, "", "")} loading={busy}>
+              {t("clients.resetMeta")}
+            </Button>
+          )}
+          <span className="flex-1" />
           <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
           <Button onClick={() => onSave(client.mac, name.trim(), deviceType)} loading={busy}>
             {t("clients.save")}

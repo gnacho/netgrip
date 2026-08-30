@@ -428,6 +428,7 @@ export default {
     unblockAll: "Desbloquear todo",
     unblock: "Desbloquear",
     blockApply: "Bloquear",
+    resetMeta: "Quitar personalizacion",
     blockedTitle_one: "1 bloqueado",
     blockedTitle_other: "{{count}} bloqueados",
     blockedCount_one: "1 bloqueado",

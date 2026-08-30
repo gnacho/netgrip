@@ -428,6 +428,7 @@ export default {
     unblockAll: "Unblock everything",
     unblock: "Unblock",
     blockApply: "Block",
+    resetMeta: "Remove customization",
     blockedTitle_one: "1 blocked",
     blockedTitle_other: "{{count}} blocked",
     blockedCount_one: "1 blocked",
