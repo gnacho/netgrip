@@ -1,8 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  AirVent, Camera, Cpu, Gamepad2, HardDrive, Headphones, Laptop, Lightbulb,
-  Monitor, Printer, Refrigerator, Router, Server, Smartphone, Speaker, Tablet,
-  Tv, Watch,
+  AirVent, Bot, Camera, Cpu, Gamepad2, HardDrive, Headphones, Laptop, Leaf,
+  Lightbulb, Monitor, Printer, Refrigerator, Router, Server, Smartphone,
+  Speaker, Tablet, Tv, Watch, Waves,
 } from "lucide-react";
 import type { DeviceType } from "../../types";
 
@@ -25,6 +25,9 @@ export const DEVICE_TYPES: Record<DeviceType, { icon: LucideIcon; labelKey: stri
   server: { icon: Server, labelKey: "clients.type.server" },
   appliance: { icon: Refrigerator, labelKey: "clients.type.appliance" },
   ac: { icon: AirVent, labelKey: "clients.type.ac" },
+  vacuum: { icon: Bot, labelKey: "clients.type.vacuum" },
+  pool: { icon: Waves, labelKey: "clients.type.pool" },
+  mower: { icon: Leaf, labelKey: "clients.type.mower" },
   other: { icon: Cpu, labelKey: "clients.type.other" },
 };
 
@@ -33,7 +36,6 @@ export const DEVICE_TYPE_KEYS = Object.keys(DEVICE_TYPES) as DeviceType[];
 /** Icono por tipo de dispositivo; fallback a "other". */
 export function deviceTypeIcon(type?: string, name = ""): LucideIcon {
   if (type && type in DEVICE_TYPES) return DEVICE_TYPES[type as DeviceType].icon;
-  // Inferencia ligera por nombre cuando no hay tipo asignado.
   const n = name.toLowerCase();
   if (/(phone|m[oó]vil|iphone|android|pixel|galaxy)/.test(n)) return Smartphone;
   if (/(tablet|ipad|tab)/.test(n)) return Tablet;
@@ -43,6 +45,8 @@ export function deviceTypeIcon(type?: string, name = ""): LucideIcon {
   if (/(impresora|printer|laserjet|deskjet)/.test(n)) return Printer;
   if (/(nas|synology|qnap|servidor|server)/.test(n)) return Server;
   if (/(c[aá]mara|camera|cam-|webcam)/.test(n)) return Camera;
-  if (/(roborock|roomba|aspiradora|robot)/.test(n)) return Lightbulb;
+  if (/(roborock|roomba|aspirador|vacuum|neato)/.test(n)) return Bot;
+  if (/(piscina|pool|aquabot|dolphin|zodiac|maytronics)/.test(n)) return Waves;
+  if (/(cortac[ée]sped|mower|worx|husqvarna|automower|indego|stihl)/.test(n)) return Leaf;
   return Cpu;
 }
