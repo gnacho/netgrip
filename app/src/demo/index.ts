@@ -411,6 +411,7 @@ export const demoApi: typeof api = {
 
   // wifi
   wifi: () => get({ interfaces: state.wifi }),
+  wifiKey: async () => { await wait(80, 200); return { key: "demo-passkey-1234" }; },
   setWifi: async (edit) => {
     const w = state.wifi.find((x) => x.section === edit.section);
     if (w) {

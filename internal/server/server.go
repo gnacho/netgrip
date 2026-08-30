@@ -89,6 +89,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/offload", s.requireAuth(s.handleOffloadGet))
 	s.mux.HandleFunc("POST /api/offload", s.requireAuth(s.handleOffloadSet))
 	s.mux.HandleFunc("GET /api/wifi", s.requireAuth(s.handleWifiGet))
+	s.mux.HandleFunc("GET /api/wifi/key", s.requireAuth(s.handleWifiKey))
 	s.mux.HandleFunc("POST /api/wifi", s.requireAuth(s.handleWifiSet))
 	s.mux.HandleFunc("GET /api/lan", s.requireAuth(s.handleLANGet))
 	s.mux.HandleFunc("POST /api/lan", s.requireAuth(s.handleLANSet))
@@ -839,6 +840,15 @@ func (s *Server) handleWifiGet(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"interfaces": ui})
+}
+
+func (s *Server) handleWifiKey(w http.ResponseWriter, r *http.Request) {
+	section := r.URL.Query().Get("section")
+	if section == "" {
+		writeError(w, http.StatusBadRequest, "section is required")
+		return
+	}
+	writeJSON(w, map[string]any{"key": modules.WifiKey(section)})
 }
 
 func (s *Server) handleWifiSet(w http.ResponseWriter, r *http.Request) {

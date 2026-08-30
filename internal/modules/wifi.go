@@ -247,3 +247,13 @@ func probeWifiSection(section string) *WifiUI {
 	}
 	return &WifiUI{Section: section}
 }
+
+// WifiKey returns the PSK of a wifi-iface section. Exposed only via an
+// authenticated endpoint (never included in ProbeWifiUI) so a cached
+// /api/wifi response cannot leak it. Empty string means no key set.
+func WifiKey(section string) string {
+	if section == "" {
+		return ""
+	}
+	return uciGet("wireless." + section + ".key")
+}
