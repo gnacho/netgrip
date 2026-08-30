@@ -9,12 +9,12 @@ import { Banner, Button, SkeletonRows, Stepper } from "../components/ui";
 import { Logo } from "../components/ui/illustrations";
 import type { WizardRecord } from "../components/wizard/common";
 import {
-  DoneStep, ExtraNetStep, ModeStep, PackagesStep, PasswordStep, WelcomeStep, WifiStep, WireguardStep,
+  DoneStep, ExtraNetStep, ModeStep, PackagesStep, PasswordStep, SetupDependenciesStep, WelcomeStep, WifiStep, WireguardStep,
 } from "../components/wizard/steps";
 
-type Step = "welcome" | "mode" | "password" | "wifi" | "guest" | "iot" | "wireguard" | "packages" | "done";
+type Step = "welcome" | "setup" | "mode" | "password" | "wifi" | "guest" | "iot" | "wireguard" | "packages" | "done";
 
-const ALL_STEPS: Step[] = ["welcome", "mode", "password", "wifi", "guest", "iot", "wireguard", "packages", "done"];
+const ALL_STEPS: Step[] = ["welcome", "setup", "mode", "password", "wifi", "guest", "iot", "wireguard", "packages", "done"];
 
 /**
  * Wizard de primer arranque (wizard.md): setup guiado estilo GL.iNet, una
@@ -104,6 +104,8 @@ export function Wizard({ onDone }: { onDone: () => void }) {
 
   const currentIdx = Math.max(0, steps.indexOf(step));
 
+  // El paso setup siempre aparece en este mockup para poder visualizarlo.
+
   // Transición entre pasos (wizard.md §2): saliente fade 120ms, entrante
   // fade-up (secuencia, no simultáneos).
   const go = useCallback((target: Step) => {
@@ -129,6 +131,17 @@ export function Wizard({ onDone }: { onDone: () => void }) {
     switch (step) {
       case "welcome":
         return <WelcomeStep onStart={next} onSkipAll={finish} />;
+      case "setup":
+        return (
+          <SetupDependenciesStep
+            onBack={prev}
+            onNext={() => {
+              setRecord((r) => ({ ...r, pkgs: [] }));
+              next();
+            }}
+            onSkip={next}
+          />
+        );
       case "mode":
         return mode ? (
           <ModeStep
