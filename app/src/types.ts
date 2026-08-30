@@ -667,6 +667,7 @@ export interface CableTestResult {
 
 export interface CableTestProbe {
   applicable: boolean;
+  missing_tool?: string;
   ports: CableTestResult[];
 }
 

@@ -40,7 +40,9 @@ export function CableTestCard({ index = 1 }: { index?: number }) {
       )}
 
       {probe && !error && (
-        probe.ports.length === 0 ? (
+        probe.missing_tool ? (
+          <Banner tone="warn" className="mt-3">{t("tools.cableMissingTool", { tool: probe.missing_tool })}</Banner>
+        ) : probe.ports.length === 0 ? (
           <p className="text-small text-muted mt-3">{t("tools.cableNotApplicable")}</p>
         ) : (
           <div className="mt-3 flex flex-col gap-2">
@@ -171,7 +173,9 @@ export function BounceCard({ ethports, index = 3 }: { ethports: EthPort[]; index
   const [justBounced, setJustBounced] = useState<string>();
   const [failMsg, setFailMsg] = useState<string>();
 
-  const wired = ethports.filter((p) => !p.wan && p.name.startsWith("lan"));
+  const wired = ethports.filter(
+    (p) => p.name.startsWith("lan") || p.name === "wan" || p.name.startsWith("eth") || p.name.startsWith("swp")
+  );
 
   useEffect(() => {
     if (!justBounced) return;
