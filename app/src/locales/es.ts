@@ -30,6 +30,7 @@ export default {
     storage: "Almacenamiento",
     system: "Sistema",
     tools: "Herramientas",
+    dpi: "Trafico",
     menu: "Menú",
     group: {
       network: "Tu red",
@@ -45,6 +46,7 @@ export default {
       tools: "Diagnóstico de cables y copias de seguridad",
       storage: "Discos USB conectados al router",
       fleet: "Otros equipos NetGrip de tu red",
+      dpi: "Que gasta trafico ahora mismo, por aplicacion y categoria",
       system: "Actualizaciones, seguridad y modo del router",
     },
   },

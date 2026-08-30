@@ -30,6 +30,7 @@ export default {
     storage: "Storage",
     system: "System",
     tools: "Tools",
+    dpi: "Traffic",
     menu: "Menu",
     group: {
       network: "Your network",
@@ -46,6 +47,7 @@ export default {
       storage: "USB drives on the router",
       fleet: "Other NetGrip devices on your network",
       system: "Updates, security and router mode",
+      dpi: "What's using bandwidth right now, by app and category",
     },
   },
   theme: {
