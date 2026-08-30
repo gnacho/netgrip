@@ -368,6 +368,13 @@ export interface Client {
   blockable: boolean;
 }
 
+export interface BlockedClient {
+  mac: string;
+  type: "wifi" | "cable";
+  bands?: string[];
+  blocked_everywhere: boolean;
+}
+
 export type DeviceType =
   | "pc" | "phone" | "tablet" | "camera" | "wearable" | "laptop" | "printer"
   | "audio" | "tv" | "iot" | "gaming" | "gateway" | "nas" | "server"

@@ -55,18 +55,19 @@ const realApi = {
   wan: () => request<import("./types").WanStatus>("/api/wan"),
   wireless: () => request<import("./types").WirelessRadio[]>("/api/wireless"),
   leases: () => request<import("./types").Lease[]>("/api/leases"),
-  clients: () => request<{ clients: import("./types").Client[]; ts: number }>("/api/clients"),
+  clients: () => request<{ clients: import("./types").Client[]; bands: string[]; ts: number }>("/api/clients"),
+  blockedClients: () => request<{ blocked: import("./types").BlockedClient[]; ts: number }>("/api/clients/blocked"),
   reserveClient: (mac: string, ip: string, reserved: boolean) =>
     request<{ status: string }>("/api/clients/reserve", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mac, ip, reserved }),
     }),
-  blockClient: (mac: string, type: string, blocked: boolean) =>
+  blockClient: (mac: string, type: string, blocked: boolean, band?: string) =>
     request<{ status: string }>("/api/clients/block", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mac, type, blocked }),
+      body: JSON.stringify({ mac, type, blocked, band }),
     }),
   clientMeta: () => request<{ meta: Record<string, { name: string; device_type: string }> }>("/api/clients/meta"),
   setClientMeta: (mac: string, name: string, device_type: string) =>

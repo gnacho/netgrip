@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown, Ban, MoreVertical, Pencil, Pin, Search, Smartphone, Wifi, Cable, Eye } from "lucide-react";
 import { api } from "../api";
-import type { Client, DeviceType } from "../types";
+import type { BlockedClient, Client, DeviceType } from "../types";
 import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Modal, Pill, SkeletonRows } from "../components/ui";
 import { DEVICE_TYPES, DEVICE_TYPE_KEYS, deviceTypeIcon } from "../components/clients/catalog";
 import { IlluDevices } from "../components/ui/illustrations";
@@ -92,6 +92,7 @@ function ConnectionChip({ c }: { c: Client }) {
 export function ClientsPage() {
   const { t } = useTranslation();
   const [clients, setClients] = useState<Client[]>();
+  const [bands, setBands] = useState<string[]>([]);
   const [rates, setRates] = useState<Record<string, { rx: number; tx: number }>>({});
   const [error, setError] = useState(false);
   const [query, setQuery] = useState("");
@@ -101,14 +102,26 @@ export function ClientsPage() {
   const [editTarget, setEditTarget] = useState<Client>();
   const [detailTarget, setDetailTarget] = useState<Client>();
   const [blockTarget, setBlockTarget] = useState<Client>();
+  const [blockedTarget, setBlockedTarget] = useState<boolean>();
+  const [blockedList, setBlockedList] = useState<BlockedClient[]>([]);
   const [actionError, setActionError] = useState<string>();
 
   const lastSnap = useRef<Record<string, { rx: number; tx: number; ts: number }>>({});
+
+  const loadBlocked = useCallback(async () => {
+    try {
+      const r = await api.blockedClients();
+      setBlockedList(r.blocked ?? []);
+    } catch {
+      // non-fatal: the button just shows no badge
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setError(false);
     try {
       const c = await api.clients();
+      setBands(c.bands ?? []);
       const now = Date.now();
       const newRates: Record<string, { rx: number; tx: number }> = {};
       for (const cl of c.clients) {
@@ -129,7 +142,7 @@ export function ClientsPage() {
     }
   }, []);
 
-  useEffect(() => { load(); const id = setInterval(load, 5000); return () => clearInterval(id); }, [load]);
+  useEffect(() => { load(); loadBlocked(); const id = setInterval(load, 5000); return () => clearInterval(id); }, [load, loadBlocked]);
 
   const filtered = useMemo(() => {
     if (!clients) return undefined;
@@ -180,16 +193,30 @@ export function ClientsPage() {
     }
   };
 
-  const block = async (c: Client, blocked: boolean) => {
+  const block = async (c: Client, blocked: boolean, band?: string) => {
     setBusyMac(c.mac); setActionError(undefined);
     try {
-      await api.blockClient(c.mac, c.type, blocked);
+      await api.blockClient(c.mac, c.type, blocked, band);
       await load();
+      await loadBlocked();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : t("clients.failed"));
     } finally {
       setBusyMac(undefined);
       setBlockTarget(undefined);
+    }
+  };
+
+  const unblockFromList = async (mac: string, type: string, band?: string) => {
+    setBusyMac(mac); setActionError(undefined);
+    try {
+      await api.blockClient(mac, type, false, band);
+      await load();
+      await loadBlocked();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : t("clients.failed"));
+    } finally {
+      setBusyMac(undefined);
     }
   };
 
@@ -263,7 +290,9 @@ export function ClientsPage() {
       )}
       {c.blockable && !c.self && (
         <button type="button" disabled={busyMac === c.mac}
-          onClick={() => c.blocked ? block(c, false) : setBlockTarget(c)}
+          onClick={() => c.type === "cable"
+            ? (c.blocked ? block(c, false, "") : setBlockTarget(c))
+            : setBlockTarget(c)}
           title={c.blocked ? t("overview.unblock") : t("overview.block")}
           aria-label={c.blocked ? t("overview.unblock") : t("overview.block")}
           className={`inline-flex h-8 w-8 items-center justify-center rounded-sm ring-focus transition-colors disabled:opacity-40
@@ -306,10 +335,21 @@ export function ClientsPage() {
       </Card>
 
       <Card index={1} title={t("clients.title")} icon={Cable} iconTone="teal"
-        action={<div className="relative hidden sm:block">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)}
-            placeholder={t("clients.search")} className="w-56 pl-8" aria-label={t("clients.search")} />
+        action={<div className="flex items-center gap-1">
+          <button type="button" onClick={() => setBlockedTarget(true)}
+            title={t("clients.blockedCount", { count: blockedList.length })}
+            aria-label={t("clients.blockedCount", { count: blockedList.length })}
+            className="inline-flex h-8 items-center gap-1 rounded-sm px-2 text-muted hover:text-text ring-focus transition-colors">
+            <Ban size={14} aria-hidden="true" />
+            {blockedList.length > 0 && (
+              <span className="text-caption" style={{ fontVariantNumeric: "tabular-nums" }}>{blockedList.length}</span>
+            )}
+          </button>
+          <div className="relative hidden sm:block">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("clients.search")} className="w-56 pl-8" aria-label={t("clients.search")} />
+          </div>
         </div>}>
         {error ? (
           <EmptyState small title={t("common.loadError")} action={<Button variant="secondary" size="sm" onClick={load}>{t("common.retry")}</Button>} />
@@ -380,14 +420,33 @@ export function ClientsPage() {
         onClose={() => setEditTarget(undefined)}
       />
 
-      <ConfirmDialog
-        open={!!blockTarget}
-        onClose={() => setBlockTarget(undefined)}
-        onConfirm={() => blockTarget && block(blockTarget, true)}
-        title={t("overview.blockTitle", { name: blockTarget?.name ?? blockTarget?.mac ?? "" })}
-        consequence={t("overview.blockBody")}
-        confirmLabel={t("overview.blockConfirm")}
-        busy={busyMac === blockTarget?.mac}
+      {blockTarget && blockTarget.type === "cable" ? (
+        <ConfirmDialog
+          open={!!blockTarget}
+          onClose={() => setBlockTarget(undefined)}
+          onConfirm={() => blockTarget && block(blockTarget, true, "")}
+          title={t("overview.blockTitle", { name: blockTarget?.name ?? blockTarget?.mac ?? "" })}
+          consequence={t("overview.blockBody")}
+          confirmLabel={t("overview.blockConfirm")}
+          busy={busyMac === blockTarget?.mac}
+        />
+      ) : (
+        <BlockBandModal
+          client={blockTarget}
+          bands={bands}
+          busy={busyMac === blockTarget?.mac}
+          onApply={(blocked, band) => blockTarget && block(blockTarget, blocked, band || undefined)}
+          onClose={() => setBlockTarget(undefined)}
+        />
+      )}
+
+      <BlockedListModal
+        open={!!blockedTarget}
+        blocked={blockedList}
+        clients={clients ?? []}
+        busyMac={busyMac}
+        onUnblock={unblockFromList}
+        onClose={() => setBlockedTarget(undefined)}
       />
     </div>
   );
@@ -489,6 +548,146 @@ function DetailClientModal({ client, rate, onClose }: {
             value={blockedDetail(client, t)} />
           <DetailRow label={t("clients.ip")} value={client.ip ?? "—"} mono />
         </div>
+      </div>
+    </Modal>
+  );
+}
+
+/** Modal con la lista de clientes bloqueados (#166), accesibles aunque
+ *  estén expulsados de las radios. */
+function BlockedListModal({ open, blocked, clients, busyMac, onUnblock, onClose }: {
+  open: boolean;
+  blocked: BlockedClient[];
+  clients: Client[];
+  busyMac?: string;
+  onUnblock: (mac: string, type: string, band?: string) => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const nameFor = (mac: string) => clients.find((c) => c.mac === mac)?.name;
+  return (
+    <Modal open={open} onClose={onClose} title={t("clients.blockedTitle", { count: blocked.length })}
+      footer={<Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}>
+      {blocked.length === 0 ? (
+        <EmptyState small title={t("clients.blockedEmpty")} />
+      ) : (
+        <ul className="flex flex-col divide-y divide-border/60">
+          {blocked.map((b) => {
+            const name = nameFor(b.mac);
+            const wifiBands = b.type === "wifi" ? (b.bands ?? []) : [];
+            return (
+              <li key={b.mac} className="flex items-center gap-3 py-2.5">
+                <Ban size={15} className="text-danger shrink-0" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-small font-medium">{name ?? <span className="font-mono">{b.mac}</span>}</p>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {b.type === "cable" ? (
+                      <Pill tone="muted">{t("overview.cable")}</Pill>
+                    ) : wifiBands.map((band) => (
+                      <Pill key={band} tone="warn">{t(BAND_KEYS[band] ?? band)}</Pill>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5 justify-end shrink-0">
+                  {b.type === "cable" ? (
+                    <button type="button" disabled={busyMac === b.mac}
+                      onClick={() => onUnblock(b.mac, "cable")}
+                      className="text-small text-danger hover:underline ring-focus disabled:opacity-40">
+                      {t("clients.unblock")}
+                    </button>
+                  ) : (
+                    <>
+                      {wifiBands.map((band) => (
+                        <button key={band} type="button" disabled={busyMac === b.mac}
+                          onClick={() => onUnblock(b.mac, "wifi", band)}
+                          className="text-small text-muted hover:text-text ring-focus disabled:opacity-40">
+                          {t(BAND_KEYS[band] ?? band)}
+                        </button>
+                      ))}
+                      {wifiBands.length > 0 && (
+                        <button type="button" disabled={busyMac === b.mac}
+                          onClick={() => onUnblock(b.mac, "wifi")}
+                          className="text-small text-danger hover:underline ring-focus disabled:opacity-40">
+                          {wifiBands.length > 1 ? t("clients.unblockAll") : t("clients.unblock")}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Modal>
+  );
+}
+
+/** Modal de gestión de bloqueo por banda (#163): bloquear en una banda,
+ *  desbloquear por banda o todo. */
+function BlockBandModal({ client, bands, busy, onApply, onClose }: {
+  client?: Client;
+  bands: string[];
+  busy: boolean;
+  onApply: (blocked: boolean, band: string) => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const [scope, setScope] = useState<string>("");
+  useEffect(() => { setScope(""); }, [client]);
+  if (!client) return null;
+  const blockedBands = client.blocked_on ?? [];
+  const hasBlocks = client.blocked || blockedBands.length > 0;
+  const scopeBlocked = scope === "" ? client.blocked : blockedBands.includes(scope);
+  return (
+    <Modal open onClose={onClose} title={t("clients.blockManageTitle", { name: client.name ?? client.mac })}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+          <Button onClick={() => onApply(true, scope)} loading={busy} disabled={!scope || scopeBlocked}>
+            {t("clients.blockApply")}
+          </Button>
+        </>
+      }>
+      <div className="flex flex-col gap-5">
+        {hasBlocks && (
+          <section>
+            <p className="mb-2 text-caption text-muted">{t("clients.unblockTitle")}</p>
+            <div className="flex flex-wrap gap-2">
+              {blockedBands.map((b) => (
+                <button key={b} type="button" disabled={busy}
+                  onClick={() => onApply(false, b)}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-small ring-focus transition-colors hover:bg-surface-2 disabled:opacity-40">
+                  <Ban size={13} className="text-danger" aria-hidden="true" />
+                  {t(BAND_KEYS[b] ?? b)}
+                </button>
+              ))}
+              {blockedBands.length > 1 && (
+                <button type="button" disabled={busy} onClick={() => onApply(false, "")}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-danger/40 bg-danger/5 px-3 py-1.5 text-small text-danger ring-focus transition-colors hover:bg-danger/10 disabled:opacity-40">
+                  {t("clients.unblockAll")}
+                </button>
+              )}
+            </div>
+          </section>
+        )}
+        <section>
+          <p className="mb-2 text-caption text-muted">{t("clients.blockScope")}</p>
+          <div className="grid grid-cols-3 gap-2">
+            <button type="button" onClick={() => setScope("")}
+              className={`rounded-md border p-3 text-small text-left ring-focus transition-colors ${scope === "" ? "border-accent bg-accent/5 font-medium" : "border-border hover:bg-surface-2"}`}>
+              <span className="block">{t("clients.blockAllBands")}</span>
+              <span className="block text-caption text-muted mt-1">{t("clients.blockAllHint")}</span>
+            </button>
+            {bands.map((b) => (
+              <button key={b} type="button" onClick={() => setScope(b)}
+                className={`rounded-md border p-3 text-small text-left ring-focus transition-colors ${scope === b ? "border-accent bg-accent/5 font-medium" : "border-border hover:bg-surface-2"}`}>
+                <span className="block">{t(BAND_KEYS[b] ?? b)}</span>
+                <span className="block text-caption text-muted mt-1">{t("clients.blockBandHint")}</span>
+              </button>
+            ))}
+          </div>
+        </section>
       </div>
     </Modal>
   );
