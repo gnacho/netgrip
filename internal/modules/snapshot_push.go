@@ -76,6 +76,7 @@ func PushLatestSnapshot() PushResult {
 	req.Header.Set("X-Router-ID", cfg.RouterID)
 	req.Header.Set("X-Snapshot-ID", latest.ID)
 	req.Header.Set("X-Configs", configsStr)
+	req.Header.Set("X-Executor-Token", GetExecutorToken())
 	if cfg.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+cfg.Token)
 	}
