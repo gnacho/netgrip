@@ -12,14 +12,8 @@ func setClientMetaPath(t *testing.T) string {
 	t.Helper()
 	old := clientMetaPath
 	clientMetaPath = filepath.Join(t.TempDir(), "clients.json")
-	clientMetaMu.Lock()
-	clientMetaData = nil
-	clientMetaMu.Unlock()
 	t.Cleanup(func() {
 		clientMetaPath = old
-		clientMetaMu.Lock()
-		clientMetaData = nil
-		clientMetaMu.Unlock()
 	})
 	return clientMetaPath
 }
@@ -67,6 +61,45 @@ func TestSetClientMetaInvalidMac(t *testing.T) {
 	setClientMetaPath(t)
 	if _, err := SetClientMeta("no-mac", "x", "phone"); err == nil {
 		t.Fatal("MAC inválida debe devolver error")
+	}
+}
+
+// TestSetClientMetaEmptyDeletes: pasar nombre y tipo vacíos borra la
+// entrada en lugar de dejarla persistida como struct vacío (#165).
+func TestSetClientMetaEmptyDeletes(t *testing.T) {
+	path := setClientMetaPath(t)
+	if _, err := SetClientMeta("AA:BB:CC:DD:EE:FF", "fox", "phone"); err != nil {
+		t.Fatalf("set inicial: %v", err)
+	}
+	if _, err := SetClientMeta("AA:BB:CC:DD:EE:FF", "", ""); err != nil {
+		t.Fatalf("set vacío: %v", err)
+	}
+	if got := GetClientMeta(); len(got.Meta) != 0 {
+		t.Fatalf("tras borrar: %+v", got.Meta)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("clients.json debería haberse borrado; stat=%v", err)
+	}
+}
+
+// TestClientMetaRefreshOnDiskEdit: editar el fichero a mano debe
+// verse sin reiniciar el servicio (#165). La versión cacheada ocultaba
+// los cambios hasta el reinicio.
+func TestClientMetaRefreshOnDiskEdit(t *testing.T) {
+	path := setClientMetaPath(t)
+	if _, err := SetClientMeta("AA:BB:CC:DD:EE:FF", "fox", "phone"); err != nil {
+		t.Fatalf("set inicial: %v", err)
+	}
+	// Escritura externa que simula un edit manual.
+	if err := os.WriteFile(path, []byte(`{"11:22:33:44:55:66":{"name":"manual","device_type":"pc"}}`), 0o600); err != nil {
+		t.Fatalf("write manual: %v", err)
+	}
+	got := GetClientMeta()
+	if m, ok := got.Meta["11:22:33:44:55:66"]; !ok || m.Name != "manual" {
+		t.Fatalf("edición manual no visible sin restart: %+v", got.Meta)
+	}
+	if _, ok := got.Meta["aa:bb:cc:dd:ee:ff"]; ok {
+		t.Fatal("la entrada previa debería haber desaparecido tras la edición manual")
 	}
 }
 

@@ -378,7 +378,7 @@ export interface BlockedClient {
 export type DeviceType =
   | "pc" | "phone" | "tablet" | "camera" | "wearable" | "laptop" | "printer"
   | "audio" | "tv" | "iot" | "gaming" | "gateway" | "nas" | "server"
-  | "appliance" | "ac" | "speaker" | "other";
+  | "appliance" | "ac" | "speaker" | "vacuum" | "pool" | "mower" | "other";
 
 export interface ConfigSnapshot {
   id: string;
