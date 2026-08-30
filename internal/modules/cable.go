@@ -21,11 +21,24 @@ type CableTestProbe struct {
 
 func ProbeCableTest() CableTestProbe {
 	if _, err := exec.LookPath("ethtool"); err != nil {
-		return CableTestProbe{Applicable: false, MissingTool: "ethtool"}
+		return CableTestProbe{Applicable: false, MissingTool: "ethtool-full"}
 	}
 	portMap := bridgePorts()
 	if len(portMap) == 0 {
 		return CableTestProbe{Applicable: false}
+	}
+
+	// The cable test needs the full ethtool build with netlink support; the
+	// tiny variant prints a netlink error even though the binary exists.
+	for port := range portMap {
+		if strings.HasPrefix(port, "phy") || strings.HasPrefix(port, "wlan") {
+			continue
+		}
+		out, _ := exec.Command("ethtool", "--cable-test", port).CombinedOutput()
+		if strings.Contains(strings.ToLower(string(out)), "netlink support") {
+			return CableTestProbe{Applicable: false, MissingTool: "ethtool-full"}
+		}
+		break
 	}
 
 	var results []CableTestResult
@@ -43,7 +56,7 @@ func ProbeCableTest() CableTestProbe {
 func testCable(port string) CableTestResult {
 	result := CableTestResult{Port: port}
 
-	cmd := exec.Command("ethtool", "-t", port)
+	cmd := exec.Command("ethtool", "--cable-test", port)
 	out, err := cmd.CombinedOutput()
 	output := string(out)
 
@@ -97,7 +110,11 @@ func parseCableLength(output string) string {
 			strings.Contains(line, "Distance") || strings.Contains(line, "distance") {
 			parts := strings.SplitN(line, ":", 2)
 			if len(parts) == 2 {
-				return strings.TrimSpace(parts[1])
+				val := strings.TrimSpace(parts[1])
+				if i := strings.Index(val, ","); i >= 0 {
+					val = strings.TrimSpace(val[:i])
+				}
+				return val
 			}
 		}
 	}
