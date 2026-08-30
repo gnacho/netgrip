@@ -20,6 +20,8 @@ import {
   Reveal, StepFooter, StepShell, StrengthMeter, encLabel, genKey, type WizardRecord,
 } from "./common";
 
+export { SetupDependenciesStep } from "./SetupDependenciesStep";
+
 /* ── 1. welcome ─────────────────────────────────────────────────────────── */
 
 export function WelcomeStep({ onStart, onSkipAll }: { onStart: () => void; onSkipAll: () => void }) {

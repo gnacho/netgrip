@@ -110,6 +110,8 @@ export const demoApi: typeof api = {
   logout: async () => { await wait(100, 200); },
   me: () => get(undefined as void),
   wizardState: () => get(D.demoWizard),
+  wizardSetup: () => get(D.demoWizardSetup),
+  installWizardSetup: async () => { await wait(800, 1500); return { installed: ["ethtool-full"] }; },
   wizardComplete: async () => { await wait(400, 800); return { status: "ok" }; },
 
   // núcleo
