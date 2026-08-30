@@ -11,8 +11,10 @@ import (
 	"time"
 )
 
-const fleetConfigPath = "/etc/netgrip/fleet.json"
-const legacyFleetConfigPath = "/etc/owpanel/fleet.json"
+var (
+	fleetConfigPath        = "/etc/netgrip/fleet.json"
+	legacyFleetConfigPath  = "/etc/owpanel/fleet.json"
+)
 
 type FleetNode struct {
 	ID       string `json:"id"`

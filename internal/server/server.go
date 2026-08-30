@@ -165,6 +165,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/fleet/check", s.requireAuth(s.handleFleetCheck))
 	s.mux.HandleFunc("POST /api/fleet/check-all", s.requireAuth(s.handleFleetCheckAll))
 	s.mux.HandleFunc("POST /api/fleet/update", s.requireAuth(s.handleFleetUpdate))
+	s.mux.HandleFunc("GET /api/fleet/discovered", s.requireAuth(s.handleFleetDiscovered))
+	s.mux.HandleFunc("POST /api/fleet/adopt", s.requireAuth(s.handleFleetAdopt))
 	s.mux.HandleFunc("GET /api/cable-test", s.requireAuth(s.handleCableTestGet))
 	s.mux.HandleFunc("GET /api/storm", s.requireAuth(s.handleStormGet))
 	s.mux.HandleFunc("POST /api/storm", s.requireAuth(s.handleStormSet))
@@ -1633,6 +1635,33 @@ func (s *Server) handleFleetUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "updating"})
+}
+
+func (s *Server) handleFleetDiscovered(w http.ResponseWriter, _ *http.Request) {
+	peers, err := modules.ListDiscoveredFleetPeers()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"peers": peers})
+}
+
+func (s *Server) handleFleetAdopt(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ID       string `json:"id"`
+		Name     string `json:"name"`
+		Address  string `json:"address"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := modules.AdoptFleetPeer(req.ID, req.Name, req.Address, req.Password); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "adopted"})
 }
 
 func (s *Server) handleCableTestGet(w http.ResponseWriter, _ *http.Request) {

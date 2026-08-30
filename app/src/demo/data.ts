@@ -362,6 +362,10 @@ export const demoFleet: T.FleetNodeStatus[] = [
   { id: "switch-garaje", name: "switch-garaje", address: "192.168.8.3", reachable: true, current_version: "0.1.1", latest_version: "0.1.2", update_available: true },
 ];
 
+export const demoDiscoveredFleet: T.DiscoveredFleetPeer[] = [
+  { id: "ap-jardin", name: "ap-jardin", version: "0.1.2", address: "192.168.8.4", port: 8080, seen_at: new Date().toISOString() },
+];
+
 export const demoCableTest: T.CableTestProbe = {
   applicable: true,
   ports: [

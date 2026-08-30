@@ -47,6 +47,7 @@ const state = {
   remote: { ...D.demoRemoteAccess },
   storage: structuredClone(D.demoStorage),
   fleet: structuredClone(D.demoFleet),
+  discoveredFleet: structuredClone(D.demoDiscoveredFleet),
   telegram: { ...D.demoTelegram },
   netpulse: {
     enabled: true,
@@ -477,6 +478,13 @@ export const demoApi: typeof api = {
     return n;
   },
   checkAllFleet: async () => { await wait(600, 1200); return { nodes: state.fleet }; },
+  discoveredFleet: () => get({ peers: state.discoveredFleet }),
+  adoptFleetPeer: async (peer) => {
+    await wait(800, 1500);
+    state.fleet.push({ id: peer.id, name: peer.name, address: peer.address, reachable: true, current_version: "0.1.2", latest_version: "0.1.2", update_available: false });
+    state.discoveredFleet = state.discoveredFleet.filter((p) => p.id !== peer.id);
+    return { status: "ok" };
+  },
   updateFleetNode: async (id) => {
     await wait(800, 1500);
     const n = state.fleet.find((x) => x.id === id);
