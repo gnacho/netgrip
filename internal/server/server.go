@@ -167,6 +167,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/fleet/update", s.requireAuth(s.handleFleetUpdate))
 	s.mux.HandleFunc("GET /api/fleet/discovery-config", s.requireAuth(s.handleFleetDiscoveryConfigGet))
 	s.mux.HandleFunc("POST /api/fleet/discovery-config", s.requireAuth(s.handleFleetDiscoveryConfigSet))
+	s.mux.HandleFunc("GET /api/fleet/discovered", s.requireAuth(s.handleFleetDiscovered))
 	s.mux.HandleFunc("POST /api/fleet/adopt", s.requireAuth(s.handleFleetAdopt))
 	s.mux.HandleFunc("GET /api/cable-test", s.requireAuth(s.handleCableTestGet))
 	s.mux.HandleFunc("GET /api/storm", s.requireAuth(s.handleStormGet))
