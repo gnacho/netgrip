@@ -42,31 +42,54 @@ export function FleetPage() {
   const toast = useToast();
   const [nodes, setNodes] = useState<FleetNodeStatus[]>();
   const [discovered, setDiscovered] = useState<DiscoveredFleetPeer[]>();
-  const [error, setError] = useState(false);
+  const [discoveryEnabled, setDiscoveryEnabled] = useState<boolean>(true);
+  const [nodesError, setNodesError] = useState(false);
+  const [discoveredError, setDiscoveredError] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [checkingAll, setCheckingAll] = useState(false);
   const [toRemove, setToRemove] = useState<FleetNodeStatus>();
   const [toUpdate, setToUpdate] = useState<FleetNodeStatus>();
   const [toAdopt, setToAdopt] = useState<DiscoveredFleetPeer>();
   const [dialogBusy, setDialogBusy] = useState(false);
-  const [discoveryEnabled, setDiscoveryEnabled] = useState<boolean>(true);
   const [discoveryLoading, setDiscoveryLoading] = useState(false);
+  const [discoveryConfigLoaded, setDiscoveryConfigLoaded] = useState(false);
 
-  const load = useCallback(async () => {
-    setError(false);
+  const loadNodes = useCallback(async () => {
+    setNodesError(false);
     try {
-      const [fleetData, discoveredData, cfg] = await Promise.all([
-        api.fleet(),
-        api.discoveredFleet(),
-        api.fleetDiscoveryConfig().catch(() => ({ enabled: true })),
-      ]);
-      setNodes(fleetData.nodes ?? []);
-      setDiscovered(discoveredData.peers ?? []);
-      setDiscoveryEnabled(cfg.enabled);
+      const data = await api.fleet();
+      setNodes(data.nodes ?? []);
     } catch {
-      setError(true);
+      setNodesError(true);
     }
   }, []);
+
+  const loadDiscovered = useCallback(async () => {
+    setDiscoveredError(false);
+    try {
+      const data = await api.discoveredFleet();
+      setDiscovered(data.peers ?? []);
+    } catch {
+      setDiscoveredError(true);
+    }
+  }, []);
+
+  const loadDiscoveryConfig = useCallback(async () => {
+    try {
+      const cfg = await api.fleetDiscoveryConfig();
+      setDiscoveryEnabled(cfg.enabled);
+    } catch {
+      // Si el endpoint no existe (version anterior del backend), mantener
+      // el valor por defecto activado y marcar que no se pudo cargar config.
+      setDiscoveryEnabled(true);
+    } finally {
+      setDiscoveryConfigLoaded(true);
+    }
+  }, []);
+
+  const load = useCallback(async () => {
+    await Promise.all([loadNodes(), loadDiscovered(), loadDiscoveryConfig()]);
+  }, [loadNodes, loadDiscovered, loadDiscoveryConfig]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -131,7 +154,8 @@ export function FleetPage() {
     }
   };
 
-  const loading = !nodes && !error;
+  const loadingNodes = nodes === undefined && !nodesError;
+  const nodesEmpty = !loadingNodes && !nodesError && (nodes?.length ?? 0) === 0;
 
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
@@ -145,7 +169,7 @@ export function FleetPage() {
           <div className="flex gap-2 shrink-0">
             <Button
               variant="secondary" size="sm" icon={RefreshCw}
-              loading={checkingAll} disabled={loading || error || nodes?.length === 0}
+              loading={checkingAll} disabled={loadingNodes || nodes?.length === 0}
               onClick={checkAll}
             >
               {checkingAll ? t("fleet.checking") : t("fleet.checkAll")}
@@ -158,32 +182,34 @@ export function FleetPage() {
       >
         <p className="text-small text-muted">{t("fleet.headerIntro")}</p>
 
-        <div className="mt-3 flex items-center gap-3 rounded-lg border border-border bg-surface p-3">
-          <Toggle
-            checked={discoveryEnabled}
-            busy={discoveryLoading}
-            onChange={toggleDiscovery}
-            label={t("fleet.discoveryEnabled")}
-          />
-          <div>
-            <p className="text-body font-medium">{t("fleet.discoveryEnabled")}</p>
-            <p className="text-caption text-muted">{t("fleet.discoveryRestartNote")}</p>
+        {discoveryConfigLoaded && (
+          <div className="mt-3 flex items-center gap-3 rounded-lg border border-border bg-surface p-3">
+            <Toggle
+              checked={discoveryEnabled}
+              busy={discoveryLoading}
+              onChange={toggleDiscovery}
+              label={t("fleet.discoveryEnabled")}
+            />
+            <div>
+              <p className="text-body font-medium">{t("fleet.discoveryEnabled")}</p>
+              <p className="text-caption text-muted">{t("fleet.discoveryRestartNote")}</p>
+            </div>
           </div>
-        </div>
+        )}
 
-        {error ? (
+        {nodesError ? (
           <EmptyState
             small
             illustration={<CloudOff size={24} />}
             title={t("common.loadError")}
-            action={<Button variant="secondary" size="sm" onClick={load}>{t("common.retry")}</Button>}
+            action={<Button variant="secondary" size="sm" onClick={loadNodes}>{t("common.retry")}</Button>}
           />
-        ) : loading ? (
+        ) : loadingNodes ? (
           <div className="flex flex-col gap-[var(--card-gap)] mt-4">
             <Skeleton className="h-32" />
             <Skeleton className="h-32" />
           </div>
-        ) : nodes!.length === 0 ? (
+        ) : nodesEmpty ? (
           <EmptyState
             illustration={<IlluFleet size={140} />}
             title={t("fleet.emptyTitle")}
@@ -194,7 +220,17 @@ export function FleetPage() {
       </Card>
 
       {/* ════ Routers descubiertos ════ */}
-      {!loading && !error && discovered && discovered.length > 0 && (
+      {!loadingNodes && !nodesError && discoveredError && (
+        <Card index={1} icon={Wifi} iconTone="accent" title={t("fleet.discoveredTitle")}>
+          <EmptyState
+            small
+            illustration={<CloudOff size={24} />}
+            title={t("common.loadError")}
+            action={<Button variant="secondary" size="sm" onClick={loadDiscovered}>{t("common.retry")}</Button>}
+          />
+        </Card>
+      )}
+      {!loadingNodes && !nodesError && !discoveredError && discovered && discovered.length > 0 && (
         <Card index={1} icon={Wifi} iconTone="accent" title={t("fleet.discoveredTitle")}>
           <p className="text-small text-muted mb-3">{t("fleet.discoveredIntro")}</p>
           <div className="flex flex-col gap-[var(--card-gap)]">
@@ -221,7 +257,7 @@ export function FleetPage() {
       )}
 
       {/* ════ Grid de tarjetas de equipo (fleet.md §2) ════ */}
-      {!loading && !error && nodes && nodes.length > 0 && (
+      {!loadingNodes && !nodesError && nodes && nodes.length > 0 && (
         <div className="flex flex-col gap-[var(--card-gap)]">
           {nodes.map((node, i) => (
             <NodeCard
@@ -264,7 +300,7 @@ export function FleetPage() {
         onAdded={(name) => {
           setShowAdd(false);
           toast.push({ tone: "ok", text: t("fleet.addedOk", { name }) });
-          load();
+          loadNodes();
         }}
       />
 
@@ -275,7 +311,8 @@ export function FleetPage() {
         onAdopted={(name) => {
           setToAdopt(undefined);
           toast.push({ tone: "ok", text: t("fleet.adoptedOk", { name }) });
-          load();
+          loadNodes();
+          loadDiscovered();
         }}
       />
 
