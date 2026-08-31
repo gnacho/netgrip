@@ -510,11 +510,27 @@ const realApi = {
     request<{ nodes: import("./types").FleetNodeStatus[] }>("/api/fleet/check-all", {
       method: "POST",
     }),
+  discoveredFleet: () =>
+    request<{ peers: import("./types").DiscoveredFleetPeer[] }>("/api/fleet/discovered"),
+  adoptFleetPeer: (peer: { id: string; name: string; address: string; password: string }) =>
+    request<{ status: string }>("/api/fleet/adopt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(peer),
+    }),
   updateFleetNode: (id: string) =>
     request<{ status: string }>("/api/fleet/update", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
+    }),
+  fleetDiscoveryConfig: () =>
+    request<{ enabled: boolean }>("/api/fleet/discovery-config"),
+  setFleetDiscoveryConfig: (enabled: boolean) =>
+    request<{ enabled: boolean }>("/api/fleet/discovery-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
     }),
   cableTest: () =>
     request<import("./types").CableTestProbe>("/api/cable-test"),

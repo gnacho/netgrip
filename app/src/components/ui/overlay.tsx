@@ -6,10 +6,13 @@ import { Button } from "./Button";
 import { IconTile } from "./IconTile";
 
 function useOverlayA11y(open: boolean, onClose: () => void, ref: React.RefObject<HTMLDivElement | null>) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
       if (e.key === "Tab" && ref.current) {
         // foco atrapado
         const els = ref.current.querySelectorAll<HTMLElement>(
@@ -27,7 +30,7 @@ function useOverlayA11y(open: boolean, onClose: () => void, ref: React.RefObject
       ref.current?.querySelector<HTMLElement>("button, input, [tabindex]")?.focus();
     }, 30);
     return () => { document.removeEventListener("keydown", onKey); clearTimeout(t); };
-  }, [open, onClose, ref]);
+  }, [open, ref]);
 }
 
 /**

@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { CloudOff, Download, ExternalLink, Lock, Network, Plus, RefreshCw, Router, Server, Trash2, Wifi } from "lucide-react";
 import { api } from "../api";
-import type { FleetNodeStatus } from "../types";
+import type { FleetNodeStatus, DiscoveredFleetPeer } from "../types";
 import {
   AdvancedDisclosure, Button, Card, ConfirmDialog, EmptyState, Field,
-  IconTile, KeyValue, Modal, Pill, Skeleton, useToast,
+  IconTile, KeyValue, Modal, Pill, Skeleton, Toggle, useToast,
 } from "../components/ui";
 import { IlluFleet } from "../components/ui/illustrations";
 
@@ -41,22 +41,55 @@ export function FleetPage() {
   const { t } = useTranslation();
   const toast = useToast();
   const [nodes, setNodes] = useState<FleetNodeStatus[]>();
-  const [error, setError] = useState(false);
+  const [discovered, setDiscovered] = useState<DiscoveredFleetPeer[]>();
+  const [discoveryEnabled, setDiscoveryEnabled] = useState<boolean>(true);
+  const [nodesError, setNodesError] = useState(false);
+  const [discoveredError, setDiscoveredError] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [checkingAll, setCheckingAll] = useState(false);
   const [toRemove, setToRemove] = useState<FleetNodeStatus>();
   const [toUpdate, setToUpdate] = useState<FleetNodeStatus>();
+  const [toAdopt, setToAdopt] = useState<DiscoveredFleetPeer>();
   const [dialogBusy, setDialogBusy] = useState(false);
+  const [discoveryLoading, setDiscoveryLoading] = useState(false);
+  const [discoveryConfigLoaded, setDiscoveryConfigLoaded] = useState(false);
 
-  const load = useCallback(async () => {
-    setError(false);
+  const loadNodes = useCallback(async () => {
+    setNodesError(false);
     try {
       const data = await api.fleet();
       setNodes(data.nodes ?? []);
     } catch {
-      setError(true);
+      setNodesError(true);
     }
   }, []);
+
+  const loadDiscovered = useCallback(async () => {
+    setDiscoveredError(false);
+    try {
+      const data = await api.discoveredFleet();
+      setDiscovered(data.peers ?? []);
+    } catch {
+      setDiscoveredError(true);
+    }
+  }, []);
+
+  const loadDiscoveryConfig = useCallback(async () => {
+    try {
+      const cfg = await api.fleetDiscoveryConfig();
+      setDiscoveryEnabled(cfg.enabled);
+    } catch {
+      // Si el endpoint no existe (version anterior del backend), mantener
+      // el valor por defecto activado y marcar que no se pudo cargar config.
+      setDiscoveryEnabled(true);
+    } finally {
+      setDiscoveryConfigLoaded(true);
+    }
+  }, []);
+
+  const load = useCallback(async () => {
+    await Promise.all([loadNodes(), loadDiscovered(), loadDiscoveryConfig()]);
+  }, [loadNodes, loadDiscovered, loadDiscoveryConfig]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -108,7 +141,21 @@ export function FleetPage() {
     }
   };
 
-  const loading = !nodes && !error;
+  const toggleDiscovery = async (enabled: boolean) => {
+    setDiscoveryLoading(true);
+    try {
+      await api.setFleetDiscoveryConfig(enabled);
+      setDiscoveryEnabled(enabled);
+      toast.push({ tone: "ok", text: enabled ? t("fleet.discoveryEnabled") : t("fleet.discoveryDisabled") });
+    } catch (e) {
+      toast.push({ tone: "danger", text: t("common.loadError"), detail: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setDiscoveryLoading(false);
+    }
+  };
+
+  const loadingNodes = nodes === undefined && !nodesError;
+  const nodesEmpty = !loadingNodes && !nodesError && (nodes?.length ?? 0) === 0;
 
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
@@ -122,7 +169,7 @@ export function FleetPage() {
           <div className="flex gap-2 shrink-0">
             <Button
               variant="secondary" size="sm" icon={RefreshCw}
-              loading={checkingAll} disabled={loading || error || nodes?.length === 0}
+              loading={checkingAll} disabled={loadingNodes || nodes?.length === 0}
               onClick={checkAll}
             >
               {checkingAll ? t("fleet.checking") : t("fleet.checkAll")}
@@ -135,19 +182,34 @@ export function FleetPage() {
       >
         <p className="text-small text-muted">{t("fleet.headerIntro")}</p>
 
-        {error ? (
+        {discoveryConfigLoaded && (
+          <div className="mt-3 flex items-center gap-3 rounded-lg border border-border bg-surface p-3">
+            <Toggle
+              checked={discoveryEnabled}
+              busy={discoveryLoading}
+              onChange={toggleDiscovery}
+              label={t("fleet.discoveryEnabled")}
+            />
+            <div>
+              <p className="text-body font-medium">{t("fleet.discoveryEnabled")}</p>
+              <p className="text-caption text-muted">{t("fleet.discoveryRestartNote")}</p>
+            </div>
+          </div>
+        )}
+
+        {nodesError ? (
           <EmptyState
             small
             illustration={<CloudOff size={24} />}
             title={t("common.loadError")}
-            action={<Button variant="secondary" size="sm" onClick={load}>{t("common.retry")}</Button>}
+            action={<Button variant="secondary" size="sm" onClick={loadNodes}>{t("common.retry")}</Button>}
           />
-        ) : loading ? (
+        ) : loadingNodes ? (
           <div className="flex flex-col gap-[var(--card-gap)] mt-4">
             <Skeleton className="h-32" />
             <Skeleton className="h-32" />
           </div>
-        ) : nodes!.length === 0 ? (
+        ) : nodesEmpty ? (
           <EmptyState
             illustration={<IlluFleet size={140} />}
             title={t("fleet.emptyTitle")}
@@ -157,8 +219,45 @@ export function FleetPage() {
         ) : null}
       </Card>
 
+      {/* ════ Routers descubiertos ════ */}
+      {!loadingNodes && !nodesError && discoveredError && (
+        <Card index={1} icon={Wifi} iconTone="accent" title={t("fleet.discoveredTitle")}>
+          <EmptyState
+            small
+            illustration={<CloudOff size={24} />}
+            title={t("common.loadError")}
+            action={<Button variant="secondary" size="sm" onClick={loadDiscovered}>{t("common.retry")}</Button>}
+          />
+        </Card>
+      )}
+      {!loadingNodes && !nodesError && !discoveredError && discovered && discovered.length > 0 && (
+        <Card index={1} icon={Wifi} iconTone="accent" title={t("fleet.discoveredTitle")}>
+          <p className="text-small text-muted mb-3">{t("fleet.discoveredIntro")}</p>
+          <div className="flex flex-col gap-[var(--card-gap)]">
+            {discovered.map((peer, i) => (
+              <article
+                key={peer.id}
+                style={{ "--i": Math.min(i, 7), animationDelay: `${i * 70}ms` } as CSSProperties}
+                className="animate-fade-up rounded-lg border border-border bg-surface p-4 shadow-card flex flex-col sm:flex-row sm:items-center gap-3"
+              >
+                <span className="relative shrink-0">
+                  <IconTile icon={roleIcon(peer.name)} tone="accent" />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-h3 truncate">{peer.name}</h3>
+                  <p className="text-caption text-muted">{peer.address}:{peer.port} · v{peer.version}</p>
+                </div>
+                <Button size="sm" icon={Plus} onClick={() => setToAdopt(peer)}>
+                  {t("fleet.adopt")}
+                </Button>
+              </article>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* ════ Grid de tarjetas de equipo (fleet.md §2) ════ */}
-      {!loading && !error && nodes && nodes.length > 0 && (
+      {!loadingNodes && !nodesError && nodes && nodes.length > 0 && (
         <div className="flex flex-col gap-[var(--card-gap)]">
           {nodes.map((node, i) => (
             <NodeCard
@@ -201,7 +300,19 @@ export function FleetPage() {
         onAdded={(name) => {
           setShowAdd(false);
           toast.push({ tone: "ok", text: t("fleet.addedOk", { name }) });
-          load();
+          loadNodes();
+        }}
+      />
+
+      <AdoptNodeModal
+        peer={toAdopt}
+        open={!!toAdopt}
+        onClose={() => setToAdopt(undefined)}
+        onAdopted={(name) => {
+          setToAdopt(undefined);
+          toast.push({ tone: "ok", text: t("fleet.adoptedOk", { name }) });
+          loadNodes();
+          loadDiscovered();
         }}
       />
 
@@ -442,6 +553,113 @@ function AddNodeModal({ open, onClose, onAdded }: {
         {fail && (
           <div className="rounded-md bg-danger-soft px-3.5 py-3 animate-banner-in" role="alert">
             <p className="text-small text-danger">{t("fleet.addError")}</p>
+            <AdvancedDisclosure label={t("fleet.technicalDetail")} className="mt-1">
+              <pre className="max-h-32 overflow-auto rounded-sm bg-surface/60 border border-border p-2 font-mono text-caption whitespace-pre-wrap">
+                {fail}
+              </pre>
+            </AdvancedDisclosure>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+/* ══════════════ Adoptar equipo descubierto (autodiscover #178) ══════════════ */
+
+function AdoptNodeModal({ peer, open, onClose, onAdopted }: {
+  peer?: DiscoveredFleetPeer;
+  open: boolean;
+  onClose: () => void;
+  onAdopted: (name: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [fail, setFail] = useState<string>();
+
+  useEffect(() => {
+    if (peer) {
+      setName(peer.name || "");
+      setAddress(peer.address ? `${peer.address}:${peer.port || 8080}` : "");
+      setPassword("");
+      setFail(undefined);
+      setBusy(false);
+    }
+  }, [peer]);
+
+  const reset = () => {
+    setName(""); setAddress(""); setPassword(""); setFail(undefined); setBusy(false);
+  };
+
+  const close = () => { reset(); onClose(); };
+
+  const submit = async () => {
+    if (!peer) return;
+    setBusy(true);
+    setFail(undefined);
+    try {
+      await api.adoptFleetPeer({ id: peer.id, name: name.trim(), address: address.trim(), password });
+      reset();
+      onAdopted(name.trim());
+    } catch (e) {
+      setFail(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const valid = name.trim().length > 0 && address.trim().length > 0 && password.length > 0;
+
+  return (
+    <Modal
+      open={open}
+      onClose={close}
+      title={t("fleet.adoptTitle", { name: peer?.name ?? "" })}
+      footer={
+        <>
+          <Button variant="ghost" onClick={close}>{t("common.cancel")}</Button>
+          <Button onClick={submit} disabled={!valid} loading={busy}>
+            {busy ? t("fleet.adoptChecking") : t("fleet.adopt")}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <p className="text-small text-muted">{t("fleet.adoptIntro", { name: peer?.name ?? "" })}</p>
+        <Field
+          label={t("fleet.nameLabel")}
+          inputProps={{
+            value: name,
+            onChange: (e) => setName(e.target.value),
+            placeholder: t("fleet.namePlaceholder"),
+          }}
+        />
+        <Field
+          label={t("fleet.addressLabel")}
+          hint={t("fleet.addressHint")}
+          mono
+          inputProps={{
+            value: address,
+            onChange: (e) => setAddress(e.target.value),
+            placeholder: "192.168.8.2:8080",
+          }}
+        />
+        <Field
+          label={t("fleet.passwordLabel")}
+          hint={t("fleet.passwordHint")}
+          icon={Lock}
+          inputProps={{
+            type: "password",
+            value: password,
+            onChange: (e) => setPassword(e.target.value),
+          }}
+        />
+        {fail && (
+          <div className="rounded-md bg-danger-soft px-3.5 py-3 animate-banner-in" role="alert">
+            <p className="text-small text-danger">{t("fleet.adoptError")}</p>
             <AdvancedDisclosure label={t("fleet.technicalDetail")} className="mt-1">
               <pre className="max-h-32 overflow-auto rounded-sm bg-surface/60 border border-border p-2 font-mono text-caption whitespace-pre-wrap">
                 {fail}

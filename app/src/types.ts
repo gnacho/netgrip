@@ -668,6 +668,15 @@ export interface FleetNodeStatus {
   error?: string;
 }
 
+export interface DiscoveredFleetPeer {
+  id: string;
+  name: string;
+  version: string;
+  address: string;
+  port: number;
+  seen_at: string;
+}
+
 export interface CableTestResult {
   port: string;
   supported: boolean;
