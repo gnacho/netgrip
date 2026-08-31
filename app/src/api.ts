@@ -213,7 +213,7 @@ const realApi = {
       body: JSON.stringify({ ip, hostname, remove }),
     }),
   ethports: () => request<{ ports: import("./types").EthPort[] }>("/api/ethports"),
-  dawn: () => request<{ aps: import("./types").DawnAP[] }>("/api/dawn"),
+  usteer: () => request<{ aps: import("./types").UsteerAP[] }>("/api/usteer"),
   guestwifi: () => request<import("./types").GuestProbe>("/api/guestwifi"),
   setGuestwifi: (cfg: { enabled: boolean; ssid?: string; key?: string; band?: string }) =>
     request<import("./types").ModuleResult<import("./types").GuestProbe>>("/api/guestwifi", {

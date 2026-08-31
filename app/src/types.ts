@@ -332,12 +332,12 @@ export interface OffloadProbe {
   hardware_active: boolean;
 }
 
-export interface DawnClient {
+// usteer mesh AP/client types.
+export interface UsteerClient {
   mac: string;
   signal: number;
 }
-
-export interface DawnAP {
+export interface UsteerAP {
   bssid: string;
   ssid: string;
   hostname: string;
@@ -347,8 +347,9 @@ export interface DawnAP {
   util: number;
   num_sta: number;
   local: boolean;
-  clients: DawnClient[];
+  clients: UsteerClient[];
 }
+
 
 export interface Client {
   name: string;

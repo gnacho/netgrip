@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import { ArrowLeftRight, Blocks, ChartColumn, Download, HardDrive, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, Smartphone, Wifi, Wrench } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
-import type { Board, Client, DawnAP, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, ModeProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
+import type { Board, Client, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, ModeProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
 import { Badge, Banner, Button, Drawer, Pill, StatusDot, ThemeToggle, ToastProvider } from "./ui";
 import { Logo } from "./ui/illustrations";
@@ -65,8 +65,8 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   const [ts, setTs] = useState<TSProbe>();
   const [guest, setGuest] = useState<GuestProbe>();
   const [ethports, setEthports] = useState<EthPort[]>();
-  const [dawnAps, setDawnAps] = useState<DawnAP[]>();
-  const [dawnError, setDawnError] = useState(false);
+  const [usteerAps, setUsteerAps] = useState<UsteerAP[]>();
+  const [usteerError, setUsteerError] = useState(false);
   const [selfUpdate, setSelfUpdate] = useState<SelfUpdateCheck>();
   const [drift, setDrift] = useState<DriftProbe>();
   const [storage, setStorage] = useState<StorageProbe>();
@@ -120,7 +120,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     api.tailscale().then(setTs).catch(() => {});
     api.guestwifi().then(setGuest).catch(() => {});
     api.ethports().then((r) => setEthports(r.ports)).catch(() => {});
-    api.dawn().then((r) => { setDawnAps(r.aps); setDawnError(false); }).catch(() => setDawnError(true));
+    api.usteer().then((r) => { setUsteerAps(r.aps); setUsteerError(false); }).catch(() => setUsteerError(true));
     api.selfUpdateCheck().then(setSelfUpdate).catch(() => {});
     api.drift().then(setDrift).catch(() => {});
     api.storage().then(setStorage).catch(() => {});
@@ -135,17 +135,17 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   // On switches (no WiFi, many ports): hide WiFi and services pages.
   const isSwitch = mode?.hardware_class === "switch";
   const apMode = mode?.mode === "ap" && !isSwitch;
-  // Cobertura inalámbrica: solo si DAWN reporta varios routers activos.
-  const dawnMultiRouter = useMemo(() => {
+  // Cobertura inalámbrica: solo si usteer reporta varios routers activos.
+  const usteerMultiRouter = useMemo(() => {
     const hosts = new Set<string>();
-    for (const a of dawnAps ?? []) hosts.add(a.hostname || a.bssid);
+    for (const a of usteerAps ?? []) hosts.add(a.hostname || a.bssid);
     return hosts.size > 1;
-  }, [dawnAps]);
+  }, [usteerAps]);
   const visible = (id: Page) => {
     if (isSwitch && (id === "wifi" || id === "services")) return false;
     if (apMode && (id === "lan" || id === "ports")) return false;
     if (id === "storage" && !storage?.applicable) return false;
-    if (id === "coverage" && !dawnMultiRouter) return false;
+    if (id === "coverage" && !usteerMultiRouter) return false;
     return true;
   };
   const activePage = NAV_GROUPS.some((g) => g.items.includes(page)) && visible(page) ? page : "overview";
@@ -293,7 +293,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         />
       )}
       {activePage === "clients" && <ClientsPage />}
-      {activePage === "coverage" && <CoveragePage aps={dawnAps} error={dawnError} />}
+      {activePage === "coverage" && <CoveragePage aps={usteerAps} error={usteerError} />}
       {activePage === "wifi" && (
         <WifiPage iot={iot} onIotChange={setIot} guest={guest} onGuestChange={setGuest} />
       )}
