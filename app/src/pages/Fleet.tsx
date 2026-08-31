@@ -5,7 +5,7 @@ import { api } from "../api";
 import type { FleetNodeStatus, DiscoveredFleetPeer } from "../types";
 import {
   AdvancedDisclosure, Button, Card, ConfirmDialog, EmptyState, Field,
-  IconTile, KeyValue, Modal, Pill, Skeleton, useToast,
+  IconTile, KeyValue, Modal, Pill, Skeleton, Toggle, useToast,
 } from "../components/ui";
 import { IlluFleet } from "../components/ui/illustrations";
 
@@ -49,16 +49,20 @@ export function FleetPage() {
   const [toUpdate, setToUpdate] = useState<FleetNodeStatus>();
   const [toAdopt, setToAdopt] = useState<DiscoveredFleetPeer>();
   const [dialogBusy, setDialogBusy] = useState(false);
+  const [discoveryEnabled, setDiscoveryEnabled] = useState<boolean>(true);
+  const [discoveryLoading, setDiscoveryLoading] = useState(false);
 
   const load = useCallback(async () => {
     setError(false);
     try {
-      const [fleetData, discoveredData] = await Promise.all([
+      const [fleetData, discoveredData, cfg] = await Promise.all([
         api.fleet(),
         api.discoveredFleet(),
+        api.fleetDiscoveryConfig().catch(() => ({ enabled: true })),
       ]);
       setNodes(fleetData.nodes ?? []);
       setDiscovered(discoveredData.peers ?? []);
+      setDiscoveryEnabled(cfg.enabled);
     } catch {
       setError(true);
     }
@@ -114,6 +118,19 @@ export function FleetPage() {
     }
   };
 
+  const toggleDiscovery = async (enabled: boolean) => {
+    setDiscoveryLoading(true);
+    try {
+      await api.setFleetDiscoveryConfig(enabled);
+      setDiscoveryEnabled(enabled);
+      toast.push({ tone: "ok", text: enabled ? t("fleet.discoveryEnabled") : t("fleet.discoveryDisabled") });
+    } catch (e) {
+      toast.push({ tone: "danger", text: t("common.loadError"), detail: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setDiscoveryLoading(false);
+    }
+  };
+
   const loading = !nodes && !error;
 
   return (
@@ -140,6 +157,19 @@ export function FleetPage() {
         }
       >
         <p className="text-small text-muted">{t("fleet.headerIntro")}</p>
+
+        <div className="mt-3 flex items-center gap-3 rounded-lg border border-border bg-surface p-3">
+          <Toggle
+            checked={discoveryEnabled}
+            busy={discoveryLoading}
+            onChange={toggleDiscovery}
+            label={t("fleet.discoveryEnabled")}
+          />
+          <div>
+            <p className="text-body font-medium">{t("fleet.discoveryEnabled")}</p>
+            <p className="text-caption text-muted">{t("fleet.discoveryRestartNote")}</p>
+          </div>
+        </div>
 
         {error ? (
           <EmptyState

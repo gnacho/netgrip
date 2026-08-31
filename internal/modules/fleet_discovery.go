@@ -8,11 +8,16 @@ package modules
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 	"sync"
@@ -20,11 +25,13 @@ import (
 )
 
 var (
-	fleetDiscoveryPort        = 5141
-	fleetDiscoveryEvery       = 30 * time.Second
+	fleetDiscoveryPort         = 5141
+	fleetDiscoveryEvery        = 30 * time.Second
 	fleetDiscoveryProbeTimeout = 1500 * time.Millisecond
-	fleetDiscoveryTTL         = 5 * time.Minute
-	fleetDiscoveryVersion     = 1
+	fleetDiscoveryTTL          = 5 * time.Minute
+	fleetDiscoveryVersion      = 1
+	fleetDiscoverySecretPath   = "/etc/netgrip/fleet-token"
+	fleetDiscoveryMaxAgeSec    = int64(60)
 )
 
 type fleetBeacon struct {
@@ -35,6 +42,8 @@ type fleetBeacon struct {
 	Version string `json:"version"`
 	Address string `json:"address"`
 	Port    int    `json:"port"`
+	TS      int64  `json:"ts"`
+	FP      string `json:"fp"`
 }
 
 type DiscoveredFleetPeer struct {
@@ -47,13 +56,16 @@ type DiscoveredFleetPeer struct {
 }
 
 var (
-	fleetDiscMu       sync.RWMutex
-	fleetDiscovered   = make(map[string]*DiscoveredFleetPeer)
-	fleetBeaconPort   = 8080
-	fleetBeaconID     = ""
-	fleetBeaconName   = ""
+	fleetDiscMu        sync.RWMutex
+	fleetDiscovered    = make(map[string]*DiscoveredFleetPeer)
+	fleetBeaconPort    = 8080
+	fleetBeaconID      = ""
+	fleetBeaconName    = ""
 	fleetBeaconVersion = "dev"
-	fleetDiscRunning  bool
+	fleetDiscRunning   bool
+	// fleetDiscoverySecret se inyecta en tests; si esta vacio, se lee/genera
+	// en /etc/netgrip/fleet-token.
+	fleetDiscoverySecret = ""
 )
 
 var fleetIDRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
@@ -76,12 +88,104 @@ func sanitizeFleetID(s string) string {
 	return s
 }
 
+// fleetDiscoveryEnabled devuelve true salvo que UCI netgrip.main.fleet_discovery_enabled sea "0".
+func fleetDiscoveryEnabled() bool {
+	return uciGet("netgrip.main.fleet_discovery_enabled") != "0"
+}
+
+// FleetDiscoveryEnabled expone el estado de la opcion UCI para la UI.
+func FleetDiscoveryEnabled() bool {
+	return fleetDiscoveryEnabled()
+}
+
+// SetFleetDiscoveryEnabled persiste el estado de discovery en UCI. El cambio
+// requiere reiniciar el servicio netgrip para que el listener arranque o pare.
+func SetFleetDiscoveryEnabled(enabled bool) error {
+	if !uciSectionExists("netgrip.main") {
+		cmd := exec.Command("uci", "import", "netgrip")
+		cmd.Stdin = strings.NewReader("config netgrip 'main'\n")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("init netgrip config: %s", strings.TrimSpace(string(out)))
+		}
+	}
+	val := "1"
+	if !enabled {
+		val = "0"
+	}
+	if err := exec.Command("uci", "set", "netgrip.main.fleet_discovery_enabled="+val).Run(); err != nil {
+		return fmt.Errorf("uci set: %w", err)
+	}
+	if err := exec.Command("uci", "commit", "netgrip").Run(); err != nil {
+		return fmt.Errorf("uci commit: %w", err)
+	}
+	return nil
+}
+
+// loadFleetDiscoverySecret carga o genera el token secreto compartido por
+// todos los routers NetGrip de la LAN. Es el mismo secreto en cada
+// instalacion; sin el no se pueden generar ni validar beacons.
+func loadFleetDiscoverySecret() (string, error) {
+	if fleetDiscoverySecret != "" {
+		return fleetDiscoverySecret, nil
+	}
+	data, err := os.ReadFile(fleetDiscoverySecretPath)
+	if err == nil && strings.TrimSpace(string(data)) != "" {
+		fleetDiscoverySecret = strings.TrimSpace(string(data))
+		return fleetDiscoverySecret, nil
+	}
+	if !os.IsNotExist(err) {
+		return "", err
+	}
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	fleetDiscoverySecret = hex.EncodeToString(b)
+	if err := os.MkdirAll("/etc/netgrip", 0o755); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(fleetDiscoverySecretPath, []byte(fleetDiscoverySecret+"\n"), 0o600); err != nil {
+		return "", err
+	}
+	return fleetDiscoverySecret, nil
+}
+
+// fleetBeaconFingerprint calcula el HMAC-SHA256 del beacon.
+func fleetBeaconFingerprint(secret, id string, ts int64, address string, port int) string {
+	msg := fmt.Sprintf("%s:%d:%s:%d", id, ts, address, port)
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(msg))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// validFleetBeacon comprueba el fingerprint y el timestamp anti-replay.
+func validFleetBeacon(b fleetBeacon) bool {
+	secret, err := loadFleetDiscoverySecret()
+	if err != nil || secret == "" {
+		return false
+	}
+	if b.ID == "" || !fleetIDRe.MatchString(b.ID) || b.TS == 0 || b.FP == "" {
+		return false
+	}
+	now := time.Now().Unix()
+	if now-b.TS > fleetDiscoveryMaxAgeSec || b.TS-now > fleetDiscoveryMaxAgeSec {
+		return false
+	}
+	expected := fleetBeaconFingerprint(secret, b.ID, b.TS, b.Address, b.Port)
+	return hmac.Equal([]byte(b.FP), []byte(expected))
+}
+
 // StartFleetDiscovery arranca el listener y el emisor de beacons. Se llama
-// una sola vez desde main.
+// una sola vez desde main. Si UCI desactiva discovery, no arranca nada.
 func StartFleetDiscovery(version string, httpPort int) {
 	fleetDiscMu.Lock()
 	if fleetDiscRunning {
 		fleetDiscMu.Unlock()
+		return
+	}
+	if !fleetDiscoveryEnabled() {
+		fleetDiscMu.Unlock()
+		log.Printf("fleet discovery: disabled via UCI")
 		return
 	}
 	fleetDiscRunning = true
@@ -90,6 +194,11 @@ func StartFleetDiscovery(version string, httpPort int) {
 	fleetBeaconName = fleetDiscoveryHostname()
 	fleetBeaconID = sanitizeFleetID(fleetBeaconName)
 	fleetDiscMu.Unlock()
+
+	if _, err := loadFleetDiscoverySecret(); err != nil {
+		log.Printf("fleet discovery: cannot load secret: %v", err)
+		return
+	}
 
 	go fleetDiscoveryListen()
 	go fleetDiscoveryAnnounce()
@@ -119,18 +228,31 @@ func SetFleetDiscoveryPort(port int) {
 // el receptor usará la dirección origen del paquete UDP.
 func buildBeaconForPeer(peer net.IP) []byte {
 	fleetDiscMu.RLock()
+	id := fleetBeaconID
+	name := fleetBeaconName
+	version := fleetBeaconVersion
+	port := fleetBeaconPort
+	fleetDiscMu.RUnlock()
+
+	secret, err := loadFleetDiscoverySecret()
+	if err != nil {
+		log.Printf("fleet discovery: cannot load secret: %v", err)
+		return nil
+	}
+
 	b := fleetBeacon{
 		V:       fleetDiscoveryVersion,
 		Type:    "netgrip-fleet-beacon",
-		ID:      fleetBeaconID,
-		Name:    fleetBeaconName,
-		Version: fleetBeaconVersion,
-		Port:    fleetBeaconPort,
+		ID:      id,
+		Name:    name,
+		Version: version,
+		Port:    port,
+		TS:      time.Now().Unix(),
 	}
-	fleetDiscMu.RUnlock()
 	if peer != nil {
 		b.Address = localAddressForPeer(peer.To4())
 	}
+	b.FP = fleetBeaconFingerprint(secret, b.ID, b.TS, b.Address, b.Port)
 	data, _ := json.Marshal(b)
 	return data
 }
@@ -226,6 +348,12 @@ func broadcastFleetBeacon() {
 		return
 	}
 
+	secret, err := loadFleetDiscoverySecret()
+	if err != nil {
+		log.Printf("fleet discovery: cannot load secret: %v", err)
+		return
+	}
+
 	base := func() fleetBeacon {
 		fleetDiscMu.RLock()
 		defer fleetDiscMu.RUnlock()
@@ -236,6 +364,7 @@ func broadcastFleetBeacon() {
 			Name:    fleetBeaconName,
 			Version: fleetBeaconVersion,
 			Port:    fleetBeaconPort,
+			TS:      time.Now().Unix(),
 		}
 	}()
 
@@ -280,6 +409,7 @@ func broadcastFleetBeacon() {
 		if addr, ok := ifaceAddrs[key]; ok {
 			b.Address = addr.String()
 		}
+		b.FP = fleetBeaconFingerprint(secret, b.ID, b.TS, b.Address, b.Port)
 		data, _ := json.Marshal(b)
 		_, _ = conn.WriteTo(data, &net.UDPAddr{IP: ip, Port: fleetDiscoveryPort})
 	}
@@ -311,6 +441,9 @@ func recordFleetBeacon(src net.IP, data []byte) {
 	}
 	if b.ID == fleetBeaconID {
 		return // ignorar el propio beacon reflejado
+	}
+	if !validFleetBeacon(b) {
+		return
 	}
 
 	addr := b.Address
@@ -410,13 +543,21 @@ func ListDiscoveredFleetPeers() ([]DiscoveredFleetPeer, error) {
 }
 
 // AdoptFleetPeer añade un peer descubierto a la flota y verifica que podemos
-// loguearnos en él antes de persistirlo.
+// loguearnos en él antes de persistirlo. Requiere que el peer haya sido
+// descubierto previamente con un beacon validado.
 func AdoptFleetPeer(id, name, address, password string) error {
 	if id == "" || name == "" || address == "" || password == "" {
 		return fmt.Errorf("missing fields")
 	}
 	if !fleetIDRe.MatchString(id) {
 		return fmt.Errorf("invalid id")
+	}
+
+	fleetDiscMu.RLock()
+	_, discovered := fleetDiscovered[id]
+	fleetDiscMu.RUnlock()
+	if !discovered {
+		return fmt.Errorf("peer not discovered")
 	}
 
 	node := FleetNode{ID: id, Name: name, Address: address, Password: password}

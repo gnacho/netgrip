@@ -524,6 +524,14 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     }),
+  fleetDiscoveryConfig: () =>
+    request<{ enabled: boolean }>("/api/fleet/discovery-config"),
+  setFleetDiscoveryConfig: (enabled: boolean) =>
+    request<{ enabled: boolean }>("/api/fleet/discovery-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    }),
   cableTest: () =>
     request<import("./types").CableTestProbe>("/api/cable-test"),
   stormControl: () =>

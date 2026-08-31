@@ -491,4 +491,9 @@ export const demoApi: typeof api = {
     if (n) { n.current_version = n.latest_version; n.update_available = false; }
     return { status: "ok" };
   },
+  fleetDiscoveryConfig: () => get({ enabled: true }),
+  setFleetDiscoveryConfig: async (enabled: boolean) => {
+    await wait(200, 400);
+    return { enabled };
+  },
 };

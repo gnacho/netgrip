@@ -1779,6 +1779,9 @@ export default {
     roleDevice: "Network device",
     netpulseHint: "Want to see your WHOLE network at a glance? NetPulse is the sister monitoring app.",
     netpulseLink: "See NetPulse",
+    discoveryEnabled: "Discover NetGrip routers on the LAN",
+    discoveryDisabled: "Discovery disabled",
+    discoveryRestartNote: "Restart the NetGrip service to apply the change.",
   },
   backup: {
     title: "Config Backup",

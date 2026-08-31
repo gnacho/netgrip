@@ -1780,6 +1780,9 @@ export default {
     roleDevice: "Equipo de red",
     netpulseHint: "¿Quieres ver TODA la red de un vistazo? NetPulse es la app hermana de monitorización.",
     netpulseLink: "Ver NetPulse",
+    discoveryEnabled: "Descubrir routers NetGrip en la LAN",
+    discoveryDisabled: "Descubrimiento desactivado",
+    discoveryRestartNote: "Reinicia el servicio de NetGrip para aplicar el cambio.",
   },
   backup: {
     title: "Backup de configuracion",
