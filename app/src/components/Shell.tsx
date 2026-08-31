@@ -258,7 +258,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
 
   const updateBanner = selfUpdate?.available ? (
     <Banner tone="info" icon={Download} className="mb-4"
-      action={<Button variant="secondary" size="sm" onClick={() => setPage("system")}>{t("nav.system")}</Button>}>
+      action={<Button variant="secondary" size="sm" onClick={() => setPage("system")}>{t("selfupdate.update")}</Button>}>
       {t("selfupdate.bannerText", { version: selfUpdate.latest })}
     </Banner>
   ) : null;

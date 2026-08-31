@@ -9,6 +9,7 @@ import { IdentityCard } from "../components/system/IdentityCard";
 import { NetPulseCard } from "../components/system/NetPulseCard";
 import { ConfigBackupCard } from "../components/ConfigBackupCard";
 import { UpdateCard } from "../components/system/UpdateCard";
+import { SelfUpdateCard } from "../components/system/SelfUpdateCard";
 import { OptionsCard } from "../components/system/OptionsCard";
 import { NetPulseStandaloneBanner, NetPulseStatusChip } from "../components/system/NetPulseStatus";
 import { useTranslation } from "react-i18next";
@@ -49,7 +50,8 @@ export function System({ board, update, onUpdateChange, onLogout }: {
         <ModeCard index={0} />
         <IdentityCard index={1} board={board} />
         {!NETPULSE_CARD_HIDDEN && <NetPulseCard index={2} />}
-        <ConfigBackupCard index={3} />
+        <SelfUpdateCard index={3} />
+        <ConfigBackupCard index={4} />
       </section>
 
       {/* Mantenimiento (#155): actualización de la imagen OpenWrt. La rama
