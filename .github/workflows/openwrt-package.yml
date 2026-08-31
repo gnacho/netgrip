@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   create-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Resolve release tag
@@ -49,7 +49,7 @@ jobs:
 
   package:
     needs: create-release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -147,7 +147,7 @@ jobs:
 
   package-luci:
     needs: create-release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -203,7 +203,7 @@ jobs:
 
   apk-feed:
     needs: [package, package-luci]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event_name != 'workflow_dispatch' || inputs.version != ''
     permissions:
       contents: write
