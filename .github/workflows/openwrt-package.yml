@@ -204,11 +204,17 @@ jobs:
   apk-feed:
     needs: [package, package-luci]
     runs-on: ubuntu-24.04
+    container:
+      image: alpine:3.21
     if: github.event_name != 'workflow_dispatch' || inputs.version != ''
     permissions:
       contents: write
       pages: write
     steps:
+      - name: Install dependencies
+        run: |
+          apk add --no-cache git nodejs npm openssl abuild apk-tools curl github-cli
+
       - uses: actions/checkout@v4
 
       - name: Resolve release tag
@@ -222,18 +228,15 @@ jobs:
             echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Install apk-tools and abuild
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y abuild apk-tools
-
       - name: Download APKs from release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
           mkdir -p feed
-          gh release download "$TAG" -p "*.apk" -D feed/ || true
+          cd feed
+          gh release download "$TAG" --repo ${{ github.repository }} --pattern '*.apk'
+          cd ..
           ls -la feed/
 
       - name: Set up signing key
@@ -252,16 +255,26 @@ jobs:
       - name: Sign APKs and generate index
         run: |
           chmod +x deploy/openwrt/sign-apk.sh
-          PRIVKEY=~/.abuild/netgrip-signing-key.rsa
-          for apk in feed/*.apk; do
-            [ -f "$apk" ] || continue
-            ./deploy/openwrt/sign-apk.sh "$apk" "$PRIVKEY" feed/
-          done
+          ./deploy/openwrt/sign-apk.sh feed ~/.abuild/netgrip-signing-key.rsa
 
-      - name: Extract public key
-        run: |
-          PRIVKEY=~/.abuild/netgrip-signing-key.rsa
-          openssl rsa -in "$PRIVKEY" -pubout -out feed/netgrip.rsa.pub 2>/dev/null
+      - name: Upload feed artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-feed
+          path: feed/
+
+  deploy-feed:
+    needs: apk-feed
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pages: write
+    steps:
+      - name: Download feed artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-feed
+          path: feed/
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
