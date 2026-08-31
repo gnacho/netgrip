@@ -255,16 +255,7 @@ jobs:
       - name: Sign APKs and generate index
         run: |
           chmod +x deploy/openwrt/sign-apk.sh
-          PRIVKEY=~/.abuild/netgrip-signing-key.rsa
-          for apk in feed/*.apk; do
-            [ -f "$apk" ] || continue
-            ./deploy/openwrt/sign-apk.sh "$apk" "$PRIVKEY" feed/
-          done
-
-      - name: Extract public key
-        run: |
-          PRIVKEY=~/.abuild/netgrip-signing-key.rsa
-          openssl rsa -in "$PRIVKEY" -pubout -out feed/netgrip.rsa.pub 2>/dev/null
+          ./deploy/openwrt/sign-apk.sh feed ~/.abuild/netgrip-signing-key.rsa
 
       - name: Upload feed artifact
         uses: actions/upload-artifact@v4
