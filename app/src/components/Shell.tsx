@@ -19,6 +19,7 @@ import { ToolsPage } from "../pages/Tools";
 import { FleetPage } from "../pages/Fleet";
 import { StoragePage } from "../pages/Storage";
 import { DpiPage } from "../pages/Dpi";
+import { SelfUpdateDialog } from "../components/system/SelfUpdateDialog";
 
 export type Page = "overview" | "clients" | "coverage" | "wifi" | "lan" | "services" | "ports" | "tools" | "fleet" | "storage" | "system" | "dpi";
 
@@ -74,6 +75,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   const [loadError, setLoadError] = useState(false);
   const [failCount, setFailCount] = useState(0);
   const [demoBannerDismissed, setDemoBannerDismissed] = useState(false);
+  const [selfUpdateDialogOpen, setSelfUpdateDialogOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoadError(false);
@@ -258,7 +260,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
 
   const updateBanner = selfUpdate?.available ? (
     <Banner tone="info" icon={Download} className="mb-4"
-      action={<Button variant="secondary" size="sm" onClick={() => setPage("system")}>{t("nav.system")}</Button>}>
+      action={<Button variant="secondary" size="sm" onClick={() => setSelfUpdateDialogOpen(true)}>{t("selfupdate.update")}</Button>}>
       {t("selfupdate.bannerText", { version: selfUpdate.latest })}
     </Banner>
   ) : null;
@@ -317,6 +319,11 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
       {activePage === "system" && (
         <System board={board} update={update} onUpdateChange={setUpdate} onLogout={onLogout} />
       )}
+      <SelfUpdateDialog
+        open={selfUpdateDialogOpen}
+        onClose={() => setSelfUpdateDialogOpen(false)}
+        initialCheck={selfUpdate}
+      />
     </>
   );
 
