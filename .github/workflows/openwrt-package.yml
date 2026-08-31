@@ -213,7 +213,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          apk add --no-cache git nodejs npm openssl abuild apk-tools curl
+          apk add --no-cache git nodejs npm openssl abuild apk-tools curl github-cli
 
       - uses: actions/checkout@v4
 
@@ -234,11 +234,9 @@ jobs:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
           mkdir -p feed
-          curl -fsSL -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" \
-            | grep '"browser_download_url.*\.apk"' \
-            | cut -d '"' -f 4 \
-            | xargs -I {} curl -fsSL -o "feed/$(basename {})" {} || true
+          cd feed
+          gh release download "$TAG" --repo ${{ github.repository }} --pattern '*.apk'
+          cd ..
           ls -la feed/
 
       - name: Set up signing key
