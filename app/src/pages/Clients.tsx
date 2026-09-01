@@ -644,7 +644,7 @@ function BlockBandModal({ client, bands, busy, onApply, onClose }: {
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-          <Button onClick={() => onApply(true, scope)} loading={busy} disabled={!scope || scopeBlocked}>
+          <Button onClick={() => onApply(true, scope)} loading={busy} disabled={scopeBlocked}>
             {t("clients.blockApply")}
           </Button>
         </>
