@@ -9,6 +9,11 @@ import { DEVICE_TYPES, DEVICE_TYPE_KEYS, deviceTypeIcon } from "../components/cl
 import { IlluDevices } from "../components/ui/illustrations";
 import { fmtBytes, fmtRate } from "../lib/format";
 
+function fmtDateTime(ts: number): string {
+  const d = new Date(ts * 1000);
+  return d.toLocaleString(undefined, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
 /** Fila de detalle: etiqueta a la izquierda, valor a la derecha. */
 function DetailRow({ label, value, mono = false }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
@@ -220,10 +225,15 @@ export function ClientsPage() {
     }
   };
 
-  const saveEdit = async (mac: string, name: string, deviceType: string) => {
+  const saveEdit = async (mac: string, name: string, deviceType: string, reserved: boolean, ip: string) => {
     setBusyMac(mac); setActionError(undefined);
     try {
-      await api.setClientMeta(mac, name, deviceType);
+      if (name !== "" || deviceType !== editTarget?.device_type) {
+        await api.setClientMeta(mac, name, deviceType);
+      }
+      if (editTarget?.reservable) {
+        await api.reserveClient(mac, ip, reserved);
+      }
       setEditTarget(undefined);
       await load();
     } catch (e) {
@@ -547,6 +557,12 @@ function DetailClientModal({ client, rate, onClose }: {
           <DetailRow label={t("clients.block")}
             value={blockedDetail(client, t)} />
           <DetailRow label={t("clients.ip")} value={client.ip ?? "—"} mono />
+          {client.lease_expiry && (
+            <DetailRow label={t("clients.leaseExpiry")} value={fmtDateTime(client.lease_expiry)} mono />
+          )}
+          {client.lease_source && (
+            <DetailRow label={t("clients.leaseSource")} value={t(`clients.leaseSource.${client.lease_source}`)} />
+          )}
         </div>
       </div>
     </Modal>
@@ -697,34 +713,39 @@ function BlockBandModal({ client, bands, busy, onApply, onClose }: {
 function EditClientModal({ client, busy, onSave, onClose }: {
   client?: Client;
   busy: boolean;
-  onSave: (mac: string, name: string, deviceType: string) => void;
+  onSave: (mac: string, name: string, deviceType: string, reserved: boolean, ip: string) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState("");
   const [deviceType, setDeviceType] = useState<string>("other");
+  const [reserved, setReserved] = useState(false);
+  const [ip, setIp] = useState("");
 
   useEffect(() => {
     if (!client) return;
     setName(client.name && client.name !== client.mac ? client.name : "");
     setDeviceType(client.device_type || "other");
+    setReserved(client.reserved);
+    setIp(client.ip ?? "");
   }, [client]);
 
   if (!client) return null;
   const hasCustom = (client.name && client.name !== client.mac) || !!client.device_type;
+  const ipValid = !reserved || /^\d{1,3}(\.\d{1,3}){3}$/.test(ip.trim());
 
   return (
     <Modal open onClose={onClose} title={t("clients.editTitle")}
       footer={
         <>
           {hasCustom && (
-            <Button variant="ghost" onClick={() => onSave(client.mac, "", "")} loading={busy}>
+            <Button variant="ghost" onClick={() => onSave(client.mac, "", "", reserved, ip)} loading={busy}>
               {t("clients.resetMeta")}
             </Button>
           )}
           <span className="flex-1" />
           <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-          <Button onClick={() => onSave(client.mac, name.trim(), deviceType)} loading={busy}>
+          <Button onClick={() => onSave(client.mac, name.trim(), deviceType, reserved, ip.trim())} loading={busy} disabled={!ipValid}>
             {t("clients.save")}
           </Button>
         </>
@@ -738,6 +759,27 @@ function EditClientModal({ client, busy, onSave, onClose }: {
             <DeviceTypeSelect value={deviceType} onChange={setDeviceType} />
           </Field>
         </div>
+        {client.reservable && (
+          <div className="rounded-md border border-border/60 p-3 space-y-3">
+            <label className="flex items-center gap-2.5 text-small cursor-pointer">
+              <input
+                type="checkbox"
+                checked={reserved}
+                onChange={(e) => setReserved(e.target.checked)}
+                className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+              />
+              <span>{t("clients.reserveIp")}</span>
+            </label>
+            {reserved && (
+              <Field label={t("clients.ipLabel")} inputProps={{
+                value: ip,
+                onChange: (e) => setIp(e.target.value),
+                placeholder: "192.168.1.100",
+                maxLength: 15,
+              }} />
+            )}
+          </div>
+        )}
       </div>
     </Modal>
   );
