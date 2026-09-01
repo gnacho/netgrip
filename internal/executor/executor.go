@@ -61,10 +61,10 @@ func Validate(op Op) error {
 				return fmt.Errorf("invalid package name: %q", pkg)
 			}
 		}
-	case "wifi_reload":
+	case "wifi_reload", "wifi_reconf":
 		// Args: optional radio name (empty = all radios).
 		if len(op.Args) > 1 || (len(op.Args) == 1 && !reService.MatchString(op.Args[0])) {
-			return fmt.Errorf("invalid wifi_reload args: %v", op.Args)
+			return fmt.Errorf("invalid %s args: %v", op.Kind, op.Args)
 		}
 	case "ifup", "ifdown":
 		if len(op.Args) != 1 || !reService.MatchString(op.Args[0]) {
@@ -112,6 +112,8 @@ func Run(op Op) error {
 		cmd = exec.Command("apk", append([]string{"upgrade"}, op.Args...)...)
 	case "wifi_reload":
 		cmd = exec.Command("wifi", append([]string{"reload"}, op.Args...)...)
+	case "wifi_reconf":
+		cmd = exec.Command("wifi", append([]string{"reconf"}, op.Args...)...)
 	case "ifup", "ifdown":
 		cmd = exec.Command(op.Kind, op.Args[0])
 	case "ip_link":
