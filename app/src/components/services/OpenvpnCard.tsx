@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, Lock, Plus, Trash2 } from "lucide-react";
+import { Copy, Download, Lock, Plus, Trash2 } from "lucide-react";
 import { api } from "../../api";
 import type { OVPNProbe } from "../../types";
 import {
   ActionBanner, Banner, Button, Card, ConfirmDialog, EmptyState, Input,
-  KeyValue, Pill, SettingRow, SkeletonRows, Toggle,
+  KeyValue, Modal, Pill, SettingRow, SkeletonRows, Toggle, useToast,
 } from "../ui";
 import { useActionCycle } from "../wifi/action";
 import { downloadText, Reveal, TechName } from "./shared";
 
 /**
- * OpenVPN — "VPN compatible con todo" (services.md §3). Mantiene el alta de
+ * OpenVPN - "VPN compatible con todo" (services.md #3). Mantiene el alta de
  * cliente con descarga automática del .ovpn y la revocación. Si falta la PKI
  * solo podemos avisar: la API no expone acción para crear los certificados.
  */
@@ -25,6 +25,7 @@ export function OpenvpnCard({ probe, onChange, index = 0 }: {
   const [doneMsg, setDoneMsg] = useState<string>();
   const [clientName, setClientName] = useState("");
   const [delTarget, setDelTarget] = useState<string>();
+  const [addedConfig, setAddedConfig] = useState<{ name: string; config: string } | undefined>();
 
   const toggle = async (v: boolean) => {
     setDoneMsg(undefined);
@@ -46,9 +47,8 @@ export function OpenvpnCard({ probe, onChange, index = 0 }: {
     });
     if (res) {
       onChange(res.state);
-      // El .ovpn con todo embebido se descarga al añadir (comportamiento actual)
-      downloadText(`${res.name}.ovpn`, res.config, "application/x-openvpn-profile");
       setClientName("");
+      setAddedConfig({ name: res.name, config: res.config });
       setDoneMsg(t("ovpn.clientAdded", { name: res.name }));
     } else {
       onChange(await api.openvpn());
@@ -159,11 +159,29 @@ export function OpenvpnCard({ probe, onChange, index = 0 }: {
                   </Button>
                 </form>
                 <p className="text-caption text-muted mt-1.5 flex items-center gap-1">
-                  <Download size={12} aria-hidden="true" /> {t("ovpn.downloadHint")}
+                  <Download size={12} aria-hidden="true" /> {t("ovpn.configHint")}
                 </p>
               </div>
             </div>
           </Reveal>
+
+          <Modal
+            open={!!addedConfig}
+            onClose={() => setAddedConfig(undefined)}
+            title={addedConfig ? t("ovpn.configModalTitle", { name: addedConfig.name }) : ""}
+            footer={
+              <Button variant="ghost" onClick={() => setAddedConfig(undefined)}>
+                {t("common.close")}
+              </Button>
+            }
+          >
+            {addedConfig && (
+              <OvpnConfigView
+                name={addedConfig.name}
+                config={addedConfig.config}
+              />
+            )}
+          </Modal>
 
           <ConfirmDialog
             open={!!delTarget}
@@ -181,5 +199,42 @@ export function OpenvpnCard({ probe, onChange, index = 0 }: {
         </>
       )}
     </Card>
+  );
+}
+
+function OvpnConfigView({ name, config }: { name: string; config: string }) {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(config);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+      toast.push({ tone: "ok", text: t("ovpn.copyConfig") });
+    } catch {
+      // clipboard bloqueado
+    }
+  };
+  const download = () => downloadText(`${name}.ovpn`, config, "application/x-openvpn-profile");
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-small text-muted text-center">{t("ovpn.configHint")}</p>
+      <textarea
+        readOnly
+        value={config}
+        rows={10}
+        className="w-full rounded-md border border-border/60 bg-surface-2 px-3 py-2 font-mono text-caption focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+        aria-label={t("ovpn.viewConfig")}
+      />
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <Button variant="secondary" size="sm" icon={Copy} onClick={copy}>
+          {copied ? t("services.copied") : t("ovpn.copyConfig")}
+        </Button>
+        <Button variant="secondary" size="sm" icon={Download} onClick={download}>
+          {t("ovpn.downloadConf")}
+        </Button>
+      </div>
+    </div>
   );
 }

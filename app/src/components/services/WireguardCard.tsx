@@ -5,7 +5,7 @@ import { api } from "../../api";
 import type { WGPeer, WGProbe } from "../../types";
 import {
   ActionBanner, AdvancedDisclosure, Button, Card, ConfirmDialog, EmptyState,
-  Input, Modal, Pill, SettingRow, SkeletonRows, Toggle,
+  Input, Modal, Pill, SettingRow, SkeletonRows, Toggle, useToast,
 } from "../ui";
 import { QrBox } from "../wifi/qr";
 import { useActionCycle } from "../wifi/action";
@@ -222,16 +222,48 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
 
 function QrConfigModal({ config, onClose }: { config: string | undefined; onClose: () => void }) {
   const { t } = useTranslation();
+  const toast = useToast();
   const qr = useQrData(config, 220);
+  const [copied, setCopied] = useState(false);
+  const copyConfig = async () => {
+    if (!config) return;
+    try {
+      await navigator.clipboard.writeText(config);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+      toast.push({ tone: "ok", text: t("wg.copyConfig") });
+    } catch {
+      // clipboard bloqueado
+    }
+  };
   return (
     <Modal open={!!config} onClose={onClose} title={t("wg.qrModalTitle")}>
       <div className="flex flex-col items-center gap-3 py-2">
         {qr && <QrBox data={qr} size={220} />}
         <p className="text-small text-muted text-center">{t("wg.qrHint")}</p>
-        <Button variant="secondary" size="sm"
-          onClick={() => config && downloadText("wireguard-client.conf", config)}>
-          {t("wg.downloadConf")}
-        </Button>
+        {config && (
+          <div className="w-full">
+            <label className="block text-caption text-muted mb-1.5">{t("wg.viewConfig")}</label>
+            <textarea
+              readOnly
+              value={config}
+              rows={8}
+              className="w-full rounded-md border border-border/60 bg-surface-2 px-3 py-2 font-mono text-caption focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+              aria-label={t("wg.viewConfig")}
+            />
+          </div>
+        )}
+        <div className="flex flex-wrap items-center justify-center gap-2 w-full">
+          {config && (
+            <Button variant="secondary" size="sm" onClick={copyConfig}>
+              {copied ? t("services.copied") : t("wg.copyConfig")}
+            </Button>
+          )}
+          <Button variant="secondary" size="sm"
+            onClick={() => config && downloadText("wireguard-client.conf", config)}>
+            {t("wg.downloadConf")}
+          </Button>
+        </div>
       </div>
     </Modal>
   );
