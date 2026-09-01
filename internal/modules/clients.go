@@ -370,7 +370,7 @@ func SetClientBlocked(mac, typ, band string, blocked bool) (*[]Client, bool, err
 	}
 	rollback := func() {
 		_ = executor.Restore("wireless", snap)
-		_ = executor.Run(executor.Op{Kind: "wifi_reload", Args: []string{}})
+		_ = executor.Run(executor.Op{Kind: "wifi_reconf", Args: []string{}})
 	}
 
 	sections := wifiIfaceSections()
@@ -406,9 +406,11 @@ func SetClientBlocked(mac, typ, band string, blocked bool) (*[]Client, bool, err
 		return nil, false, nil
 	}
 	ops = append(ops, executor.Op{Kind: "uci_commit", Args: []string{"wireless"}})
+	// Use wifi reconf to apply MAC ACL changes without tearing down the
+	// BSS and disconnecting every other station on the radio (#183).
 	radios := radiosForSections(sections)
 	for _, radio := range radios {
-		ops = append(ops, executor.Op{Kind: "wifi_reload", Args: []string{radio}})
+		ops = append(ops, executor.Op{Kind: "wifi_reconf", Args: []string{radio}})
 	}
 	if err := executor.Apply(ops, nil); err != nil {
 		rollback()
