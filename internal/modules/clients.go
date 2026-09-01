@@ -16,21 +16,23 @@ import (
 
 // Client is one network client in the clients table.
 type Client struct {
-	Name       string   `json:"name"`
-	IP         string   `json:"ip,omitempty"`
-	MAC        string   `json:"mac"`
-	Type       string   `json:"type"`                  // wifi24 | wifi5 | cable
-	DeviceType string   `json:"device_type,omitempty"` // user-assigned: pc | phone | ...
-	Iface      string   `json:"iface,omitempty"`
-	Signal     int      `json:"signal,omitempty"`
-	RxBytes    int64    `json:"rx_bytes"` // client upload (AP rx)
-	TxBytes    int64    `json:"tx_bytes"` // client download (AP tx)
-	Self       bool     `json:"self"`
-	Reserved   bool     `json:"reserved"`
-	Reservable bool     `json:"reservable"`
-	Blocked    bool     `json:"blocked"`
-	BlockedOn  []string `json:"blocked_on,omitempty"` // bands with a deny entry (partial blocks)
-	Blockable  bool     `json:"blockable"`
+	Name        string   `json:"name"`
+	IP          string   `json:"ip,omitempty"`
+	MAC         string   `json:"mac"`
+	Type        string   `json:"type"`                  // wifi24 | wifi5 | cable
+	DeviceType  string   `json:"device_type,omitempty"` // user-assigned: pc | phone | ...
+	Iface       string   `json:"iface,omitempty"`
+	Signal      int      `json:"signal,omitempty"`
+	RxBytes     int64    `json:"rx_bytes"` // client upload (AP rx)
+	TxBytes     int64    `json:"tx_bytes"` // client download (AP tx)
+	Self        bool     `json:"self"`
+	Reserved    bool     `json:"reserved"`
+	Reservable  bool     `json:"reservable"`
+	Blocked     bool     `json:"blocked"`
+	BlockedOn   []string `json:"blocked_on,omitempty"` // bands with a deny entry (partial blocks)
+	Blockable   bool     `json:"blockable"`
+	LeaseExpiry int64    `json:"lease_expiry,omitempty"`
+	LeaseSource string   `json:"lease_source,omitempty"` // local | gateway
 }
 
 var reMac = regexp.MustCompile(`^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$`)
@@ -40,14 +42,13 @@ var reMac = regexp.MustCompile(`^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$`)
 // leases for names/IPs, reservation and block states, and the caller's
 // own device flagged as self.
 func ListClients(requesterIP string) []Client {
-	leases := leasesForClients()
+	leases, leaseSource, _ := leasesForClients()
 	byMac := map[string]ubus.Lease{}
 	for _, l := range leases {
 		byMac[strings.ToLower(l.MAC)] = l
 	}
 	reserved := reservedMACs()
 	denied, availBands := blockedBands()
-	dnsmasqUp := executor.ServiceRunning("dnsmasq")
 	isAP := ProbeMode().Mode == "ap"
 
 	var clients []Client
@@ -78,12 +79,14 @@ func ListClients(requesterIP string) []Client {
 					c.Name = l.Hostname
 					c.IP = l.IP
 					c.Self = requesterIP != "" && l.IP == requesterIP
+					c.LeaseExpiry = l.Expires.Unix()
+					c.LeaseSource = leaseSource
 				}
 				if c.Name == "" || c.Name == "*" {
 					c.Name = mac
 				}
 				c.Reserved = reserved[mac]
-				c.Reservable = dnsmasqUp && c.IP != ""
+				c.Reservable = c.IP != ""
 				clients = append(clients, c)
 			}
 		}
@@ -111,12 +114,14 @@ func ListClients(requesterIP string) []Client {
 					c.Name = l.Hostname
 					c.IP = l.IP
 					c.Self = requesterIP != "" && l.IP == requesterIP
+					c.LeaseExpiry = l.Expires.Unix()
+					c.LeaseSource = leaseSource
 				}
 				if c.Name == "" || c.Name == "*" {
 					c.Name = mac
 				}
 				c.Reserved = reserved[mac]
-				c.Reservable = dnsmasqUp && c.IP != ""
+				c.Reservable = c.IP != ""
 				c.Blockable = executor.ServiceEnabled("firewall")
 				clients = append(clients, c)
 			}
@@ -157,10 +162,10 @@ func gatewayAddr() string {
 	return strings.TrimSpace(string(out))
 }
 
-// gatewaySSH runs a read-only command on the gateway with the dedicated
-// netgrip_ro key (deployed to resolve names on dumb APs; write actions
-// stay local to the gateway itself). dropbear's ssh client needs -y to
-// accept the host key and does not support -o BatchMode/ConnectTimeout.
+// gatewaySSH runs a command on the gateway with the dedicated netgrip_ro key.
+// dropbear's ssh client needs -y to accept the host key and does not support
+// -o BatchMode/ConnectTimeout. This is used both for read-only lease lookups
+// and for writing DHCP reservations on the gateway when the local device is an AP.
 func gatewaySSH(command string) (string, error) {
 	gw := gatewayAddr()
 	if gw == "" {
@@ -184,17 +189,17 @@ func gatewaySSH(command string) (string, error) {
 }
 
 // leasesForClients reads DHCP leases locally; on dumb APs without local
-// dnsmasq it falls back to the gateway's lease file over read-only SSH.
-func leasesForClients() []ubus.Lease {
+// dnsmasq it falls back to the gateway's lease file over SSH.
+func leasesForClients() ([]ubus.Lease, string, error) {
 	leases, _ := ubus.ReadLeases("/tmp/dhcp.leases")
 	if len(leases) > 0 {
-		return leases
+		return leases, "local", nil
 	}
 	out, err := gatewaySSH("cat /tmp/dhcp.leases")
 	if err != nil {
-		return []ubus.Lease{}
+		return []ubus.Lease{}, "", fmt.Errorf("gateway leases: %w", err)
 	}
-	return ubus.ParseLeases(out)
+	return ubus.ParseLeases(out), "gateway", nil
 }
 
 // reservedMACs lists MACs with a DHCP reservation, locally or, on dumb
@@ -308,16 +313,42 @@ func hostSections() []string {
 	return strings.Fields(string(out))
 }
 
-// SetClientReservation adds or removes a DHCP reservation for a MAC
-// (gateway only: needs dnsmasq). Snapshot + reload + rollback.
+// gatewaySSHExec runs a command on the gateway and returns an error if it fails.
+// Used for write operations (DHCP reservations) when the local device is an AP.
+func gatewaySSHExec(command string) error {
+	gw := gatewayAddr()
+	if gw == "" {
+		return fmt.Errorf("no default gateway")
+	}
+	key := "/root/.ssh/netgrip_ro"
+	if _, err := os.Stat(key); err != nil {
+		if _, errLegacy := os.Stat("/root/.ssh/owpanel_ro"); errLegacy == nil {
+			key = "/root/.ssh/owpanel_ro"
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "ssh", "-y", "-i", key, "root@"+gw, command).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("gateway ssh %q: %w (%s)", command, err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// SetClientReservation adds or removes a DHCP reservation for a MAC.
+// On the gateway itself it uses local dnsmasq/UCI. On APs it delegates the
+// same UCI operations to the gateway over SSH (#192).
 func SetClientReservation(mac, ip string, reserved bool) (*[]Client, bool, error) {
 	mac = strings.ToLower(mac)
-	if !executor.ServiceRunning("dnsmasq") {
-		return nil, false, fmt.Errorf("DHCP reservations only apply on the gateway (dnsmasq)")
-	}
 	if !reMac.MatchString(mac) || (reserved && !reIPv4.MatchString(ip)) {
 		return nil, false, fmt.Errorf("invalid mac/ip")
 	}
+	localDnsmasq := executor.ServiceRunning("dnsmasq")
+	if !localDnsmasq {
+		// AP path: write the reservation on the gateway.
+		return setGatewayClientReservation(mac, ip, reserved)
+	}
+
 	snap, err := executor.Snapshot("dhcp")
 	if err != nil {
 		return nil, false, err
@@ -346,6 +377,33 @@ func SetClientReservation(mac, ip string, reserved bool) (*[]Client, bool, error
 	if err := executor.Apply(ops, nil); err != nil {
 		rollback()
 		return nil, true, err
+	}
+	return nil, false, nil
+}
+
+// setGatewayClientReservation applies a DHCP reservation on the gateway via SSH.
+// It intentionally does not snapshot/rollback over SSH; failures are surfaced to the UI.
+func setGatewayClientReservation(mac, ip string, reserved bool) (*[]Client, bool, error) {
+	if err := gatewaySSHExec("/etc/init.d/dnsmasq running"); err != nil {
+		return nil, false, fmt.Errorf("DHCP reservations on the gateway need a running dnsmasq")
+	}
+	section := "netgrip_host_" + strings.ReplaceAll(mac, ":", "")
+	var commands []string
+	if reserved {
+		commands = append(commands,
+			"uci set dhcp."+section+"=host",
+			"uci set dhcp."+section+".mac="+mac,
+			"uci set dhcp."+section+".ip="+ip,
+		)
+	} else {
+		commands = append(commands, "uci delete dhcp."+section+" 2>/dev/null || true")
+	}
+	commands = append(commands,
+		"uci commit dhcp",
+		"/etc/init.d/dnsmasq reload",
+	)
+	if err := gatewaySSHExec(strings.Join(commands, " && ")); err != nil {
+		return nil, false, err
 	}
 	return nil, false, nil
 }

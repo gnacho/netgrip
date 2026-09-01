@@ -355,7 +355,7 @@ export interface Client {
   name: string;
   ip?: string;
   mac: string;
-  type: "wifi24" | "wifi5" | "cable";
+  type: "wifi24" | "wifi5" | "wifi6" | "cable";
   device_type?: string;
   iface?: string;
   signal?: number;
@@ -367,6 +367,8 @@ export interface Client {
   blocked: boolean;
   blocked_on?: string[];
   blockable: boolean;
+  lease_expiry?: number;
+  lease_source?: "local" | "gateway";
 }
 
 export interface BlockedClient {
