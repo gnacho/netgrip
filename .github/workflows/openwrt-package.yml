@@ -155,15 +155,19 @@ jobs:
           - sdk-version: 24.10.5
             sdk-target: qualcommax/ipq807x
             format: ipk
+            arch: arm64
           - sdk-version: 25.12.5
             sdk-target: qualcommax/ipq807x
             format: apk
+            arch: arm64
           - sdk-version: 24.10.5
             sdk-target: x86/64
             format: ipk
+            arch: amd64
           - sdk-version: 25.12.5
             sdk-target: x86/64
             format: apk
+            arch: amd64
 
     steps:
       - uses: actions/checkout@v4
@@ -199,6 +203,16 @@ jobs:
         run: |
           echo "LuCI packages generated:"
           ls -la dist/packages/
+          # luci-app is arch-all, but multiple matrix jobs would otherwise upload
+          # the same filename; include the target arch to avoid collisions.
+          for pkg in dist/packages/*.apk; do
+            [ -f "$pkg" ] || continue
+            base="$(basename "$pkg" .apk)"
+            arch="${{ matrix.arch }}"
+            newname="${base}-${arch}.apk"
+            mv "$pkg" "dist/packages/$newname"
+            echo "Renamed: $newname"
+          done
           gh release upload "$TAG" dist/packages/*.${{ matrix.format }} --clobber
 
   apk-feed:
