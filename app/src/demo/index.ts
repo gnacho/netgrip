@@ -326,7 +326,7 @@ export const demoApi: typeof api = {
   applyPortTemplate: async () => { await wait(800, 1500); return { status: "ok" }; },
   roleProfiles: () => get({ roles: D.demoRoleProfiles }),
   applyRoleProfile: async () => { await wait(800, 1500); return { status: "ok" }; },
-  dawn: () => get({ aps: D.demoDawn }),
+  usteer: () => get({ aps: D.demoUsteer }),
   offload: () => get(state.offload),
   setOffload: async (enabled) => { state.offload.software = enabled; return write(state.offload); },
   igmp: () => get(state.igmp),

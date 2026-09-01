@@ -131,9 +131,9 @@ export default {
       title: "What uses your connection",
       body: "The router recognizes traffic types (video, web, gaming…) without reading content. It tells you what's saturating your link.",
     },
-    dawn: {
-      title: "Mesh coverage (DAWN)",
-      body: "With multiple DAWN access points, devices roam to the strongest one automatically. This shows each AP and its client count.",
+    coverage: {
+      title: "Mesh coverage",
+      body: "With multiple usteer access points, devices roam to the strongest one automatically. This shows each AP and its client count.",
     },
     drift: {
       title: "Protected configuration",
@@ -825,7 +825,8 @@ export default {
   },
   coverage: {
     title: "Wireless coverage",
-    absent: "DAWN is not collecting data from other access points.",
+    absent: "usteer is not collecting data from other access points.",
+    empty: "No other access points nearby.",
     nodes: "Access points",
     stations: "Devices",
     util: "Load",
@@ -851,9 +852,9 @@ export default {
     unknownDevice: "Unknown device",
     noMacs: "No learned MACs on this port",
   },
-  dawn: {
-    title: "DAWN mesh",
-    absent: "DAWN is not running on this router",
+  usteer: {
+    title: "usteer mesh",
+    absent: "usteer is not running on this router",
     empty: "Empty mesh",
     thisRouter: "this router",
     util: "{{count}}% util",

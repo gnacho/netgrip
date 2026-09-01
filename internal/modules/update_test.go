@@ -41,7 +41,7 @@ func TestParseOwutVerboseNetgripMissing(t *testing.T) {
 }
 
 func TestOnlyNetgrip(t *testing.T) {
-	if onlyNetgrip([]string{"netgrip", "luci-app-dawn"}) {
+	if onlyNetgrip([]string{"netgrip", "luci-app-usteer"}) {
 		t.Fatal("should be false with other packages")
 	}
 	if onlyNetgrip([]string{}) {

@@ -101,7 +101,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/dns/hosts", s.requireAuth(s.handleDNSHostsSet))
 	s.mux.HandleFunc("GET /api/netdev", s.requireAuth(s.handleNetDev))
 	s.mux.HandleFunc("GET /api/ethports", s.requireAuth(s.handleEthPorts))
-	s.mux.HandleFunc("GET /api/dawn", s.requireAuth(s.handleDawn))
+	s.mux.HandleFunc("GET /api/usteer", s.requireAuth(s.handleUsteer))
 	s.mux.HandleFunc("GET /api/clients", s.requireAuth(s.handleClients))
 	s.mux.HandleFunc("GET /api/clients/blocked", s.requireAuth(s.handleClientsBlocked))
 	s.mux.HandleFunc("GET /api/clients/meta", s.requireAuth(s.handleClientMeta))
@@ -1000,8 +1000,8 @@ func (s *Server) handleEthPorts(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, map[string]any{"ports": modules.EthPorts()})
 }
 
-func (s *Server) handleDawn(w http.ResponseWriter, _ *http.Request) {
-	aps, err := modules.DawnNetwork()
+func (s *Server) handleUsteer(w http.ResponseWriter, _ *http.Request) {
+	aps, err := modules.UsteerNetwork()
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return

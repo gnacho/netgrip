@@ -131,9 +131,9 @@ export default {
       title: "Qué gasta cada cosa",
       body: "El router reconoce el tipo de tráfico (vídeo, web, juegos…) sin leer el contenido. Sirve para saber qué satura tu conexión.",
     },
-    dawn: {
+    coverage: {
       title: "Cobertura inalambrica",
-      body: "Si tienes varios puntos WiFi con DAWN, tus dispositivos saltan solos al que mejor se vea. Aquí ves cuántos hay y cuánta gente lleva cada uno.",
+      body: "Si tienes varios puntos WiFi con usteer, tus dispositivos saltan solos al que mejor se vea. Aquí ves cuántos hay y cuánta gente lleva cada uno.",
     },
     drift: {
       title: "Configuración protegida",
@@ -825,7 +825,7 @@ export default {
   },
   coverage: {
     title: "Cobertura inalambrica",
-    absent: "DAWN no esta recogiendo datos de otros puntos de acceso.",
+    absent: "usteer no esta recogiendo datos de otros puntos de acceso.",
     empty: "No hay otros puntos de acceso inalambricos cerca.",
     this: "Este router",
     util: "{{count}}%",
@@ -852,10 +852,10 @@ export default {
     unknownDevice: "Dispositivo desconocido",
     noMacs: "Sin MACs aprendidas en este puerto",
   },
-  dawn: {
-    title: "Malla DAWN",
-    absent: "DAWN no corre en este router",
-    empty: "Malla vacía",
+  usteer: {
+    title: "Malla usteer",
+    absent: "usteer no corre en este router",
+    empty: "Malla vacia",
     thisRouter: "este router",
     util: "{{count}}% util",
   },

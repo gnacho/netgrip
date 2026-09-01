@@ -249,11 +249,11 @@ export const demoDns: T.DNSConfig = {
   hosts: [{ ip: "192.168.8.10", hostname: "nas" }],
 };
 
-export const demoDawn: T.DawnAP[] = [
-  { bssid: "8C:53:C3:11:22:30", ssid: "CasaGarcia", hostname: "casa", iface: "phy0-ap0", channel: 6, freq: 2437, util: 18, num_sta: 4, local: true, clients: [{ mac: "3A:7B:1C:44:20:11", signal: -58 }] },
-  { bssid: "8C:53:C3:11:22:40", ssid: "CasaGarcia", hostname: "casa", iface: "phy1-ap0", channel: 44, freq: 5220, util: 26, num_sta: 2, local: true, clients: [{ mac: "9C:B6:D0:12:AB:77", signal: -52 }, { mac: "F0:18:98:5A:31:C2", signal: -47 }] },
-  { bssid: "A4:91:B1:66:40:10", ssid: "CasaGarcia", hostname: "ap-atico", iface: "phy0-ap0", channel: 11, freq: 2462, util: 34, num_sta: 2, local: false, clients: [{ mac: "B4:E6:2D:90:14:07", signal: -61 }, { mac: "DC:A6:32:08:51:90", signal: -69 }] },
-  { bssid: "A4:91:B1:66:40:11", ssid: "CasaGarcia", hostname: "ap-atico", iface: "phy1-ap0", channel: 48, freq: 5240, util: 12, num_sta: 1, local: false, clients: [{ mac: "FA:22:9C:71:08:55", signal: -66 }] },
+export const demoUsteer: T.UsteerAP[] = [
+  { bssid: "8C:53:C3:11:22:30", ssid: "CasaGarcia", hostname: "casa", iface: "hostapd.phy0-ap0", channel: 6, freq: 2437, util: 18, num_sta: 4, local: true, clients: [{ mac: "3A:7B:1C:44:20:11", signal: -58 }] },
+  { bssid: "8C:53:C3:11:22:40", ssid: "CasaGarcia", hostname: "casa", iface: "hostapd.phy1-ap0", channel: 44, freq: 5220, util: 26, num_sta: 2, local: true, clients: [{ mac: "9C:B6:D0:12:AB:77", signal: -52 }, { mac: "F0:18:98:5A:31:C2", signal: -47 }] },
+  { bssid: "A4:91:B1:66:40:10", ssid: "CasaGarcia", hostname: "ap-atico", iface: "hostapd.phy0-ap0", channel: 11, freq: 2462, util: 34, num_sta: 2, local: false, clients: [{ mac: "B4:E6:2D:90:14:07", signal: -61 }, { mac: "DC:A6:32:08:51:90", signal: -69 }] },
+  { bssid: "A4:91:B1:66:40:11", ssid: "CasaGarcia", hostname: "ap-atico", iface: "hostapd.phy1-ap0", channel: 48, freq: 5240, util: 12, num_sta: 1, local: false, clients: [{ mac: "FA:22:9C:71:08:55", signal: -66 }] },
 ];
 
 export const demoSnapshots: T.ConfigSnapshot[] = [

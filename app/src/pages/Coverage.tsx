@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Radio } from "lucide-react";
-import type { DawnAP } from "../types";
+import type { UsteerAP } from "../types";
 import { Card, Pill, SkeletonRows } from "../components/ui";
 
 // Malla radial determinista: este router al centro, peers en un círculo,
@@ -16,10 +16,10 @@ const RADIO_ORBIT = 52;
 interface MeshNode {
   hostname: string;
   local: boolean;
-  aps: DawnAP[];
+  aps: UsteerAP[];
 }
 
-function nodesOf(aps?: DawnAP[]): MeshNode[] {
+function nodesOf(aps?: UsteerAP[]): MeshNode[] {
   const byHost = new Map<string, MeshNode>();
   for (const ap of aps ?? []) {
     const key = ap.hostname || ap.bssid;
@@ -31,8 +31,8 @@ function nodesOf(aps?: DawnAP[]): MeshNode[] {
   return [...byHost.values()].sort((a, b) => (a.local === b.local ? 0 : a.local ? -1 : 1));
 }
 
-/** Cobertura inalámbrica (coverage.md): malla DAWN con varios routers activos. */
-export function CoveragePage({ aps, error }: { aps?: DawnAP[]; error: boolean }) {
+/** Cobertura inalámbrica (coverage.md): malla usteer con varios routers activos. */
+export function CoveragePage({ aps, error }: { aps?: UsteerAP[]; error: boolean }) {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<string>(); // bssid
 
@@ -48,7 +48,7 @@ export function CoveragePage({ aps, error }: { aps?: DawnAP[]; error: boolean })
   const selectedAp = (aps ?? []).find((a) => a.bssid === selected)
     || (localNode?.aps ?? []).slice().sort((a, b) => b.num_sta - a.num_sta)[0];
 
-  const radioChip = (ap: DawnAP, nx: number, ny: number, idx: number, total: number) => {
+  const radioChip = (ap: UsteerAP, nx: number, ny: number, idx: number, total: number) => {
     const angle = Math.PI / 2 + ((idx - (total - 1) / 2) * Math.PI) / 3;
     const x = nx + RADIO_ORBIT * Math.cos(angle);
     const y = ny + RADIO_ORBIT * Math.sin(angle);
