@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -11,10 +12,19 @@ import (
 	"github.com/gnacho/netgrip/internal/executor"
 )
 
-const ddnsSection = "netgrip"
+// ddnsEntryName maps a domain to a safe UCI section name.
+func ddnsEntryName(domain string) string {
+	// OpenWrt UCI section names only tolerate alphanumeric and underscore in
+	// practice. Replace everything else with an underscore and collapse.
+	safe := regexp.MustCompile(`[^a-zA-Z0-9]+`).ReplaceAllString(domain, "_")
+	safe = strings.Trim(safe, "_")
+	if safe == "" || (safe[0] >= '0' && safe[0] <= '9') {
+		safe = "d" + safe
+	}
+	return safe
+}
 
-// DDNSConfig is the user-provided service configuration. Password is
-// write-only: it is never returned by the probe.
+// DDNSConfig is the user-provided entry configuration. Password is write-only.
 type DDNSConfig struct {
 	Enabled     bool   `json:"enabled"`
 	ServiceName string `json:"service_name"`
@@ -24,10 +34,10 @@ type DDNSConfig struct {
 	Password    string `json:"password,omitempty"`
 }
 
-// DDNSProbe is the read-only DDNS state.
-type DDNSProbe struct {
-	Installed    bool   `json:"installed"`
-	Active       bool   `json:"active"`
+// DDNSEntry is a single DDNS service state.
+type DDNSEntry struct {
+	Section      string `json:"section"`
+	Enabled      bool   `json:"enabled"`
 	Running      bool   `json:"running"`
 	ServiceName  string `json:"service_name"`
 	Domain       string `json:"domain"`
@@ -37,21 +47,214 @@ type DDNSProbe struct {
 	LastUpdate   string `json:"last_update"`
 }
 
+// DDNSProbe is the read-only DDNS state.
+type DDNSProbe struct {
+	Installed bool        `json:"installed"`
+	Entries   []DDNSEntry `json:"entries"`
+}
+
 func ddnsInstalled() bool {
 	_, err := os.Stat("/etc/init.d/ddns")
 	return err == nil
 }
 
-func ddnsUpdaterRunning() bool {
-	out, err := exec.Command("pgrep", "-f", "dynamic_dns_updater.sh.*"+ddnsSection).Output()
+func ddnsServiceRunning(section string) bool {
+	out, err := exec.Command("pgrep", "-f", "dynamic_dns_updater.sh.*"+section).Output()
 	return err == nil && len(strings.TrimSpace(string(out))) > 0
 }
 
-// ddnsStopUpdater kills our service's updater process (best effort) using
-// the pid file ddns-scripts maintains. Per-service stop avoids the
-// init.d reload that would restart every other configured service.
-func ddnsStopUpdater() {
-	data, err := os.ReadFile("/tmp/run/ddns/" + ddnsSection + ".pid")
+// ddnsSections returns the named ddns service sections currently configured.
+func ddnsSections() []string {
+	out, err := exec.Command("uci", "show", "ddns").Output()
+	if err != nil {
+		return nil
+	}
+	var sections []string
+	seen := make(map[string]bool)
+	for _, line := range strings.Split(string(out), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "ddns.") {
+			continue
+		}
+		// Format: ddns.<section>.option=...
+		rest := strings.TrimPrefix(line, "ddns.")
+		idx := strings.IndexAny(rest, ".=")
+		if idx == -1 {
+			continue
+		}
+		section := rest[:idx]
+		if section == "" || seen[section] {
+			continue
+		}
+		seen[section] = true
+		sections = append(sections, section)
+	}
+	return sections
+}
+
+func ddnsReadEntry(section string) *DDNSEntry {
+	base := "ddns." + section
+	if !uciSectionExists(base) {
+		return nil
+	}
+	e := &DDNSEntry{Section: section}
+	e.ServiceName = uciGet(base + ".service_name")
+	e.Domain = uciGet(base + ".domain")
+	e.LookupHost = uciGet(base + ".lookup_host")
+	e.Username = uciGet(base + ".username")
+	e.Enabled = uciGet(base+".enabled") == "1"
+	e.Running = ddnsServiceRunning(section)
+	if data, err := os.ReadFile("/tmp/run/ddns/" + section + ".dat"); err == nil {
+		for _, line := range strings.Split(string(data), "\n") {
+			if strings.HasPrefix(line, "registered_ip=") {
+				e.RegisteredIP = strings.Trim(strings.TrimPrefix(line, "registered_ip="), "'\"")
+			}
+		}
+		if st, err := os.Stat("/tmp/run/ddns/" + section + ".dat"); err == nil {
+			e.LastUpdate = st.ModTime().Format(time.RFC3339)
+		}
+	}
+	return e
+}
+
+// ProbeDDNS reads all configured DDNS entries. Never includes passwords.
+func ProbeDDNS() *DDNSProbe {
+	p := &DDNSProbe{Installed: ddnsInstalled()}
+	if !p.Installed {
+		return p
+	}
+	for _, section := range ddnsSections() {
+		if e := ddnsReadEntry(section); e != nil {
+			p.Entries = append(p.Entries, *e)
+		}
+	}
+	return p
+}
+
+func ddnsEntryByDomain(domain string) *DDNSEntry {
+	section := ddnsEntryName(domain)
+	if uciSectionExists("ddns." + section) {
+		return ddnsReadEntry(section)
+	}
+	// Fallback: scan by domain value in case the naming convention changed.
+	for _, s := range ddnsSections() {
+		if e := ddnsReadEntry(s); e != nil && e.Domain == domain {
+			return e
+		}
+	}
+	return nil
+}
+
+// ddnsSnapshot captures /etc/config/ddns for rollback.
+func ddnsSnapshot() string {
+	if _, err := os.Stat("/etc/config/ddns"); err != nil {
+		return ""
+	}
+	if s, err := executor.Snapshot("ddns"); err == nil {
+		return s
+	}
+	return ""
+}
+
+func ddnsRollback(snap string) {
+	if snap != "" {
+		_ = executor.Restore("ddns", snap)
+	}
+	_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"ddns", "reload"}})
+}
+
+// SetDDNS creates or updates a single DDNS entry identified by its domain.
+func SetDDNS(cfg DDNSConfig) (*DDNSProbe, bool, error) {
+	if cfg.Domain == "" {
+		return ProbeDDNS(), false, fmt.Errorf("domain is required")
+	}
+	if cfg.Enabled && cfg.ServiceName == "" {
+		return ProbeDDNS(), false, fmt.Errorf("service_name and domain are required")
+	}
+
+	snap := ddnsSnapshot()
+	section := ddnsEntryName(cfg.Domain)
+	hadConfig := uciSectionExists("ddns." + section)
+
+	ops, err := ddnsEntryOps(cfg, section, hadConfig)
+	if err != nil {
+		return ProbeDDNS(), false, err
+	}
+	if err := executor.Apply(ops, nil); err != nil {
+		ddnsRollback(snap)
+		return ProbeDDNS(), true, err
+	}
+
+	if !cfg.Enabled {
+		ddnsStopUpdater(section)
+	}
+
+	ok := func() bool {
+		for range 5 {
+			probe := ProbeDDNS()
+			entry := findDDNSEntry(probe.Entries, cfg.Domain)
+			if cfg.Enabled {
+				if entry != nil && entry.Enabled && entry.Running {
+					return true
+				}
+			} else if entry == nil || (!entry.Enabled && !entry.Running) {
+				return true
+			}
+			time.Sleep(time.Second)
+		}
+		return false
+	}
+	if !ok() {
+		ddnsRollback(snap)
+		return ProbeDDNS(), true, fmt.Errorf("healthcheck failed after apply (enabled=%v), rolled back", cfg.Enabled)
+	}
+	return ProbeDDNS(), false, nil
+}
+
+func findDDNSEntry(entries []DDNSEntry, domain string) *DDNSEntry {
+	for i, e := range entries {
+		if e.Domain == domain {
+			return &entries[i]
+		}
+	}
+	return nil
+}
+
+// DeleteDDNS removes a DDNS entry by domain.
+func DeleteDDNS(domain string) (*DDNSProbe, bool, error) {
+	if domain == "" {
+		return ProbeDDNS(), false, fmt.Errorf("domain is required")
+	}
+	snap := ddnsSnapshot()
+	section := ddnsEntryName(domain)
+	if !uciSectionExists("ddns." + section) {
+		// Try by value.
+		for _, s := range ddnsSections() {
+			if e := ddnsReadEntry(s); e != nil && e.Domain == domain {
+				section = s
+				break
+			}
+		}
+	}
+	if !uciSectionExists("ddns." + section) {
+		return ProbeDDNS(), false, fmt.Errorf("ddns entry not found for domain %q", domain)
+	}
+
+	ops := []executor.Op{
+		{Kind: "uci_delete", Args: []string{"ddns." + section}},
+		{Kind: "uci_commit", Args: []string{"ddns"}},
+		{Kind: "initd", Args: []string{"ddns", "reload"}},
+	}
+	if err := executor.Apply(ops, nil); err != nil {
+		ddnsRollback(snap)
+		return ProbeDDNS(), true, err
+	}
+	return ProbeDDNS(), false, nil
+}
+
+// ddnsStopUpdater kills a per-service updater process (best effort).
+func ddnsStopUpdater(section string) {
+	data, err := os.ReadFile("/tmp/run/ddns/" + section + ".pid")
 	if err != nil {
 		return
 	}
@@ -64,95 +267,12 @@ func ddnsStopUpdater() {
 	}
 }
 
-// ProbeDDNS reads the DDNS state. Never includes the password.
-func ProbeDDNS() *DDNSProbe {
-	p := &DDNSProbe{Installed: ddnsInstalled()}
-	base := "ddns." + ddnsSection
-	if !uciSectionExists(base) {
-		return p
-	}
-	p.ServiceName = uciGet(base + ".service_name")
-	p.Domain = uciGet(base + ".domain")
-	p.LookupHost = uciGet(base + ".lookup_host")
-	p.Username = uciGet(base + ".username")
-	p.Active = uciGet(base+".enabled") == "1"
-	p.Running = ddnsUpdaterRunning()
-	// ddns-scripts keeps per-service state in /tmp/run/ddns/<service>.dat
-	if data, err := os.ReadFile("/tmp/run/ddns/" + ddnsSection + ".dat"); err == nil {
-		for _, line := range strings.Split(string(data), "\n") {
-			if strings.HasPrefix(line, "registered_ip=") {
-				p.RegisteredIP = strings.Trim(strings.TrimPrefix(line, "registered_ip="), "'\"")
-			}
-		}
-		if st, err := os.Stat("/tmp/run/ddns/" + ddnsSection + ".dat"); err == nil {
-			p.LastUpdate = st.ModTime().Format(time.RFC3339)
-		}
-	}
-	return p
-}
-
-// SetDDNS applies the DDNS configuration and enabled state with snapshot,
-// healthcheck and rollback.
-func SetDDNS(cfg DDNSConfig) (*DDNSProbe, bool, error) {
-	hadConfig := uciSectionExists("ddns." + ddnsSection)
-	snapDdns := ""
-	if _, err := os.Stat("/etc/config/ddns"); err == nil {
-		if s, err := executor.Snapshot("ddns"); err == nil {
-			snapDdns = s
-		}
-	}
-
-	rollback := func() {
-		if snapDdns != "" {
-			_ = executor.Restore("ddns", snapDdns)
-		} else {
-			_ = executor.Run(executor.Op{Kind: "uci_delete", Args: []string{"ddns." + ddnsSection}})
-			_ = executor.Run(executor.Op{Kind: "uci_commit", Args: []string{"ddns"}})
-		}
-		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"ddns", "reload"}})
-	}
-
-	ops, err := ddnsOps(cfg, hadConfig)
-	if err != nil {
-		return ProbeDDNS(), false, err
-	}
-	if err := executor.Apply(ops, nil); err != nil {
-		rollback()
-		return ProbeDDNS(), true, err
-	}
-	if !cfg.Enabled {
-		// init.d reload would restart other people's services; just kill
-		// our own updater pid instead.
-		ddnsStopUpdater()
-	}
-
-	ok := func() bool {
-		for range 5 {
-			probe := ProbeDDNS()
-			if cfg.Enabled {
-				if probe.Active && probe.Running {
-					return true
-				}
-			} else if !probe.Active && !probe.Running {
-				return true
-			}
-			time.Sleep(time.Second)
-		}
-		return false
-	}
-	if !ok() {
-		rollback()
-		return ProbeDDNS(), true, fmt.Errorf("healthcheck failed after apply (enabled=%v), rolled back", cfg.Enabled)
-	}
-	return ProbeDDNS(), false, nil
-}
-
-func ddnsOps(cfg DDNSConfig, hadConfig bool) ([]executor.Op, error) {
+func ddnsEntryOps(cfg DDNSConfig, section string, hadConfig bool) ([]executor.Op, error) {
 	var ops []executor.Op
 	set := func(key, value string) {
 		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{key, value}})
 	}
-	base := "ddns." + ddnsSection
+	base := "ddns." + section
 
 	if !cfg.Enabled {
 		if hadConfig {
@@ -162,9 +282,6 @@ func ddnsOps(cfg DDNSConfig, hadConfig bool) ([]executor.Op, error) {
 		return ops, nil
 	}
 
-	if cfg.ServiceName == "" || cfg.Domain == "" {
-		return nil, fmt.Errorf("service_name and domain are required")
-	}
 	if !ddnsInstalled() {
 		ops = append(ops, executor.Op{Kind: "pkg_add", Args: []string{"ddns-scripts"}})
 	}
@@ -178,8 +295,6 @@ func ddnsOps(cfg DDNSConfig, hadConfig bool) ([]executor.Op, error) {
 	if cfg.LookupHost != "" {
 		set(base+".lookup_host", cfg.LookupHost)
 	}
-	// Source of the public IP: the wan interface when the router has one,
-	// else a web checkip service (dumb APs sit behind another router).
 	if uciSectionExists("network.wan") {
 		set(base+".ip_source", "network")
 		set(base+".ip_network", "wan")
@@ -188,11 +303,6 @@ func ddnsOps(cfg DDNSConfig, hadConfig bool) ([]executor.Op, error) {
 		set(base+".ip_url", "http://checkip.dyndns.org")
 	}
 	set(base+".enabled", "1")
-	// The init script spawns one procd instance per enabled service.
-	// `ddns start` only starts instances that are not running yet, so
-	// other people's services are never restarted (rate-limit safe).
-	// NOTE: dynamic_dns_updater.sh -- start runs in the FOREGROUND and
-	// blocks the caller; never exec it directly (learned the hard way).
 	ops = append(ops,
 		executor.Op{Kind: "uci_commit", Args: []string{"ddns"}},
 		executor.Op{Kind: "initd", Args: []string{"ddns", "enable"}},

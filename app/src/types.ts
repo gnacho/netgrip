@@ -107,9 +107,9 @@ export interface ModuleResult<T> {
   error?: string;
 }
 
-export interface DDNSProbe {
-  installed: boolean;
-  active: boolean;
+export interface DDNSEntry {
+  section: string;
+  enabled: boolean;
   running: boolean;
   service_name: string;
   domain: string;
@@ -117,6 +117,18 @@ export interface DDNSProbe {
   username: string;
   registered_ip: string;
   last_update: string;
+}
+
+export interface DDNSProbe {
+  installed: boolean;
+  entries: DDNSEntry[];
+}
+
+export interface MDNSProbe {
+  installed: boolean;
+  enabled: boolean;
+  running: boolean;
+  domain: string;
 }
 
 export interface SQMProbe {
