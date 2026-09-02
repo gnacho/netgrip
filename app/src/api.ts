@@ -319,11 +319,11 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg),
     }),
-  deleteDdns: (domain: string) =>
+  deleteDdns: (section: string) =>
     request<import("./types").ModuleResult<import("./types").DDNSProbe>>("/api/ddns", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ domain }),
+      body: JSON.stringify({ section }),
     }),
   snapshots: () =>
     request<{ snapshots: import("./types").ConfigSnapshot[] }>("/api/config/snapshots"),

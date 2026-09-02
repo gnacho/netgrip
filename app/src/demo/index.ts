@@ -227,9 +227,9 @@ export const demoApi: typeof api = {
     }
     return { status: "applied" as const, rolled_back: false, state: state.ddns };
   },
-  deleteDdns: async (domain) => {
+  deleteDdns: async (section) => {
     await wait(800, 1500);
-    state.ddns.entries = state.ddns.entries.filter((e) => e.domain !== domain);
+    state.ddns.entries = state.ddns.entries.filter((e) => e.section !== section);
     return { status: "applied" as const, rolled_back: false, state: state.ddns };
   },
   mdns: () => get(state.mdns),

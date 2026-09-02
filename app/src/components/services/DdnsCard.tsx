@@ -23,15 +23,15 @@ function useRelativeUpdate(iso: string | undefined): { text: string; valid: bool
   return { text: t("ddns.agoDays", { count: Math.floor(hours / 24) }), valid: true };
 }
 
-function EntryRow({ entry, busyDomain, onToggle, onDelete }: {
+function EntryRow({ entry, busySection, onToggle, onDelete }: {
   entry: DDNSEntry;
-  busyDomain: string | null;
+  busySection: string | null;
   onToggle: (domain: string, enabled: boolean) => void;
-  onDelete: (domain: string) => void;
+  onDelete: (section: string) => void;
 }) {
   const { t } = useTranslation();
   const lastUpdate = useRelativeUpdate(entry.last_update);
-  const busy = busyDomain === entry.domain;
+  const busy = busySection === entry.section;
 
   return (
     <div className="flex items-start gap-3 py-3 border-b border-border/60 last:border-0">
@@ -59,7 +59,7 @@ function EntryRow({ entry, busyDomain, onToggle, onDelete }: {
           variant="ghost"
           size="sm"
           className="text-danger hover:text-danger hover:bg-danger/10"
-          onClick={() => onDelete(entry.domain)}
+          onClick={() => onDelete(entry.section)}
           disabled={busy}
           aria-label={t("common.delete")}
         >
@@ -133,9 +133,9 @@ export function DdnsCard({ probe, onChange, index = 0 }: {
     handleResult(res, t("ddns.doneOn"));
   };
 
-  const remove = async (domain: string) => {
-    setBusyDomain(domain);
-    const res = await run(() => api.deleteDdns(domain));
+  const remove = async (section: string) => {
+    setBusyDomain(section);
+    const res = await run(() => api.deleteDdns(section));
     handleResult(res);
     setBusyDomain(null);
   };
@@ -161,9 +161,9 @@ export function DdnsCard({ probe, onChange, index = 0 }: {
             <div className="mt-2">
               {entries.map((entry) => (
                 <EntryRow
-                  key={entry.domain}
+                  key={entry.section}
                   entry={entry}
-                  busyDomain={busyDomain}
+                  busySection={busyDomain}
                   onToggle={toggle}
                   onDelete={remove}
                 />
