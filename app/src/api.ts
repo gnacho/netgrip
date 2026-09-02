@@ -618,6 +618,18 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg),
     }),
+  nftqos: () =>
+    request<import("./types").NftQoSProbe>("/api/nftqos"),
+  setNftqos: (limit: Partial<import("./types").NftQoSLimit>) =>
+    request<import("./types").NftQoSProbe>("/api/nftqos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(limit),
+    }),
+  removeNftqos: (mac: string) =>
+    request<import("./types").NftQoSProbe>(`/api/nftqos?mac=${encodeURIComponent(mac)}`, {
+      method: "DELETE",
+    }),
   pushConfigGet: () =>
     request<{ server_url: string; router_id: string; token: string }>("/api/push-config"),
   pushConfigSet: (server_url: string, router_id: string, token: string) =>

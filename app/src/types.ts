@@ -765,6 +765,18 @@ export interface DiscoveredFleetPeer {
   seen_at: string;
 }
 
+export interface NftQoSLimit {
+  mac: string;
+  ip: string;
+  download: number;
+  upload: number;
+}
+
+export interface NftQoSProbe {
+  applicable: boolean;
+  limits: Record<string, NftQoSLimit>;
+}
+
 export interface CableTestResult {
   port: string;
   supported: boolean;

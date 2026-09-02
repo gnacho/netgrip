@@ -191,6 +191,9 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/mac-acl", s.requireAuth(s.handleMACACLSet))
 	s.mux.HandleFunc("GET /api/netpulse", s.requireAuth(s.handleNetPulseGet))
 	s.mux.HandleFunc("POST /api/netpulse", s.requireAuth(s.handleNetPulseSet))
+	s.mux.HandleFunc("GET /api/nftqos", s.requireAuth(s.handleNftQoSGet))
+	s.mux.HandleFunc("POST /api/nftqos", s.requireAuth(s.handleNftQoSSet))
+	s.mux.HandleFunc("DELETE /api/nftqos", s.requireAuth(s.handleNftQoSDelete))
 	s.mux.HandleFunc("GET /api/push-config", s.requireAuth(s.handlePushConfigGet))
 	s.mux.HandleFunc("POST /api/push-config", s.requireAuth(s.handlePushConfigSet))
 	s.mux.HandleFunc("POST /api/push-config/push", s.requireAuth(s.handlePushSnapshot))
@@ -1980,6 +1983,46 @@ func (s *Server) handleNetPulseSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, netPulseState())
+}
+
+func (s *Server) handleNftQoSGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeNftQoS())
+}
+
+func (s *Server) handleNftQoSSet(w http.ResponseWriter, r *http.Request) {
+	var req modules.NftQoSSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetNftQoSLimit(req)
+	if err != nil {
+		if rolledBack {
+			writeError(w, http.StatusInternalServerError, err.Error())
+		} else {
+			writeError(w, http.StatusBadRequest, err.Error())
+		}
+		return
+	}
+	writeJSON(w, probe)
+}
+
+func (s *Server) handleNftQoSDelete(w http.ResponseWriter, r *http.Request) {
+	mac := r.URL.Query().Get("mac")
+	if mac == "" {
+		writeError(w, http.StatusBadRequest, "mac required")
+		return
+	}
+	probe, rolledBack, err := modules.RemoveNftQoSLimit(mac)
+	if err != nil {
+		if rolledBack {
+			writeError(w, http.StatusInternalServerError, err.Error())
+		} else {
+			writeError(w, http.StatusBadRequest, err.Error())
+		}
+		return
+	}
+	writeJSON(w, probe)
 }
 
 func (s *Server) handleExecutorToken(w http.ResponseWriter, _ *http.Request) {
