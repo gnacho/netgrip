@@ -268,20 +268,52 @@ type messageBase struct {
 
 // flowMsg carries application identification for a flow.
 type flowMsg struct {
-	Type                    string `json:"type"`
-	Digest                  string `json:"digest"`
-	DetectedApplicationName string `json:"detected_application_name"`
-	DetectedProtocolName    string `json:"detected_protocol_name"`
+	Type string `json:"type"`
+	Flow *struct {
+		Digest                  string `json:"digest"`
+		DetectedApplicationName string `json:"detected_application_name"`
+		DetectedProtocolName    string `json:"detected_protocol_name"`
+	} `json:"flow,omitempty"`
 }
 
-// statsMsg carries byte counters.
+func (m *flowMsg) digest() string {
+	if m.Flow != nil {
+		return m.Flow.Digest
+	}
+	return ""
+}
+
+func (m *flowMsg) appName() string {
+	if m.Flow != nil {
+		return m.Flow.DetectedApplicationName
+	}
+	return ""
+}
+
+// statsMsg carries byte counters inside a nested flow object.
 type statsMsg struct {
-	Type       string `json:"type"`
-	Digest     string `json:"digest"`
-	LocalBytes int64  `json:"local_bytes"`
-	OtherBytes int64  `json:"other_bytes"`
-	TotalBytes int64  `json:"total_bytes"`
-	Packets    int64  `json:"packets"`
+	Type string `json:"type"`
+	Flow *struct {
+		Digest       string `json:"digest"`
+		LocalBytes   int64  `json:"local_bytes"`
+		OtherBytes   int64  `json:"other_bytes"`
+		TotalBytes   int64  `json:"total_bytes"`
+		TotalPackets int64  `json:"total_packets"`
+	} `json:"flow,omitempty"`
+}
+
+func (m *statsMsg) digest() string {
+	if m.Flow != nil {
+		return m.Flow.Digest
+	}
+	return ""
+}
+
+func (m *statsMsg) counters() (local, other, total, packets int64) {
+	if m.Flow == nil {
+		return 0, 0, 0, 0
+	}
+	return m.Flow.LocalBytes, m.Flow.OtherBytes, m.Flow.TotalBytes, m.Flow.TotalPackets
 }
 
 func (c *netifydSocketClient) handleMessage(line string) {
@@ -296,12 +328,13 @@ func (c *netifydSocketClient) handleMessage(line string) {
 		if err := json.Unmarshal([]byte(line), &msg); err != nil {
 			return
 		}
-		c.table.setFlowApp(msg.Digest, msg.DetectedApplicationName)
+		c.table.setFlowApp(msg.digest(), msg.appName())
 	case "flow_stats", "flow_purge":
 		var msg statsMsg
 		if err := json.Unmarshal([]byte(line), &msg); err != nil {
 			return
 		}
-		c.table.addStats(msg.Digest, msg.LocalBytes, msg.OtherBytes, msg.TotalBytes, msg.Packets)
+		local, other, total, packets := msg.counters()
+		c.table.addStats(msg.digest(), local, other, total, packets)
 	}
 }

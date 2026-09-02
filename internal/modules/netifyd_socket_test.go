@@ -76,9 +76,9 @@ func TestNetifydClientHandleMessage(t *testing.T) {
 	tbl := newNetifydTable(256, 4096)
 	c := newNetifydSocketClient("", tbl)
 
-	c.handleMessage(`{"type":"flow","digest":"d1","detected_application_name":"YouTube","detected_protocol_name":"TLS"}`)
-	c.handleMessage(`{"type":"flow_stats","digest":"d1","local_bytes":100,"other_bytes":200,"total_bytes":300,"packets":10}`)
-	c.handleMessage(`{"type":"flow_purge","digest":"d1","local_bytes":50,"other_bytes":70,"total_bytes":120,"packets":5}`)
+	c.handleMessage(`{"type":"flow","flow":{"digest":"d1","detected_application_name":"YouTube","detected_protocol_name":"TLS"}}`)
+	c.handleMessage(`{"type":"flow_stats","flow":{"digest":"d1","local_bytes":100,"other_bytes":200,"total_bytes":300,"total_packets":10}}`)
+	c.handleMessage(`{"type":"flow_purge","flow":{"digest":"d1","local_bytes":50,"other_bytes":70,"total_bytes":120,"total_packets":5}}`)
 
 	apps := tbl.Apps()
 	if len(apps) != 1 {
