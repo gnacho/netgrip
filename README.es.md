@@ -75,7 +75,8 @@ funcionando en los routers de casa desde el primer spike de dos ficheros.
   cliente (OpenVPN entrega un `.ovpn` listo; los peers de WireGuard suman un
   código QR).
 - **DNS, QoS y DDNS** - protección rebind, DNS sobre VPN, SQM basado en cake
-  con nota de bufferbloat, y un toggle de DNS dinámico.
+  con nota de bufferbloat, un toggle de DNS dinámico y límites de ancho de
+  banda por dispositivo desde el detalle de cliente.
 - **Wi-Fi de invitados y de IoT** - una red de invitados en su propia subred
   aislada, y una red de IoT con aislamiento de AP, ambas a un clic.
 - **Cambio Router/AP** - mover el puerto WAN y el rol de DHCP/firewall con
@@ -85,15 +86,29 @@ funcionando en los routers de casa desde el primer spike de dos ficheros.
 - **Panel de puertos y tráfico en vivo** - un chasis ethernet con el estado
   por puerto, nombres de dispositivo y detección de switch no gestionado,
   más una gráfica de caudal en directo.
-- **Vista de malla DAWN** - la malla de roaming dibujada como un grafo radial
+- **Vista de malla usteer** - la malla de roaming dibujada como un grafo radial
   con el número de estaciones por radio.
-- **Tabla de clientes** - cada estación con velocidad, señal, un clic para
-  reservar IP y una acción de bloqueo.
+- **Tabla de clientes** - cada estación con velocidad, señal, reserva de IP
+  a un clic, acción de bloqueo y límite de ancho de banda por dispositivo.
+- **Análisis avanzado de tráfico (netifyd)** - identificar tráfico por aplicación
+  en vez de solo por puerto, con lista de apps en vivo y gráfica de timeline de 24 h.
 - **Actualización de firmware** - integración con owut/ASU para reconstruir la
   imagen con los paquetes ya instalados, así el panel sobrevive al flash.
 - **Entrada en LuCI** - un paquete opcional `luci-app-netgrip` embeja el
   panel en LuCI > Servicios.
 - **UI en ES y EN** - la interfaz cambia de idioma con un clic.
+
+## Hoja de ruta
+
+### Hecho
+- **v0.50.0** - DPI avanzado con netifyd: identificación de tráfico por aplicación.
+- **v0.52.0** - Dashboard de timeline de tráfico: gráfico y tabla ordenable por app.
+- **v0.54.0** - Límites de ancho de banda por dispositivo con nftables.
+
+### Pendiente
+- Validar la aplicación real de límites por dispositivo en un router en modo gateway.
+- Publicar un feed de paquetes propio para que ASU/owut incluya NetGrip en la imagen de firmware.
+- Redesplegar la demo pública con las últimas funciones.
 
 ## Capturas
 
@@ -263,9 +278,11 @@ tarjeta Acceso) que sobrevive a los reinicios del servicio.
 
 La UI es la interfaz principal. También hay una API JSON para cada tarjeta,
 que usa el frontend: `GET /api/board`, `/api/system`, `/api/wan`, `/api/wifi`,
-`/api/lan`, `/api/dns`, `/api/dawn`, `/api/clients` para lecturas, y los
+`/api/lan`, `/api/dns`, `/api/usteer`, `/api/clients`, `/api/netifyd`,
+`/api/dpi/apps`, `/api/dpi/timeline` y `/api/nftqos` para lecturas, y los
 endpoints `POST` correspondientes en `/api/wireguard`, `/api/openvpn`,
-`/api/sqm`, `/api/guestwifi`, `/api/iotwifi` y `/api/portforward` con la
+`/api/sqm`, `/api/guestwifi`, `/api/iotwifi`, `/api/portforward`,
+`/api/netifyd` y `/api/nftqos` con la
 forma `{ "state": ..., "rolled_back": ..., "status": "applied|rolled_back|failed" }`.
 Cada endpoint de escritura requiere una cookie de sesión.
 

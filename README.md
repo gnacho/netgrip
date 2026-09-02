@@ -80,15 +80,31 @@ running on my home routers since I first built the two-file spike.
 - **Port panel and live traffic** - an ethernet chassis with per-port
   state, device names and unmanaged-switch detection, plus a live throughput
   chart.
-- **DAWN mesh view** - the roaming mesh rendered as a radial graph with
+- **usteer mesh view** - the roaming mesh rendered as a radial graph with
   per-radio station counts.
 - **Clients table** - every station with speed, signal, a one-click
-  reserved IP and a block action.
+  reserved IP, block action and per-device bandwidth limits.
+- **Per-device bandwidth limits** - set upload/download Mbps caps per client
+  from the client detail modal; uses a native nftables table in gateway mode.
+- **Advanced traffic analysis (netifyd)** - identify traffic by application
+  instead of only by port, with a live apps list and a 24 h timeline chart.
 - **Firmware updates** - owut/ASU integration to rebuild the image with the
   packages already installed, so the panel survives a flash.
 - **LuCI entry** - an optional `luci-app-netgrip` package embeds the panel
   under LuCI > Services.
 - **ES and EN UI** - the interface switches language in one click.
+
+## Roadmap
+
+### Done
+- **v0.50.0** - Advanced DPI with netifyd: application-level traffic identification.
+- **v0.52.0** - Traffic timeline dashboard: per-app chart and sortable table.
+- **v0.54.0** - Per-device bandwidth limits using a native nftables table.
+
+### Pending
+- Validate per-device bandwidth limit enforcement on a gateway-mode router.
+- Publish a custom packages feed so ASU/owut can keep NetGrip inside a firmware image.
+- Redeploy the public demo to include the latest features.
 
 ## Screenshots
 
@@ -256,9 +272,11 @@ survives service restarts.
 
 The UI is the main interface. There is also a JSON API for every card, used
 by the frontend: `GET /api/board`, `/api/system`, `/api/wan`, `/api/wifi`,
-`/api/lan`, `/api/dns`, `/api/dawn`, `/api/clients` for reads, and the
+`/api/lan`, `/api/dns`, `/api/usteer`, `/api/clients`, `/api/netifyd`,
+`/api/dpi/apps`, `/api/dpi/timeline` and `/api/nftqos` for reads, and the
 matching `POST` endpoints through `/api/wireguard`, `/api/openvpn`,
-`/api/sqm`, `/api/guestwifi`, `/api/iotwifi` and `/api/portforward` with a
+`/api/sqm`, `/api/guestwifi`, `/api/iotwifi`, `/api/portforward`,
+`/api/netifyd` and `/api/nftqos` with a
 `{ "state": ..., "rolled_back": ..., "status": "applied|rolled_back|failed" }`
 shape. Every write endpoint requires a session cookie.
 
