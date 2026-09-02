@@ -76,6 +76,11 @@ func NetifydApps() []NetifydApp {
 	return netifydTable.Apps()
 }
 
+// NetifydTimeline returns the aggregated timeline for /api/dpi/timeline.
+func NetifydTimeline() NetifydTimelineResponse {
+	return netifydTable.Timeline()
+}
+
 // StartNetifydClient starts the persistent socket client if it is not running.
 // It is idempotent.
 func StartNetifydClient() {

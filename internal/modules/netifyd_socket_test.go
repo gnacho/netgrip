@@ -2,6 +2,7 @@ package modules
 
 import (
 	"testing"
+	"time"
 )
 
 func TestNetifydTableAggregation(t *testing.T) {
@@ -95,5 +96,54 @@ func TestNetifydClientHandleMessage(t *testing.T) {
 	}
 	if apps[0].Flows != 2 {
 		t.Fatalf("expected 2 flows, got %d", apps[0].Flows)
+	}
+}
+
+func TestNetifydTableTimeline(t *testing.T) {
+	tbl := newNetifydTable(256, 4096)
+	tbl.setFlowApp("d1", "YouTube")
+	tbl.addStats("d1", 100, 200, 300, 10)
+	tbl.setFlowApp("d2", "QUIC")
+	tbl.addStats("d2", 10, 20, 30, 1)
+
+	timeline := tbl.Timeline()
+	if timeline.Totals.Total != 330 {
+		t.Fatalf("expected totals total 330, got %d", timeline.Totals.Total)
+	}
+	if len(timeline.Top) != 2 {
+		t.Fatalf("expected 2 top apps, got %d", len(timeline.Top))
+	}
+	if timeline.Top[0].Name != "YouTube" {
+		t.Fatalf("expected top app YouTube, got %s", timeline.Top[0].Name)
+	}
+	if len(timeline.Buckets) != 1 {
+		t.Fatalf("expected 1 bucket, got %d", len(timeline.Buckets))
+	}
+	bucket := timeline.Buckets[0]
+	if len(bucket.Apps) != 2 {
+		t.Fatalf("expected 2 apps in bucket, got %d", len(bucket.Apps))
+	}
+	if bucket.Apps["YouTube"].Total != 300 {
+		t.Fatalf("expected YouTube bucket total 300, got %d", bucket.Apps["YouTube"].Total)
+	}
+}
+
+func TestNetifydTableTimelineEviction(t *testing.T) {
+	tbl := newNetifydTable(256, 4096)
+	tbl.maxBuckets = 2
+	tbl.setFlowApp("d1", "YouTube")
+
+	base := time.Now().Unix() / int64(timelineBucketDuration.Seconds()) * int64(timelineBucketDuration.Seconds())
+	// Inject buckets directly to avoid time dependency.
+	tbl.buckets[base] = map[string]*NetifydBucket{"YouTube": {Total: 1}}
+	tbl.buckets[base+300] = map[string]*NetifydBucket{"YouTube": {Total: 2}}
+	tbl.buckets[base+600] = map[string]*NetifydBucket{"YouTube": {Total: 3}}
+
+	timeline := tbl.Timeline()
+	if len(timeline.Buckets) != 2 {
+		t.Fatalf("expected 2 buckets after eviction, got %d", len(timeline.Buckets))
+	}
+	if timeline.Totals.Total != 5 {
+		t.Fatalf("expected total 5 after eviction, got %d", timeline.Totals.Total)
 	}
 }

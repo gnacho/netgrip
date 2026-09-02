@@ -153,6 +153,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/roles", s.requireAuth(s.handleRolesApply))
 	s.mux.HandleFunc("GET /api/dpi", s.requireAuth(s.handleDPIGet))
 	s.mux.HandleFunc("GET /api/dpi/apps", s.requireAuth(s.handleDPIAppsGet))
+	s.mux.HandleFunc("GET /api/dpi/timeline", s.requireAuth(s.handleDPITimelineGet))
 	s.mux.HandleFunc("GET /api/netifyd", s.requireAuth(s.handleNetifydGet))
 	s.mux.HandleFunc("POST /api/netifyd", s.requireAuth(s.handleNetifydSet))
 	s.mux.HandleFunc("GET /api/history", s.requireAuth(s.handleHistoryGet))
@@ -1683,6 +1684,9 @@ func (s *Server) handleDPIGet(w http.ResponseWriter, _ *http.Request) {
 }
 func (s *Server) handleDPIAppsGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, map[string]any{"apps": modules.NetifydApps()})
+}
+func (s *Server) handleDPITimelineGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.NetifydTimeline())
 }
 
 func (s *Server) handleNetifydGet(w http.ResponseWriter, _ *http.Request) {

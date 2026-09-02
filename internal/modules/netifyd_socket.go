@@ -15,10 +15,32 @@ import (
 )
 
 const (
-	netifydSocketPath = "/var/run/netifyd/netifyd.sock"
-	defaultMaxApps    = 256
-	defaultMaxFlows   = 4096
+	netifydSocketPath      = "/var/run/netifyd/netifyd.sock"
+	defaultMaxApps         = 256
+	defaultMaxFlows        = 4096
+	timelineBucketDuration = 5 * time.Minute
+	maxTimelineBuckets     = 288 // 24h at 5-minute buckets
 )
+
+// NetifydBucket holds aggregated bytes for one application in one time bucket.
+type NetifydBucket struct {
+	Local int64 `json:"local"`
+	Other int64 `json:"other"`
+	Total int64 `json:"total"`
+}
+
+// NetifydTimelineResponse is the pre-aggregated response for the timeline API.
+type NetifydTimelineResponse struct {
+	Buckets []NetifydTimelineBucket `json:"buckets"`
+	Top     []NetifydApp            `json:"top"`
+	Totals  NetifydBucket           `json:"totals"`
+}
+
+// NetifydTimelineBucket is one time slot with per-app counters.
+type NetifydTimelineBucket struct {
+	Time string                    `json:"time"`
+	Apps map[string]NetifydBucket `json:"apps"`
+}
 
 // NetifydApp is one aggregated application entry from netifyd flow data.
 type NetifydApp struct {
@@ -37,11 +59,13 @@ type netifydFlow struct {
 
 // netifydAppTable holds the live aggregation. It is safe for concurrent use.
 type netifydAppTable struct {
-	mu       sync.Mutex
-	apps     map[string]*NetifydApp
-	flows    map[string]*netifydFlow
-	maxApps  int
-	maxFlows int
+	mu         sync.Mutex
+	apps       map[string]*NetifydApp
+	flows      map[string]*netifydFlow
+	buckets    map[int64]map[string]*NetifydBucket
+	maxApps    int
+	maxFlows   int
+	maxBuckets int
 }
 
 func newNetifydTable(maxApps, maxFlows int) *netifydAppTable {
@@ -52,10 +76,12 @@ func newNetifydTable(maxApps, maxFlows int) *netifydAppTable {
 		maxFlows = defaultMaxFlows
 	}
 	return &netifydAppTable{
-		apps:     make(map[string]*NetifydApp),
-		flows:    make(map[string]*netifydFlow),
-		maxApps:  maxApps,
-		maxFlows: maxFlows,
+		apps:       make(map[string]*NetifydApp),
+		flows:      make(map[string]*netifydFlow),
+		buckets:    make(map[int64]map[string]*NetifydBucket),
+		maxApps:    maxApps,
+		maxFlows:   maxFlows,
+		maxBuckets: maxTimelineBuckets,
 	}
 }
 
@@ -65,6 +91,7 @@ func (t *netifydAppTable) Reset() {
 	defer t.mu.Unlock()
 	t.apps = make(map[string]*NetifydApp)
 	t.flows = make(map[string]*netifydFlow)
+	t.buckets = make(map[int64]map[string]*NetifydBucket)
 }
 
 // Apps returns a sorted snapshot of the current app table.
@@ -133,6 +160,118 @@ func (t *netifydAppTable) addStats(digest string, local, other, total, packets i
 
 	if len(t.apps) > t.maxApps {
 		t.evictSmallestApp()
+	}
+
+	bucket := time.Now().Unix() / int64(timelineBucketDuration.Seconds()) * int64(timelineBucketDuration.Seconds())
+	b, ok := t.buckets[bucket]
+	if !ok {
+		b = make(map[string]*NetifydBucket)
+		t.buckets[bucket] = b
+	}
+	entry, ok := b[appName]
+	if !ok {
+		entry = &NetifydBucket{}
+		b[appName] = entry
+	}
+	entry.Local += local
+	entry.Other += other
+	entry.Total += total
+
+	if len(t.buckets) > t.maxBuckets {
+		t.evictOldestBucket()
+	}
+}
+
+func (t *netifydAppTable) evictOldestBucket() {
+	var oldest int64
+	for k := range t.buckets {
+		if oldest == 0 || k < oldest {
+			oldest = k
+		}
+	}
+	if oldest != 0 {
+		delete(t.buckets, oldest)
+	}
+}
+
+// Timeline returns a snapshot of the last 24 hours aggregated in 5-minute buckets.
+func (t *netifydAppTable) Timeline() NetifydTimelineResponse {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	for len(t.buckets) > t.maxBuckets {
+		t.evictOldestBucket()
+	}
+
+	var totals NetifydBucket
+	appTotals := make(map[string]*NetifydBucket)
+	for _, b := range t.buckets {
+		for name, entry := range b {
+			totals.Local += entry.Local
+			totals.Other += entry.Other
+			totals.Total += entry.Total
+			agg, ok := appTotals[name]
+			if !ok {
+				agg = &NetifydBucket{}
+				appTotals[name] = agg
+			}
+			agg.Local += entry.Local
+			agg.Other += entry.Other
+			agg.Total += entry.Total
+		}
+	}
+
+	top := make([]NetifydApp, 0, len(appTotals))
+	for name, entry := range appTotals {
+		top = append(top, NetifydApp{
+			Name:       name,
+			Bytes:      entry.Total,
+			LocalBytes: entry.Local,
+			OtherBytes: entry.Other,
+		})
+	}
+	sort.Slice(top, func(i, j int) bool {
+		if top[i].Bytes != top[j].Bytes {
+			return top[i].Bytes > top[j].Bytes
+		}
+		return strings.Compare(top[i].Name, top[j].Name) < 0
+	})
+	if len(top) > 10 {
+		top = top[:10]
+	}
+
+	topSet := make(map[string]bool, len(top))
+	for _, a := range top {
+		topSet[a.Name] = true
+	}
+
+	bucketKeys := make([]int64, 0, len(t.buckets))
+	for k := range t.buckets {
+		bucketKeys = append(bucketKeys, k)
+	}
+	sort.Slice(bucketKeys, func(i, j int) bool { return bucketKeys[i] < bucketKeys[j] })
+
+	buckets := make([]NetifydTimelineBucket, 0, len(bucketKeys))
+	for _, k := range bucketKeys {
+		apps := make(map[string]NetifydBucket)
+		for name, entry := range t.buckets[k] {
+			if topSet[name] {
+				apps[name] = *entry
+			}
+		}
+		if len(apps) == 0 {
+			continue
+		}
+		buckets = append(buckets, NetifydTimelineBucket{
+			Time: time.Unix(k, 0).UTC().Format(time.RFC3339),
+			Apps: apps,
+		})
+	}
+
+	return NetifydTimelineResponse{
+		Buckets: buckets,
+		Top:     top,
+		Totals:  totals,
 	}
 }
 
