@@ -63,7 +63,7 @@ export function PackagesCard({ index = 0 }: { index?: number }) {
           <div key={p.id} className="flex items-center gap-3 py-2.5">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-medium">{t(p.i18n_key)}</span>
+                <span className="font-medium">{t(`packages.names.${p.id}`)}</span>
                 {p.installed && <Pill tone="ok">{t("packages.installed")}</Pill>}
               </div>
               <p className="text-caption text-muted mt-0.5 font-mono truncate">{p.packages.join(", ")}</p>
@@ -73,7 +73,7 @@ export function PackagesCard({ index = 0 }: { index?: number }) {
                 className="text-danger hover:text-danger hover:bg-danger/10"
                 disabled={busyId === p.id}
                 onClick={() => setDelTarget(p)}
-                aria-label={t("packages.remove", { name: t(p.i18n_key) })}>
+                aria-label={t("packages.remove", { name: t(`packages.names.${p.id}`) })}>
                 <Trash2 size={16} />
               </Button>
             ) : (
@@ -100,7 +100,7 @@ export function PackagesCard({ index = 0 }: { index?: number }) {
 
       <ConfirmDialog
         open={!!delTarget}
-        title={t("packages.remove", { name: delTarget ? t(delTarget.i18n_key) : "" })}
+        title={t("packages.remove", { name: delTarget ? t(`packages.names.${delTarget.id}`) : "" })}
         consequence={t("packages.removeBody", { pkgs: delTarget?.packages.join(", ") ?? "" })}
         confirmLabel={t("packages.removeConfirm")}
         busy={!!busyId}

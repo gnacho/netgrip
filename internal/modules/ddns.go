@@ -118,15 +118,23 @@ func ddnsReadEntry(section string) *DDNSEntry {
 }
 
 // ProbeDDNS reads all configured DDNS entries. Never includes passwords.
+// Only service sections with a domain are listed: the stock ddns-scripts
+// example rows ship as service sections, but the global section (no domain)
+// is noise (#204).
 func ProbeDDNS() *DDNSProbe {
 	p := &DDNSProbe{Installed: ddnsInstalled()}
 	if !p.Installed {
 		return p
 	}
 	for _, section := range ddnsSections() {
-		if e := ddnsReadEntry(section); e != nil {
-			p.Entries = append(p.Entries, *e)
+		if uciGet("ddns."+section) != "service" {
+			continue
 		}
+		e := ddnsReadEntry(section)
+		if e == nil || e.Domain == "" {
+			continue
+		}
+		p.Entries = append(p.Entries, *e)
 	}
 	return p
 }
@@ -220,31 +228,50 @@ func findDDNSEntry(entries []DDNSEntry, domain string) *DDNSEntry {
 	return nil
 }
 
-// DeleteDDNS removes a DDNS entry by domain.
-func DeleteDDNS(domain string) (*DDNSProbe, bool, error) {
-	if domain == "" {
-		return ProbeDDNS(), false, fmt.Errorf("domain is required")
+// DeleteDDNSSection removes one DDNS entry by its unique section id (#204).
+func DeleteDDNSSection(section string) (*DDNSProbe, bool, error) {
+	if !regexp.MustCompile(`^[a-zA-Z0-9_@:-]{1,64}$`).MatchString(section) {
+		return ProbeDDNS(), false, fmt.Errorf("invalid section name")
+	}
+	if !uciSectionExists("ddns." + section) {
+		return ProbeDDNS(), false, fmt.Errorf("ddns section %q not found", section)
 	}
 	snap := ddnsSnapshot()
-	section := ddnsEntryName(domain)
-	if !uciSectionExists("ddns." + section) {
-		// Try by value.
-		for _, s := range ddnsSections() {
-			if e := ddnsReadEntry(s); e != nil && e.Domain == domain {
-				section = s
-				break
-			}
-		}
-	}
-	if !uciSectionExists("ddns." + section) {
-		return ProbeDDNS(), false, fmt.Errorf("ddns entry not found for domain %q", domain)
-	}
-
 	ops := []executor.Op{
 		{Kind: "uci_delete", Args: []string{"ddns." + section}},
 		{Kind: "uci_commit", Args: []string{"ddns"}},
 		{Kind: "initd", Args: []string{"ddns", "reload"}},
 	}
+	if err := executor.Apply(ops, nil); err != nil {
+		ddnsRollback(snap)
+		return ProbeDDNS(), true, err
+	}
+	return ProbeDDNS(), false, nil
+}
+
+// DeleteDDNS removes every DDNS entry matching a domain (compat path).
+func DeleteDDNS(domain string) (*DDNSProbe, bool, error) {
+	if domain == "" {
+		return ProbeDDNS(), false, fmt.Errorf("domain is required")
+	}
+	var sections []string
+	for _, s := range ddnsSections() {
+		if e := ddnsReadEntry(s); e != nil && e.Domain == domain {
+			sections = append(sections, s)
+		}
+	}
+	if len(sections) == 0 {
+		return ProbeDDNS(), false, fmt.Errorf("ddns entry not found for domain %q", domain)
+	}
+	snap := ddnsSnapshot()
+	var ops []executor.Op
+	for _, section := range sections {
+		ops = append(ops, executor.Op{Kind: "uci_delete", Args: []string{"ddns." + section}})
+	}
+	ops = append(ops,
+		executor.Op{Kind: "uci_commit", Args: []string{"ddns"}},
+		executor.Op{Kind: "initd", Args: []string{"ddns", "reload"}},
+	)
 	if err := executor.Apply(ops, nil); err != nil {
 		ddnsRollback(snap)
 		return ProbeDDNS(), true, err

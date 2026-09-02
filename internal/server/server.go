@@ -525,7 +525,8 @@ func (s *Server) handleDDNSSet(w http.ResponseWriter, r *http.Request) {
 }
 
 type ddnsDeleteRequest struct {
-	Domain string `json:"domain"`
+	Section string `json:"section"`
+	Domain  string `json:"domain"`
 }
 
 func (s *Server) handleDDNSDelete(w http.ResponseWriter, r *http.Request) {
@@ -534,7 +535,14 @@ func (s *Server) handleDDNSDelete(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	probe, rolledBack, err := modules.DeleteDDNS(req.Domain)
+	var probe *modules.DDNSProbe
+	var rolledBack bool
+	var err error
+	if req.Section != "" {
+		probe, rolledBack, err = modules.DeleteDDNSSection(req.Section)
+	} else {
+		probe, rolledBack, err = modules.DeleteDDNS(req.Domain)
+	}
 	writeModuleResult(w, probe, rolledBack, err)
 }
 

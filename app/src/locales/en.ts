@@ -1233,6 +1233,15 @@ export default {
   packages: {
     cardTitle: "Optional packages",
     desc: "Services you can add or remove at any time. Removing one stops its service and uninstalls it; settings are kept.",
+    names: {
+      wireguard: "WireGuard",
+      ddns: "DDNS",
+      openvpn: "OpenVPN",
+      sqm: "SQM",
+      nlbwmon: "Per-device usage",
+      tailscale: "Tailscale",
+      adguard: "AdGuard Home",
+    },
     installed: "Installed",
     installedCount_one: "{{count}} installed",
     installedCount_other: "{{count}} installed",
