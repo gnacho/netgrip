@@ -391,6 +391,19 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ vid }),
     }),
+  lag: () => request<import("./types").LAGProbe>("/api/lag"),
+  setLag: (cfg: import("./types").LAGConfig) =>
+    request<import("./types").ModuleResult<import("./types").LAGProbe>>("/api/lag", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
+  deleteLag: (name: string) =>
+    request<import("./types").ModuleResult<import("./types").LAGProbe>>("/api/lag", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
   history: () =>
     request<{ entries: import("./types").HistoryEntry[] }>("/api/history"),
   httpsState: () =>
@@ -468,6 +481,14 @@ const realApi = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(sched),
+    }),
+  poeWatchdogs: () =>
+    request<{ watchdogs: import("./types").PoEWatchdogState[] }>("/api/poe/watchdog"),
+  setPoEWatchdog: (cfg: import("./types").PoEWatchdogConfig) =>
+    request<{ status: string; watchdogs: import("./types").PoEWatchdogState[] }>("/api/poe/watchdog", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
     }),
   portTemplates: () =>
     request<{ templates: import("./types").PortTemplate[] }>("/api/port-templates"),

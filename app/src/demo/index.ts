@@ -39,6 +39,7 @@ const state = {
   drift: structuredClone(D.demoDriftClean),
   snapshots: [...D.demoSnapshots],
   vlans: structuredClone(D.demoVlans),
+  lag: structuredClone(D.demoLag),
   firewall: structuredClone(D.demoFirewall),
   nlbwmon: { ...D.demoNlbwmon },
   offload: { ...D.demoOffload },
@@ -322,6 +323,30 @@ export const demoApi: typeof api = {
   vlans: () => get(state.vlans),
   setVlan: async () => write(state.vlans),
   deleteVlan: async () => write(state.vlans),
+  lag: () => get(state.lag),
+  setLag: async (cfg) => {
+    await wait(800, 1500);
+    const existing = state.lag.lags.find((l) => l.name === cfg.name);
+    if (existing) {
+      existing.mode = cfg.mode;
+      state.lag.free_ports = [...existing.slaves, ...state.lag.free_ports].filter(
+        (p) => !cfg.slaves.includes(p),
+      ).sort();
+      existing.slaves = [...cfg.slaves];
+      existing.up = true;
+    } else {
+      state.lag.lags.push({ name: cfg.name, device: "bond-" + cfg.name, mode: cfg.mode, slaves: [...cfg.slaves], up: true });
+      state.lag.free_ports = state.lag.free_ports.filter((p) => !cfg.slaves.includes(p));
+    }
+    return { status: "applied" as const, rolled_back: false, state: state.lag };
+  },
+  deleteLag: async (name) => {
+    await wait(800, 1500);
+    const lag = state.lag.lags.find((l) => l.name === name);
+    state.lag.lags = state.lag.lags.filter((l) => l.name !== name);
+    if (lag) state.lag.free_ports = [...state.lag.free_ports, ...lag.slaves].sort();
+    return { status: "applied" as const, rolled_back: false, state: state.lag };
+  },
 
   // puertos
   ethports: () => get({ ports: D.demoEthPorts }),
@@ -343,6 +368,15 @@ export const demoApi: typeof api = {
   applySwitchMode: async () => { await wait(800, 1500); return { status: "ok" }; },
   poe: () => get(D.demoPoe),
   setPoESchedule: async () => { await wait(800, 1500); return { status: "ok", state: D.demoPoe }; },
+  poeWatchdogs: () => get({ watchdogs: D.demoPoeWatchdogs }),
+  setPoEWatchdog: async (cfg) => {
+    await wait(800, 1500);
+    const rest = D.demoPoeWatchdogs.filter((w) => w.config.port !== cfg.port);
+    if (cfg.enabled) {
+      rest.push({ config: { ...cfg }, failures: 0, last_check: "", last_cycle: "", cooling: false });
+    }
+    return { status: "applied" as const, watchdogs: rest };
+  },
   portTemplates: () => get({ templates: state.portTemplates }),
   savePortTemplate: async (tpl) => {
     await wait(800, 1500);

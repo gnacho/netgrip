@@ -3,6 +3,7 @@ import { AdvancedDisclosure, Card } from "../components/ui";
 import { PortForwardCard } from "../components/ports/PortForwardCard";
 import { PoECard } from "../components/ports/PoECard";
 import { SwitchCard } from "../components/ports/SwitchCard";
+import { LagCard } from "../components/ports/LagCard";
 import { PortStatsCard } from "../components/ports/PortStatsCard";
 import { SwitchModesCard } from "../components/ports/SwitchModesCard";
 import { PortTemplatesCard } from "../components/ports/PortTemplatesCard";
@@ -26,6 +27,7 @@ export function Ports({ fwd, onFwdChange }: {
 
       <PoECard index={1} />
       <SwitchCard index={2} />
+      <LagCard index={2} />
 
       <Card index={3} className="md:col-span-2">
         <AdvancedDisclosure>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Zap } from "lucide-react";
 import { api } from "../../api";
-import type { PoEPort, PoEProbe, SwitchProbe } from "../../types";
+import type { PoEPort, PoEProbe, PoEWatchdogState, SwitchProbe } from "../../types";
 import { ActionBanner, Button, Card, ConfirmDialog, HelpTip, Input, Pill, SettingRow } from "../ui";
 import { useActionCycle } from "../wifi/action";
 
@@ -18,9 +18,14 @@ export function PoECard({ index = 1 }: { index?: number }) {
   const [msg, setMsg] = useState<{ tone: "ok" | "danger"; text: string }>();
   const { phase, detail, busy, run, clear } = useActionCycle();
 
+  const [watchdogs, setWatchdogs] = useState<PoEWatchdogState[]>([]);
+  const [wdOpen, setWdOpen] = useState<string>();
+  const [wd, setWd] = useState({ target: "", threshold: 5, interval: 30, cooldown: 120 });
+
   const load = useCallback(() => {
     api.poe().then(setProbe).catch(() => {});
     api.switchPorts().then((r) => { if (r.applicable) setSw(r); }).catch(() => {});
+    api.poeWatchdogs().then((r) => setWatchdogs(r.watchdogs ?? [])).catch(() => {});
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -31,6 +36,8 @@ export function PoECard({ index = 1 }: { index?: number }) {
   const budgetPct = probe.total_budget_w > 0 ? Math.round((probe.used_w / probe.total_budget_w) * 100) : 0;
 
   const descFor = (name: string) => sw?.ports.find((p) => p.name === name)?.description;
+
+  const wdFor = (port: string) => watchdogs.find((w) => w.config.port === port);
 
   const setPower = (port: PoEPort, on: boolean) => {
     setBusyPort(port.name);
@@ -47,6 +54,23 @@ export function PoECard({ index = 1 }: { index?: number }) {
       setProbe(res.state);
       setSchedOpen(undefined);
       setMsg({ tone: "ok", text: t("poe.scheduleSaved") });
+    } catch (e) {
+      setMsg({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
+    } finally { setBusyPort(undefined); }
+  };
+
+  const saveWatchdog = async (port: string, enabled: boolean) => {
+    setBusyPort(port); setMsg(undefined);
+    try {
+      const res = await api.setPoEWatchdog({
+        port, enabled,
+        target: wd.target.trim(),
+        threshold: wd.threshold,
+        interval_s: wd.interval,
+        cooldown_s: wd.cooldown,
+      });
+      setWatchdogs(res.watchdogs ?? []);
+      setMsg({ tone: "ok", text: enabled ? t("poe.wdSavedOn") : t("poe.wdSavedOff") });
     } catch (e) {
       setMsg({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
     } finally { setBusyPort(undefined); }
@@ -122,6 +146,86 @@ export function PoECard({ index = 1 }: { index?: number }) {
                   <Button size="sm" onClick={() => saveSchedule(p.name)} loading={busyPort === p.name && !busy}>
                     {t("lan.save")}
                   </Button>
+                </div>
+              )}
+
+              {/* Watchdog: recicla la alimentación si el aparato deja de responder */}
+              <div className="pb-2 -mt-1 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWdOpen(wdOpen === p.name ? undefined : p.name);
+                    const cur = wdFor(p.name);
+                    setWd({
+                      target: cur?.config.target ?? "",
+                      threshold: cur?.config.threshold ?? 5,
+                      interval: cur?.config.interval_s ?? 30,
+                      cooldown: cur?.config.cooldown_s ?? 120,
+                    });
+                  }}
+                  aria-expanded={wdOpen === p.name}
+                  className="flex items-center gap-1 text-caption text-muted hover:text-text transition-colors ring-focus rounded-sm"
+                >
+                  <ChevronDown size={12} className={`transition-transform duration-200 ${wdOpen === p.name ? "rotate-180" : ""}`} aria-hidden="true" />
+                  {t("poe.watchdog")}
+                  {wdFor(p.name)?.config.enabled && wdOpen !== p.name && (
+                    <span className="font-mono">{wdFor(p.name)?.config.target}</span>
+                  )}
+                </button>
+                <HelpTip title={t("help.poeWatchdog.title")} body={t("help.poeWatchdog.body")} />
+              </div>
+              {wdOpen === p.name && (
+                <div className="pb-3 mt-1 flex flex-col gap-2 animate-fade-up">
+                  <div className="flex items-end gap-2 flex-wrap">
+                    <label className="text-caption text-muted">
+                      {t("poe.wdTarget")}
+                      <Input value={wd.target} onChange={(e) => setWd({ ...wd, target: e.target.value })}
+                        mono placeholder="192.168.1.50" className="!h-9 mt-1" aria-label={t("poe.wdTarget")} />
+                    </label>
+                    <label className="text-caption text-muted">
+                      {t("poe.wdThreshold")}
+                      <Input type="number" min={1} value={wd.threshold}
+                        onChange={(e) => setWd({ ...wd, threshold: Number(e.target.value) })}
+                        className="!h-9 mt-1 w-20" aria-label={t("poe.wdThreshold")} />
+                    </label>
+                    <label className="text-caption text-muted">
+                      {t("poe.wdInterval")}
+                      <Input type="number" min={5} value={wd.interval}
+                        onChange={(e) => setWd({ ...wd, interval: Number(e.target.value) })}
+                        className="!h-9 mt-1 w-20" aria-label={t("poe.wdInterval")} />
+                    </label>
+                    <label className="text-caption text-muted">
+                      {t("poe.wdCooldown")}
+                      <Input type="number" min={0} value={wd.cooldown}
+                        onChange={(e) => setWd({ ...wd, cooldown: Number(e.target.value) })}
+                        className="!h-9 mt-1 w-20" aria-label={t("poe.wdCooldown")} />
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button size="sm" variant="secondary"
+                      disabled={wdFor(p.name)?.config.enabled}
+                      onClick={() => saveWatchdog(p.name, true)}>
+                      {t("poe.wdEnable")}
+                    </Button>
+                    <Button size="sm" variant="ghost"
+                      disabled={!wdFor(p.name)?.config.enabled}
+                      onClick={() => saveWatchdog(p.name, false)}>
+                      {t("poe.wdDisable")}
+                    </Button>
+                    {(() => {
+                      const st = wdFor(p.name);
+                      if (!st?.config.enabled) return null;
+                      return (
+                        <span className="text-caption text-muted">
+                            {t("poe.wdStatus", {
+                              failures: st.failures,
+                              threshold: st.config.threshold,
+                            })}
+                            {st.last_cycle && ` · ${t("poe.wdLastCycle", { ts: new Date(st.last_cycle).toLocaleTimeString() })}`}
+                        </span>
+                      );
+                    })()}
+                  </div>
                 </div>
               )}
             </div>

@@ -496,6 +496,27 @@ export interface VLANEdit {
   ports: VLANPort[];
 }
 
+export interface LAGEntry {
+  name: string;
+  device: string;
+  mode: string;
+  slaves: string[];
+  up: boolean;
+}
+
+export interface LAGProbe {
+  applicable: boolean;
+  installed: boolean;
+  lags: LAGEntry[];
+  free_ports: string[];
+}
+
+export interface LAGConfig {
+  name: string;
+  mode: string;
+  slaves: string[];
+}
+
 export interface HistoryEntry {
   ts: number;
   rx: number;
@@ -627,6 +648,23 @@ export interface PoESchedule {
   port: string;
   on_time: string;
   off_time: string;
+}
+
+export interface PoEWatchdogConfig {
+  port: string;
+  enabled: boolean;
+  target: string;
+  threshold: number;
+  interval_s: number;
+  cooldown_s: number;
+}
+
+export interface PoEWatchdogState {
+  config: PoEWatchdogConfig;
+  failures: number;
+  last_check: string;
+  last_cycle: string;
+  cooling: boolean;
 }
 
 export interface PortTemplateVLAN {
