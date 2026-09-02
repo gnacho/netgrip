@@ -2,7 +2,7 @@
 - [x] Read clients page and detail modal
 - [x] Design nftables rules and persistence format
 - [x] Create plan.md for issue #138
-- [ ] Implement backend: nftqos probe/set module
-- [ ] Implement frontend: client detail bandwidth limit
-- [ ] Build, test and validate on rt3
-- [ ] Commit, PR, merge, release
+- [x] Implement backend: nftqos probe/set module
+- [x] Implement frontend: client detail bandwidth limit
+- [x] Build, test and validate on rt3
+- [x] Commit, PR, merge, release
