@@ -107,14 +107,26 @@ export const demoWg: T.WGProbe = {
 
 export const demoDdns: T.DDNSProbe = {
   installed: true,
-  active: true,
+  entries: [
+    {
+      section: "casa_duckdns_org",
+      enabled: true,
+      running: true,
+      service_name: "duckdns.org",
+      domain: "casa.duckdns.org",
+      lookup_host: "casa.duckdns.org",
+      username: "casa",
+      registered_ip: "82.158.44.21",
+      last_update: new Date(Date.now() - 42 * 60000).toISOString(),
+    },
+  ],
+};
+
+export const demoMdns: T.MDNSProbe = {
+  installed: true,
+  enabled: true,
   running: true,
-  service_name: "duckdns.org",
-  domain: "casa.duckdns.org",
-  lookup_host: "casa.duckdns.org",
-  username: "casa",
-  registered_ip: "82.158.44.21",
-  last_update: new Date(Date.now() - 42 * 60000).toISOString(),
+  domain: "casa.local",
 };
 
 export const demoSqm: T.SQMProbe = {

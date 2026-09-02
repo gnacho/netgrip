@@ -166,6 +166,13 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled }),
     }),
+  mdns: () => request<import("./types").MDNSProbe>("/api/mdns"),
+  setMdns: (enabled: boolean) =>
+    request<import("./types").ModuleResult<import("./types").MDNSProbe>>("/api/mdns", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    }),
   wifi: () => request<{ interfaces: import("./types").WifiUI[] }>("/api/wifi"),
   wifiKey: (section: string) => request<{ key: string }>(`/api/wifi/key?section=${encodeURIComponent(section)}`),
   setWifi: (edit: { section: string; ssid?: string; key?: string; encryption?: string; hidden?: boolean; disabled?: boolean; mac?: string }) =>
@@ -305,6 +312,12 @@ const realApi = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg),
+    }),
+  deleteDdns: (domain: string) =>
+    request<import("./types").ModuleResult<import("./types").DDNSProbe>>("/api/ddns", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domain }),
     }),
   snapshots: () =>
     request<{ snapshots: import("./types").ConfigSnapshot[] }>("/api/config/snapshots"),

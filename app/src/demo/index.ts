@@ -24,6 +24,7 @@ const state = {
   wifi: D.demoWifi,
   wg: structuredClone(D.demoWg),
   ddns: { ...D.demoDdns },
+  mdns: { ...D.demoMdns },
   sqm: { ...D.demoSqm },
   ovpn: structuredClone(D.demoOvpn),
   ipv6: { ...D.demoIpv6 },
@@ -201,9 +202,39 @@ export const demoApi: typeof api = {
   },
   ddns: () => get(state.ddns),
   setDdns: async (cfg) => {
-    state.ddns.active = state.ddns.running = cfg.enabled;
-    if (cfg.domain) state.ddns.domain = cfg.domain;
-    return write(state.ddns);
+    await wait(800, 1500);
+    const existing = state.ddns.entries.find((e) => e.domain === cfg.domain);
+    if (existing) {
+      existing.enabled = cfg.enabled;
+      if (cfg.service_name) existing.service_name = cfg.service_name;
+      if (cfg.domain) existing.domain = cfg.domain;
+      if (cfg.lookup_host !== undefined) existing.lookup_host = cfg.lookup_host;
+      if (cfg.username !== undefined) existing.username = cfg.username;
+      existing.running = cfg.enabled;
+    } else if (cfg.enabled && cfg.domain) {
+      state.ddns.entries.push({
+        section: cfg.domain.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").replace(/^[0-9]/, "d$&") || "d",
+        enabled: true,
+        running: true,
+        service_name: cfg.service_name || "duckdns.org",
+        domain: cfg.domain,
+        lookup_host: cfg.lookup_host || "",
+        username: cfg.username || "",
+        registered_ip: D.demoWan.ipv4[0] || "",
+        last_update: new Date().toISOString(),
+      });
+    }
+    return { status: "applied" as const, rolled_back: false, state: state.ddns };
+  },
+  deleteDdns: async (domain) => {
+    await wait(800, 1500);
+    state.ddns.entries = state.ddns.entries.filter((e) => e.domain !== domain);
+    return { status: "applied" as const, rolled_back: false, state: state.ddns };
+  },
+  mdns: () => get(state.mdns),
+  setMdns: async (enabled) => {
+    state.mdns.enabled = state.mdns.running = enabled;
+    return write(state.mdns);
   },
   sqm: () => get(state.sqm),
   setSqm: async (cfg) => {

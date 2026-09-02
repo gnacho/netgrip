@@ -88,6 +88,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/remoteaccess", s.requireAuth(s.handleRemoteSet))
 	s.mux.HandleFunc("GET /api/offload", s.requireAuth(s.handleOffloadGet))
 	s.mux.HandleFunc("POST /api/offload", s.requireAuth(s.handleOffloadSet))
+	s.mux.HandleFunc("GET /api/mdns", s.requireAuth(s.handleMDNSGet))
+	s.mux.HandleFunc("POST /api/mdns", s.requireAuth(s.handleMDNSSet))
 	s.mux.HandleFunc("GET /api/wifi", s.requireAuth(s.handleWifiGet))
 	s.mux.HandleFunc("GET /api/wifi/key", s.requireAuth(s.handleWifiKey))
 	s.mux.HandleFunc("POST /api/wifi", s.requireAuth(s.handleWifiSet))
@@ -516,6 +518,20 @@ func (s *Server) handleDDNSSet(w http.ResponseWriter, r *http.Request) {
 	writeModuleResult(w, probe, rolledBack, err)
 }
 
+type ddnsDeleteRequest struct {
+	Domain string `json:"domain"`
+}
+
+func (s *Server) handleDDNSDelete(w http.ResponseWriter, r *http.Request) {
+	var req ddnsDeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.DeleteDDNS(req.Domain)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
 func (s *Server) handleSQMGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, modules.ProbeSQM())
 }
@@ -868,6 +884,24 @@ func (s *Server) handleOffloadSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	probe, rolledBack, err := modules.SetOffload(req.Enabled)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleMDNSGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeMDNS())
+}
+
+type mdnsSetRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
+func (s *Server) handleMDNSSet(w http.ResponseWriter, r *http.Request) {
+	var req mdnsSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetMDNS(req.Enabled)
 	writeModuleResult(w, probe, rolledBack, err)
 }
 

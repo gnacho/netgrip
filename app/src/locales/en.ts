@@ -83,6 +83,7 @@ export default {
     escToClose: "Press Esc to close",
     copyDetail: "Copy detail",
     advanced: "Advanced options",
+    delete: "Delete",
   },
   action: {
     applying: "Applying… we save a backup first, just in case.",
@@ -587,6 +588,16 @@ export default {
     agoDays_other: "updated {{count}} days ago",
     doneOn: "Done. The name is active.",
     doneOff: "Done. The name is off.",
+    empty: "No DDNS entries yet.",
+    addEntry: "Add DDNS entry",
+  },
+  mdns: {
+    title: "Local name",
+    on: "On",
+    off: "Off",
+    toggle: "Advertise this router on the local network",
+    hint: "Lets you reach the router by name (hostname.local) from computers, phones and printers at home.",
+    domainLabel: "Available at:",
   },
   sqm: {
     title: "SQM / QoS",
