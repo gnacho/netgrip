@@ -25,7 +25,7 @@ function fmtDurationShort(mins: number): string {
 function leaseCell(c: Client, t: (k: string, o?: Record<string, string>) => string): { text: string; title?: string } {
   if (!c.lease_expiry) return { text: "—", title: t("clients.noLease") };
   const title = t("clients.leaseExpiry") + ": " + fmtDateTime(c.lease_expiry) +
-    (c.lease_source ? " · " + t(`clients.leaseSource.${c.lease_source}`) : "");
+    (c.lease_source ? " · " + t(`clients.leaseSource_${c.lease_source}`) : "");
   const mins = Math.floor((c.lease_expiry - Date.now() / 1000) / 60);
   if (mins <= 0) return { text: t("clients.leaseExpired"), title };
   return { text: fmtDurationShort(mins), title };
@@ -603,7 +603,7 @@ function DetailClientModal({ client, rate, onClose }: {
             <DetailRow label={t("clients.leaseExpiry")} value={fmtDateTime(client.lease_expiry)} mono />
           )}
           {client.lease_source && (
-            <DetailRow label={t("clients.leaseSource")} value={t(`clients.leaseSource.${client.lease_source}`)} />
+            <DetailRow label={t("clients.leaseSource")} value={t(`clients.leaseSource_${client.lease_source}`)} />
           )}
         </div>
       </div>
