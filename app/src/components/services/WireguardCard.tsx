@@ -73,6 +73,15 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
     });
 
   const active = probe?.active ?? false;
+  const [installing, setInstalling] = useState(false);
+  const install = async () => {
+    setInstalling(true);
+    try {
+      await api.wizardPackages(["wireguard"]);
+      onChange(await api.wireguard());
+    } catch { /* el probe refresca el estado */ }
+    setInstalling(false);
+  };
 
   return (
     <Card index={index}>
@@ -83,7 +92,8 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
           small
           illustration={<ShieldCheck size={24} />}
           title={t("wg.notInstalled")}
-          body={t("services.installFromTools")}
+          body={t("services.installHint")}
+          action={<Button size="sm" onClick={install} loading={installing}>{t("services.installNow")}</Button>}
         />
       ) : (
         <>

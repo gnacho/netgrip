@@ -3,6 +3,7 @@ package modules
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -34,9 +35,20 @@ var optionalCatalog = []OptionalPkg{
 	{ID: "openvpn", Packages: []string{"openvpn-openssl", "openvpn-easy-rsa"}, I18nKey: "wizard.packages.openvpn", Module: "openvpn"},
 	{ID: "sqm", Packages: []string{"sqm-scripts"}, I18nKey: "wizard.packages.sqm", Module: "sqm"},
 	{ID: "nlbwmon", Packages: []string{"nlbwmon"}, I18nKey: "wizard.packages.nlbwmon", Module: "nlbwmon"},
-	{ID: "nft-qos", Packages: []string{"nft-qos"}, I18nKey: "wizard.packages.nftqos", Module: "nftqos"},
 	{ID: "tailscale", Packages: []string{"tailscale"}, I18nKey: "wizard.packages.tailscale", Module: "tailscale"},
 	{ID: "adguard", Packages: []string{"adguardhome"}, I18nKey: "wizard.packages.adguard", Module: "adguard"},
+}
+
+// optionalServices maps catalog modules to their init.d service, stopped and
+// disabled before uninstalling the packages.
+var optionalServices = map[string]string{
+	"wireguard": "wireguard",
+	"ddns":      "ddns",
+	"openvpn":   "openvpn",
+	"sqm":       "sqm",
+	"nlbwmon":   "nlbwmon",
+	"tailscale": "tailscale",
+	"adguard":   "AdGuardHome",
 }
 
 // pkgInstalled reports whether one package is installed (apk on 25.12+,
@@ -93,6 +105,40 @@ func InstallOptionalPackages(ids []string) ([]string, error) {
 		installed = append(installed, id)
 	}
 	return installed, nil
+}
+
+// RemoveOptionalPackages uninstalls the catalog entries with the given ids.
+// Ids are validated against the catalog (whitelist: base-system packages can
+// never reach this path). The associated init service is stopped and disabled
+// first; /etc/config files are preserved so the choice is reversible.
+func RemoveOptionalPackages(ids []string) ([]string, error) {
+	removed := []string{}
+	for _, id := range ids {
+		var entry *OptionalPkg
+		for i := range optionalCatalog {
+			if optionalCatalog[i].ID == id {
+				entry = &optionalCatalog[i]
+				break
+			}
+		}
+		if entry == nil {
+			return nil, fmt.Errorf("unknown package set: %q", id)
+		}
+		if !optionalPkgInstalled(*entry) {
+			continue
+		}
+		if svc, ok := optionalServices[entry.Module]; ok {
+			if _, err := os.Stat("/etc/init.d/" + svc); err == nil {
+				_ = executor.Run(executor.Op{Kind: "initd", Args: []string{svc, "stop"}})
+				_ = executor.Run(executor.Op{Kind: "initd", Args: []string{svc, "disable"}})
+			}
+		}
+		if err := executor.Run(executor.Op{Kind: "pkg_del", Args: entry.Packages}); err != nil {
+			return removed, fmt.Errorf("remove %s: %w", id, err)
+		}
+		removed = append(removed, id)
+	}
+	return removed, nil
 }
 
 var rePkgLine = regexp.MustCompile(`^(\S+)-([0-9][^\s]*)\s+\S+\s+\{[^}]*\}\s+\([^)]*\)\s+\[upgradable from:\s+([^\]]+)\]$`)

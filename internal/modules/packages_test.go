@@ -28,10 +28,12 @@ func TestOptionalCatalogWellFormed(t *testing.T) {
 }
 
 func TestOptionalCatalogCoversServices(t *testing.T) {
+	// nft-qos is NOT here on purpose: the package does not exist in the
+	// official feeds (verified on 25.12, see issue #138).
 	want := []string{
 		"wireguard-tools", "kmod-wireguard", "ddns-scripts",
 		"openvpn-openssl", "openvpn-easy-rsa", "sqm-scripts",
-		"nlbwmon", "nft-qos", "tailscale", "adguardhome",
+		"nlbwmon", "tailscale", "adguardhome",
 	}
 	have := map[string]bool{}
 	for _, e := range optionalCatalog {
@@ -42,6 +44,22 @@ func TestOptionalCatalogCoversServices(t *testing.T) {
 	for _, w := range want {
 		if !have[w] {
 			t.Fatalf("catalog missing package %q", w)
+		}
+	}
+}
+
+func TestRemoveOptionalPackagesRejectsUnknownID(t *testing.T) {
+	if _, err := RemoveOptionalPackages([]string{"does-not-exist"}); err == nil {
+		t.Fatal("expected error for unknown id")
+	}
+}
+
+func TestRemoveOptionalPackagesRefusesForeignNames(t *testing.T) {
+	// The whitelist must never expose base-system packages: unknown ids are
+	// rejected even if they look like real package names.
+	for _, id := range []string{"dropbear", "kmod-nft-core", "firewall4"} {
+		if _, err := RemoveOptionalPackages([]string{id}); err == nil {
+			t.Fatalf("expected rejection for %q", id)
 		}
 	}
 }

@@ -37,6 +37,15 @@ export function TailscaleCard({ probe, onChange, index = 0 }: {
   const state = (probe?.state ?? "").toLowerCase();
   const connected = !!probe?.running && (state === "running" || state === "connected");
   const needsLogin = state === "needslogin";
+  const [installing, setInstalling] = useState(false);
+  const install = async () => {
+    setInstalling(true);
+    try {
+      await api.wizardPackages(["tailscale"]);
+      onChange(await api.tailscale());
+    } catch { /* el probe refresca el estado */ }
+    setInstalling(false);
+  };
 
   return (
     <Card index={index}>
@@ -47,7 +56,8 @@ export function TailscaleCard({ probe, onChange, index = 0 }: {
           small
           illustration={<Waypoints size={24} />}
           title={t("ts.notInstalled")}
-          body={t("services.installFromTools")}
+          body={t("services.installHint")}
+          action={<Button size="sm" onClick={install} loading={installing}>{t("services.installNow")}</Button>}
         />
       ) : (
         <>

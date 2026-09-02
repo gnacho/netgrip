@@ -427,6 +427,17 @@ export const demoApi: typeof api = {
     for (const p of state.optionalPkgs) if (ids.includes(p.id)) p.installed = true;
     return { installed: ids };
   },
+  removePackages: async (ids) => {
+    await wait(800, 1500);
+    const removed: string[] = [];
+    for (const p of state.optionalPkgs) {
+      if (ids.includes(p.id) && p.installed) {
+        p.installed = false;
+        removed.push(p.id);
+      }
+    }
+    return { status: "ok", removed, packages: state.optionalPkgs };
+  },
   upgradePackage: async (name) => {
     await wait(800, 1500);
     state.packages = state.packages.filter((p) => p.name !== name);

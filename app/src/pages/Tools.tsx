@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { EthPort } from "../types";
 import { AdvancedDisclosure } from "../components/ui";
 import { SnapshotsCard } from "../components/tools/snapshots";
+import { PackagesCard } from "../components/tools/PackagesCard";
 import { BounceCard, CableTestCard, LoopsCard } from "../components/tools/diagnostics";
 import { IgmpCard, MacAclCard, StormControlCard } from "../components/tools/advanced";
 import { TemplatesCard } from "../components/tools/TemplatesCard";
@@ -16,7 +17,10 @@ export function ToolsPage({ ethports }: { ethports: EthPort[] }) {
     <div className="flex flex-col gap-[var(--card-gap)]">
       <section aria-label={t("tools.sectionMaintenance")}>
         <p className="text-eyebrow text-faint mb-2">{t("tools.sectionMaintenance")}</p>
-        <SnapshotsCard />
+        <div className="flex flex-col gap-[var(--card-gap)]">
+          <SnapshotsCard />
+          <PackagesCard index={1} />
+        </div>
       </section>
 
       <section aria-label={t("tools.sectionDiagnostics")}>

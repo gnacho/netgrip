@@ -264,6 +264,12 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids }),
     }),
+  removePackages: (ids: string[]) =>
+    request<{ status: string; removed: string[]; packages: import("./types").OptionalPackage[]; error?: string }>("/api/packages/remove", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }),
   upgradePackage: (name: string) =>
     request<{ upgradable: import("./types").PkgUpgrade[] }>("/api/packages/upgrade", {
       method: "POST",

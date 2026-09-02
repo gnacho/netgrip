@@ -64,6 +64,16 @@ func Validate(op Op) error {
 				return fmt.Errorf("invalid package name: %q", pkg)
 			}
 		}
+	case "pkg_del":
+		// Args: package names to uninstall (apk del / opkg remove).
+		if len(op.Args) == 0 {
+			return fmt.Errorf("pkg_del needs at least one package")
+		}
+		for _, pkg := range op.Args {
+			if !rePkg.MatchString(pkg) {
+				return fmt.Errorf("invalid package name: %q", pkg)
+			}
+		}
 	case "wifi_reload", "wifi_reconf":
 		// Args: optional radio name (empty = all radios).
 		if len(op.Args) > 1 || (len(op.Args) == 1 && !reService.MatchString(op.Args[0])) {
@@ -110,6 +120,12 @@ func Run(op Op) error {
 			cmd = exec.Command("apk", append([]string{"add"}, op.Args...)...)
 		} else {
 			cmd = exec.Command("opkg", append([]string{"install"}, op.Args...)...)
+		}
+	case "pkg_del":
+		if _, err := exec.LookPath("apk"); err == nil {
+			cmd = exec.Command("apk", append([]string{"del"}, op.Args...)...)
+		} else {
+			cmd = exec.Command("opkg", append([]string{"remove"}, op.Args...)...)
 		}
 	case "apk_upgrade":
 		cmd = exec.Command("apk", append([]string{"upgrade"}, op.Args...)...)
