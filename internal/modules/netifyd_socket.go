@@ -284,8 +284,14 @@ func (m *flowMsg) digest() string {
 }
 
 func (m *flowMsg) appName() string {
-	if m.Flow != nil {
+	if m.Flow == nil {
+		return ""
+	}
+	if m.Flow.DetectedApplicationName != "" && m.Flow.DetectedApplicationName != "Unknown" {
 		return m.Flow.DetectedApplicationName
+	}
+	if m.Flow.DetectedProtocolName != "" {
+		return m.Flow.DetectedProtocolName
 	}
 	return ""
 }
