@@ -461,6 +461,13 @@ export default {
     wol: "WoL",
     wolSent: "Magic packet sent to {{name}}",
     wolHint: "Send Wake-on-LAN magic packet",
+    limitTitle: "Bandwidth limit",
+    limitDownload: "Download (Mbps)",
+    limitUpload: "Upload (Mbps)",
+    limitPlaceholder: "No limit",
+    limitReservationHint: "Reserve the device IP so the limit survives IP changes.",
+    limitNotApplicable: "Per-device limits only apply in router (gateway) mode.",
+    limitOffloadingHint: "Software Flow Offloading may bypass this limit.",
     type: {
       pc: "Desktop PC",
       laptop: "Laptop",

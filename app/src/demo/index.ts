@@ -57,6 +57,12 @@ const state = {
     server: "https://netpulse.example.com",
     slug: "garcia-gw",
   },
+  nftqos: {
+    applicable: true,
+    limits: {
+      "00:11:22:33:44:55": { mac: "00:11:22:33:44:55", ip: "192.168.1.100", download: 20, upload: 5 },
+    } as Record<string, T.NftQoSLimit>,
+  },
   portTemplates: [...D.demoPortTemplates],
   hasCert: true,
   history: D.buildDemoHistory(),
@@ -518,6 +524,22 @@ export const demoApi: typeof api = {
       status: { running: cfg.enabled, pushOk: cfg.enabled, lastPush: cfg.enabled ? new Date().toISOString() : null, lastError: "" },
       standaloneReplacedAt: null,
     };
+  },
+  nftqos: () => get({ ...state.nftqos }),
+  setNftqos: async (limit) => {
+    await wait(800, 1500);
+    const key = limit.mac!;
+    if ((limit.download ?? 0) <= 0 && (limit.upload ?? 0) <= 0) {
+      delete state.nftqos.limits[key];
+    } else {
+      state.nftqos.limits[key] = { ...state.nftqos.limits[key], ...limit } as T.NftQoSLimit;
+    }
+    return { ...state.nftqos };
+  },
+  removeNftqos: async (mac) => {
+    await wait(800, 1500);
+    delete state.nftqos.limits[mac];
+    return { ...state.nftqos };
   },
 
   // wifi

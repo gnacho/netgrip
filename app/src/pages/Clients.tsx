@@ -3,8 +3,8 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown, Ban, MoreVertical, Pencil, Pin, Search, Smartphone, Wifi, Cable, Eye } from "lucide-react";
 import { api } from "../api";
-import type { BlockedClient, Client, DeviceType } from "../types";
-import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Modal, Pill, SkeletonRows } from "../components/ui";
+import type { BlockedClient, Client, DeviceType, NftQoSProbe } from "../types";
+import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Modal, Pill, SkeletonRows, Toggle } from "../components/ui";
 import { DEVICE_TYPES, DEVICE_TYPE_KEYS, deviceTypeIcon } from "../components/clients/catalog";
 import { IlluDevices } from "../components/ui/illustrations";
 import { fmtBytes, fmtRate, signalColor } from "../lib/format";
@@ -129,6 +129,7 @@ export function ClientsPage() {
   const [blockedTarget, setBlockedTarget] = useState<boolean>();
   const [blockedList, setBlockedList] = useState<BlockedClient[]>([]);
   const [actionError, setActionError] = useState<string>();
+  const [qos, setQos] = useState<NftQoSProbe>();
 
   const lastSnap = useRef<Record<string, { rx: number; tx: number; ts: number }>>({});
 
@@ -138,6 +139,14 @@ export function ClientsPage() {
       setBlockedList(r.blocked ?? []);
     } catch {
       // non-fatal: the button just shows no badge
+    }
+  }, []);
+
+  const loadQos = useCallback(async () => {
+    try {
+      setQos(await api.nftqos());
+    } catch {
+      // non-fatal
     }
   }, []);
 
@@ -166,7 +175,11 @@ export function ClientsPage() {
     }
   }, []);
 
-  useEffect(() => { load(); loadBlocked(); const id = setInterval(load, 5000); return () => clearInterval(id); }, [load, loadBlocked]);
+  useEffect(() => { load(); loadBlocked(); loadQos(); const id = setInterval(load, 5000); return () => clearInterval(id); }, [load, loadBlocked, loadQos]);
+
+  useEffect(() => {
+    if (detailTarget) loadQos();
+  }, [detailTarget, loadQos]);
 
   const filtered = useMemo(() => {
     if (!clients) return undefined;
@@ -462,6 +475,8 @@ export function ClientsPage() {
       <DetailClientModal
         client={detailTarget}
         rate={detailTarget ? rates[detailTarget.mac] : undefined}
+        qos={qos}
+        onUpdateQos={setQos}
         onClose={() => setDetailTarget(undefined)}
       />
 
@@ -556,13 +571,68 @@ function DeviceTypeSelect({ value, onChange }: { value: string; onChange: (v: st
 
 /** Modal de detalle: editar nombre y tipo, y ver la info del cliente. */
 /** Modal de detalle (solo lectura): info del cliente estilo GL. */
-function DetailClientModal({ client, rate, onClose }: {
+function DetailClientModal({ client, rate, qos, onUpdateQos, onClose }: {
   client?: Client;
   rate?: { rx: number; tx: number };
+  qos?: NftQoSProbe;
+  onUpdateQos?: (q: NftQoSProbe) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [download, setDownload] = useState("");
+  const [upload, setUpload] = useState("");
+  const [enabled, setEnabled] = useState(false);
+
+  const limit = client ? qos?.limits?.[client.mac] : undefined;
+  const canLimit = qos?.applicable && client?.ip;
+
+  useEffect(() => {
+    if (limit) {
+      setEnabled(true);
+      setDownload(limit.download > 0 ? String(limit.download) : "");
+      setUpload(limit.upload > 0 ? String(limit.upload) : "");
+    } else {
+      setEnabled(false);
+      setDownload("");
+      setUpload("");
+    }
+  }, [limit]);
+
   if (!client) return null;
+
+  const saveLimit = async () => {
+    if (!client.ip || !onUpdateQos) return;
+    setBusy(true);
+    try {
+      const dl = enabled ? parseInt(download || "0", 10) : 0;
+      const ul = enabled ? parseInt(upload || "0", 10) : 0;
+      const next = await api.setNftqos({ mac: client.mac, ip: client.ip, download: dl, upload: ul });
+      onUpdateQos(next);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeLimit = async () => {
+    if (!onUpdateQos) return;
+    setBusy(true);
+    try {
+      const next = await api.removeNftqos(client.mac);
+      onUpdateQos(next);
+      setEnabled(false);
+      setDownload("");
+      setUpload("");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const connLabel = client.type === "wifi5" ? t("overview.band5") : client.type === "wifi24" ? t("overview.band24") : t("overview.cable");
   const connTone = client.type === "cable" ? "muted" : client.type === "wifi5" ? "accent" : "ok";
   const ConnIcon = client.type === "cable" ? Cable : Wifi;
@@ -606,6 +676,39 @@ function DetailClientModal({ client, rate, onClose }: {
             <DetailRow label={t("clients.leaseSource")} value={t(`clients.leaseSource_${client.lease_source}`)} />
           )}
         </div>
+
+        {canLimit && (
+          <div className="rounded-md border border-border/60 p-3">
+            {error && <p className="text-small text-danger mb-2">{error}</p>}
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-small font-medium">{t("clients.limitTitle")}</span>
+              <Toggle checked={enabled} onChange={(v) => { setEnabled(v); if (!v) removeLimit(); }} label={t("clients.limitTitle")} />
+            </div>
+            {enabled && (
+              <div className="flex flex-col gap-3">
+                {!client.reserved && (
+                  <p className="text-caption text-muted">{t("clients.limitReservationHint")}</p>
+                )}
+                <p className="text-caption text-muted">{t("clients.limitOffloadingHint")}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label={t("clients.limitDownload")}>
+                    <Input type="number" min={0} value={download} onChange={(e) => setDownload(e.target.value)} placeholder={t("clients.limitPlaceholder")} />
+                  </Field>
+                  <Field label={t("clients.limitUpload")}>
+                    <Input type="number" min={0} value={upload} onChange={(e) => setUpload(e.target.value)} placeholder={t("clients.limitPlaceholder")} />
+                  </Field>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => { setEnabled(false); removeLimit(); }}>{t("common.remove")}</Button>
+                  <Button size="sm" loading={busy} onClick={saveLimit}>{t("common.save")}</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {!canLimit && (
+          <p className="text-caption text-muted">{t("clients.limitNotApplicable")}</p>
+        )}
       </div>
     </Modal>
   );
