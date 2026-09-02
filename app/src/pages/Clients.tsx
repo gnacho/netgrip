@@ -14,19 +14,21 @@ function fmtDateTime(ts: number): string {
   return d.toLocaleString(undefined, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-/** "42 min", "2 h 5 min", "3 d": duración humanizada corta para tooltips. */
+/** "42 min", "2 h 5 min", "3 d": duración humanizada corta para la columna de lease. */
 function fmtDurationShort(mins: number): string {
   if (mins < 60) return `${mins} min`;
   if (mins < 48 * 60) return `${Math.floor(mins / 60)} h ${mins % 60} min`;
   return `${Math.floor(mins / (24 * 60))} d`;
 }
 
-/** Texto de estado del lease DHCP para tooltips (#196). */
-function leaseHint(c: Client, t: (k: string, o?: Record<string, string>) => string): string {
-  if (!c.lease_expiry) return t("clients.noLease");
+/** Texto + tooltip de la celda Lease (#196): tiempo restante y caducidad completa. */
+function leaseCell(c: Client, t: (k: string, o?: Record<string, string>) => string): { text: string; title?: string } {
+  if (!c.lease_expiry) return { text: "—", title: t("clients.noLease") };
+  const title = t("clients.leaseExpiry") + ": " + fmtDateTime(c.lease_expiry) +
+    (c.lease_source ? " · " + t(`clients.leaseSource.${c.lease_source}`) : "");
   const mins = Math.floor((c.lease_expiry - Date.now() / 1000) / 60);
-  if (mins <= 0) return t("clients.leaseExpired");
-  return t("clients.leaseIn", { time: fmtDurationShort(mins) });
+  if (mins <= 0) return { text: t("clients.leaseExpired"), title };
+  return { text: fmtDurationShort(mins), title };
 }
 
 /** Fila de detalle: etiqueta a la izquierda, valor a la derecha. */
@@ -49,7 +51,7 @@ function RatePair({ down, up, downColor = "var(--color-ok)", upColor = "var(--co
   );
 }
 
-type SortKey = "name" | "traffic" | "ip" | "type";
+type SortKey = "name" | "traffic" | "ip" | "type" | "lease";
 type SortDir = "asc" | "desc";
 
 function SignalBars({ signal, title }: { signal?: number; title?: string }) {
@@ -188,6 +190,11 @@ export function ClientsPage() {
         case "traffic": return ((a.rx_bytes + a.tx_bytes) - (b.rx_bytes + b.tx_bytes)) * mult;
         case "ip": return ((a.ip ?? "") <= (b.ip ?? "") ? -1 : 1) * mult;
         case "type": return connectionKey(a).localeCompare(connectionKey(b)) * mult;
+        case "lease": {
+          const av = a.lease_expiry ?? Number.MAX_SAFE_INTEGER;
+          const bv = b.lease_expiry ?? Number.MAX_SAFE_INTEGER;
+          return (av - bv) * mult;
+        }
       }
     });
   }, [filtered, sort]);
@@ -390,39 +397,44 @@ export function ClientsPage() {
               <thead>
                 <tr className="text-caption border-b border-border/60">
                   <SortTh label={t("clients.name")} k="name" className="w-auto" />
-                  <SortTh label={t("clients.connection")} k="type" className="w-28" />
-                  <th className="px-3 py-2 w-16"><span className="sr-only">{t("clients.signal")}</span></th>
-                  <SortTh label={t("clients.traffic")} k="traffic" className="w-28" />
-                  <SortTh label={t("clients.ip")} k="ip" className="w-36" />
-                  <th className="pl-3 w-32 text-right"><span className="sr-only">S</span></th>
+                  <SortTh label={t("clients.connection")} k="type" className="w-32" />
+                  <th className="px-3 py-2 w-20"><span className="sr-only">{t("clients.signal")}</span></th>
+                  <SortTh label={t("clients.traffic")} k="traffic" className="w-32" />
+                  <SortTh label={t("clients.ip")} k="ip" className="w-40" />
+                  <SortTh label={t("clients.leaseCol")} k="lease" className="w-32" />
+                  <th className="pl-3 w-36 text-right"><span className="sr-only">S</span></th>
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((c) => (
+                {sorted.map((c) => {
+                  const lease = leaseCell(c, t);
+                  return (
                   <tr key={c.mac} style={{ height: "var(--row-min-h)" }}
                     className="border-b border-border/60 last:border-0 hover:bg-surface-2 transition-colors">
                     <td className="py-1.5 pr-3"><span className="flex items-center gap-3">{row(c)}</span></td>
-                    <td className="py-1.5 px-3 w-28"><ConnectionChip c={c} /></td>
-                    <td className="py-1.5 px-3 w-16">
+                    <td className="py-1.5 px-3 w-32"><ConnectionChip c={c} /></td>
+                    <td className="py-1.5 px-3 w-20">
                       {c.type !== "cable" ? (
                         <SignalBars signal={c.signal}
-                          title={[
-                            c.signal !== undefined ? `${c.signal} dBm` : undefined,
-                            leaseHint(c, t),
-                          ].filter(Boolean).join(" · ")} />
+                          title={c.signal !== undefined ? `${c.signal} dBm` : undefined} />
                       ) : (
-                        <span className="inline-flex text-muted" title={`Cable · ${leaseHint(c, t)}`}>
+                        <span className="inline-flex text-muted" title={t("overview.cable")}>
                           <Cable size={14} aria-hidden="true" />
                         </span>
                       )}
                     </td>
-                    <td className="py-1.5 px-3 w-28 font-mono text-caption whitespace-nowrap" style={{ fontVariantNumeric: "tabular-nums" }}>
+                    <td className="py-1.5 px-3 w-32 font-mono text-caption whitespace-nowrap" style={{ fontVariantNumeric: "tabular-nums" }}>
                       {fmtBytes(c.rx_bytes + c.tx_bytes)}
                     </td>
-                    <td className="py-1.5 px-3 w-36"><span className="font-mono text-caption">{c.ip ?? "—"}</span></td>
-                    <td className="py-1.5 pl-3 w-32 text-right">{actions(c)}</td>
+                    <td className="py-1.5 px-3 w-40"><span className="font-mono text-caption">{c.ip ?? "—"}</span></td>
+                    <td className="py-1.5 px-3 w-32 text-caption text-muted whitespace-nowrap"
+                      style={{ fontVariantNumeric: "tabular-nums" }} title={lease.title}>
+                      {lease.text}
+                    </td>
+                    <td className="py-1.5 pl-3 w-36 text-right">{actions(c)}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
             <div className="md:hidden space-y-2 flex flex-col">
@@ -435,6 +447,7 @@ export function ClientsPage() {
                   <div className="mt-1.5 flex items-center justify-between pl-12">
                     <span className="font-mono text-caption text-muted">
                       {c.ip ?? c.mac} · {fmtBytes(c.rx_bytes + c.tx_bytes)}
+                      {c.lease_expiry && ` · ${leaseCell(c, t).text}`}
                     </span>
                     {actions(c)}
                   </div>
