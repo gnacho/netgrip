@@ -60,6 +60,7 @@ const state = {
   portTemplates: [...D.demoPortTemplates],
   hasCert: true,
   history: D.buildDemoHistory(),
+  netifyd: { ...D.demoNetifyd },
 };
 
 // ── Contadores de tráfico que evolucionan con ruido suave acotado ─────────
@@ -294,6 +295,13 @@ export const demoApi: typeof api = {
     return write(state.firewall);
   },
   dpi: () => get(D.demoDpi),
+  netifyd: () => get(state.netifyd),
+  setNetifyd: async (enabled) => {
+    state.netifyd.enabled = enabled;
+    state.netifyd.running = enabled;
+    return write(state.netifyd);
+  },
+  dpiApps: () => get({ apps: state.netifyd.apps }),
 
   // red local
   lan: () => get(state.lan),

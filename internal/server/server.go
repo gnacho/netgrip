@@ -1679,12 +1679,8 @@ func (s *Server) handleRolesApply(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDPIGet(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, map[string]any{
-		"netifyd": modules.ProbeNetifyd(),
-		"legacy":  modules.ProbeDPI(),
-	})
+	writeJSON(w, modules.ProbeDPI())
 }
-
 func (s *Server) handleDPIAppsGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, map[string]any{"apps": modules.NetifydApps()})
 }

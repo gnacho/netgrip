@@ -526,6 +526,16 @@ const realApi = {
     }),
   dpi: () =>
     request<import("./types").DPIProbe>("/api/dpi"),
+  netifyd: () =>
+    request<import("./types").NetifydProbe>("/api/netifyd"),
+  setNetifyd: (enabled: boolean) =>
+    request<import("./types").ModuleResult<import("./types").NetifydProbe>>("/api/netifyd", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    }),
+  dpiApps: () =>
+    request<{ apps: import("./types").NetifydApp[] }>("/api/dpi/apps"),
   fleet: () =>
     request<{ nodes: import("./types").FleetNodeStatus[] }>("/api/fleet"),
   addFleetNode: (node: { id: string; name: string; address: string; password: string }) =>
