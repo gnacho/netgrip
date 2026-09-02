@@ -14,6 +14,21 @@ function fmtDateTime(ts: number): string {
   return d.toLocaleString(undefined, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
+/** "42 min", "2 h 5 min", "3 d": duración humanizada corta para tooltips. */
+function fmtDurationShort(mins: number): string {
+  if (mins < 60) return `${mins} min`;
+  if (mins < 48 * 60) return `${Math.floor(mins / 60)} h ${mins % 60} min`;
+  return `${Math.floor(mins / (24 * 60))} d`;
+}
+
+/** Texto de estado del lease DHCP para tooltips (#196). */
+function leaseHint(c: Client, t: (k: string, o?: Record<string, string>) => string): string {
+  if (!c.lease_expiry) return t("clients.noLease");
+  const mins = Math.floor((c.lease_expiry - Date.now() / 1000) / 60);
+  if (mins <= 0) return t("clients.leaseExpired");
+  return t("clients.leaseIn", { time: fmtDurationShort(mins) });
+}
+
 /** Fila de detalle: etiqueta a la izquierda, valor a la derecha. */
 function DetailRow({ label, value, mono = false }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
@@ -37,11 +52,13 @@ function RatePair({ down, up, downColor = "var(--color-ok)", upColor = "var(--co
 type SortKey = "name" | "traffic" | "ip" | "type";
 type SortDir = "asc" | "desc";
 
-function SignalBars({ signal }: { signal?: number }) {
+function SignalBars({ signal, title }: { signal?: number; title?: string }) {
   const level = signal === undefined ? 0 : signal >= -55 ? 4 : signal >= -65 ? 3 : signal >= -75 ? 2 : 1;
   const tone = level >= 3 ? "var(--color-ok)" : "var(--color-warn)";
   return (
-    <span className="inline-flex items-end gap-[2px]" role="img" aria-label={signal !== undefined ? `${signal} dBm` : "—"}>
+    <span className="inline-flex items-end gap-[2px]" role="img"
+      title={title}
+      aria-label={signal !== undefined ? `${signal} dBm` : "—"}>
       {[1, 2, 3, 4].map((i) => (
         <span key={i} className="w-[3px] rounded-full"
           style={{ height: 3 + i * 2.5, background: i <= level ? tone : "var(--color-border-strong)" }} />
@@ -386,7 +403,19 @@ export function ClientsPage() {
                     className="border-b border-border/60 last:border-0 hover:bg-surface-2 transition-colors">
                     <td className="py-1.5 pr-3"><span className="flex items-center gap-3">{row(c)}</span></td>
                     <td className="py-1.5 px-3 w-28"><ConnectionChip c={c} /></td>
-                    <td className="py-1.5 px-3 w-16">{c.type !== "cable" && <SignalBars signal={c.signal} />}</td>
+                    <td className="py-1.5 px-3 w-16">
+                      {c.type !== "cable" ? (
+                        <SignalBars signal={c.signal}
+                          title={[
+                            c.signal !== undefined ? `${c.signal} dBm` : undefined,
+                            leaseHint(c, t),
+                          ].filter(Boolean).join(" · ")} />
+                      ) : (
+                        <span className="inline-flex text-muted" title={`Cable · ${leaseHint(c, t)}`}>
+                          <Cable size={14} aria-hidden="true" />
+                        </span>
+                      )}
+                    </td>
                     <td className="py-1.5 px-3 w-28 font-mono text-caption whitespace-nowrap" style={{ fontVariantNumeric: "tabular-nums" }}>
                       {fmtBytes(c.rx_bytes + c.tx_bytes)}
                     </td>
