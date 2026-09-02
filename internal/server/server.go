@@ -60,6 +60,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/wireguard/peers/delete", s.requireAuth(s.handleWGPeerDelete))
 	s.mux.HandleFunc("GET /api/ddns", s.requireAuth(s.handleDDNSGet))
 	s.mux.HandleFunc("POST /api/ddns", s.requireAuth(s.handleDDNSSet))
+	s.mux.HandleFunc("DELETE /api/ddns", s.requireAuth(s.handleDDNSDelete))
 	s.mux.HandleFunc("GET /api/sqm", s.requireAuth(s.handleSQMGet))
 	s.mux.HandleFunc("POST /api/sqm", s.requireAuth(s.handleSQMSet))
 	s.mux.HandleFunc("POST /api/sqm/test", s.requireAuth(s.handleBufferbloatTest))
