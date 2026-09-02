@@ -122,7 +122,7 @@ func ddnsReadEntry(section string) *DDNSEntry {
 // example rows ship as service sections, but the global section (no domain)
 // is noise (#204).
 func ProbeDDNS() *DDNSProbe {
-	p := &DDNSProbe{Installed: ddnsInstalled()}
+	p := &DDNSProbe{Installed: ddnsInstalled(), Entries: []DDNSEntry{}}
 	if !p.Installed {
 		return p
 	}
