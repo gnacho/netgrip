@@ -1,0 +1,7 @@
+- [x] Read current backend/frontend DPI code and chart dependencies
+- [x] Design timeline data model and API contract
+- [x] Create plan.md for issue #137
+- [ ] Backend buckets and timeline API
+- [ ] Frontend timeline chart and app statistics table
+- [ ] Build, test and validate on rt3
+- [ ] Commit, PR, release
