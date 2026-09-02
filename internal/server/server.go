@@ -121,6 +121,9 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/vlans", s.requireAuth(s.handleVLANsGet))
 	s.mux.HandleFunc("POST /api/vlans", s.requireAuth(s.handleVLANsSet))
 	s.mux.HandleFunc("DELETE /api/vlans", s.requireAuth(s.handleVLANsDelete))
+	s.mux.HandleFunc("GET /api/lag", s.requireAuth(s.handleLAGGet))
+	s.mux.HandleFunc("POST /api/lag", s.requireAuth(s.handleLAGSet))
+	s.mux.HandleFunc("DELETE /api/lag", s.requireAuth(s.handleLAGDelete))
 	s.mux.HandleFunc("GET /api/https", s.requireAuth(s.handleHTTPSGet))
 	s.mux.HandleFunc("POST /api/https", s.requireAuth(s.handleHTTPSEnable))
 	s.mux.HandleFunc("POST /api/wol", s.requireAuth(s.handleWoL))
@@ -138,6 +141,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/switch/modes", s.requireAuth(s.handleSwitchModesApply))
 	s.mux.HandleFunc("GET /api/poe", s.requireAuth(s.handlePoEGet))
 	s.mux.HandleFunc("POST /api/poe/schedule", s.requireAuth(s.handlePoESchedule))
+	s.mux.HandleFunc("GET /api/poe/watchdog", s.requireAuth(s.handlePoEWatchdogGet))
+	s.mux.HandleFunc("POST /api/poe/watchdog", s.requireAuth(s.handlePoEWatchdogSet))
 	s.mux.HandleFunc("GET /api/port-templates", s.requireAuth(s.handlePortTemplatesGet))
 	s.mux.HandleFunc("POST /api/port-templates", s.requireAuth(s.handlePortTemplatesSave))
 	s.mux.HandleFunc("DELETE /api/port-templates", s.requireAuth(s.handlePortTemplatesDelete))
@@ -1357,6 +1362,34 @@ func (s *Server) handleVLANsDelete(w http.ResponseWriter, r *http.Request) {
 	writeModuleResult(w, probe, rolledBack, err)
 }
 
+func (s *Server) handleLAGGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeLAGs())
+}
+
+func (s *Server) handleLAGSet(w http.ResponseWriter, r *http.Request) {
+	var cfg modules.LAGConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetLAG(cfg)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+type lagDeleteRequest struct {
+	Name string `json:"name"`
+}
+
+func (s *Server) handleLAGDelete(w http.ResponseWriter, r *http.Request) {
+	var req lagDeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.DeleteLAG(req.Name)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
 func (s *Server) handleHistoryGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, map[string]any{"entries": modules.GetHistory()})
 }
@@ -1522,6 +1555,24 @@ func (s *Server) handlePoESchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"status": "applied", "state": probe})
+}
+
+func (s *Server) handlePoEWatchdogGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"watchdogs": modules.ProbePoEWatchdogs()})
+}
+
+func (s *Server) handlePoEWatchdogSet(w http.ResponseWriter, r *http.Request) {
+	var cfg modules.PoEWatchdogConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	states, err := modules.SetPoEWatchdog(cfg)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"status": "applied", "watchdogs": states})
 }
 
 func (s *Server) handlePortTemplatesGet(w http.ResponseWriter, _ *http.Request) {

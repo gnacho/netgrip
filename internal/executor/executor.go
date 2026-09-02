@@ -15,7 +15,10 @@ type Op struct {
 }
 
 var (
-	reUCIKey    = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-zA-Z0-9_@:-]+)+$`)
+	// UCI keys look like config.section.option. Sections may be named
+	// ("ddns.netgrip") or indexed ("network.@device[0]", the form printed
+	// by `uci show` for anonymous sections and accepted by the CLI).
+	reUCIKey = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.(@[a-zA-Z0-9_-]+\[\d+\]|[a-zA-Z0-9_@:-]+))+$`)
 	reUCIConfig = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	reService   = regexp.MustCompile(`^[a-z0-9_-]+$`)
 	rePkg       = regexp.MustCompile(`^[a-z0-9][a-z0-9+_.-]*$`)

@@ -309,6 +309,15 @@ export const demoVlans: T.VLANProbe = {
   ports: ["wan", "lan1", "lan2", "lan3", "lan4"],
 };
 
+export const demoLag: T.LAGProbe = {
+  applicable: true,
+  installed: true,
+  lags: [
+    { name: "lag0", device: "bond-lag0", mode: "802.3ad", slaves: ["lan3", "lan4"], up: true },
+  ],
+  free_ports: ["wan", "lan1", "lan2"],
+};
+
 export const demoNlbwmon: T.NlbwmonProbe = {
   installed: true,
   running: true,
@@ -351,6 +360,7 @@ export const demoPortStats: T.PortStatsProbe = {
 };
 
 export const demoPoe: T.PoEProbe = { applicable: false, total_budget_w: 0, used_w: 0, ports: [] };
+export const demoPoeWatchdogs: T.PoEWatchdogState[] = [];
 export const demoPortTemplates: T.PortTemplate[] = [];
 export const demoRoleProfiles: T.RoleProfile[] = [];
 
