@@ -152,6 +152,9 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/roles", s.requireAuth(s.handleRolesGet))
 	s.mux.HandleFunc("POST /api/roles", s.requireAuth(s.handleRolesApply))
 	s.mux.HandleFunc("GET /api/dpi", s.requireAuth(s.handleDPIGet))
+	s.mux.HandleFunc("GET /api/dpi/apps", s.requireAuth(s.handleDPIAppsGet))
+	s.mux.HandleFunc("GET /api/netifyd", s.requireAuth(s.handleNetifydGet))
+	s.mux.HandleFunc("POST /api/netifyd", s.requireAuth(s.handleNetifydSet))
 	s.mux.HandleFunc("GET /api/history", s.requireAuth(s.handleHistoryGet))
 	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
@@ -1677,6 +1680,27 @@ func (s *Server) handleRolesApply(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDPIGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, modules.ProbeDPI())
+}
+func (s *Server) handleDPIAppsGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"apps": modules.NetifydApps()})
+}
+
+func (s *Server) handleNetifydGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeNetifyd())
+}
+
+type netifydSetRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
+func (s *Server) handleNetifydSet(w http.ResponseWriter, r *http.Request) {
+	var req netifydSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetNetifyd(req.Enabled)
+	writeModuleResult(w, probe, rolledBack, err)
 }
 
 func (s *Server) handleFleetGet(w http.ResponseWriter, _ *http.Request) {

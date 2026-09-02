@@ -710,6 +710,24 @@ export interface DPIProbe {
   protocols: DPIProtocol[];
 }
 
+export interface NetifydApp {
+  name: string;
+  bytes: number;
+  local_bytes: number;
+  other_bytes: number;
+  packets: number;
+  flows: number;
+}
+
+export interface NetifydProbe {
+  installed: boolean;
+  enabled: boolean;
+  running: boolean;
+  applicable: boolean;
+  low_end: boolean;
+  apps: NetifydApp[];
+}
+
 export interface FleetNodeStatus {
   id: string;
   name: string;

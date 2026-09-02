@@ -379,6 +379,23 @@ export const demoDpi: T.DPIProbe = {
   ],
 };
 
+export const demoNetifyd: T.NetifydProbe = {
+  installed: true,
+  enabled: true,
+  running: true,
+  applicable: true,
+  low_end: false,
+  apps: [
+    { name: "YouTube", bytes: 720 * MIB, local_bytes: 120 * MIB, other_bytes: 600 * MIB, packets: 9600, flows: 96 },
+    { name: "Netflix", bytes: 410 * MIB, local_bytes: 80 * MIB, other_bytes: 330 * MIB, packets: 5400, flows: 54 },
+    { name: "HTTPS", bytes: 180 * MIB, local_bytes: 60 * MIB, other_bytes: 120 * MIB, packets: 4020, flows: 402 },
+    { name: "WhatsApp", bytes: 42 * MIB, local_bytes: 12 * MIB, other_bytes: 30 * MIB, packets: 1180, flows: 118 },
+    { name: "Zoom", bytes: 96 * MIB, local_bytes: 32 * MIB, other_bytes: 64 * MIB, packets: 120, flows: 12 },
+    { name: "DNS", bytes: 8 * MIB, local_bytes: 4 * MIB, other_bytes: 4 * MIB, packets: 480, flows: 48 },
+    { name: "MQTT", bytes: 4 * MIB, local_bytes: 1 * MIB, other_bytes: 3 * MIB, packets: 640, flows: 64 },
+  ],
+};
+
 export const demoFleet: T.FleetNodeStatus[] = [
   { id: "ap-atico", name: "ap-atico", address: "192.168.8.2", reachable: true, current_version: "0.1.2", latest_version: "0.1.2", update_available: false },
   { id: "switch-garaje", name: "switch-garaje", address: "192.168.8.3", reachable: true, current_version: "0.1.1", latest_version: "0.1.2", update_available: true },
