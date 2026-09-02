@@ -33,6 +33,18 @@ export function fmtMB(bytes: number): string {
   return `${Math.round(bytes / 1048576)} MB`;
 }
 
+/**
+ * Color de la señal WiFi con la MISMA escala de 4 tonos que NetPulse
+ * (verde/azul/naranja/rojo sobre los umbrales -55/-65/-75 dBm).
+ */
+export function signalColor(signal: number | undefined): string {
+  if (signal === undefined) return "var(--color-border-strong)";
+  if (signal >= -55) return "var(--color-ok)";
+  if (signal >= -65) return "var(--color-accent)";
+  if (signal >= -75) return "var(--color-warn)";
+  return "var(--color-danger)";
+}
+
 /** ts (segundos unix) → "21:15" */
 export function fmtTime(ts: number): string {
   return new Date(ts * 1000).toLocaleTimeString(appLocale(), { hour: "2-digit", minute: "2-digit" });

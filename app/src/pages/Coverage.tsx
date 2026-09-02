@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Radio } from "lucide-react";
 import type { UsteerAP } from "../types";
 import { Card, Pill, SkeletonRows } from "../components/ui";
+import { signalColor } from "../lib/format";
 
 // Malla radial determinista: este router al centro, peers en un círculo,
 // chips de radio en una órbita pequeña alrededor de cada nodo. Sin librería.
@@ -141,7 +142,7 @@ export function CoveragePage({ aps, error }: { aps?: UsteerAP[]; error: boolean 
                     .map((c) => (
                       <div key={c.mac} className="flex justify-between text-small text-muted py-0.5">
                         <span className="font-mono">{c.mac}</span>
-                        <span>{c.signal} dBm</span>
+                        <span className="font-medium" style={{ color: signalColor(c.signal) }}>{c.signal} dBm</span>
                       </div>
                     ))}
                 </div>

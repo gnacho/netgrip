@@ -7,7 +7,7 @@ import type { BlockedClient, Client, DeviceType } from "../types";
 import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Modal, Pill, SkeletonRows } from "../components/ui";
 import { DEVICE_TYPES, DEVICE_TYPE_KEYS, deviceTypeIcon } from "../components/clients/catalog";
 import { IlluDevices } from "../components/ui/illustrations";
-import { fmtBytes, fmtRate } from "../lib/format";
+import { fmtBytes, fmtRate, signalColor } from "../lib/format";
 
 function fmtDateTime(ts: number): string {
   const d = new Date(ts * 1000);
@@ -56,7 +56,7 @@ type SortDir = "asc" | "desc";
 
 function SignalBars({ signal, title }: { signal?: number; title?: string }) {
   const level = signal === undefined ? 0 : signal >= -55 ? 4 : signal >= -65 ? 3 : signal >= -75 ? 2 : 1;
-  const tone = level >= 3 ? "var(--color-ok)" : "var(--color-warn)";
+  const tone = signalColor(signal);
   return (
     <span className="inline-flex items-end gap-[2px]" role="img"
       title={title}
