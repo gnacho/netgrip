@@ -396,6 +396,42 @@ export const demoNetifyd: T.NetifydProbe = {
   ],
 };
 
+function makeDemoTimeline(): T.NetifydTimeline {
+  const apps = ["YouTube", "Netflix", "HTTPS", "WhatsApp", "Zoom", "DNS", "MQTT", "QUIC", "BitTorrent", "ICMPv6"];
+  const buckets: T.NetifydTimelineBucket[] = [];
+  const now = new Date();
+  now.setMinutes(Math.floor(now.getMinutes() / 5) * 5, 0, 0);
+  const totalTotals = { local: 0, other: 0, total: 0 };
+  const appTotals: Record<string, T.NetifydBucket> = {};
+  for (let i = 23; i >= 0; i--) {
+    const t = new Date(now.getTime() - i * 5 * 60 * 1000);
+    const bucketApps: Record<string, T.NetifydBucket> = {};
+    for (const name of apps) {
+      const base = (apps.indexOf(name) + 1) * 0.5 * MIB;
+      const local = Math.round(base * (0.8 + Math.random() * 0.4));
+      const other = Math.round(base * (0.6 + Math.random() * 0.6));
+      const total = local + other;
+      bucketApps[name] = { local, other, total };
+      const agg = appTotals[name] ?? { local: 0, other: 0, total: 0 };
+      agg.local += local;
+      agg.other += other;
+      agg.total += total;
+      appTotals[name] = agg;
+      totalTotals.local += local;
+      totalTotals.other += other;
+      totalTotals.total += total;
+    }
+    buckets.push({ time: t.toISOString(), apps: bucketApps });
+  }
+  const top = Object.entries(appTotals)
+    .map(([name, b]) => ({ name, bytes: b.total, local_bytes: b.local, other_bytes: b.other, packets: 0, flows: 0 }))
+    .sort((a, b) => b.bytes - a.bytes)
+    .slice(0, 10);
+  return { buckets, top, totals: totalTotals };
+}
+
+export const demoNetifydTimeline = makeDemoTimeline();
+
 export const demoFleet: T.FleetNodeStatus[] = [
   { id: "ap-atico", name: "ap-atico", address: "192.168.8.2", reachable: true, current_version: "0.1.2", latest_version: "0.1.2", update_available: false },
   { id: "switch-garaje", name: "switch-garaje", address: "192.168.8.3", reachable: true, current_version: "0.1.1", latest_version: "0.1.2", update_available: true },

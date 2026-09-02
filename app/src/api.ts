@@ -536,6 +536,8 @@ const realApi = {
     }),
   dpiApps: () =>
     request<{ apps: import("./types").NetifydApp[] }>("/api/dpi/apps"),
+  dpiTimeline: () =>
+    request<import("./types").NetifydTimeline>("/api/dpi/timeline"),
   fleet: () =>
     request<{ nodes: import("./types").FleetNodeStatus[] }>("/api/fleet"),
   addFleetNode: (node: { id: string; name: string; address: string; password: string }) =>

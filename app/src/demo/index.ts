@@ -302,6 +302,7 @@ export const demoApi: typeof api = {
     return write(state.netifyd);
   },
   dpiApps: () => get({ apps: state.netifyd.apps }),
+  dpiTimeline: () => get(D.demoNetifydTimeline),
 
   // red local
   lan: () => get(state.lan),

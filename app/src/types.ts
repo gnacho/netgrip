@@ -719,6 +719,23 @@ export interface NetifydApp {
   flows: number;
 }
 
+export interface NetifydBucket {
+  local: number;
+  other: number;
+  total: number;
+}
+
+export interface NetifydTimelineBucket {
+  time: string;
+  apps: Record<string, NetifydBucket>;
+}
+
+export interface NetifydTimeline {
+  buckets: NetifydTimelineBucket[];
+  top: NetifydApp[];
+  totals: NetifydBucket;
+}
+
 export interface NetifydProbe {
   installed: boolean;
   enabled: boolean;
