@@ -70,6 +70,15 @@ export function OpenvpnCard({ probe, onChange, index = 0 }: {
   };
 
   const active = probe?.active ?? false;
+  const [installing, setInstalling] = useState(false);
+  const install = async () => {
+    setInstalling(true);
+    try {
+      await api.wizardPackages(["openvpn"]);
+      onChange(await api.openvpn());
+    } catch { /* el probe refresca el estado */ }
+    setInstalling(false);
+  };
 
   return (
     <Card index={index}>
@@ -80,7 +89,8 @@ export function OpenvpnCard({ probe, onChange, index = 0 }: {
           small
           illustration={<Lock size={24} />}
           title={t("ovpn.notInstalled")}
-          body={t("services.installFromTools")}
+          body={t("services.installHint")}
+          action={<Button size="sm" onClick={install} loading={installing}>{t("services.installNow")}</Button>}
         />
       ) : (
         <>

@@ -71,6 +71,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/packages", s.requireAuth(s.handlePackagesGet))
 	s.mux.HandleFunc("GET /api/packages/optional", s.requireAuth(s.handleOptionalPackagesGet))
 	s.mux.HandleFunc("POST /api/packages/upgrade", s.requireAuth(s.handlePackageUpgrade))
+	s.mux.HandleFunc("POST /api/packages/remove", s.requireAuth(s.handlePackagesRemove))
 	s.mux.HandleFunc("GET /api/iotwifi", s.requireAuth(s.handleIoTGet))
 	s.mux.HandleFunc("POST /api/iotwifi", s.requireAuth(s.handleIoTSet))
 	s.mux.HandleFunc("GET /api/portforward", s.requireAuth(s.handleFwdGet))
@@ -694,6 +695,32 @@ func (s *Server) handleWizardPackages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"installed": installed})
+}
+
+type packagesRemoveRequest struct {
+	IDs []string `json:"ids"`
+}
+
+func errString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
+func (s *Server) handlePackagesRemove(w http.ResponseWriter, r *http.Request) {
+	var req packagesRemoveRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	removed, err := modules.RemoveOptionalPackages(req.IDs)
+	writeJSON(w, map[string]any{
+		"status":   "ok",
+		"removed":  removed,
+		"packages": modules.ListOptionalPackages(),
+		"error":    errString(err),
+	})
 }
 
 func (s *Server) handlePackageUpgrade(w http.ResponseWriter, r *http.Request) {

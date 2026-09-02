@@ -519,7 +519,8 @@ export default {
     groupRulesDesc: "Qué gasta cada equipo y qué puede entrar",
     copy: "Copiar",
     copied: "Copiada",
-    installFromTools: "Instálalo desde Herramientas → Paquetes.",
+    installHint: "No está instalado todavía.",
+    installNow: "Instalar ahora",
   },
   wg: {
     title: "WireGuard",
@@ -1229,6 +1230,22 @@ export default {
     stormAria: "Límite para {{port}}",
     macAclTitle: "Listas MAC por boca",
   },
+  packages: {
+    cardTitle: "Paquetes opcionales",
+    desc: "Servicios que puedes añadir o quitar cuando quieras. Al quitar uno se detiene su servicio y se desinstala; los ajustes se conservan.",
+    installed: "Instalado",
+    installedCount_one: "{{count}} instalado",
+    installedCount_other: "{{count}} instalados",
+    install: "Instalar",
+    remove: "Quitar {{name}}",
+    removeBody: "Se desinstalarán los paquetes {{pkgs}}. Sus ajustes se conservan por si vuelves a instalarlo.",
+    removeConfirm: "Quitar",
+    removeAll: "Quitar todos los instalados",
+    removeAllBody_one: "Se desinstalará {{count}} servicio opcional. Sus ajustes se conservan.",
+    removeAllBody_other: "Se desinstalarán {{count}} servicios opcionales. Sus ajustes se conservan.",
+    removeAllConfirm: "Quitar todos",
+    removed: "Paquetes desinstalados",
+  },
   selfupdate: {
     title: "El propio NetGrip",
     current: "Versión actual",
@@ -1644,10 +1661,6 @@ export default {
       nlbwmon: {
         title: "Consumo por dispositivo",
         desc: "Contabiliza el tráfico de cada equipo de la red.",
-      },
-      nftqos: {
-        title: "Límites por equipo",
-        desc: "Tope de velocidad por dirección IP (nft-qos).",
       },
       tailscale: {
         title: "Tailscale",
