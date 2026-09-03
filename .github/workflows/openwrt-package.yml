@@ -64,22 +64,26 @@ jobs:
             arch: arm64
             goarch: arm64
             pkgarch: aarch64_cortex-a53
+            upload-binary: false
           - sdk-version: 25.12.5
             sdk-target: qualcommax/ipq807x
             format: apk
             arch: arm64
             goarch: arm64
+            upload-binary: true
           - sdk-version: 24.10.5
             sdk-target: x86/64
             format: ipk
             arch: amd64
             goarch: amd64
             pkgarch: x86_64
+            upload-binary: false
           - sdk-version: 25.12.5
             sdk-target: x86/64
             format: apk
             arch: amd64
             goarch: amd64
+            upload-binary: true
 
     steps:
       - uses: actions/checkout@v4
@@ -149,8 +153,13 @@ jobs:
           gh release upload "$TAG" dist/packages/*.${{ matrix.format }} --clobber
           # Binary artifact for manual deploys; the OpenWrt package is
           # still the recommended install path because it survives sysupgrade.
-          cp /tmp/netgrip /tmp/netgrip-linux-${{ matrix.arch }}
-          gh release upload "$TAG" /tmp/netgrip-linux-${{ matrix.arch }} --clobber
+          # Only ONE job per arch uploads it: apk and ipk jobs of the same
+          # arch would race the upload and the loser dies with 422 even
+          # with --clobber (check-then-put is not atomic).
+          if [ "${{ matrix.upload-binary }}" = "true" ]; then
+            cp /tmp/netgrip /tmp/netgrip-linux-${{ matrix.arch }}
+            gh release upload "$TAG" /tmp/netgrip-linux-${{ matrix.arch }} --clobber
+          fi
 
   package-luci:
     needs: create-release
