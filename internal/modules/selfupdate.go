@@ -13,10 +13,15 @@ import (
 )
 
 const (
-	githubRepo   = "gnacho/netgrip"
-	githubAPIURL = "https://api.github.com/repos/" + githubRepo + "/releases/latest"
-	assetName    = "netgrip-linux-arm64"
-	tmpPath      = "/tmp/netgrip.update"
+	githubRepo = "gnacho/netgrip"
+	assetName  = "netgrip-linux-arm64"
+	tmpPath    = "/tmp/netgrip.update"
+)
+
+// Overridable in tests.
+var (
+	githubAPIURL   = "https://api.github.com/repos/" + githubRepo + "/releases/latest"
+	runSelfUpdateF = runSelfUpdate
 )
 
 type ghRelease struct {
@@ -38,6 +43,10 @@ type SelfUpdateCheck struct {
 	Notes     string `json:"notes"`
 	AssetURL  string `json:"asset_url,omitempty"`
 	AssetSize int64  `json:"asset_size,omitempty"`
+	// AssetsPending is true when the tag is newer but the downloadable
+	// asset has not been published yet (CI uploads assets a few minutes
+	// after the release object appears).
+	AssetsPending bool `json:"assets_pending,omitempty"`
 }
 
 type SelfUpdateStatus struct {
@@ -94,7 +103,7 @@ func CheckSelfUpdate(currentVersion string) *SelfUpdateCheck {
 
 	result.Latest = release.TagName
 	result.Notes = release.Body
-	result.Available = isNewerVersion(release.TagName, currentVersion)
+	newer := isNewerVersion(release.TagName, currentVersion)
 
 	for _, a := range release.Assets {
 		if a.Name == assetName {
@@ -103,6 +112,13 @@ func CheckSelfUpdate(currentVersion string) *SelfUpdateCheck {
 			break
 		}
 	}
+
+	// Only advertise an update once the binary is actually downloadable:
+	// the CI attaches release assets a few minutes after the release
+	// object shows up, and an "available" update without an asset URL
+	// cannot be applied.
+	result.AssetsPending = newer && result.AssetURL == ""
+	result.Available = newer && result.AssetURL != ""
 
 	updateMu.Lock()
 	updateCheck = result
@@ -117,15 +133,23 @@ func StartSelfUpdate(currentVersion string) error {
 		updateMu.Unlock()
 		return fmt.Errorf("update already in progress")
 	}
-	if updateCheck == nil || !updateCheck.Available || updateCheck.AssetURL == "" {
-		updateMu.Unlock()
-		return fmt.Errorf("no update available")
-	}
-	assetURL := updateCheck.AssetURL
-	assetSize := updateCheck.AssetSize
+	ck := updateCheck
 	updateMu.Unlock()
 
-	go runSelfUpdate(assetURL, assetSize, currentVersion)
+	if ck == nil || !ck.Available || ck.AssetURL == "" {
+		// The cached check may be empty (service restarted after the page
+		// loaded) or may predate asset publication; re-check before
+		// refusing so a retry from the same page works.
+		ck = CheckSelfUpdate(currentVersion)
+	}
+	if ck == nil || !ck.Available || ck.AssetURL == "" {
+		if ck != nil && ck.AssetsPending {
+			return fmt.Errorf("release assets not published yet, retry shortly")
+		}
+		return fmt.Errorf("no update available")
+	}
+
+	go runSelfUpdateF(ck.AssetURL, ck.AssetSize, currentVersion)
 	return nil
 }
 
