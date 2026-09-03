@@ -30,7 +30,7 @@ export default {
     storage: "Almacenamiento",
     system: "Sistema",
     tools: "Herramientas",
-    dpi: "Trafico",
+    dpi: "Tráfico",
     menu: "Menú",
     group: {
       network: "Tu red",
@@ -1484,7 +1484,7 @@ export default {
   },
   portStats: {
     title: "Estadisticas por puerto",
-    intro: "Trafico, errores y drops por puerto del bridge. Se actualiza cada 3 segundos.",
+    intro: "Tráfico, errores y drops por puerto del bridge. Se actualiza cada 3 segundos.",
     port: "Puerto",
     errors: "Errores",
     drops: "Drops",
@@ -1744,7 +1744,7 @@ export default {
     chipSearching: "NetPulse: buscando servidor",
   },
   dpi: {
-    title: "Trafico por aplicacion",
+    title: "Tráfico por aplicación",
     intro: "Clasificacion del trafico activo por protocolo. Solo refleja flujos activos en la tabla de conexiones.",
     total: "Total",
     flows: "flujos",
