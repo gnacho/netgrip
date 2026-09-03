@@ -30,8 +30,8 @@ type NftQoSLimit struct {
 
 // NftQoSProbe is the read-only state of per-device QoS.
 type NftQoSProbe struct {
-	Applicable bool                      `json:"applicable"`
-	Limits     map[string]NftQoSLimit     `json:"limits"`
+	Applicable bool                   `json:"applicable"`
+	Limits     map[string]NftQoSLimit `json:"limits"`
 }
 
 // NftQoSSetRequest is the body for creating or updating a limit.
@@ -135,7 +135,7 @@ func saveNftQoSLimits(limits map[string]NftQoSLimit) error {
 	if err := os.MkdirAll(nftQoSConfigDir, 0o755); err != nil {
 		return err
 	}
-	var list []NftQoSLimit
+	list := make([]NftQoSLimit, 0, len(limits))
 	for _, l := range limits {
 		list = append(list, l)
 	}
@@ -165,6 +165,9 @@ func writeFileAtomic(path string, data []byte) error {
 }
 
 // generateNftRuleset creates the nftables rules from the configured limits.
+// It only ever contains the table declaration: dropping a previous version of
+// the table is applyNftRuleset's job (declarative nft -f syntax merges into a
+// live table instead of replacing it).
 func generateNftRuleset(limits map[string]NftQoSLimit) string {
 	var active []NftQoSLimit
 	for _, l := range limits {
@@ -173,7 +176,7 @@ func generateNftRuleset(limits map[string]NftQoSLimit) string {
 		}
 	}
 	if len(active) == 0 {
-		return fmt.Sprintf("delete table inet %s\n", nftQoSTable)
+		return ""
 	}
 	sort.Slice(active, func(i, j int) bool { return strings.Compare(active[i].IP, active[j].IP) < 0 })
 
@@ -217,7 +220,7 @@ func saveAndApplyLimits(limits map[string]NftQoSLimit) error {
 		return err
 	}
 
-	if err := applyNftRuleset(nftQoSRulesFile); err != nil {
+	if err := replaceNftQoSTable(nftQoSRulesFile); err != nil {
 		_ = restoreNftRuleset(snapshot)
 		return err
 	}
@@ -244,6 +247,18 @@ func applyNftRuleset(path string) error {
 		return fmt.Errorf("nft -f %s: %w (%s)", path, err, strings.TrimSpace(string(out)))
 	}
 	return nil
+}
+
+// replaceNftQoSTable applies the rules file over a clean slate: the previous
+// netgrip_qos table (if any) is deleted first, because nft -f merges
+// declarations into an existing table and stale rules would accumulate.
+func replaceNftQoSTable(path string) error {
+	if err := exec.Command("nft", "list", "table", "inet", nftQoSTable).Run(); err == nil {
+		if out, err := exec.Command("nft", "delete", "table", "inet", nftQoSTable).CombinedOutput(); err != nil {
+			return fmt.Errorf("nft delete table %s: %w (%s)", nftQoSTable, err, strings.TrimSpace(string(out)))
+		}
+	}
+	return applyNftRuleset(path)
 }
 
 func restoreNftRuleset(snapshot string) error {
@@ -281,7 +296,7 @@ func ApplyNftQoSAtBoot() {
 	if err := writeFileAtomic(nftQoSRulesFile, []byte(rules)); err != nil {
 		return
 	}
-	_ = applyNftRuleset(nftQoSRulesFile)
+	_ = replaceNftQoSTable(nftQoSRulesFile)
 }
 
 // InitNftQoS applies persisted limits on startup.

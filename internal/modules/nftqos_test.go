@@ -7,8 +7,8 @@ import (
 
 func TestGenerateNftRulesetNoLimits(t *testing.T) {
 	rules := generateNftRuleset(map[string]NftQoSLimit{})
-	if !strings.Contains(rules, "delete table inet netgrip_qos") {
-		t.Fatalf("expected delete table, got:\n%s", rules)
+	if rules != "" {
+		t.Fatalf("expected empty ruleset for no limits, got:\n%s", rules)
 	}
 }
 
