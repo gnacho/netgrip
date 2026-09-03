@@ -12,7 +12,9 @@
 #   BINARY_PATH:   path to the prebuilt netgrip binary (arm64)
 #
 # PKG_VERSION / PKG_RELEASE can be overridden through env vars (CI uses the
-# release tag).
+# release tag). PKG_ARCH sets the ipk architecture field (defaults to the
+# aarch64_cortex-a53 of the qualcommax/mediatek targets; x86/64 builds must
+# pass x86_64 or the ipk gets misnamed and clobbers the arm64 one, #214).
 #
 # Example:
 #   package.sh 25.12.5 qualcommax/ipq807x "" apk ./netgrip-arm64
@@ -35,8 +37,9 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 PKG_VERSION="${PKG_VERSION:-$(sed -n 's/^PKG_VERSION:=//p' "$SCRIPT_DIR/netgrip/Makefile" | head -1)}"
 PKG_RELEASE="${PKG_RELEASE:-$(sed -n 's/^PKG_RELEASE:=//p' "$SCRIPT_DIR/netgrip/Makefile" | head -1)}"
+PKG_ARCH="${PKG_ARCH:-aarch64_cortex-a53}"
 
-echo "=== package.sh: $FORMAT SDK=$SDK_VERSION target=$SDK_TARGET version=${PKG_VERSION:-0.0.0}-${PKG_RELEASE:-1} ==="
+echo "=== package.sh: $FORMAT SDK=$SDK_VERSION target=$SDK_TARGET arch=$PKG_ARCH version=${PKG_VERSION:-0.0.0}-${PKG_RELEASE:-1} ==="
 
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
@@ -73,7 +76,7 @@ Package: netgrip
 Version: ${PKG_VERSION:-0.0.0}-${PKG_RELEASE:-1}
 License: AGPL-3.0-only
 Section: utils
-Architecture: aarch64_cortex-a53
+Architecture: ${PKG_ARCH}
 Maintainer: Nacho <netgrip@cloudless.club>
 Description: Lightweight on-router companion panel for OpenWrt
  Simple visual panel that complements LuCI: dashboard plus service
@@ -84,7 +87,22 @@ cat > "$PKG_DIR/CONTROL/postinst" << 'POSTINST'
 #!/bin/sh
 if [ -n "$IPKG_INSTROOT" ]; then exit 0; fi
 # apk does not overwrite an existing /etc/init.d script (it stages the new
-# one as .apk-new). The packaged init script must win on upgrades.
+# one as .apk-new). The packaged init script must win on upgrades; local
+# customizations live in UCI instead (#210).
+#
+# #210 migration: carry a local -port edit from the old init script into
+# netgrip.main.port so the upgrade does not lose it. The old default (8080)
+# is NOT migrated: 8090 exists precisely to avoid the GL.iNet uhttpd
+# collision.
+if [ -f /etc/init.d/netgrip ]; then
+  old_port=$(sed -n 's/.*-port \([0-9][0-9]*\).*/\1/p' /etc/init.d/netgrip | head -n1)
+  if [ -n "$old_port" ] && [ "$old_port" != "8080" ] && [ "$old_port" != "8090" ]; then
+    touch /etc/config/netgrip
+    grep -q "config panel 'main'" /etc/config/netgrip 2>/dev/null || printf "config panel 'main'\n" >> /etc/config/netgrip
+    uci set netgrip.main.port="$old_port" 2>/dev/null || true
+    uci commit netgrip 2>/dev/null || true
+  fi
+fi
 if [ -f /etc/init.d/netgrip.apk-new ]; then
   cp /etc/init.d/netgrip.apk-new /etc/init.d/netgrip
   rm -f /etc/init.d/netgrip.apk-new
