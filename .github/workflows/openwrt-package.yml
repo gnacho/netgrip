@@ -4,21 +4,25 @@ name: openwrt-package
 # .ipk (24.10 SDK) and .apk (25.12 SDK), for aarch64_cortex-a53
 # (covers qualcommax/ipq807x and mediatek/filogic routers) and x86_64.
 #
-# Triggered on v* tag pushes (the same event as any release workflow).
-# The `release` event is NOT reliable for releases published by another
-# workflow (GITHUB_TOKEN events do not start new runs), so this workflow
-# builds the frontend and the binary itself and needs no assets waiting.
+# Triggered on v* tag pushes only: every release path (CLI, UI, workflow)
+# creates the tag, and the tag push is the one event that always fires
+# even when the release is published by another workflow with GITHUB_TOKEN
+# (release events are not). The workflow creates the release itself when
+# missing, so it needs no assets waiting. A concurrency group serializes
+# any residual double-fire for the same tag so uploads never race (#214).
 
 on:
   push:
     tags: ['v*']
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       version:
         description: 'Release tag (e.g. v0.1.6)'
         required: true
+
+concurrency:
+  group: openwrt-package-${{ inputs.version || github.ref_name }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -59,6 +63,7 @@ jobs:
             format: ipk
             arch: arm64
             goarch: arm64
+            pkgarch: aarch64_cortex-a53
           - sdk-version: 25.12.5
             sdk-target: qualcommax/ipq807x
             format: apk
@@ -69,6 +74,7 @@ jobs:
             format: ipk
             arch: amd64
             goarch: amd64
+            pkgarch: x86_64
           - sdk-version: 25.12.5
             sdk-target: x86/64
             format: apk
@@ -86,7 +92,7 @@ jobs:
           elif [ "${{ github.event_name }}" = "push" ]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ github.release.tag_name }}" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: actions/setup-node@v4
@@ -113,6 +119,7 @@ jobs:
       - name: Package ${{ matrix.format }} (SDK ${{ matrix.sdk-version }})
         env:
           TAG: ${{ steps.tag.outputs.tag }}
+          PKG_ARCH: ${{ matrix.pkgarch }}
         run: |
           chmod +x deploy/openwrt/package.sh
           export PKG_VERSION="${TAG#v}"
@@ -203,6 +210,13 @@ jobs:
         run: |
           echo "LuCI packages generated:"
           ls -la dist/packages/
+          # The luci-app ipk is arch-all: both 24.10 legs would upload the
+          # same filename concurrently and race on the release assets.
+          # Upload it once, from the arm64 leg (#214).
+          if [ "${{ matrix.format }}" = "ipk" ] && [ "${{ matrix.arch }}" = "amd64" ]; then
+            echo "luci ipk is arch-all; already uploaded by the arm64 leg, skipping."
+            exit 0
+          fi
           # luci-app is arch-all, but multiple matrix jobs would otherwise upload
           # the same filename; include the target arch to avoid collisions.
           for pkg in dist/packages/*.apk; do
