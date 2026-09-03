@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"os/exec"
 	"regexp"
 	"strings"
 
@@ -21,6 +22,21 @@ func GetVPNPublicHost() string {
 	return uciGet(vpnPublicHostUCI)
 }
 
+// ensureVpnSection creates the named netgrip.vpn section on first use.
+// The executor only accepts option writes (config.section.option=value),
+// so section creation goes through the uci CLI directly, mirroring how
+// access.go bootstraps netgrip.main.
+func ensureVpnSection() error {
+	if uciSectionExists("netgrip.vpn") {
+		return nil
+	}
+	cmd := exec.Command("uci", "set", "netgrip.vpn=vpn")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("create netgrip.vpn section: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
 // SetVPNPublicHost persists (or clears, when empty) the hostname used as
 // the remote endpoint of generated client configs.
 func SetVPNPublicHost(host string) error {
@@ -28,13 +44,19 @@ func SetVPNPublicHost(host string) error {
 	if host != "" && !validPublicHostRe.MatchString(host) {
 		return fmt.Errorf("invalid host")
 	}
-	ops := []executor.Op{{Kind: "uci_set", Args: []string{"netgrip.vpn=vpn"}}}
+	var ops []executor.Op
 	if host == "" {
 		if uciGet(vpnPublicHostUCI) != "" {
 			ops = append(ops, executor.Op{Kind: "uci_delete", Args: []string{vpnPublicHostUCI}})
 		}
 	} else {
-		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{vpnPublicHostUCI + "=" + host}})
+		if err := ensureVpnSection(); err != nil {
+			return err
+		}
+		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{vpnPublicHostUCI, host}})
+	}
+	if len(ops) == 0 {
+		return nil
 	}
 	ops = append(ops, executor.Op{Kind: "uci_commit", Args: []string{"netgrip"}})
 	return executor.Apply(ops, nil)

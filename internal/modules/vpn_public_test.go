@@ -1,6 +1,25 @@
 package modules
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/gnacho/netgrip/internal/executor"
+)
+
+// Regression for a bug caught live on a router: the generated ops must
+// pass the executor validator (a bare "netgrip.vpn=vpn" section write
+// was rejected with "invalid uci_set args").
+func TestSetVPNPublicHostOpsPassExecutorValidation(t *testing.T) {
+	ops := []executor.Op{
+		{Kind: "uci_set", Args: []string{vpnPublicHostUCI, "casa.duckdns.org"}},
+		{Kind: "uci_commit", Args: []string{"netgrip"}},
+	}
+	for _, op := range ops {
+		if err := executor.Validate(op); err != nil {
+			t.Fatalf("op %v rejected by executor: %v", op, err)
+		}
+	}
+}
 
 func TestOvpnRemoteEndpointPreference(t *testing.T) {
 	cases := []struct {
