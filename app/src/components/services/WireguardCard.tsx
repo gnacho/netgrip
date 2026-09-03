@@ -73,6 +73,8 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
     });
 
   const active = probe?.active ?? false;
+  const glManaged = probe?.managed_by === "gl_firmware";
+  const glTunnels = probe?.gl_tunnels ?? [];
   const [installing, setInstalling] = useState(false);
   const install = async () => {
     setInstalling(true);
@@ -106,17 +108,69 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
             helpTitle={t("help.wireguard.title")}
             checked={active}
             busy={busy}
+            disabled={glManaged && !active}
+            disabledReason={glManaged && !active ? t("wg.glDisabledReason") : undefined}
             onChange={toggle}
             control={
               <span className="flex items-center gap-2">
                 <Pill className="max-w-24 sm:max-w-32" tone={active ? "ok" : "muted"}>
                   {active ? t("wg.activeCount", { count: probe.peers.length }) : t("wg.off")}
                 </Pill>
-                <Toggle checked={active} busy={busy} onChange={toggle} label={t("wg.cardTitle")} />
+                <Toggle checked={active} busy={busy} disabled={glManaged && !active} onChange={toggle} label={t("wg.cardTitle")} />
               </span>
             }
           />
           <TechName>WireGuard</TechName>
+
+          {glManaged && (
+            <div className="mt-3 flex flex-col gap-3" data-testid="wg-gl-managed">
+              <div className="flex flex-wrap items-center gap-2">
+                <Pill tone="ok">{t("wg.running")}</Pill>
+                <Pill tone="muted">{t("wg.glManagedBadge")}</Pill>
+              </div>
+              {glTunnels.map((tun) => (
+                <div key={tun.iface} className="rounded-md border border-border/60 bg-surface-2 p-3 flex flex-col gap-2">
+                  <div className="grid gap-x-6 gap-y-3 sm:grid-cols-3">
+                    <div>
+                      <p className="text-caption text-muted">{t("wg.port")}</p>
+                      <p className="font-mono text-body">{tun.port || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-caption text-muted">{t("wg.tunnelAddress")}</p>
+                      <p className="font-mono text-body">{tun.address || "-"}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-caption text-muted">{t("wg.serverKey")}</p>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="font-mono text-body truncate">{shortKey(tun.public_key)}</span>
+                        <CopyButton text={tun.public_key} label={t("wg.copyKey")} />
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-small font-medium mb-1">{t("wg.yourDevices")}</p>
+                    {tun.peers.length === 0 && (
+                      <p className="text-small text-muted py-1">{t("wg.noPeers")}</p>
+                    )}
+                    <ul>
+                      {tun.peers.map((p) => (
+                        <li key={p.public_key} className="flex items-center gap-3 py-2 border-b border-border/60 last:border-0">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent text-small font-semibold" aria-hidden="true">
+                            {(p.name || p.public_key).charAt(0).toUpperCase()}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-body font-medium">{p.name || shortKey(p.public_key)}</span>
+                            <span className="block font-mono text-caption text-muted">{p.allowed_ips.join(", ") || "-"}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ))}
+              <p className="text-small text-muted">{t("wg.glNote")}</p>
+            </div>
+          )}
 
           {phase && (
             <div className="mt-2">
@@ -176,7 +230,7 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
                   ))}
                 </ul>
                 <div className="mt-3">
-                  <Button size="sm" icon={Plus} onClick={() => setAddOpen(true)}>{t("wg.addDevice")}</Button>
+                  <Button size="sm" icon={Plus} disabled={glManaged} title={glManaged ? t("wg.glDisabledReason") : undefined} onClick={() => setAddOpen(true)}>{t("wg.addDevice")}</Button>
                 </div>
               </div>
             </div>

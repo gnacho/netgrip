@@ -577,6 +577,9 @@ export default {
     peerDeleted: "Done. Device removed.",
     doneOn: "Done. The VPN is on.",
     doneOff: "Done. The VPN is off.",
+    glManagedBadge: "GL.iNet managed",
+    glNote: "This router already runs WireGuard managed by the GL.iNet firmware. NetGrip shows its real state and your devices, but changes are made from the GL.iNet app or panel.",
+    glDisabledReason: "The GL.iNet firmware already manages WireGuard on this router",
   },
   ddns: {
     title: "DDNS",

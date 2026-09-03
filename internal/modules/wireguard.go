@@ -29,17 +29,41 @@ type WGPeer struct {
 	HasPSK     bool     `json:"has_psk"`
 }
 
+// WGGLTunnel is a WireGuard tunnel managed by the GL.iNet firmware
+// (gl-sdk4): its own netifd proto "wgserver" on network plus the server
+// definition and peers in /etc/config/wireguard_server. Read-only for
+// NetGrip (same call as AdGuard on GL.iNet: never a second source of
+// truth); private keys present in the config are never exposed.
+type WGGLTunnel struct {
+	Iface     string   `json:"iface"`
+	Address   string   `json:"address"`
+	Port      string   `json:"port"`
+	PublicKey string   `json:"public_key"`
+	Peers     []WGPeer `json:"peers"`
+	Running   bool     `json:"running"`
+}
+
 // WGProbe is the read-only WireGuard state.
 type WGProbe struct {
-	Installed  bool     `json:"installed"`
-	Active     bool     `json:"active"`
-	Running    bool     `json:"running"`
-	ZoneMember bool     `json:"zone_member"`
-	Port       string   `json:"port"`
-	Address    string   `json:"address"`
-	PublicKey  string   `json:"public_key"`
-	Peers      []WGPeer `json:"peers"`
+	Installed  bool         `json:"installed"`
+	Active     bool         `json:"active"`
+	Running    bool         `json:"running"`
+	ZoneMember bool         `json:"zone_member"`
+	Port       string       `json:"port"`
+	Address    string       `json:"address"`
+	PublicKey  string       `json:"public_key"`
+	Peers      []WGPeer     `json:"peers"`
+	ManagedBy  string       `json:"managed_by,omitempty"` // "gl_firmware" when GL.iNet tunnels exist
+	GLTunnels  []WGGLTunnel `json:"gl_tunnels"`
 }
+
+// wgManagedGL marks a router whose WireGuard is governed by the GL.iNet
+// firmware.
+const wgManagedGL = "gl_firmware"
+
+// wgGLManagedError is returned when a management action would compete with
+// the GL.iNet firmware's own WireGuard stack.
+var wgGLManagedError = fmt.Errorf("wireguard is managed by the GL.iNet firmware; use the GL.iNet admin UI to change it")
 
 var reWGPubkey = regexp.MustCompile(`^[A-Za-z0-9+/]{43}=$`)
 
@@ -48,9 +72,9 @@ func wgInstalled() bool {
 	return err == nil
 }
 
-func wgShowIface() bool {
-	out, err := exec.Command("wg", "show", wgIface).CombinedOutput()
-	return err == nil && strings.Contains(string(out), "interface: "+wgIface)
+func wgShowIface(iface string) bool {
+	out, err := exec.Command("wg", "show", iface).CombinedOutput()
+	return err == nil && strings.Contains(string(out), "interface: "+iface)
 }
 
 func wgPublicKey(priv string) string {
@@ -65,21 +89,171 @@ func wgPublicKey(priv string) string {
 
 // ProbeWG reads the current WireGuard state from UCI and the kernel.
 func ProbeWG() *WGProbe {
-	p := &WGProbe{Peers: []WGPeer{}}
+	p := &WGProbe{Peers: []WGPeer{}, GLTunnels: []WGGLTunnel{}}
 	p.Installed = wgInstalled()
-	if !uciSectionExists("network." + wgIface) {
-		return p
+	if uciSectionExists("network." + wgIface) {
+		p.Active = true
+		p.Port = uciGet("network." + wgIface + ".listen_port")
+		p.Address = uciGet("network." + wgIface + ".addresses")
+		if priv := uciGet("network." + wgIface + ".private_key"); priv != "" {
+			p.PublicKey = wgPublicKey(priv)
+		}
+		p.Running = p.Installed && wgShowIface(wgIface)
+		p.ZoneMember = wgZoneSection() != ""
+		p.Peers = wgPeers()
 	}
-	p.Active = true
-	p.Port = uciGet("network." + wgIface + ".listen_port")
-	p.Address = uciGet("network." + wgIface + ".addresses")
-	if priv := uciGet("network." + wgIface + ".private_key"); priv != "" {
-		p.PublicKey = wgPublicKey(priv)
+	p.GLTunnels = probeWGGLTunnels()
+	if len(p.GLTunnels) > 0 {
+		p.ManagedBy = wgManagedGL
 	}
-	p.Running = p.Installed && wgShowIface()
-	p.ZoneMember = wgZoneSection() != ""
-	p.Peers = wgPeers()
 	return p
+}
+
+var (
+	reWGServerIface = regexp.MustCompile(`^network\.([A-Za-z0-9_]+)\.proto='wgserver'$`)
+	reWGNetworkOpt  = regexp.MustCompile(`^network\.([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)='(.*)'$`)
+	reWGServerHdr   = regexp.MustCompile(`^wireguard_server\.([A-Za-z0-9_]+)=(servers|peers)$`)
+	reWGServerOpt   = regexp.MustCompile(`^wireguard_server\.([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)='(.*)'$`)
+)
+
+// probeWGGLTunnels discovers GL.iNet-managed tunnels live on this router.
+func probeWGGLTunnels() []WGGLTunnel {
+	networkOut, _ := exec.Command("sh", "-c", "uci show network 2>/dev/null").Output()
+	serverOut, _ := exec.Command("sh", "-c", "uci show wireguard_server 2>/dev/null").Output()
+	tunnels := parseWGGLTunnels(string(networkOut), string(serverOut))
+	for i := range tunnels {
+		tunnels[i].Running = wgInstalled() && wgShowIface(tunnels[i].Iface)
+	}
+	return tunnels
+}
+
+// wgGLManaged reports whether the GL.iNet firmware runs its own WireGuard
+// tunnels here (NetGrip must then stay read-only on them).
+func wgGLManaged() bool {
+	return len(probeWGGLTunnels()) > 0
+}
+
+// parseWGGLTunnels extracts the GL.iNet-managed WireGuard tunnels from the
+// real `uci show` shapes captured on a Flint2 (GL 4.9.1-op25):
+//
+//	network.wgserver=interface
+//	network.wgserver.proto='wgserver'
+//	network.wgserver.config='main_server'
+//	wireguard_server.main_server=servers
+//	wireguard_server.main_server.address_v4='10.1.0.1/24'
+//	wireguard_server.main_server.port='59999'
+//	wireguard_server.main_server.public_key='...'
+//	wireguard_server.peer_3087=peers
+//	wireguard_server.peer_3087.name='nacho-movil'
+//	wireguard_server.peer_3087.public_key='...'
+//	wireguard_server.peer_3087.client_ip='10.1.0.2/24,fd00:...::2/64'
+//	wireguard_server.peer_3087.deprecated='0'
+//
+// GL's UI manages a single server per file, so peers are global to it; the
+// server matched by the interface's `config` option wins (single fallback).
+// Peers flagged deprecated='1' (deleted in the GL UI) are skipped, and the
+// private keys sitting next to the public ones are never copied over. Peer
+// AllowedIPs carry the client tunnel IPs, the part users recognize.
+func parseWGGLTunnels(networkShow, wgServerShow string) []WGGLTunnel {
+	tunnels := []WGGLTunnel{}
+	var order []string
+	configOf := map[string]string{}
+	for _, line := range strings.Split(networkShow, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if m := reWGServerIface.FindStringSubmatch(trimmed); m != nil {
+			if _, seen := configOf[m[1]]; !seen {
+				order = append(order, m[1])
+				configOf[m[1]] = ""
+			}
+			continue
+		}
+		if m := reWGNetworkOpt.FindStringSubmatch(trimmed); m != nil {
+			if _, known := configOf[m[1]]; known && m[2] == "config" {
+				configOf[m[1]] = m[3]
+			}
+		}
+	}
+	if len(order) == 0 {
+		return tunnels
+	}
+
+	servers := map[string]map[string]string{}
+	type glPeer struct {
+		peer       WGPeer
+		deprecated bool
+	}
+	var peers []glPeer
+	curServer, curPeer := "", -1
+	for _, line := range strings.Split(wgServerShow, "\n") {
+		line = strings.TrimSpace(line)
+		if hdr := reWGServerHdr.FindStringSubmatch(line); hdr != nil {
+			curPeer = -1
+			curServer = ""
+			switch hdr[2] {
+			case "servers":
+				curServer = hdr[1]
+				servers[curServer] = map[string]string{}
+			case "peers":
+				curPeer = len(peers)
+				peers = append(peers, glPeer{peer: WGPeer{Section: hdr[1], AllowedIPs: []string{}}})
+			}
+			continue
+		}
+		if opt := reWGServerOpt.FindStringSubmatch(line); opt != nil {
+			value := opt[3]
+			switch {
+			case curPeer >= 0:
+				p := &peers[curPeer].peer
+				switch opt[2] {
+				case "name":
+					p.Name = value
+				case "public_key":
+					p.PublicKey = value
+				case "client_ip":
+					p.AllowedIPs = splitGLList(value)
+				case "deprecated":
+					peers[curPeer].deprecated = value == "1"
+				}
+			case curServer != "":
+				servers[curServer][opt[2]] = value
+			}
+		}
+	}
+
+	for _, iface := range order {
+		t := WGGLTunnel{Iface: iface, Peers: []WGPeer{}}
+		details := servers[configOf[iface]]
+		if details == nil && len(servers) == 1 {
+			for _, opts := range servers {
+				details = opts
+			}
+		}
+		if details != nil {
+			t.Address = details["address_v4"]
+			t.Port = details["port"]
+			t.PublicKey = details["public_key"]
+		}
+		for _, gp := range peers {
+			if gp.deprecated || gp.peer.PublicKey == "" {
+				continue
+			}
+			t.Peers = append(t.Peers, gp.peer)
+		}
+		tunnels = append(tunnels, t)
+	}
+	return tunnels
+}
+
+// splitGLList splits a comma-separated GL.iNet option value
+// ("10.1.0.2/24,fd00::2/64") into trimmed tokens.
+func splitGLList(value string) []string {
+	tokens := []string{}
+	for _, tok := range strings.Split(value, ",") {
+		if tok = strings.TrimSpace(tok); tok != "" {
+			tokens = append(tokens, tok)
+		}
+	}
+	return tokens
 }
 
 // wgZoneSection returns the firewall zone section whose network list
@@ -160,8 +334,13 @@ func rollbackWG(snapNetwork, snapFirewall string) {
 	_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"network", "reload"}})
 }
 
-// SetWG enables or disables the WireGuard server.
+// SetWG enables or disables the WireGuard server. Enabling is refused on
+// routers where the GL.iNet firmware runs its own WireGuard stack (second
+// source of truth); disabling our own wg0 stays possible for cleanup.
 func SetWG(enable bool) (*WGProbe, bool, error) {
+	if enable && wgGLManaged() {
+		return ProbeWG(), false, wgGLManagedError
+	}
 	snapNetwork, err := executor.Snapshot("network")
 	if err != nil {
 		return nil, false, fmt.Errorf("snapshot network: %w", err)
@@ -261,7 +440,7 @@ func enableWG(snapNetwork, snapFirewall string) (*WGProbe, bool, error) {
 	rolledBack, err := wgApply(ops, snapNetwork, snapFirewall, func() bool {
 		// After a network restart the interface takes a moment to come up.
 		for range 10 {
-			if wgShowIface() {
+			if wgShowIface(wgIface) {
 				if executor.ServiceEnabled("firewall") && wgLanZoneSection() != "" && wgZoneSection() == "" {
 					return false
 				}
@@ -279,7 +458,7 @@ func disableWG(snapNetwork, snapFirewall string) (*WGProbe, bool, error) {
 	// ifdown BEFORE removing the config: deleting the section and reloading
 	// leaves the kernel device behind (verified); ifdown only exists while
 	// netifd still has the interface config.
-	if wgShowIface() {
+	if wgShowIface(wgIface) {
 		ops = append(ops, executor.Op{Kind: "ifdown", Args: []string{wgIface}})
 	}
 	for _, peer := range wgPeers() {
@@ -305,15 +484,20 @@ func disableWG(snapNetwork, snapFirewall string) (*WGProbe, bool, error) {
 	if executor.ServiceEnabled("firewall") {
 		ops = append(ops, executor.Op{Kind: "initd", Args: []string{"firewall", "reload"}})
 	}
-	rolledBack, err := wgApply(ops, snapNetwork, snapFirewall, func() bool { return !wgShowIface() })
+	rolledBack, err := wgApply(ops, snapNetwork, snapFirewall, func() bool { return !wgShowIface(wgIface) })
 	return ProbeWG(), rolledBack, err
 }
 
 // AddWGPeer registers a peer. Admin peers can never be removed later.
+// Refused while the GL.iNet firmware manages WireGuard (its peers live in
+// its own config and are managed from its UI).
 func AddWGPeer(name, pubkey string, allowedIPs []string, admin bool) (*WGProbe, bool, error) {
 	probe := ProbeWG()
 	if !probe.Active {
 		return probe, false, fmt.Errorf("wireguard is not enabled")
+	}
+	if probe.ManagedBy == wgManagedGL {
+		return probe, false, wgGLManagedError
 	}
 	if !reWGPubkey.MatchString(pubkey) {
 		return probe, false, fmt.Errorf("invalid public key format")
