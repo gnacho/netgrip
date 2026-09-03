@@ -103,6 +103,7 @@ export const demoWg: T.WGProbe = {
     { section: "peer_nacho", name: "movil-nacho", public_key: "hK9tYwR4vL3nO8qS5xZ7aB2cD6eF0gI1kM4oN9pR3vA=", allowed_ips: ["10.9.0.2/32"], admin: true },
     { section: "peer_marta", name: "portatil-marta", public_key: "pL2mN5bV8cX1zA4sD7fG0hJ3kL6nM9qW2eR5tY8uI1o=", allowed_ips: ["10.9.0.3/32"], admin: false },
   ],
+  gl_tunnels: [],
 };
 
 export const demoDdns: T.DDNSProbe = {

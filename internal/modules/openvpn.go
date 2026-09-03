@@ -1,7 +1,9 @@
 package modules
 
 import (
+	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -44,6 +46,55 @@ func ovpnInstalled() bool {
 	return err == nil
 }
 
+// easyrsaExtraPaths are the standard easyrsa locations beyond PATH: the
+// openvpn-easy-rsa package installs the binary under /usr/lib/easy-rsa with
+// a /usr/bin symlink, but installs without the symlink must still work.
+var easyrsaExtraPaths = []string{"/usr/lib/easy-rsa/easyrsa", "/usr/bin/easyrsa", "/usr/sbin/easyrsa"}
+
+// easyrsaBin resolves the easyrsa executable: PATH first, then the standard
+// locations ("" when not found).
+func easyrsaBin() string {
+	if p, err := exec.LookPath("easyrsa"); err == nil {
+		return p
+	}
+	return resolveEasyrsaIn(easyrsaExtraPaths)
+}
+
+// resolveEasyrsaIn returns the first existing executable file among the
+// candidates ("" when none qualifies).
+func resolveEasyrsaIn(candidates []string) string {
+	for _, c := range candidates {
+		info, err := os.Stat(c)
+		if err != nil || info.IsDir() || info.Mode()&0o111 == 0 {
+			continue
+		}
+		return c
+	}
+	return ""
+}
+
+// ovpnMissingPkgs returns the packages the enable flow must install. GL.iNet
+// firmware ships openvpn itself, so the two are decided independently; its
+// feeds carry no easy-rsa at all, which the caller turns into an actionable
+// error.
+var (
+	ovpnInstalledF = ovpnInstalled
+	easyrsaBinF    = easyrsaBin
+)
+
+func ovpnMissingPkgs() []string {
+	var pkgs []string
+	if !ovpnInstalledF() {
+		pkgs = append(pkgs, "openvpn-openssl")
+	}
+	if easyrsaBinF() == "" {
+		pkgs = append(pkgs, "openvpn-easy-rsa")
+	}
+	return pkgs
+}
+
+const errEasyrsaMissing = "easyrsa is required to build the certificates: install the openvpn-easy-rsa package (GL.iNet firmwares ship neither the tool nor the package in their feeds; enable the official OpenWrt feeds or copy /usr/lib/easy-rsa and /etc/easy-rsa from a same-release router) and retry"
+
 func ovpnHasPKI() bool {
 	for _, f := range []string{"ca.crt", "issued/server.crt", "private/server.key", "crl.pem"} {
 		if _, err := os.Stat(filepath.Join(ovpnPkiDir, f)); err != nil {
@@ -80,8 +131,12 @@ func ProbeOVPN() *OVPNProbe {
 }
 
 func easyrsa(args ...string) error {
+	bin := easyrsaBin()
+	if bin == "" {
+		return fmt.Errorf("easyrsa %s: %s", strings.Join(args, " "), errEasyrsaMissing)
+	}
 	full := append([]string{"--batch"}, args...)
-	cmd := exec.Command("easyrsa", full...)
+	cmd := exec.Command(bin, full...)
 	cmd.Dir = "/etc/easy-rsa"
 	cmd.Env = append(os.Environ(), "EASYRSA_PKI="+ovpnPkiDir)
 	out, err := cmd.CombinedOutput()
@@ -156,12 +211,21 @@ func enableOVPN(rollback func()) (*OVPNProbe, bool, error) {
 	set := func(key, value string) {
 		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{key, value}})
 	}
-	if !ovpnInstalled() {
-		ops = append(ops, executor.Op{Kind: "pkg_add", Args: []string{"openvpn-openssl", "openvpn-easy-rsa"}})
+	if pkgs := ovpnMissingPkgs(); len(pkgs) > 0 {
+		ops = append(ops, executor.Op{Kind: "pkg_add", Args: pkgs})
 	}
 	if err := executor.Apply(ops, nil); err != nil {
 		rollback()
+		// GL.iNet feeds have no easy-rsa: wrap the raw apk failure so the
+		// user gets the actual remedy instead of "unable to select packages".
+		if easyrsaBin() == "" {
+			err = fmt.Errorf("%s (%w)", errEasyrsaMissing, err)
+		}
 		return ProbeOVPN(), true, err
+	}
+	if easyrsaBin() == "" {
+		rollback()
+		return ProbeOVPN(), true, fmt.Errorf("pki: %s", errEasyrsaMissing)
 	}
 	if err := ensureOVPNPKI(); err != nil {
 		rollback()
@@ -289,40 +353,40 @@ func ovpnStopOurs() {
 
 // lanRoute returns "192.168.1.0 255.255.255.0" style route for the lan.
 func lanRoute() string {
-	out, err := exec.Command("sh", "-c", "ubus call network.interface.lan status 2>/dev/null | grep -A2 'ipv4-address' | grep address | head -1 | cut -d'\"' -f4").Output()
+	out, err := exec.Command("ubus", "call", "network.interface.lan", "status").Output()
 	if err != nil {
 		return ""
 	}
-	ip := strings.TrimSpace(string(out))
-	parts := strings.Split(ip, ".")
-	if len(parts) != 4 {
-		return ""
-	}
-	maskOut, _ := exec.Command("sh", "-c", "ubus call network.interface.lan status 2>/dev/null | grep -A2 'ipv4-address' | grep mask | head -1 | awk '{print $2}'").Output()
-	mask := strings.TrimSpace(string(maskOut))
-	if mask == "" {
-		mask = "24"
-	}
-	parts[3] = "0"
-	return strings.Join(parts, ".") + " " + prefixToMask(mask)
+	return lanRouteFromUbus(string(out))
 }
 
-func prefixToMask(prefix string) string {
-	n, err := strconv.Atoi(prefix)
-	if err != nil || n < 0 || n > 32 {
-		return "255.255.255.0"
+// lanRouteFromUbus derives the network address and dotted mask from the
+// first lan ipv4-address of a ubus status payload. The old grep pipeline
+// matched the "ipv4-address" key line itself and always returned empty,
+// so server and client configs silently shipped without the lan route.
+func lanRouteFromUbus(out string) string {
+	var st struct {
+		IPv4Address []struct {
+			Address string `json:"address"`
+			Mask    int    `json:"mask"`
+		} `json:"ipv4-address"`
 	}
-	var b [4]int
-	for i := range b {
-		if n >= 8 {
-			b[i] = 255
-			n -= 8
-		} else if n > 0 {
-			b[i] = 256 - (1 << (8 - n))
-			n = 0
+	if err := json.NewDecoder(strings.NewReader(out)).Decode(&st); err != nil {
+		return ""
+	}
+	for _, a := range st.IPv4Address {
+		ip := net.ParseIP(a.Address).To4()
+		if ip == nil {
+			continue
 		}
+		bits := a.Mask
+		if bits <= 0 || bits > 32 {
+			bits = 24
+		}
+		m := net.CIDRMask(bits, 32)
+		return ip.Mask(m).String() + " " + fmt.Sprintf("%d.%d.%d.%d", m[0], m[1], m[2], m[3])
 	}
-	return fmt.Sprintf("%d.%d.%d.%d", b[0], b[1], b[2], b[3])
+	return ""
 }
 
 // AddOVPNClient issues a client certificate and returns the ready .ovpn.
@@ -371,9 +435,12 @@ func RemoveOVPNClient(name string) (*OVPNProbe, error) {
 	if err := easyrsa("gen-crl"); err != nil {
 		return probe, err
 	}
-	// OpenVPN reads the CRL on startup. Killing our instance makes procd
-	// respawn it with the fresh CRL (verified: procd has respawn).
-	ovpnStopOurs()
+	// OpenVPN reads the CRL on startup. Restart the service explicitly:
+	// killing our instance and relying on procd respawn leaves the server
+	// down on firmwares where respawn does not fire (GL.iNet).
+	if err := exec.Command("/etc/init.d/openvpn", "restart").Run(); err != nil {
+		return probe, fmt.Errorf("crl regenerated but service restart failed: %w", err)
+	}
 	return ProbeOVPN(), nil
 }
 
@@ -421,9 +488,32 @@ func lanIPv4() string {
 }
 
 func ubusIPv4(iface string) string {
-	out, err := exec.Command("sh", "-c", "ubus call network.interface."+iface+" status 2>/dev/null | grep -A2 'ipv4-address' | grep address | head -1 | cut -d'\"' -f4").Output()
+	out, err := exec.Command("ubus", "call", "network.interface."+iface, "status").Output()
 	if err != nil {
 		return ""
 	}
-	return strings.TrimSpace(string(out))
+	return parseUbusIPv4(string(out))
+}
+
+// parseUbusIPv4 extracts the first IPv4 address from the top-level
+// ipv4-address array of a `ubus call network.interface.<x> status`
+// payload. Parsing the JSON replaces the old grep pipeline, which
+// matched the "ipv4-address" key line itself and always returned
+// empty, silently falling back to the first global address on the
+// device (a guest bridge on multi-network gateways).
+func parseUbusIPv4(out string) string {
+	var st struct {
+		IPv4Address []struct {
+			Address string `json:"address"`
+		} `json:"ipv4-address"`
+	}
+	if err := json.NewDecoder(strings.NewReader(out)).Decode(&st); err != nil {
+		return ""
+	}
+	for _, a := range st.IPv4Address {
+		if a.Address != "" {
+			return a.Address
+		}
+	}
+	return ""
 }

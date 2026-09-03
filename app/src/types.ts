@@ -90,6 +90,16 @@ export interface WGPeer {
   admin: boolean;
 }
 
+/** WireGuard tunnel run by the GL.iNet firmware (read-only for NetGrip). */
+export interface GLTunnel {
+  iface: string;
+  address: string;
+  port: string;
+  public_key: string;
+  peers: WGPeer[];
+  running: boolean;
+}
+
 export interface WGProbe {
   installed: boolean;
   active: boolean;
@@ -98,6 +108,9 @@ export interface WGProbe {
   address: string;
   public_key: string;
   peers: WGPeer[];
+  /** "gl_firmware" when the GL.iNet firmware manages WireGuard here */
+  managed_by?: string;
+  gl_tunnels: GLTunnel[];
 }
 
 export interface ModuleResult<T> {
