@@ -33,6 +33,7 @@ type Client struct {
 	Blockable   bool     `json:"blockable"`
 	LeaseExpiry int64    `json:"lease_expiry,omitempty"`
 	LeaseSource string   `json:"lease_source,omitempty"` // local | gateway
+	IPSource    string   `json:"ip_source,omitempty"`    // arp: IP resolved from the neighbor table, no DHCP lease (#212)
 }
 
 var reMac = regexp.MustCompile(`^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$`)
@@ -46,6 +47,15 @@ func ListClients(requesterIP string) []Client {
 	byMac := map[string]ubus.Lease{}
 	for _, l := range leases {
 		byMac[strings.ToLower(l.MAC)] = l
+	}
+	// Static wired clients have no lease; their current IP still shows up
+	// in the neighbor table (#212). On APs the authoritative ARP table is
+	// the gateway's, same as leases.
+	arp := localArp()
+	if leaseSource == "gateway" {
+		if out, err := gatewaySSH("cat /proc/net/arp"); err == nil {
+			arp = mergeArp(arp, parseProcArp(out))
+		}
 	}
 	reserved := reservedMACs()
 	denied, availBands := blockedBands()
@@ -75,16 +85,7 @@ func ListClients(requesterIP string) []Client {
 					c.BlockedOn = bandsList(on)
 					c.Blocked = blockedEverywhere(on, availBands)
 				}
-				if l, ok := byMac[mac]; ok {
-					c.Name = l.Hostname
-					c.IP = l.IP
-					c.Self = requesterIP != "" && l.IP == requesterIP
-					c.LeaseExpiry = l.Expires.Unix()
-					c.LeaseSource = leaseSource
-				}
-				if c.Name == "" || c.Name == "*" {
-					c.Name = mac
-				}
+				fillIdentity(&c, mac, requesterIP, leaseSource, byMac, arp)
 				c.Reserved = reserved[mac]
 				c.Reservable = c.IP != ""
 				clients = append(clients, c)
@@ -110,16 +111,7 @@ func ListClients(requesterIP string) []Client {
 			for _, mac := range macs {
 				mac = strings.ToLower(mac)
 				c := Client{MAC: mac, Type: "cable", Iface: port, Blocked: len(denied[mac]) > 0}
-				if l, ok := byMac[mac]; ok {
-					c.Name = l.Hostname
-					c.IP = l.IP
-					c.Self = requesterIP != "" && l.IP == requesterIP
-					c.LeaseExpiry = l.Expires.Unix()
-					c.LeaseSource = leaseSource
-				}
-				if c.Name == "" || c.Name == "*" {
-					c.Name = mac
-				}
+				fillIdentity(&c, mac, requesterIP, leaseSource, byMac, arp)
 				c.Reserved = reserved[mac]
 				c.Reservable = c.IP != ""
 				c.Blockable = executor.ServiceEnabled("firewall")
@@ -200,6 +192,75 @@ func leasesForClients() ([]ubus.Lease, string, error) {
 		return []ubus.Lease{}, "", fmt.Errorf("gateway leases: %w", err)
 	}
 	return ubus.ParseLeases(out), "gateway", nil
+}
+
+// localArp reads this router's neighbor table.
+func localArp() map[string]string {
+	raw, err := os.ReadFile("/proc/net/arp")
+	if err != nil {
+		return map[string]string{}
+	}
+	return parseProcArp(string(raw))
+}
+
+// parseProcArp parses /proc/net/arp content into a MAC -> IP map. Only
+// resolved entries count: incomplete rows (flags 0x0) and failed lookups
+// (all-zero MAC) are skipped, MACs come out lowercase.
+func parseProcArp(content string) map[string]string {
+	arp := map[string]string{}
+	for i, line := range strings.Split(content, "\n") {
+		if i == 0 || line == "" {
+			continue // header
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 6 {
+			continue
+		}
+		ip, flags, mac := fields[0], fields[2], strings.ToLower(fields[3])
+		if flags == "0x0" || !reMac.MatchString(mac) || mac == "00:00:00:00:00:00" {
+			continue
+		}
+		arp[mac] = ip
+	}
+	return arp
+}
+
+// mergeArp fills gaps in base with entries from extra (base wins on
+// conflicts), leaving both inputs untouched.
+func mergeArp(base, extra map[string]string) map[string]string {
+	merged := make(map[string]string, len(base)+len(extra))
+	for m, ip := range base {
+		merged[m] = ip
+	}
+	for m, ip := range extra {
+		if _, ok := merged[m]; !ok {
+			merged[m] = ip
+		}
+	}
+	return merged
+}
+
+// fillIdentity fills name, IP, lease data and the self flag for one
+// client from the lease map, falling back to the ARP table for the IP
+// when the device has no DHCP lease (#212).
+func fillIdentity(c *Client, mac, requesterIP, leaseSource string, byMac map[string]ubus.Lease, arp map[string]string) {
+	if l, ok := byMac[mac]; ok {
+		c.Name = l.Hostname
+		c.IP = l.IP
+		c.Self = requesterIP != "" && l.IP == requesterIP
+		c.LeaseExpiry = l.Expires.Unix()
+		c.LeaseSource = leaseSource
+	}
+	if c.IP == "" {
+		if ip, ok := arp[mac]; ok {
+			c.IP = ip
+			c.IPSource = "arp"
+			c.Self = requesterIP != "" && ip == requesterIP
+		}
+	}
+	if c.Name == "" || c.Name == "*" {
+		c.Name = mac
+	}
 }
 
 // reservedMACs lists MACs with a DHCP reservation, locally or, on dumb
@@ -555,8 +616,8 @@ func sectionsForBand(sections []string, band string, bandOf func(string) string)
 // device is currently associated.
 type BlockedClient struct {
 	MAC               string   `json:"mac"`
-	Type              string   `json:"type"`              // wifi | cable
-	Bands             []string `json:"bands,omitempty"`   // wifi only: 2g / 5g / 6g
+	Type              string   `json:"type"`            // wifi | cable
+	Bands             []string `json:"bands,omitempty"` // wifi only: 2g / 5g / 6g
 	BlockedEverywhere bool     `json:"blocked_everywhere"`
 }
 

@@ -381,6 +381,7 @@ export interface Client {
   blockable: boolean;
   lease_expiry?: number;
   lease_source?: "local" | "gateway";
+  ip_source?: "arp";
 }
 
 export interface BlockedClient {

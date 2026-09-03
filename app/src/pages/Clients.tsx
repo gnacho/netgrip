@@ -668,7 +668,13 @@ function DetailClientModal({ client, rate, qos, onUpdateQos, onClose }: {
             value={client.reserved ? t("clients.on") : t("clients.off")} />
           <DetailRow label={t("clients.block")}
             value={blockedDetail(client, t)} />
-          <DetailRow label={t("clients.ip")} value={client.ip ?? "—"} mono />
+          <DetailRow label={t("clients.ip")}
+            value={client.ip ? (
+              <>
+                {client.ip}
+                {client.ip_source === "arp" && <span className="text-muted"> ({t("clients.ipArp")})</span>}
+              </>
+            ) : "—"} mono />
           {client.lease_expiry && (
             <DetailRow label={t("clients.leaseExpiry")} value={fmtDateTime(client.lease_expiry)} mono />
           )}
@@ -688,6 +694,9 @@ function DetailClientModal({ client, rate, qos, onUpdateQos, onClose }: {
               <div className="flex flex-col gap-3">
                 {!client.reserved && (
                   <p className="text-caption text-muted">{t("clients.limitReservationHint")}</p>
+                )}
+                {client.ip_source === "arp" && (
+                  <p className="text-caption text-muted">{t("clients.limitArpHint")}</p>
                 )}
                 <p className="text-caption text-muted">{t("clients.limitOffloadingHint")}</p>
                 <div className="grid grid-cols-2 gap-3">

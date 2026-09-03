@@ -429,6 +429,8 @@ export default {
     leaseSource: "Assigned by",
     leaseSource_local: "Local",
     leaseSource_gateway: "Gateway",
+    ipArp: "via ARP",
+    limitArpHint: "IP resolved from the ARP table (the device has no DHCP lease): it may change if it uses DHCP.",
     leaseCol: "Expires in",
     noLease: "no known expiry",
     leaseExpired: "expired",
