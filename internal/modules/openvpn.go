@@ -3,6 +3,7 @@ package modules
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -352,40 +353,40 @@ func ovpnStopOurs() {
 
 // lanRoute returns "192.168.1.0 255.255.255.0" style route for the lan.
 func lanRoute() string {
-	out, err := exec.Command("sh", "-c", "ubus call network.interface.lan status 2>/dev/null | grep -A2 'ipv4-address' | grep address | head -1 | cut -d'\"' -f4").Output()
+	out, err := exec.Command("ubus", "call", "network.interface.lan", "status").Output()
 	if err != nil {
 		return ""
 	}
-	ip := strings.TrimSpace(string(out))
-	parts := strings.Split(ip, ".")
-	if len(parts) != 4 {
-		return ""
-	}
-	maskOut, _ := exec.Command("sh", "-c", "ubus call network.interface.lan status 2>/dev/null | grep -A2 'ipv4-address' | grep mask | head -1 | awk '{print $2}'").Output()
-	mask := strings.TrimSpace(string(maskOut))
-	if mask == "" {
-		mask = "24"
-	}
-	parts[3] = "0"
-	return strings.Join(parts, ".") + " " + prefixToMask(mask)
+	return lanRouteFromUbus(string(out))
 }
 
-func prefixToMask(prefix string) string {
-	n, err := strconv.Atoi(prefix)
-	if err != nil || n < 0 || n > 32 {
-		return "255.255.255.0"
+// lanRouteFromUbus derives the network address and dotted mask from the
+// first lan ipv4-address of a ubus status payload. The old grep pipeline
+// matched the "ipv4-address" key line itself and always returned empty,
+// so server and client configs silently shipped without the lan route.
+func lanRouteFromUbus(out string) string {
+	var st struct {
+		IPv4Address []struct {
+			Address string `json:"address"`
+			Mask    int    `json:"mask"`
+		} `json:"ipv4-address"`
 	}
-	var b [4]int
-	for i := range b {
-		if n >= 8 {
-			b[i] = 255
-			n -= 8
-		} else if n > 0 {
-			b[i] = 256 - (1 << (8 - n))
-			n = 0
+	if err := json.NewDecoder(strings.NewReader(out)).Decode(&st); err != nil {
+		return ""
+	}
+	for _, a := range st.IPv4Address {
+		ip := net.ParseIP(a.Address).To4()
+		if ip == nil {
+			continue
 		}
+		bits := a.Mask
+		if bits <= 0 || bits > 32 {
+			bits = 24
+		}
+		m := net.CIDRMask(bits, 32)
+		return ip.Mask(m).String() + " " + fmt.Sprintf("%d.%d.%d.%d", m[0], m[1], m[2], m[3])
 	}
-	return fmt.Sprintf("%d.%d.%d.%d", b[0], b[1], b[2], b[3])
+	return ""
 }
 
 // AddOVPNClient issues a client certificate and returns the ready .ovpn.
@@ -434,9 +435,12 @@ func RemoveOVPNClient(name string) (*OVPNProbe, error) {
 	if err := easyrsa("gen-crl"); err != nil {
 		return probe, err
 	}
-	// OpenVPN reads the CRL on startup. Killing our instance makes procd
-	// respawn it with the fresh CRL (verified: procd has respawn).
-	ovpnStopOurs()
+	// OpenVPN reads the CRL on startup. Restart the service explicitly:
+	// killing our instance and relying on procd respawn leaves the server
+	// down on firmwares where respawn does not fire (GL.iNet).
+	if err := exec.Command("/etc/init.d/openvpn", "restart").Run(); err != nil {
+		return probe, fmt.Errorf("crl regenerated but service restart failed: %w", err)
+	}
 	return ProbeOVPN(), nil
 }
 

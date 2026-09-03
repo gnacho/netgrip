@@ -83,3 +83,30 @@ func TestParseUbusIPv4KeyLineRegression(t *testing.T) {
 		t.Fatalf("parseUbusIPv4 regression: got %q", got)
 	}
 }
+
+func TestLanRouteFromUbus(t *testing.T) {
+	if got := lanRouteFromUbus(ubusLan); got != "192.168.1.0 255.255.255.0" {
+		t.Fatalf("lanRouteFromUbus(lan) = %q, want 192.168.1.0 255.255.255.0", got)
+	}
+}
+
+func TestLanRouteFromUbusNon24(t *testing.T) {
+	in := `{"ipv4-address": [{"address": "10.30.0.1", "mask": 16}]}`
+	if got := lanRouteFromUbus(in); got != "10.30.0.0 255.255.0.0" {
+		t.Fatalf("lanRouteFromUbus(/16) = %q, want 10.30.0.0 255.255.0.0", got)
+	}
+}
+
+func TestLanRouteFromUbusApEmpty(t *testing.T) {
+	if got := lanRouteFromUbus(ubusApNoAddress); got != "" {
+		t.Fatalf("lanRouteFromUbus(ap) = %q, want empty", got)
+	}
+}
+
+func TestLanRouteFromUbusGarbage(t *testing.T) {
+	for _, in := range []string{"", "not json", `{"ipv4-address": [{"address": "nope"}]}`} {
+		if got := lanRouteFromUbus(in); got != "" {
+			t.Fatalf("lanRouteFromUbus(%q) = %q, want empty", in, got)
+		}
+	}
+}
