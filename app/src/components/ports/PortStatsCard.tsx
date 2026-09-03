@@ -45,12 +45,13 @@ export function PortStatsCard() {
     return () => clearInterval(interval);
   }, []);
 
-  if (!probe || probe.ports.length === 0) return null;
+  if (!probe || (probe.ports ?? []).length === 0) return null;
+  const ports = probe.ports ?? [];
 
-  const hasErrors = probe.ports.some((p) => p.rx_errors > 0 || p.tx_errors > 0 || p.rx_drops > 0 || p.tx_drops > 0);
+  const hasErrors = ports.some((p) => p.rx_errors > 0 || p.tx_errors > 0 || p.rx_drops > 0 || p.tx_drops > 0);
   // Máximos por dirección para las mini-barras de proporción (design-rev2 §5).
-  const maxRx = Math.max(0, ...probe.ports.map((p) => rates[p.name]?.rx ?? 0));
-  const maxTx = Math.max(0, ...probe.ports.map((p) => rates[p.name]?.tx ?? 0));
+  const maxRx = Math.max(0, ...ports.map((p) => rates[p.name]?.rx ?? 0));
+  const maxTx = Math.max(0, ...ports.map((p) => rates[p.name]?.tx ?? 0));
 
   /** Mini-barra de proporción (relleno accent RX / teal TX sobre pista accent-soft). */
   const ratioBar = (v: number, max: number, fill: string) => (
@@ -76,7 +77,7 @@ export function PortStatsCard() {
             </tr>
           </thead>
           <tbody>
-            {probe.ports.map((p) => {
+            {ports.map((p) => {
               const r = rates[p.name];
               const errs = p.rx_errors + p.tx_errors;
               const drops = p.rx_drops + p.tx_drops;

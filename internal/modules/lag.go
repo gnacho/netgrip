@@ -122,7 +122,7 @@ func lagSysfsSlaves(device string) []string {
 
 // ProbeLAGs reads the link aggregation state.
 func ProbeLAGs() *LAGProbe {
-	p := &LAGProbe{}
+	p := &LAGProbe{LAGs: []LAGEntry{}, FreePorts: []string{}}
 	phys := lagPhysicalPorts()
 	p.Applicable = len(phys) >= 2 && lagBridgeSection() != ""
 	p.Installed = lagKmodLoaded() && lagProtoPresent()

@@ -25,8 +25,14 @@ type PortTemplate struct {
 func ListPortTemplates() []PortTemplate {
 	out, err := exec.Command("uci", "show", "netgrip").Output()
 	if err != nil {
-		return nil
+		return []PortTemplate{}
 	}
+	return listPortTemplatesFrom(string(out))
+}
+
+// listPortTemplatesFrom parses `uci show netgrip` output for port_template
+// sections ("netgrip.<section>=port_template"). Never returns nil.
+func listPortTemplatesFrom(out string) []PortTemplate {
 	templates := map[string]*PortTemplate{}
 	for _, line := range strings.Split(string(out), "\n") {
 		line = strings.TrimSpace(line)
@@ -40,27 +46,33 @@ func ListPortTemplates() []PortTemplate {
 		key := parts[0]
 		val := strings.Trim(parts[1], "'")
 
-		if strings.HasSuffix(key, ".type") && val == "port_template" {
-			sec := strings.TrimPrefix(strings.TrimSuffix(key, ".type"), "netgrip.")
-			templates[sec] = &PortTemplate{Name: sec}
-		}
-		for sec, t := range templates {
-			prefix := "netgrip." + sec + "."
-			switch {
-			case key == prefix+"description":
-				t.Description = val
-			case key == prefix+"admin_up":
-				t.AdminUp = val == "1"
-			case key == prefix+"speed_mbps":
-				if v, err := parseInt(val); err == nil {
-					t.SpeedMbps = v
-				}
-			case key == prefix+"vlans_json":
-				json.Unmarshal([]byte(val), &t.VLANs)
+		rel := strings.TrimPrefix(key, "netgrip.")
+		if !strings.Contains(rel, ".") {
+			// section header: netgrip.<section>=port_template
+			if val == "port_template" {
+				templates[rel] = &PortTemplate{Name: rel}
 			}
+			continue
+		}
+		sec, opt, _ := strings.Cut(rel, ".")
+		t, ok := templates[sec]
+		if !ok {
+			continue
+		}
+		switch opt {
+		case "description":
+			t.Description = val
+		case "admin_up":
+			t.AdminUp = val == "1"
+		case "speed_mbps":
+			if v, err := parseInt(val); err == nil {
+				t.SpeedMbps = v
+			}
+		case "vlans_json":
+			json.Unmarshal([]byte(val), &t.VLANs)
 		}
 	}
-	var result []PortTemplate
+	result := make([]PortTemplate, 0, len(templates))
 	for _, t := range templates {
 		result = append(result, *t)
 	}

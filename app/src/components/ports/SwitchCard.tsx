@@ -87,7 +87,7 @@ export function SwitchCard({ index = 2 }: { index?: number }) {
       ) : !probe ? null : (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
-            {probe.ports.map((p) => (
+            {(probe.ports ?? []).map((p) => (
               <div key={p.name} className="rounded-md bg-surface-2 border border-border p-3">
                 <div className="flex items-center gap-2">
                   <span

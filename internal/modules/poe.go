@@ -27,7 +27,7 @@ type PoEProbe struct {
 }
 
 func ProbePoE() *PoEProbe {
-	p := &PoEProbe{}
+	p := &PoEProbe{Ports: []PoEPort{}}
 
 	budgetPath := "/sys/class/hwmon/poe/budget_milliwatts"
 	if data, err := os.ReadFile(budgetPath); err == nil {

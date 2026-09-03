@@ -130,7 +130,7 @@ export function VLANTable() {
             </tr>
           </thead>
           <tbody>
-            {probe.vlans.map((vlan) => (
+            {(probe.vlans ?? []).map((vlan) => (
               <tr key={vlan.vid}>
                 <td className="px-2 py-1 font-mono text-small border-b border-border/50">
                   {vlan.vid}

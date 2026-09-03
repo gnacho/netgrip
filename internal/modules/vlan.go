@@ -33,14 +33,17 @@ type VLANProbe struct {
 func ProbeVLANs() *VLANProbe {
 	ports := bridgePortList()
 	if len(ports) == 0 {
-		return &VLANProbe{Applicable: false}
+		return &VLANProbe{Applicable: false, VLANs: []VLAN{}, Ports: []string{}}
 	}
 	bridge := "br-lan"
 	out, err := exec.Command("uci", "show", "network").Output()
 	if err != nil {
-		return &VLANProbe{Applicable: false, Bridge: bridge, Ports: ports}
+		return &VLANProbe{Applicable: false, Bridge: bridge, VLANs: []VLAN{}, Ports: ports}
 	}
 	sections := parseBridgeVlans(string(out), bridge)
+	if sections == nil {
+		sections = []VLAN{}
+	}
 	sort.Slice(sections, func(i, j int) bool { return sections[i].VID < sections[j].VID })
 	return &VLANProbe{
 		Applicable: true,
