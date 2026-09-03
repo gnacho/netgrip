@@ -69,6 +69,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/openvpn", s.requireAuth(s.handleOVPNSet))
 	s.mux.HandleFunc("POST /api/openvpn/clients", s.requireAuth(s.handleOVPNClientAdd))
 	s.mux.HandleFunc("POST /api/openvpn/clients/delete", s.requireAuth(s.handleOVPNClientDelete))
+	s.mux.HandleFunc("POST /api/openvpn/host", s.requireAuth(s.handleOVPNHostSet))
 	s.mux.HandleFunc("GET /api/packages", s.requireAuth(s.handlePackagesGet))
 	s.mux.HandleFunc("GET /api/packages/optional", s.requireAuth(s.handleOptionalPackagesGet))
 	s.mux.HandleFunc("POST /api/packages/upgrade", s.requireAuth(s.handlePackageUpgrade))
@@ -633,6 +634,10 @@ type ovpnClientDeleteRequest struct {
 	Name string `json:"name"`
 }
 
+type ovpnHostRequest struct {
+	Host string `json:"host"`
+}
+
 func (s *Server) handleOVPNClientDelete(w http.ResponseWriter, r *http.Request) {
 	var req ovpnClientDeleteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -645,6 +650,19 @@ func (s *Server) handleOVPNClientDelete(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, map[string]any{"state": probe})
+}
+
+func (s *Server) handleOVPNHostSet(w http.ResponseWriter, r *http.Request) {
+	var req ovpnHostRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := modules.SetVPNPublicHost(req.Host); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, modules.ProbeOVPN())
 }
 
 func (s *Server) handlePackagesGet(w http.ResponseWriter, _ *http.Request) {
