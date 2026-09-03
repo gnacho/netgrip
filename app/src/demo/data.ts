@@ -59,7 +59,7 @@ export const demoWireless: T.WirelessRadio[] = [
 export const demoClients: T.Client[] = [
   { name: "Pixel 8 Pro (Marta)", ip: "192.168.8.112", mac: "9C:B6:D0:12:AB:77", type: "wifi5", device_type: "phone", iface: "phy1-ap0", signal: -52, rx_bytes: 4210 * MIB, tx_bytes: 380 * MIB, self: false, reserved: false, reservable: true, blocked: false, blockable: true },
   { name: "MacBook Air (Nacho)", ip: "192.168.8.120", mac: "F0:18:98:5A:31:C2", type: "wifi5", device_type: "laptop", iface: "phy1-ap0", signal: -47, rx_bytes: 2870 * MIB, tx_bytes: 640 * MIB, self: false, reserved: false, reservable: true, blocked: false, blockable: true, lease_expiry: now() + 2 * 3600, lease_source: "gateway" },
-  { name: "TV Samsung Salón", ip: "192.168.8.131", mac: "70:2A:D5:44:09:E1", type: "cable", device_type: "tv", rx_bytes: 9130 * MIB, tx_bytes: 410 * MIB, self: false, reserved: false, reservable: true, blocked: false, blockable: true },
+  { name: "TV Samsung Salón", ip: "192.168.8.131", ip_source: "arp", mac: "70:2A:D5:44:09:E1", type: "cable", device_type: "tv", rx_bytes: 9130 * MIB, tx_bytes: 410 * MIB, self: false, reserved: false, reservable: true, blocked: false, blockable: true },
   { name: "NAS", ip: "192.168.8.10", mac: "00:11:32:9A:BC:10", type: "cable", device_type: "nas", rx_bytes: 1820 * MIB, tx_bytes: 5240 * MIB, self: false, reserved: true, reservable: true, blocked: false, blockable: true },
   { name: "Echo Dot Cocina", ip: "192.168.8.172", mac: "B4:E6:2D:90:14:07", type: "wifi24", device_type: "speaker", iface: "phy0-ap2", signal: -61, rx_bytes: 96 * MIB, tx_bytes: 34 * MIB, self: false, reserved: false, reservable: true, blocked: false, blockable: true },
   { name: "Galaxy Tab S9 (invitados)", ip: "192.168.9.108", mac: "FA:22:9C:71:08:55", type: "wifi24", device_type: "tablet", iface: "phy0-ap1", signal: -66, rx_bytes: 540 * MIB, tx_bytes: 88 * MIB, self: false, reserved: false, reservable: false, blocked: false, blockable: true },
@@ -216,7 +216,7 @@ export const demoMode: T.ModeProbe = {
 };
 
 export const demoAccess: T.AccessProbe = {
-  panel: { http_port: 8080, https_enabled: true, force_https: false, session_ttl: "60m" },
+  panel: { http_port: 8090, https_enabled: true, force_https: false, session_ttl: "60m" },
   luci: { http_port: 80, https_port: 443, force_https: false, enabled: true },
   ssh: { enabled: true, port: "22" },
 };
@@ -438,7 +438,7 @@ export const demoFleet: T.FleetNodeStatus[] = [
 ];
 
 export const demoDiscoveredFleet: T.DiscoveredFleetPeer[] = [
-  { id: "ap-jardin", name: "ap-jardin", version: "0.1.2", address: "192.168.8.4", port: 8080, seen_at: new Date().toISOString() },
+  { id: "ap-jardin", name: "ap-jardin", version: "0.1.2", address: "192.168.8.4", port: 8090, seen_at: new Date().toISOString() },
 ];
 
 export const demoCableTest: T.CableTestProbe = {

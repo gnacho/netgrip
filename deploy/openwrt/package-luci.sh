@@ -60,7 +60,7 @@ Architecture: all
 Maintainer: Nacho <netgrip@cloudless.club>
 Description: netgrip embedded in LuCI
  LuCI menu entry that embeds the netgrip companion panel (served
- locally on port 8080) inside the LuCI interface.
+ locally on port 8090) inside the LuCI interface.
 CTRL
 
   cat > "$PKG_DIR/CONTROL/postinst" << 'POSTINST'
