@@ -30,8 +30,8 @@ type NftQoSLimit struct {
 
 // NftQoSProbe is the read-only state of per-device QoS.
 type NftQoSProbe struct {
-	Applicable bool                      `json:"applicable"`
-	Limits     map[string]NftQoSLimit     `json:"limits"`
+	Applicable bool                   `json:"applicable"`
+	Limits     map[string]NftQoSLimit `json:"limits"`
 }
 
 // NftQoSSetRequest is the body for creating or updating a limit.
@@ -135,7 +135,7 @@ func saveNftQoSLimits(limits map[string]NftQoSLimit) error {
 	if err := os.MkdirAll(nftQoSConfigDir, 0o755); err != nil {
 		return err
 	}
-	var list []NftQoSLimit
+	list := make([]NftQoSLimit, 0, len(limits))
 	for _, l := range limits {
 		list = append(list, l)
 	}
