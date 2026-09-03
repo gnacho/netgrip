@@ -271,6 +271,11 @@ export const demoApi: typeof api = {
     state.ovpn.clients = state.ovpn.clients.filter((c) => c.name !== name);
     return { state: state.ovpn };
   },
+  setOvpnPublicHost: async (host) => {
+    await wait(400, 900);
+    state.ovpn.public_host = host.trim();
+    return { ...state.ovpn };
+  },
   tailscale: () => get(state.ts),
   setTailscale: async (enabled) => {
     state.ts.running = enabled;

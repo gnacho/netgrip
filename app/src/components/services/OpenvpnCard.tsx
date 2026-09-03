@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Copy, Download, Lock, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Copy, Download, Globe, Lock, Plus, Trash2 } from "lucide-react";
 import { api } from "../../api";
 import type { OVPNProbe } from "../../types";
 import {
@@ -22,10 +22,13 @@ export function OpenvpnCard({ probe, onChange, index = 0 }: {
 }) {
   const { t } = useTranslation();
   const { phase, detail, busy, run, clear } = useActionCycle();
+  const toast = useToast();
   const [doneMsg, setDoneMsg] = useState<string>();
   const [clientName, setClientName] = useState("");
   const [delTarget, setDelTarget] = useState<string>();
   const [addedConfig, setAddedConfig] = useState<{ name: string; config: string } | undefined>();
+  const [hostDraft, setHostDraft] = useState<string | undefined>(undefined);
+  const [savingHost, setSavingHost] = useState(false);
 
   const toggle = async (v: boolean) => {
     setDoneMsg(undefined);
@@ -80,6 +83,19 @@ export function OpenvpnCard({ probe, onChange, index = 0 }: {
     setInstalling(false);
   };
 
+  const hostValue = hostDraft !== undefined ? hostDraft : probe?.public_host ?? "";
+  const saveHost = async (host: string) => {
+    setSavingHost(true);
+    try {
+      onChange(await api.setOvpnPublicHost(host.trim()));
+      setHostDraft(undefined);
+      toast.push({ tone: "ok", text: host.trim() ? t("ovpn.hostSaved") : t("ovpn.hostCleared") });
+    } catch {
+      toast.push({ tone: "danger", text: t("ovpn.hostSaveFailed") });
+    }
+    setSavingHost(false);
+  };
+
   return (
     <Card index={index}>
       {!probe ? (
@@ -129,6 +145,84 @@ export function OpenvpnCard({ probe, onChange, index = 0 }: {
 
           <Reveal open={active}>
             <div className="pt-2 flex flex-col gap-3">
+              {!probe.public_host && (
+                <div role="alert" className="flex gap-3 rounded-lg bg-warn-soft px-3.5 py-3">
+                  <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden="true" />
+                  <div className="min-w-0 text-small leading-snug text-warn">
+                    <p className="font-semibold">{t("ovpn.ddnsWarnTitle")}</p>
+                    <p className="mt-0.5">{t("ovpn.ddnsWarnBody", { ip: probe.wan_ip || "—" })}</p>
+                    {probe.ddns_domains.length > 0 && (
+                      <>
+                        <p className="mt-2 font-medium">{t("ovpn.ddnsSuggest")}</p>
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {probe.ddns_domains.map((d) => (
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={() => setHostDraft(d)}
+                              className="rounded-full border border-warn/40 bg-surface px-2.5 py-1 font-mono text-caption text-warn ring-focus transition-colors hover:bg-warn/10"
+                            >
+                              {d}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-2 px-3.5 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="flex items-center gap-2 text-small font-medium">
+                    <Globe size={14} className="text-accent" aria-hidden="true" />
+                    {t("ovpn.publicHostLabel")}
+                  </span>
+                  <span title={probe.public_host ? probe.public_host : t("ovpn.wanChipTitle")}>
+                    <Pill tone={probe.public_host ? "ok" : "warn"} className="max-w-[16rem] truncate font-mono">
+                      {probe.public_host || probe.wan_ip || "—"}
+                    </Pill>
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  {probe.ddns_domains.length > 0 && (
+                    <select
+                      className="h-10 rounded-md border border-border/60 bg-surface px-3 text-small text-text ring-focus"
+                      value={probe.ddns_domains.includes(hostValue) ? hostValue : ""}
+                      onChange={(e) => setHostDraft(e.target.value)}
+                      aria-label={t("ovpn.ddnsPick")}
+                    >
+                      <option value="">{t("ovpn.ddnsPick")}</option>
+                      {probe.ddns_domains.map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  )}
+                  <div className="flex flex-1 gap-2">
+                    <div className="flex-1">
+                      <Input
+                        value={hostValue}
+                        onChange={(e) => setHostDraft(e.target.value)}
+                        placeholder={t("ovpn.publicHostPlaceholder")}
+                        maxLength={253}
+                        aria-label={t("ovpn.publicHostLabel")}
+                      />
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="h-10"
+                      loading={savingHost}
+                      disabled={hostValue.trim() === (probe.public_host ?? "")}
+                      onClick={() => saveHost(hostValue)}
+                    >
+                      {t("ovpn.hostSave")}
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-caption text-muted">{t("ovpn.publicHostHint")}</p>
+              </div>
+
               <KeyValue items={[
                 { label: t("ovpn.port"), value: probe.port, mono: true },
                 { label: t("ovpn.subnet"), value: probe.subnet, mono: true },

@@ -175,6 +175,12 @@ export interface OVPNProbe {
   port: string;
   subnet: string;
   clients: OVPNClient[];
+  /** Stable hostname configured for client configs ("" when unset). */
+  public_host: string;
+  /** Current WAN IPv4, shown while no stable host is set. */
+  wan_ip: string;
+  /** DDNS domains already managed by this router, as suggestions. */
+  ddns_domains: string[];
 }
 
 export interface PkgUpgrade {

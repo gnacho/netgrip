@@ -39,6 +39,13 @@ type OVPNProbe struct {
 	Port      string       `json:"port"`
 	Subnet    string       `json:"subnet"`
 	Clients   []OVPNClient `json:"clients"`
+	// PublicHost is the stable hostname configured for client configs
+	// ("" when unset); WanIP is the current WAN address and DdnsDomains
+	// are the DDNS domains already managed by this router, exposed so
+	// the UI can warn about dynamic addresses and offer suggestions.
+	PublicHost  string   `json:"public_host"`
+	WanIP       string   `json:"wan_ip"`
+	DdnsDomains []string `json:"ddns_domains"`
 }
 
 func ovpnInstalled() bool {
@@ -127,6 +134,9 @@ func ProbeOVPN() *OVPNProbe {
 			}
 		}
 	}
+	p.PublicHost = GetVPNPublicHost()
+	p.WanIP = wanIPv4()
+	p.DdnsDomains = ddnsDomains()
 	return p
 }
 
@@ -407,12 +417,7 @@ func AddOVPNClient(name, remote string) (string, *OVPNProbe, error) {
 	if err := easyrsa("sign-req", "client", name); err != nil {
 		return "", probe, err
 	}
-	if remote == "" {
-		remote = wanIPv4()
-	}
-	if remote == "" {
-		remote = lanIPv4()
-	}
+	remote = ovpnRemoteEndpoint(remote, GetVPNPublicHost(), wanIPv4(), lanIPv4())
 	config, err := buildClientOVPN(name, remote)
 	if err != nil {
 		return "", probe, err

@@ -296,6 +296,12 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
     }),
+  setOvpnPublicHost: (host: string) =>
+    request<import("./types").OVPNProbe>("/api/openvpn/host", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ host }),
+    }),
   setSqm: (cfg: { enabled: boolean; download?: string; upload?: string }) =>
     request<import("./types").ModuleResult<import("./types").SQMProbe>>("/api/sqm", {
       method: "POST",

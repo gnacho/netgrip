@@ -148,6 +148,9 @@ export const demoOvpn: T.OVPNProbe = {
   port: "1194",
   subnet: "10.8.0.0/24",
   clients: [{ name: "portatil-nacho" }],
+  public_host: "",
+  wan_ip: "203.0.113.45",
+  ddns_domains: ["casa.duckdns.org", "hub.cloudless.club"],
 };
 
 export const demoPackages: T.PkgUpgrade[] = [
