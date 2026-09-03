@@ -1,6 +1,6 @@
 # luci-app-netgrip OpenWrt Makefile
 # Files-only LuCI app (JS/JSON, PKGARCH:=all): embeds the netgrip web UI
-# (served by the netgrip package on :8080) inside LuCI. Flat Makefile on
+# (served by the netgrip package on :8090) inside LuCI. Flat Makefile on
 # purpose (no luci.mk): builds in a bare SDK like the netgrip package.
 
 include $(TOPDIR)/rules.mk
@@ -27,7 +27,7 @@ endef
 
 define Package/luci-app-netgrip/description
 	LuCI menu entry that embeds the netgrip companion panel (served
-	locally on port 8080) inside the LuCI interface.
+	locally on port 8090) inside the LuCI interface.
 endef
 
 define Build/Compile

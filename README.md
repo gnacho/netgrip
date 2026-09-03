@@ -145,7 +145,7 @@ the panel uses the matching **OpenWrt 25.12/24.10 package**.
 **For an OpenWrt-savvy setup**, add the panel from the release as an `apk` or
 `opkg` package. Requirements: a 64-bit ARM router
 (`aarch64_cortex-a53`, covers MediaTek filogic and Qualcomm ipq807x) running
-OpenWrt 24.10 or 25.12. The panel listens on port 8080 and validates your
+OpenWrt 24.10 or 25.12. The panel listens on port 8090 and validates your
 login against rpcd.
 
 Download the right package for your router and its OpenWrt version from the
@@ -188,7 +188,7 @@ opkg install netgrip_0.24.0-1_aarch64_cortex-a53.ipk
 /etc/init.d/netgrip start
 ```
 
-Open `http://<router-ip>:8080` and log in with the same username and password
+Open `http://<router-ip>:8090` and log in with the same username and password
 you use for LuCI.
 
 <details>
@@ -201,7 +201,7 @@ recommended path: it survives sysupgrade, a bare binary does not.
 ```sh
 # Busybox dropbear has no scp; pipe the file instead:
 cat netgrip-linux-arm64 | ssh root@<router-ip> "cat > /usr/sbin/netgrip && chmod 755 /usr/sbin/netgrip"
-/usr/sbin/netgrip -listen 0.0.0.0 -port 8080
+/usr/sbin/netgrip -listen 0.0.0.0 -port 8090
 ```
 
 </details>
@@ -244,7 +244,7 @@ usually there is nothing to set:
 | Flag         | Default                  | Description                                   |
 | ------------ | ------------------------ | --------------------------------------------- |
 | `-listen`    | `0.0.0.0`                | Address to bind.                              |
-| `-port`      | `8080`                   | Port to listen on.                            |
+| `-port`      | `8090`                   | Port to listen on. GL.iNet firmware serves its own web UI on 8080, hence the default. |
 | `-rpcd-url`  | `http://127.0.0.1/ubus`  | rpcd JSON-RPC endpoint for login validation.  |
 
 The init script starts it with the same defaults. To change the panel session
@@ -265,7 +265,7 @@ logread -e netgrip -f
 /etc/init.d/netgrip restart
 ```
 
-Point a browser at `http://<router-ip>:8080`. The login validates against
+Point a browser at `http://<router-ip>:8090`. The login validates against
 rpcd, so the credentials are the same as LuCI. The panel keeps a signed
 session cookie (12 h by default, configurable in the Access card) that
 survives service restarts.

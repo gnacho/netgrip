@@ -150,7 +150,7 @@ panel usa el paquete de **OpenWrt 25.12/24.10** correspondiente.
 **Para un montaje con soltura en OpenWrt**, añade el panel desde la release
 como paquete `apk` u `opkg`. Requisitos: un router ARM de 64 bits
 (`aarch64_cortex-a53`, cubre MediaTek filogic y Qualcomm ipq807x) con OpenWrt
-24.10 o 25.12. El panel escucha en el puerto 8080 y valida tu login contra
+24.10 o 25.12. El panel escucha en el puerto 8090 y valida tu login contra
 rpcd.
 
 Descarga el paquete correcto para tu router y su versión de OpenWrt desde la
@@ -193,7 +193,7 @@ opkg install netgrip_0.24.0-1_aarch64_cortex-a53.ipk
 /etc/init.d/netgrip start
 ```
 
-Abre `http://<ip-del-router>:8080` y entra con el mismo usuario y contraseña
+Abre `http://<ip-del-router>:8090` y entra con el mismo usuario y contraseña
 que usas en LuCI.
 
 <details>
@@ -206,7 +206,7 @@ recomendado: sobrevive a sysupgrade; un binario suelto no.
 ```sh
 # El dropbear de busybox no tiene scp; pasa el fichero por ssh:
 cat netgrip-linux-arm64 | ssh root@<ip-del-router> "cat > /usr/sbin/netgrip && chmod 755 /usr/sbin/netgrip"
-/usr/sbin/netgrip -listen 0.0.0.0 -port 8080
+/usr/sbin/netgrip -listen 0.0.0.0 -port 8090
 ```
 
 </details>
@@ -250,7 +250,7 @@ mayoría de routers, así que normalmente no hay nada que configurar:
 | Flag         | Por defecto             | Descripción                                     |
 | ------------ | ----------------------- | ----------------------------------------------- |
 | `-listen`    | `0.0.0.0`               | Dirección a la que enlazar.                     |
-| `-port`      | `8080`                  | Puerto de escucha.                              |
+| `-port`      | `8090`                  | Puerto de escucha. El firmware GL.iNet usa el 8080 para su propia web, de ahi el defecto. |
 | `-rpcd-url`  | `http://127.0.0.1/ubus` | Endpoint JSON-RPC de rpcd para validar el login. |
 
 El script de init lo arranca con esos mismos valores por defecto. Para
@@ -271,7 +271,7 @@ logread -e netgrip -f
 /etc/init.d/netgrip restart
 ```
 
-Apunta un navegador a `http://<ip-del-router>:8080`. El login valida contra
+Apunta un navegador a `http://<ip-del-router>:8090`. El login valida contra
 rpcd, así que las credenciales son las mismas que las de LuCI. El panel
 guarda una cookie de sesión firmada (12 h por defecto, configurable en la
 tarjeta Acceso) que sobrevive a los reinicios del servicio.

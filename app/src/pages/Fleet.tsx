@@ -522,7 +522,7 @@ function AddNodeModal({ open, onClose, onAdded }: {
           inputProps={{
             value: address,
             onChange: (e) => setAddress(e.target.value),
-            placeholder: "192.168.8.2:8080",
+            placeholder: "192.168.8.2:8090",
           }}
         />
         <AdvancedDisclosure label={t("common.advanced")}>
@@ -583,7 +583,7 @@ function AdoptNodeModal({ peer, open, onClose, onAdopted }: {
   useEffect(() => {
     if (peer) {
       setName(peer.name || "");
-      setAddress(peer.address ? `${peer.address}:${peer.port || 8080}` : "");
+      setAddress(peer.address ? `${peer.address}:${peer.port || 8090}` : "");
       setPassword("");
       setFail(undefined);
       setBusy(false);
@@ -644,7 +644,7 @@ function AdoptNodeModal({ peer, open, onClose, onAdopted }: {
           inputProps={{
             value: address,
             onChange: (e) => setAddress(e.target.value),
-            placeholder: "192.168.8.2:8080",
+            placeholder: "192.168.8.2:8090",
           }}
         />
         <Field

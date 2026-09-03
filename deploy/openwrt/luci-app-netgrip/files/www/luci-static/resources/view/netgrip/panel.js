@@ -4,18 +4,18 @@
 
 /*
  * netgrip/panel: embeds the netgrip companion UI (served by the netgrip
- * package on port 8080) inside LuCI. Falls back to a plain link when the
+ * package on port 8090) inside LuCI. Falls back to a plain link when the
  * browser blocks the iframe (mixed content if LuCI runs over HTTPS while
  * netgrip serves plain HTTP on the LAN).
  */
 
 return view.extend({
 	render: function() {
-		var url = window.location.protocol + '//' + window.location.hostname + ':8080/';
+		var url = window.location.protocol + '//' + window.location.hostname + ':8090/';
 
 		return E('div', { 'class': 'netgrip-embed' }, [
 			E('p', { 'class': 'cbi-section-descr' }, [
-				_('The netgrip companion panel runs on this router, port 8080. '),
+				_('The netgrip companion panel runs on this router, port 8090. '),
 				E('a', { href: url, target: '_blank', rel: 'noreferrer' }, _('Open it in a new tab'))
 			]),
 			E('iframe', {

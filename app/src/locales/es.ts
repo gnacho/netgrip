@@ -1876,7 +1876,7 @@ export default {
     nameLabel: "Nombre",
     namePlaceholder: "ap-atico",
     addressLabel: "Dirección",
-    addressHint: "La dirección con la que entras a su panel, p.ej. 192.168.8.2:8080",
+    addressHint: "La dirección con la que entras a su panel, p.ej. 192.168.8.2:8090",
     nodeIdLabel: "ID interno",
     nodeIdHint: "Opcional; si lo dejas vacío usamos el nombre.",
     passwordLabel: "Contraseña root del equipo",

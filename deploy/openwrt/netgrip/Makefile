@@ -38,7 +38,22 @@ define Package/netgrip/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
 	# apk does not overwrite an existing /etc/init.d script (it stages the
-	# new one as .apk-new). The packaged init script must win on upgrades.
+	# new one as .apk-new). The packaged init script must win on upgrades;
+	# local customizations live in UCI instead (#210).
+	#
+	# #210 migration: carry a local -port edit from the old init script
+	# into netgrip.main.port so the upgrade does not lose it. The old
+	# default (8080) is NOT migrated: 8090 exists precisely to avoid the
+	# GL.iNet uhttpd collision.
+	if [ -f /etc/init.d/netgrip ]; then
+		old_port=$$(sed -n 's/.*-port \([0-9][0-9]*\).*/\1/p' /etc/init.d/netgrip | head -n1)
+		if [ -n "$$old_port" ] && [ "$$old_port" != "8080" ] && [ "$$old_port" != "8090" ]; then
+			touch /etc/config/netgrip
+			grep -q "config panel 'main'" /etc/config/netgrip 2>/dev/null || printf "config panel 'main'\n" >> /etc/config/netgrip
+			uci set netgrip.main.port="$$old_port" 2>/dev/null || true
+			uci commit netgrip 2>/dev/null || true
+		fi
+	fi
 	if [ -f /etc/init.d/netgrip.apk-new ]; then
 		cp /etc/init.d/netgrip.apk-new /etc/init.d/netgrip
 		rm -f /etc/init.d/netgrip.apk-new

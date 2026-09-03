@@ -1876,7 +1876,7 @@ export default {
     nameLabel: "Name",
     namePlaceholder: "ap-atico",
     addressLabel: "Address",
-    addressHint: "The address you use to open its panel, e.g. 192.168.8.2:8080",
+    addressHint: "The address you use to open its panel, e.g. 192.168.8.2:8090",
     nodeIdLabel: "Internal ID",
     nodeIdHint: "Optional; if left empty we use the name.",
     passwordLabel: "Device root password",

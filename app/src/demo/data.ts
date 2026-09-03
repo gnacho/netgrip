@@ -216,7 +216,7 @@ export const demoMode: T.ModeProbe = {
 };
 
 export const demoAccess: T.AccessProbe = {
-  panel: { http_port: 8080, https_enabled: true, force_https: false, session_ttl: "60m" },
+  panel: { http_port: 8090, https_enabled: true, force_https: false, session_ttl: "60m" },
   luci: { http_port: 80, https_port: 443, force_https: false, enabled: true },
   ssh: { enabled: true, port: "22" },
 };
@@ -438,7 +438,7 @@ export const demoFleet: T.FleetNodeStatus[] = [
 ];
 
 export const demoDiscoveredFleet: T.DiscoveredFleetPeer[] = [
-  { id: "ap-jardin", name: "ap-jardin", version: "0.1.2", address: "192.168.8.4", port: 8080, seen_at: new Date().toISOString() },
+  { id: "ap-jardin", name: "ap-jardin", version: "0.1.2", address: "192.168.8.4", port: 8090, seen_at: new Date().toISOString() },
 ];
 
 export const demoCableTest: T.CableTestProbe = {
