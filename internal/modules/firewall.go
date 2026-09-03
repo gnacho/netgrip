@@ -36,30 +36,35 @@ type FirewallProbe struct {
 
 func ProbeFirewall() *FirewallProbe {
 	if !executor.ServiceEnabled("firewall") {
-		return &FirewallProbe{Applicable: false}
+		return &FirewallProbe{Applicable: false, Zones: []FWZone{}, Rules: []FWRule{}}
 	}
-	p := &FirewallProbe{Applicable: true}
-	p.Zones = parseFWZones()
-	p.Rules = parseFWRules()
-	return p
+	return &FirewallProbe{Applicable: true, Zones: parseFWZones(), Rules: parseFWRules()}
 }
 
 func parseFWZones() []FWZone {
 	out, err := exec.Command("uci", "show", "firewall").Output()
 	if err != nil {
-		return nil
+		return []FWZone{}
 	}
-	type rawZone struct {
-		section string
-		name    string
-		input   string
-		output  string
-		forward string
-		network []string
-		masq    bool
-	}
+	return parseFWZonesFrom(string(out))
+}
+
+type rawZone struct {
+	section string
+	name    string
+	input   string
+	output  string
+	forward string
+	network []string
+	masq    bool
+}
+
+// parseFWZonesFrom parses `uci show firewall` output. Sections print as
+// "firewall.<section>=<type>" (anonymous sections look like "@zone[0]"),
+// options as "firewall.<section>.<option>='value'". Never returns nil.
+func parseFWZonesFrom(out string) []FWZone {
 	zones := map[string]*rawZone{}
-	for _, line := range strings.Split(string(out), "\n") {
+	for _, line := range strings.Split(out, "\n") {
 		line = strings.TrimSpace(line)
 		if !strings.HasPrefix(line, "firewall.") {
 			continue
@@ -71,34 +76,40 @@ func parseFWZones() []FWZone {
 		key := parts[0]
 		val := strings.Trim(parts[1], "'")
 
-		if strings.HasSuffix(key, ".type") && val == "zone" {
-			sec := strings.TrimPrefix(strings.TrimSuffix(key, ".type"), "firewall.")
-			zones[sec] = &rawZone{section: sec}
-		}
-		for sec, z := range zones {
-			prefix := "firewall." + sec + "."
-			switch {
-			case key == prefix+"name":
-				z.name = val
-			case key == prefix+"input":
-				z.input = val
-			case key == prefix+"output":
-				z.output = val
-			case key == prefix+"forward":
-				z.forward = val
-			case key == prefix+"masq" && val == "1":
-				z.masq = true
-			case strings.HasPrefix(key, prefix+"network"):
-				if strings.Contains(key, "=") {
-					z.network = append(z.network, val)
-				}
+		rel := strings.TrimPrefix(key, "firewall.")
+		sec, opt, hasOpt := strings.Cut(rel, ".")
+		if !hasOpt {
+			if val == "zone" {
+				zones[sec] = &rawZone{section: sec}
 			}
+			continue
+		}
+		z, ok := zones[sec]
+		if !ok {
+			continue
+		}
+		switch opt {
+		case "name":
+			z.name = val
+		case "input":
+			z.input = val
+		case "output":
+			z.output = val
+		case "forward":
+			z.forward = val
+		case "masq":
+			z.masq = val == "1"
+		case "network":
+			z.network = append(z.network, uciListValues(line)...)
 		}
 	}
-	var result []FWZone
+	result := make([]FWZone, 0, len(zones))
 	for _, z := range zones {
 		if z.name == "" {
 			continue
+		}
+		if z.network == nil {
+			z.network = []string{}
 		}
 		result = append(result, FWZone{
 			Name:    z.name,
@@ -116,19 +127,26 @@ func parseFWZones() []FWZone {
 func parseFWRules() []FWRule {
 	out, err := exec.Command("uci", "show", "firewall").Output()
 	if err != nil {
-		return nil
+		return []FWRule{}
 	}
-	type rawRule struct {
-		section  string
-		name     string
-		src      string
-		dest     string
-		proto    string
-		destPort string
-		target   string
-	}
+	return parseFWRulesFrom(string(out))
+}
+
+type rawRule struct {
+	section  string
+	name     string
+	src      string
+	dest     string
+	proto    string
+	destPort string
+	target   string
+}
+
+// parseFWRulesFrom parses `uci show firewall` output for "rule" sections.
+// Section headers print as "firewall.<section>=rule". Never returns nil.
+func parseFWRulesFrom(out string) []FWRule {
 	rules := map[string]*rawRule{}
-	for _, line := range strings.Split(string(out), "\n") {
+	for _, line := range strings.Split(out, "\n") {
 		line = strings.TrimSpace(line)
 		if !strings.HasPrefix(line, "firewall.") {
 			continue
@@ -140,29 +158,34 @@ func parseFWRules() []FWRule {
 		key := parts[0]
 		val := strings.Trim(parts[1], "'")
 
-		if strings.HasSuffix(key, ".type") && val == "rule" {
-			sec := strings.TrimPrefix(strings.TrimSuffix(key, ".type"), "firewall.")
-			rules[sec] = &rawRule{section: sec}
-		}
-		for sec, r := range rules {
-			prefix := "firewall." + sec + "."
-			switch {
-			case key == prefix+"name":
-				r.name = val
-			case key == prefix+"src":
-				r.src = val
-			case key == prefix+"dest":
-				r.dest = val
-			case key == prefix+"proto":
-				r.proto = val
-			case key == prefix+"dest_port":
-				r.destPort = val
-			case key == prefix+"target":
-				r.target = val
+		rel := strings.TrimPrefix(key, "firewall.")
+		sec, opt, hasOpt := strings.Cut(rel, ".")
+		if !hasOpt {
+			if val == "rule" {
+				rules[sec] = &rawRule{section: sec}
 			}
+			continue
+		}
+		r, ok := rules[sec]
+		if !ok {
+			continue
+		}
+		switch opt {
+		case "name":
+			r.name = val
+		case "src":
+			r.src = val
+		case "dest":
+			r.dest = val
+		case "proto":
+			r.proto = val
+		case "dest_port":
+			r.destPort = val
+		case "target":
+			r.target = val
 		}
 	}
-	var result []FWRule
+	result := make([]FWRule, 0, len(rules))
 	for _, r := range rules {
 		result = append(result, FWRule{
 			Name:     r.name,
