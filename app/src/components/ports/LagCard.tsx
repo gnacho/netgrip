@@ -67,11 +67,11 @@ export function LagCard({ index = 2 }: { index?: number }) {
         </div>
       )}
 
-      {probe.lags.length === 0 ? (
+      {(probe.lags ?? []).length === 0 ? (
         <p className="text-small text-muted">{t("lag.empty")}</p>
       ) : (
         <div className="divide-y divide-border/60">
-          {probe.lags.map((lag) => (
+          {(probe.lags ?? []).map((lag) => (
             <div key={lag.name} className="flex items-center gap-3 py-2.5">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">

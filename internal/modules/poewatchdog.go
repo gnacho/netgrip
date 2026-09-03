@@ -136,7 +136,7 @@ func ProbePoEWatchdogs() []PoEWatchdogState {
 	poeWdMu.Lock()
 	defer poeWdMu.Unlock()
 	probe := ProbePoE()
-	var out []PoEWatchdogState
+	out := make([]PoEWatchdogState, 0)
 	for _, p := range probe.Ports {
 		key := poeWdUCIKey(p.Name)
 		if uciGet(key+".watchdog_enabled") != "1" {

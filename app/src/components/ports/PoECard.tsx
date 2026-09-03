@@ -98,7 +98,7 @@ export function PoECard({ index = 1 }: { index?: number }) {
       )}
 
       <div className="divide-y divide-border/60">
-        {probe.ports.map((p) => {
+        {(probe.ports ?? []).map((p) => {
           const label = descFor(p.name) || t("poe.portFallback", { name: p.name });
           const consumption = p.power_w > 0
             ? t("poe.consumption", { w: p.power_w.toFixed(1), cls: p.class || "?" })

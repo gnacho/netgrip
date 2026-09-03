@@ -64,14 +64,14 @@ export function FirewallCard({ index = 0 }: { index?: number }) {
         <SkeletonRows rows={3} />
       ) : (
         <>
-          <ZoneDiagram zones={probe.zones} />
+          <ZoneDiagram zones={probe.zones ?? []} />
 
           {/* Zonas como chips */}
           <div className="flex flex-wrap gap-2 mt-3">
-            {probe.zones.map((z) => (
+            {(probe.zones ?? []).map((z) => (
               <span key={z.name} className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 border border-border/60 px-2.5 py-1 text-caption">
                 <span className="font-semibold">{z.name}</span>
-                <span className="text-muted font-mono">{z.network.join(", ") || "—"}</span>
+                <span className="text-muted font-mono">{(z.network ?? []).join(", ") || "—"}</span>
                 <Pill tone={toneFor(z.input)}>{t(TARGET_LABELS[z.input] ?? "firewall.accept", { defaultValue: z.input })}</Pill>
                 {z.masq && <Pill tone="warn">NAT</Pill>}
               </span>
@@ -86,7 +86,7 @@ export function FirewallCard({ index = 0 }: { index?: number }) {
 
           <AdvancedDisclosure label={t("firewall.rules")} className="mt-2">
             <div className="flex flex-col gap-2">
-              {probe.rules.length === 0 ? (
+              {(probe.rules ?? []).length === 0 ? (
                 <p className="text-small text-muted py-1">{t("firewall.noRules")}</p>
               ) : (
                 <>
@@ -99,7 +99,7 @@ export function FirewallCard({ index = 0 }: { index?: number }) {
                     <span />
                   </div>
                   <ul>
-                    {probe.rules.map((r) => (
+                    {(probe.rules ?? []).map((r) => (
                       <li key={r.section} className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-x-3 gap-y-1 py-2 px-1 border-b border-border/60 last:border-0 text-small">
                         <span className="font-medium truncate">{r.name || r.section}</span>
                         <span className="flex items-center gap-1 justify-self-end sm:justify-self-start">
@@ -136,7 +136,7 @@ export function FirewallCard({ index = 0 }: { index?: number }) {
                     className={SELECT_CLS}>
                     <option value="wan">wan</option>
                     <option value="lan">lan</option>
-                    {probe.zones.filter((z) => z.name !== "wan" && z.name !== "lan").map((z) => (
+                    {(probe.zones ?? []).filter((z) => z.name !== "wan" && z.name !== "lan").map((z) => (
                       <option key={z.name} value={z.name}>{z.name}</option>
                     ))}
                   </select>
