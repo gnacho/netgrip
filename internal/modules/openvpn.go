@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -483,9 +484,32 @@ func lanIPv4() string {
 }
 
 func ubusIPv4(iface string) string {
-	out, err := exec.Command("sh", "-c", "ubus call network.interface."+iface+" status 2>/dev/null | grep -A2 'ipv4-address' | grep address | head -1 | cut -d'\"' -f4").Output()
+	out, err := exec.Command("ubus", "call", "network.interface."+iface, "status").Output()
 	if err != nil {
 		return ""
 	}
-	return strings.TrimSpace(string(out))
+	return parseUbusIPv4(string(out))
+}
+
+// parseUbusIPv4 extracts the first IPv4 address from the top-level
+// ipv4-address array of a `ubus call network.interface.<x> status`
+// payload. Parsing the JSON replaces the old grep pipeline, which
+// matched the "ipv4-address" key line itself and always returned
+// empty, silently falling back to the first global address on the
+// device (a guest bridge on multi-network gateways).
+func parseUbusIPv4(out string) string {
+	var st struct {
+		IPv4Address []struct {
+			Address string `json:"address"`
+		} `json:"ipv4-address"`
+	}
+	if err := json.NewDecoder(strings.NewReader(out)).Decode(&st); err != nil {
+		return ""
+	}
+	for _, a := range st.IPv4Address {
+		if a.Address != "" {
+			return a.Address
+		}
+	}
+	return ""
 }
