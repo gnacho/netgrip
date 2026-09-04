@@ -1,6 +1,4 @@
-import type { FwdProbe } from "../types";
 import { AdvancedDisclosure, Card } from "../components/ui";
-import { PortForwardCard } from "../components/ports/PortForwardCard";
 import { PoECard } from "../components/ports/PoECard";
 import { SwitchCard } from "../components/ports/SwitchCard";
 import { LagCard } from "../components/ports/LagCard";
@@ -11,20 +9,14 @@ import { RoleProfilesCard } from "../components/ports/RoleProfilesCard";
 import { VLANTable } from "../components/ports/VLANTable";
 
 /**
- * Puertos (ports.md): abrir algo a Internet + plantillas rápidas, PoE y bocas
- * del switch; lo de ingeniería (plantillas de puerto, perfiles, modos, VLANs,
- * estadísticas) bajo "Opciones avanzadas".
+ * Puertos (ports.md): plantillas rápidas, PoE y bocas del switch; lo de
+ * ingeniería (plantillas de puerto, perfiles, modos, VLANs, estadísticas)
+ * bajo "Opciones avanzadas". El port-forwarding (abrir puertos a Internet)
+ * vive ahora en la página WAN.
  */
-export function Ports({ fwd, onFwdChange }: {
-  fwd: FwdProbe | undefined;
-  onFwdChange: (p: FwdProbe) => void;
-}) {
+export function Ports() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-[var(--card-gap)]">
-      <div className="md:col-span-2">
-        <PortForwardCard probe={fwd} onChange={onFwdChange} />
-      </div>
-
       <PoECard index={1} />
       <SwitchCard index={2} />
       <LagCard index={2} />

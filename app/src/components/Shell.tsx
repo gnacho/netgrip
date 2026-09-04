@@ -297,7 +297,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         />
       )}
       {activePage === "clients" && <ClientsPage />}
-      {activePage === "wan" && <WanPage />}
+      {activePage === "wan" && <WanPage fwd={fwd} onFwdChange={setFwd} />}
       {activePage === "coverage" && <CoveragePage aps={usteerAps} error={usteerError} />}
       {activePage === "wifi" && (
         <WifiPage iot={iot} onIotChange={setIot} guest={guest} onGuestChange={setGuest} />
@@ -309,7 +309,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         <Services wg={wg} onWgChange={setWg} ipv6={ipv6} onIpv6Change={setIpv6} ddns={ddns} onDdnsChange={setDdns} mdns={mdns} onMdnsChange={setMdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} ts={ts} onTsChange={setTs} />
       )}
       {activePage === "ports" && (
-        <Ports fwd={fwd} onFwdChange={setFwd} />
+        <Ports />
       )}
       {activePage === "tools" && (
         <ToolsPage ethports={ethports ?? []} />
