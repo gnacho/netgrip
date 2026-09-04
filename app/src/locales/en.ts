@@ -677,6 +677,7 @@ export default {
     desc: "Older, but almost every device and app understands it.",
     notInstalled: "OpenVPN is not installed on this firmware",
     noPki: "Certificates are missing. Create them once and you'll never have to touch them again.",
+    noPkiSteps: "Create them over SSH on the router: install openvpn-easy-rsa and run the easy-rsa steps (init-pki, build-ca, gen-req and sign-req for the server). Then come back to this screen.",
     revokeTitle: "Revoke {{name}}",
     revokeConsequence: "That client will no longer be able to connect to the VPN.",
     revokeConfirm: "Revoke client",
