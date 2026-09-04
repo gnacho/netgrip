@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -21,6 +22,15 @@ type WifiEdit struct {
 	Disabled   *bool  `json:"disabled,omitempty"`
 	// MAC sets a fixed BSSID (e.g. "00:11:22:33:44:55"); empty means keep.
 	MAC string `json:"mac,omitempty"`
+}
+
+// RadioEdit is a user change to a radio device (not an AP interface). Empty
+// fields are left unchanged. TxPower of 0 leaves the current value untouched.
+type RadioEdit struct {
+	Radio   string `json:"radio"`             // UCI device, e.g. radio0
+	Channel string `json:"channel,omitempty"` // e.g. "1", "36", or "auto"
+	Htmode  string `json:"htmode,omitempty"`  // e.g. HE20, HE80, VHT40
+	TxPower int    `json:"txpower,omitempty"` // dBm; 0 = keep current
 }
 
 // WifiUI is the state an interface editor needs: current values safe to
@@ -109,6 +119,103 @@ func SetWifi(edit WifiEdit) (*WifiUI, bool, error) {
 		return wifiUIFIState(edit.Section), false, nil
 	}
 	return probeWifiSection(edit.Section), false, nil
+}
+
+// SetWifiRadio applies a RadioEdit (channel/txpower/htmode) to a wireless
+// device with a snapshot of wireless, a reload of that radio, a healthcheck
+// that the radio stays up on the requested channel, and rollback on failure.
+func SetWifiRadio(edit RadioEdit) (*ubus.WirelessRadio, bool, error) {
+	if edit.Radio == "" {
+		return nil, false, fmt.Errorf("radio is required")
+	}
+	if err := validateRadioEdit(edit); err != nil {
+		return nil, false, err
+	}
+	snap, err := executor.Snapshot("wireless")
+	if err != nil {
+		return nil, false, fmt.Errorf("snapshot wireless: %w", err)
+	}
+	rollback := func() {
+		_ = executor.Restore("wireless", snap)
+		_ = executor.Run(executor.Op{Kind: "wifi_reload", Args: []string{edit.Radio}})
+	}
+
+	var ops []executor.Op
+	if edit.Channel != "" {
+		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{"wireless." + edit.Radio + ".channel", edit.Channel}})
+	}
+	if edit.Htmode != "" {
+		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{"wireless." + edit.Radio + ".htmode", edit.Htmode}})
+	}
+	if edit.TxPower > 0 {
+		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{"wireless." + edit.Radio + ".txpower", strconv.Itoa(edit.TxPower)}})
+	}
+	if len(ops) == 0 {
+		return nil, false, fmt.Errorf("nothing to change")
+	}
+	ops = append(ops, executor.Op{Kind: "uci_commit", Args: []string{"wireless"}})
+
+	if err := executor.Apply(ops, nil); err != nil {
+		rollback()
+		return nil, true, err
+	}
+	_ = executor.Run(executor.Op{Kind: "wifi_reload", Args: []string{edit.Radio}})
+
+	radio, perr := radioFromStatus(edit.Radio)
+	if perr != nil || !radioHealthy(edit, radio) {
+		rollback()
+		return &ubus.WirelessRadio{}, true, fmt.Errorf("radio healthcheck failed, rolled back")
+	}
+	return radio, false, nil
+}
+
+// validateRadioEdit checks the radio is set, something is changed, the
+// channel numeric/auto and the htmode token (HE/VHT/HT + 20/40/80/160),
+// keeping it permissive across bands.
+func validateRadioEdit(edit RadioEdit) error {
+	if edit.Radio == "" {
+		return fmt.Errorf("radio is required")
+	}
+	if edit.Channel == "" && edit.Htmode == "" && edit.TxPower == 0 {
+		return fmt.Errorf("nothing to change")
+	}
+	if edit.Channel != "" && edit.Channel != "auto" {
+		if _, err := strconv.Atoi(edit.Channel); err != nil {
+			return fmt.Errorf("invalid channel: %q", edit.Channel)
+		}
+	}
+	if edit.Htmode != "" {
+		re := regexp.MustCompile(`^(HE|VHT|HT)(20|40|80|160)$`)
+		if !re.MatchString(edit.Htmode) {
+			return fmt.Errorf("unknown htmode: %q", edit.Htmode)
+		}
+	}
+	return nil
+}
+
+// radioHealthy verifies the radio is still up and, when a channel was
+// requested, that it actually landed on it.
+func radioHealthy(edit RadioEdit, radio *ubus.WirelessRadio) bool {
+	if radio == nil || !radio.Up {
+		return false
+	}
+	if edit.Channel != "" && edit.Channel != "auto" && radio.Channel != edit.Channel {
+		return false
+	}
+	return true
+}
+
+func radioFromStatus(name string) (*ubus.WirelessRadio, error) {
+	radios, err := ubus.GetWirelessStatus()
+	if err != nil {
+		return nil, err
+	}
+	for i := range radios {
+		if radios[i].Name == name {
+			return &radios[i], nil
+		}
+	}
+	return nil, fmt.Errorf("radio %q not found", name)
 }
 
 // wifiUIFIState synthesises a WifiUI for a disabled (not enumerated) radio.

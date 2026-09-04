@@ -563,6 +563,15 @@ export const demoApi: typeof api = {
     }
     return write(w ?? state.wifi[0]);
   },
+  setWifiRadio: async (edit) => {
+    const r = state.wireless.find((x) => x.name === edit.radio);
+    if (r) {
+      if (edit.channel !== undefined) r.channel = edit.channel;
+      if (edit.htmode !== undefined) r.htmode = edit.htmode;
+      if (edit.txpower) r.txpower = edit.txpower;
+    }
+    return write(r ?? state.wireless[0]);
+  },
 
   // almacenamiento
   storage: () => get(state.storage),

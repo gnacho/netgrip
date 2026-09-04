@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, CloudOff, Copy, Eye, EyeOff, Pencil, QrCode as QrCodeIcon, Wifi as WifiIcon } from "lucide-react";
+import { Ban, CloudOff, Copy, Eye, EyeOff, Pencil, QrCode as QrCodeIcon, Settings2, Wifi as WifiIcon } from "lucide-react";
 import { api } from "../api";
 import type { BlockedClient, GuestProbe, IoTProbe, WifiUI, WirelessRadio } from "../types";
 import {
@@ -10,6 +10,7 @@ import {
 import { IlluWifiWaves } from "../components/ui/illustrations";
 import { QrBox, useWifiQr } from "../components/wifi/qr";
 import { WifiEditModal } from "../components/WifiEditModal";
+import { WifiRadioModal } from "../components/WifiRadioModal";
 import { GuestWifiCard } from "../components/GuestWifiCard";
 import { IotWifiCard } from "../components/IotWifiCard";
 
@@ -33,6 +34,7 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
   const [radios, setRadios] = useState<WirelessRadio[]>();
   const [error, setError] = useState(false);
   const [editing, setEditing] = useState<WifiUI>();
+  const [editingRadio, setEditingRadio] = useState<WirelessRadio>();
   const [keys, setKeys] = useState<Record<string, string>>({});
   const [blocked, setBlocked] = useState<BlockedClient[]>([]);
   const [meta, setMeta] = useState<Record<string, { name: string; device_type: string }>>({});
@@ -121,6 +123,7 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
                     passkey={keys[rep.section]}
                     blocked={blocked.filter((b) => b.type === "wifi" && (b.bands ?? []).includes(rep.band))}
                     onEdit={() => setEditing(rep)}
+                    onRadio={() => setEditingRadio(radios?.find((r) => r.name === rep.radio))}
                     onEnlargeQr={() => setQrOpen(rep)}
                     onManageBlocked={() => setBlockedOpen(rep.band as "2g" | "5g")}
                   />
@@ -136,6 +139,10 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
 
       {editing && (
         <WifiEditModal iface={editing} onClose={() => setEditing(undefined)} onSaved={saved} />
+      )}
+
+      {editingRadio && (
+        <WifiRadioModal radio={editingRadio} onClose={() => setEditingRadio(undefined)} onSaved={load} />
       )}
 
       <QrModal
@@ -166,16 +173,17 @@ function mainIfaces(ifaces: WifiUI[], guest: GuestProbe | undefined, iot: IoTPro
 
 /* ══════════════ Tarjeta full-width por radio (#168) ══════════════ */
 
-function RadioCard({ iface, radio, index, passkey, blocked, onEdit, onEnlargeQr, onManageBlocked, groupBands }: {
+function RadioCard({ iface, radio, index, passkey, blocked, onEdit, onRadio, onEnlargeQr, onManageBlocked, groupBands }: {
   iface: WifiUI;
-  radio: WirelessRadio | undefined;
+  radio?: WirelessRadio;
   index: number;
   passkey?: string;
   blocked: BlockedClient[];
   onEdit: () => void;
+  onRadio: () => void;
   onEnlargeQr: () => void;
   onManageBlocked: () => void;
-  groupBands?: string[];
+  groupBands: string[];
 }) {
   const { t } = useTranslation();
   const band = iface.band === "5g" ? "band5" : "band24";
@@ -256,6 +264,9 @@ function RadioCard({ iface, radio, index, passkey, blocked, onEdit, onEnlargeQr,
 
           <div className="pt-1 flex flex-wrap items-center gap-2">
             <Button variant="secondary" size="sm" icon={Pencil} onClick={onEdit}>{t("wifi.bandSettings")}</Button>
+            {radio && (
+              <Button variant="secondary" size="sm" icon={Settings2} onClick={onRadio}>{t("wifi.radioSettings")}</Button>
+            )}
             {blocked.length > 0 && (
               <button type="button" onClick={onManageBlocked}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-surface px-2.5 py-1 text-small text-muted hover:text-text hover:bg-surface-2 ring-focus transition-colors">

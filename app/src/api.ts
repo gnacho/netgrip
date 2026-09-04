@@ -201,6 +201,12 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(edit),
     }),
+  setWifiRadio: (edit: { radio: string; channel?: string; htmode?: string; txpower?: number }) =>
+    request<import("./types").ModuleResult<import("./types").WirelessRadio>>("/api/wifi/radio", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(edit),
+    }),
   lan: () => request<import("./types").LANConfig>("/api/lan"),
   setLan: (opts: { ipaddr?: string; netmask?: string; ap_isolation?: boolean }) =>
     request<import("./types").ModuleResult<import("./types").LANConfig>>("/api/lan", {
