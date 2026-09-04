@@ -251,13 +251,13 @@ export function Wizard({ onDone }: { onDone: () => void }) {
   return (
     <main className="min-h-screen bg-bg lg:flex">
       {/* panel lateral de progreso (desktop ≥1024px, wizard.md §1/§2) */}
-      <aside className="hidden lg:flex w-[320px] shrink-0 flex-col border-r border-border bg-surface px-8 py-10">
+      <aside className="hidden lg:flex w-[280px] shrink-0 flex-col border-r border-border bg-surface px-6 py-8 sticky top-0 h-screen overflow-y-auto">
         <div className="flex items-center gap-2.5 text-accent">
           <Logo size={32} />
           <span className="text-h2 text-text">NetGrip</span>
         </div>
         {loaded && !loadError ? (
-          <ol className="mt-10 flex-1">
+          <ol className="mt-8">
             {steps.map((s, i) => {
               const done = i < currentIdx;
               const active = i === currentIdx;
@@ -313,7 +313,7 @@ export function Wizard({ onDone }: { onDone: () => void }) {
           <Stepper step={currentIdx + 1} total={steps.length} />
         </div>
 
-        <div className="flex flex-1 items-start lg:items-center justify-center p-5 md:p-8">
+        <div className="flex flex-1 items-start lg:items-center justify-center p-5 md:justify-start md:p-8">
           <div
             key={step}
             className={`w-full max-w-[560px] ${
