@@ -234,6 +234,15 @@ html[data-density="compact"] .text-h2 {
   75% { transform: translateX(-4px); }
 }
 
+/* Latido suave + halo verde cuando la conexión a Internet está OK. */
+@keyframes internet-glow {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(16, 185, 129, 0)); }
+  50% { transform: scale(1.04); filter: drop-shadow(0 0 14px rgba(16, 185, 129, 0.4)); }
+}
+.animate-internet {
+  animation: internet-glow 2.4s ease-in-out infinite;
+}
+
 .animate-fade-up {
   animation: fade-up var(--dur-slow) var(--ease-soft) both;
   animation-delay: calc(var(--i, 0) * 40ms);
