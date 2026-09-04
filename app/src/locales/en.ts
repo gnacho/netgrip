@@ -622,6 +622,7 @@ export default {
     toggle: "Advertise this router on the local network",
     hint: "Lets you reach the router by name (hostname.local) from computers, phones and printers at home.",
     domainLabel: "Available at:",
+    domainHint: "It is the name the router announces on the LAN over mDNS: trusted devices use it to reach it by name instead of by IP.",
   },
   sqm: {
     title: "SQM / QoS",
@@ -821,6 +822,7 @@ export default {
     clientsNow_other: "{{count}} devices right now",
     keyLabel: "Password",
     changeKey: "Change password",
+    keyMinHint: "You need a password of at least 8 characters to enable the guest Wi-Fi.",
     activate: "Turn on guest Wi-Fi",
     doneOn: "Done. The guest Wi-Fi is on.",
     doneOff: "Done. The guest Wi-Fi is off.",
@@ -1092,6 +1094,7 @@ export default {
     lease24h: "24 h",
     lease7d: "7 days",
     advancedDhcp: "More lending options",
+    gatewayHint: "This is the router IP on the local network (your network address), not the WAN one. Leave it as is if you don't know what it does.",
     save: "Save changes",
     saved: "Changes saved.",
     rolledBack: "It didn't work. Your network keeps its previous addresses.",
@@ -1265,6 +1268,7 @@ export default {
       nlbwmon: "Per-device usage",
       tailscale: "Tailscale",
       adguard: "AdGuard Home",
+      netifyd: "Traffic analysis",
     },
     installed: "Installed",
     installedCount_one: "{{count}} installed",
@@ -1278,6 +1282,7 @@ export default {
     removeAllBody_other: "{{count}} optional services will be uninstalled. Settings are kept.",
     removeAllConfirm: "Remove all",
     removed: "Packages uninstalled",
+    installOk: "Package installed",
   },
   selfupdate: {
     title: "NetGrip itself",
@@ -1517,6 +1522,7 @@ export default {
     up: "up",
     down: "down",
     addDesc: "add note",
+    addPlaceholder: "Port description…",
     descSaved: "Description saved",
     portsTitle: "Switch ports",
     offTitle: "Turn off port {{port}}?",
@@ -1605,6 +1611,7 @@ export default {
       seeCatalog: "See package catalog",
       customHint: "In the next step you will be able to pick optional services one by one.",
       apkOrOpkg: "NetGrip auto-detects whether your router uses apk (OpenWrt 25.12+) or opkg (older releases).",
+      installFailed: "Package installation failed. Check the router internet connection and try again.",
       canInstallLater: "You can install or remove packages anytime from the panel; no rush.",
     },
     step: {
@@ -1640,7 +1647,7 @@ export default {
       body: "The name your devices will see and the password to join. We use the same one on 2.4 and 5 GHz — your phone picks the best.",
       consequence: "If this router already has a Wi-Fi in use, changing it means reconnecting your devices.",
       keepKey: "Leave it empty to keep the current password.",
-      qrCaption: "Show it to anyone who visits",
+      qrCaption: "Use it on your trusted devices",
     },
     guest: {
       title: "Wi-Fi for guests?",
@@ -1675,6 +1682,9 @@ export default {
       install_other: "Install {{count}}",
       installed: "Installed",
       later: "You don't have to decide now: if you enable a service later from the panel, its package installs automatically.",
+      updating: "Refreshing the router package list…",
+      installing: "Installing {{current}} ({{done}} of {{total}})…",
+      done: "Installation finished.",
       wireguard: {
         title: "WireGuard",
         desc: "Lightweight VPN to reach your network from outside.",
@@ -1702,6 +1712,10 @@ export default {
       adguard: {
         title: "AdGuard Home",
         desc: "Filters ads and trackers for the whole network.",
+      },
+      netifyd: {
+        title: "Traffic analysis",
+        desc: "Identifies which applications your devices use and how much they consume.",
       },
     },
     done: {
@@ -1747,6 +1761,8 @@ export default {
     tokenSet: "Token stored; kept if left empty",
     save: "Save",
     saved: "Configuration saved",
+    restartAgent: "Restart agent",
+    restartDone: "Agent restarted.",
     pushOk: "Pushing (last push {{time}})",
     pushFail: "Push failed (last OK {{time}})",
     never: "never",

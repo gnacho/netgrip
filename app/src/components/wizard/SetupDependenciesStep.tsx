@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Check, ChevronDown, ChevronUp, Download, Info, ListChecks, Package, ShieldCheck,
+  AlertTriangle, Check, ChevronDown, ChevronUp, Download, ListChecks, Package, ShieldCheck,
   Sparkles, Wrench,
 } from "lucide-react";
 import { Banner, Pill } from "../ui";
 import { IlluRouter } from "../ui/illustrations";
 import type { WizardSetupGroup, WizardSetupProbe } from "../../types";
-import { Reveal, StepFooter, StepShell } from "./common";
+import { Reveal, StepFooter, StepShell, useInstallJob, InstallProgress } from "./common";
+import { api } from "../../api";
 
 type InstallMode = "full" | "minimal" | "custom";
 
@@ -15,16 +16,17 @@ type InstallMode = "full" | "minimal" | "custom";
  * Paso inicial de preparación del router.
  * Ofrece tres niveles: recomendado, mínimo y personalizado.
  */
-export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
+export function SetupDependenciesStep({ probe, onDone, onBack, onSkip }: {
   probe: WizardSetupProbe;
-  onInstall: (mode: InstallMode, groups: string[]) => void;
+  onDone: () => void;
   onBack: () => void;
   onSkip: () => void;
 }) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<InstallMode>("full");
+  const [mode, setMode] = useState<InstallMode>("minimal");
   const [showDetails, setShowDetails] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [installError, setInstallError] = useState<string | null>(null);
+  const { job, running, begin } = useInstallJob();
 
   const groupByID = (id: string) => probe.groups.find((g) => g.id === id);
   const selectedGroupIDs = mode === "minimal"
@@ -36,17 +38,17 @@ export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
 
   const modes: { id: InstallMode; icon: typeof Package; title: string; desc: string; pill?: string }[] = [
     {
-      id: "full",
-      icon: Sparkles,
-      title: t("wizard.setup.fullTitle"),
-      desc: t("wizard.setup.fullDesc"),
-      pill: t("wizard.setup.recommended"),
-    },
-    {
       id: "minimal",
       icon: ShieldCheck,
       title: t("wizard.setup.minimalTitle"),
       desc: t("wizard.setup.minimalDesc"),
+      pill: t("wizard.setup.recommended"),
+    },
+    {
+      id: "full",
+      icon: Sparkles,
+      title: t("wizard.setup.fullTitle"),
+      desc: t("wizard.setup.fullDesc"),
     },
     {
       id: "custom",
@@ -57,11 +59,13 @@ export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
   ];
 
   const install = async () => {
-    setBusy(true);
+    setInstallError(null);
     try {
-      await onInstall(mode, selectedGroupIDs);
-    } finally {
-      setBusy(false);
+      const j = await begin(() => api.installWizardSetup(mode, selectedGroupIDs));
+      if (j.phase === "done") onDone();
+      else setInstallError(j.error || t("error.network"));
+    } catch (e) {
+      setInstallError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -79,16 +83,11 @@ export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
       body={t("wizard.setup.body")}
       footer={
         <div className="mt-8 space-y-4">
-          <Banner tone="info">
-            <span className="flex items-start gap-2">
-              <Info size={16} className="mt-0.5 shrink-0" />
-              <span>{t("wizard.setup.apkOrOpkg")}</span>
-            </span>
-          </Banner>
+          <InstallProgress job={job} />
           <StepFooter
             onBack={onBack}
             onNext={install}
-            busy={busy}
+            busy={running}
             nextDisabled={mode === "custom"}
             nextLabel={nextLabel}
             onSkip={onSkip}
@@ -97,6 +96,17 @@ export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
       }
     >
       <div className="space-y-4">
+        {installError && (
+          <Banner tone="danger">
+            <span className="flex items-start gap-2">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              <span>
+                <span className="block font-medium">{t("wizard.setup.installFailed")}</span>
+                <span className="mt-0.5 block font-mono text-caption break-all">{installError}</span>
+              </span>
+            </span>
+          </Banner>
+        )}
         <div className="grid grid-cols-1 gap-3" role="radiogroup" aria-label={t("wizard.setup.title")}>
           {modes.map((m) => {
             const active = mode === m.id;
@@ -108,7 +118,7 @@ export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
                 role="radio"
                 aria-checked={active}
                 onClick={() => setMode(m.id)}
-                disabled={busy}
+                disabled={running}
                 className={`flex items-start gap-3 rounded-xl border p-4 text-left ring-focus transition-all duration-[var(--dur-fast)]
                   ${active
                     ? "border-accent bg-accent-soft shadow-sm"

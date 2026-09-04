@@ -77,6 +77,35 @@ const (
 	SetupModeCustom  SetupMode = "custom"
 )
 
+// SetupPackagesForMode resolves the package list to install for a mode
+// (without installing), skipping already-installed packages.
+func SetupPackagesForMode(mode SetupMode, customIDs []string) []string {
+	var groups []SetupGroup
+	switch mode {
+	case SetupModeMinimal:
+		groups = []SetupGroup{setupGroups[0]}
+	case SetupModeFull:
+		groups = setupGroups
+	case SetupModeCustom:
+		for _, id := range customIDs {
+			for _, g := range setupGroups {
+				if g.ID == id {
+					groups = append(groups, g)
+				}
+			}
+		}
+	}
+	var toInstall []string
+	for _, g := range groups {
+		for _, p := range g.Packages {
+			if !pkgInstalled(p) {
+				toInstall = append(toInstall, p)
+			}
+		}
+	}
+	return toInstall
+}
+
 // InstallSetupPackages installs the packages for the selected mode.
 // It returns the package names that were actually installed.
 func InstallSetupPackages(mode SetupMode, customIDs []string) ([]string, error) {

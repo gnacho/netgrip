@@ -182,12 +182,15 @@ export function GuestWifiCard({ probe, mainSsid, onChange }: {
                 <div className="flex-1">
                   <Input type="password" mono icon={KeyRound} value={key} onChange={(e) => setKey(e.target.value)}
                     placeholder={t("wifi.keyMin")} autoComplete="new-password"
-                    error={key.length > 0 && key.length < 8} />
+                    error={key.length < 8} />
                 </div>
                 <Button variant="secondary" size="sm" icon={Shuffle} className="h-[var(--input-h)]" onClick={() => setKey(generate())}>
                   {t("wifi.generateKey")}
                 </Button>
               </div>
+              {key.length < 8 && (
+                <p className="text-caption text-danger -mt-1">{t("guest.keyMinHint")}</p>
+              )}
               <div className="flex gap-2">
                 <Button size="sm" loading={busy} disabled={!ssid.trim() || key.length < 8}
                   onClick={() => apply(true, { ssid, key })}>

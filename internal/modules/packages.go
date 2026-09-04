@@ -82,6 +82,29 @@ func ListOptionalPackages() []OptionalPkg {
 	return out
 }
 
+// ResolveOptionalPackageIDs validates ids against the catalog and returns the
+// flat package list for those entries, skipping already-installed ones.
+func ResolveOptionalPackageIDs(ids []string) ([]string, error) {
+	pkgs := []string{}
+	for _, id := range ids {
+		var entry *OptionalPkg
+		for i := range optionalCatalog {
+			if optionalCatalog[i].ID == id {
+				entry = &optionalCatalog[i]
+				break
+			}
+		}
+		if entry == nil {
+			return nil, fmt.Errorf("unknown package set: %q", id)
+		}
+		if optionalPkgInstalled(*entry) {
+			continue
+		}
+		pkgs = append(pkgs, entry.Packages...)
+	}
+	return pkgs, nil
+}
+
 // InstallOptionalPackages installs the catalog entries with the given ids.
 // Ids are validated against the catalog; already installed entries are
 // skipped. Returns the ids actually installed.

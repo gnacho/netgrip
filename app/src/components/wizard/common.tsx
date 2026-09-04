@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
+import { useCallback, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui";
+import { api, type InstallJob } from "../../api";
 
 /** Lo que el wizard ha aplicado en esta sesión (alimenta el resumen final). */
 export interface WizardRecord {
@@ -154,4 +156,52 @@ export function encLabel(enc: string): string {
   if (enc === "sae-mixed") return "WPA2/WPA3";
   if (enc.startsWith("psk")) return "WPA2";
   return enc.toUpperCase();
+}
+
+/** Instalación asíncrona de paquetes: POST rápido + polling del job hasta done/error. */
+export function useInstallJob() {
+  const [job, setJob] = useState<InstallJob | null>(null);
+  const [running, setRunning] = useState(false);
+
+  const begin = useCallback(async (run: () => Promise<{ job: InstallJob }>) => {
+    setRunning(true);
+    setJob({ phase: "idle", total: 0, done: 0 });
+    try {
+      let j = (await run()).job;
+      setJob(j);
+      while (j.phase === "idle" || j.phase === "updating" || j.phase === "installing") {
+        await new Promise((r) => setTimeout(r, 1000));
+        j = (await api.installJob()).job;
+        setJob(j);
+      }
+      return j;
+    } finally {
+      setRunning(false);
+    }
+  }, []);
+
+  return { job, running, begin };
+}
+
+/** Barra de progreso + estado de la instalación de paquetes. */
+export function InstallProgress({ job }: { job: InstallJob | null }) {
+  const { t } = useTranslation();
+  if (!job || job.phase === "idle") return null;
+  const pct = job.total > 0 ? Math.round((job.done / job.total) * 100) : 0;
+  const label =
+    job.phase === "updating" ? t("wizard.packages.updating") :
+      job.phase === "installing"
+        ? t("wizard.packages.installing", { current: job.current, done: job.done, total: job.total })
+        : job.phase === "done" ? t("wizard.packages.done") : null;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-2 text-small text-muted">
+        <span className="truncate">{label ?? ""}</span>
+        {job.total > 0 && <span className="font-mono shrink-0">{job.done}/{job.total}</span>}
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+        <div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
 }

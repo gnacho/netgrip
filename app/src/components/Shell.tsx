@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import { ArrowLeftRight, Blocks, ChartColumn, Download, HardDrive, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, Smartphone, Wifi, Wrench } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
-import type { Board, Client, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MDNSProbe, ModeProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
+import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MDNSProbe, ModeProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
 import { Badge, Banner, Button, Drawer, Pill, StatusDot, ThemeToggle, ToastProvider } from "./ui";
 import { Logo } from "./ui/illustrations";
@@ -72,7 +72,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   const [drift, setDrift] = useState<DriftProbe>();
   const [storage, setStorage] = useState<StorageProbe>();
   const [wireless, setWireless] = useState<WirelessRadio[]>();
-  const [clients, setClients] = useState<Client[]>();
   const [loadError, setLoadError] = useState(false);
   const [failCount, setFailCount] = useState(0);
   const [demoBannerDismissed, setDemoBannerDismissed] = useState(false);
@@ -127,7 +126,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     api.drift().then(setDrift).catch(() => {});
     api.storage().then(setStorage).catch(() => {});
     api.wireless().then(setWireless).catch(() => {});
-    api.clients().then((r) => setClients(r.clients)).catch(() => {});
   }, []);
 
   const health = useHealthScore({ system, wan, drift, mode, wireless });
@@ -155,12 +153,8 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   // Badges §7.1. Sistema (#157): solo cuenta una versión de firmware
   // realmente nueva; los paquetes actualizables y las reconstrucciones
   // same_version NO son alertas (la paquetería vive en LuCI/CLI).
-  const servicesActive = [wg?.active, ddns?.entries.some((e) => e.enabled), mdns?.enabled, sqm?.active, ipv6?.state === "enabled", ovpn?.active, ts?.running]
-    .filter(Boolean).length;
   const firmwarePending = update?.available && !update.same_version ? 1 : 0;
   const badgeFor = (id: Page): { n: number; tone: "accent" | "warn" } | undefined => {
-    if (id === "clients" && clients && clients.length > 0) return { n: clients.length, tone: "accent" };
-    if (id === "services" && servicesActive > 0) return { n: servicesActive, tone: "accent" };
     if (id === "system" && firmwarePending > 0) return { n: firmwarePending, tone: "warn" };
     return undefined;
   };

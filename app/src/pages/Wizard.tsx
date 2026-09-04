@@ -140,8 +140,7 @@ export function Wizard({ onDone }: { onDone: () => void }) {
           <SetupDependenciesStep
             probe={setup}
             onBack={prev}
-            onInstall={async (mode, groups) => {
-              await api.installWizardSetup(mode, groups);
+            onDone={() => {
               setSetup((s) => s ? { ...s, groups: s.groups.map((g) => ({ ...g, packages: [] })) } : s);
               next();
             }}

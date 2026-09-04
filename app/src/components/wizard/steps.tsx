@@ -18,6 +18,7 @@ import { QrBox, useWifiQr } from "../wifi/qr";
 import { useActionCycle } from "../wifi/action";
 import {
   Reveal, StepFooter, StepShell, StrengthMeter, encLabel, genKey, type WizardRecord,
+  useInstallJob, InstallProgress,
 } from "./common";
 
 export { SetupDependenciesStep } from "./SetupDependenciesStep";
@@ -597,11 +598,11 @@ export function PackagesStep({ items, onSaved, onSkip, onBack }: {
   onBack: () => void;
 }) {
   const { t } = useTranslation();
+  const { job, running, begin } = useInstallJob();
   // Por defecto recomendamos instalar todo ya: los checkboxes nacen marcados.
   const installableIds = () => items.filter((p) => !p.installed).map((p) => p.id);
   const [mode, setMode] = useState<PkgMode>("all");
   const [selected, setSelected] = useState<Set<string>>(() => new Set(installableIds()));
-  const [busy, setBusy] = useState(false);
   const [fatal, setFatal] = useState<string>();
   const [fails, setFails] = useState(0);
 
@@ -622,16 +623,18 @@ export function PackagesStep({ items, onSaved, onSkip, onBack }: {
 
   const save = async () => {
     if (selected.size === 0) { onSkip(); return; }
-    setBusy(true);
     setFatal(undefined);
     try {
-      const res = await api.wizardPackages([...selected]);
-      onSaved(res.installed);
+      const j = await begin(() => api.wizardPackages([...selected]));
+      if (j.phase === "done") {
+        onSaved(j.installed ?? []);
+      } else {
+        setFatal(j.error || t("error.network"));
+        setFails((f) => f + 1);
+      }
     } catch (e) {
       setFatal(e instanceof Error ? e.message : t("error.network"));
       setFails((f) => f + 1);
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -648,10 +651,11 @@ export function PackagesStep({ items, onSaved, onSkip, onBack }: {
       footer={
         <>
           {fatal && <Banner tone="danger" className="mt-4">{fatal}</Banner>}
+          <InstallProgress job={job} />
           <StepFooter
             onBack={onBack}
             onNext={save}
-            busy={busy}
+            busy={running}
             onSkip={onSkip}
             fails={fails}
             nextLabel={selected.size > 0 ? t("wizard.packages.install", { count: selected.size }) : undefined}
@@ -669,7 +673,7 @@ export function PackagesStep({ items, onSaved, onSkip, onBack }: {
                 type="button"
                 role="radio"
                 aria-checked={active}
-                disabled={busy}
+                disabled={running}
                 onClick={() => chooseMode(m.id)}
                 className={`flex flex-col items-start gap-1 rounded-lg border p-4 text-left ring-focus
                   transition-colors duration-[var(--dur-fast)] disabled:opacity-60
@@ -703,7 +707,7 @@ export function PackagesStep({ items, onSaved, onSkip, onBack }: {
                   type="checkbox"
                   className="sr-only"
                   checked={checked}
-                  disabled={p.installed || busy}
+                  disabled={p.installed || running}
                   onChange={() => toggle(p.id)}
                 />
                 <span

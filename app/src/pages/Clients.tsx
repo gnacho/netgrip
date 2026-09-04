@@ -395,7 +395,7 @@ export function ClientsPage() {
           <div className="relative hidden sm:block">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("clients.search")} className="w-56 pl-8" aria-label={t("clients.search")} />
+              placeholder={t("clients.search")} className="w-[21rem] pl-8" aria-label={t("clients.search")} />
           </div>
         </div>}>
         {error ? (
