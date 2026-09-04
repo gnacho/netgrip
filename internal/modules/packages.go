@@ -190,16 +190,52 @@ func parseUpgradable(out string) []PkgUpgrade {
 }
 
 // ListUpgradable refreshes the apk indexes (bounded) and returns the
-// user-space packages with upgrades available.
+// user-space packages with upgrades available. On opkg (older releases)
+// it falls back to `opkg list-upgradable`; if that is unavailable it
+// returns an empty list instead of erroring (upgrades there go via ASU).
 func ListUpgradable() ([]PkgUpgrade, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-	defer cancel()
-	_ = exec.CommandContext(ctx, "apk", "update").Run()
-	out, err := exec.Command("apk", "list", "--upgradable").Output()
-	if err != nil {
-		return nil, fmt.Errorf("apk list --upgradable: %w", err)
+	if _, err := exec.LookPath("apk"); err == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		defer cancel()
+		_ = exec.CommandContext(ctx, "apk", "update").Run()
+		out, err := exec.Command("apk", "list", "--upgradable").Output()
+		if err != nil {
+			return nil, fmt.Errorf("apk list --upgradable: %w", err)
+		}
+		return parseUpgradable(string(out)), nil
 	}
-	return parseUpgradable(string(out)), nil
+	out, err := exec.Command("opkg", "list-upgradable").Output()
+	if err != nil {
+		return []PkgUpgrade{}, nil
+	}
+	return parseOpkgUpgradable(string(out)), nil
+}
+
+// parseOpkgUpgradable parses `opkg list-upgradable` output (one package per
+// line, "name - version - description").
+func parseOpkgUpgradable(out string) []PkgUpgrade {
+	var pkgs []PkgUpgrade
+	for _, line := range strings.Split(out, "\n") {
+		f := strings.Fields(strings.TrimSpace(line))
+		if len(f) == 0 {
+			continue
+		}
+		name := f[0]
+		if !rePkgName.MatchString(name) || !pkgAllowed(name) {
+			continue
+		}
+		version := ""
+		if len(f) >= 3 && f[1] == "-" {
+			version = f[2]
+		} else if len(f) >= 2 {
+			version = f[1]
+		}
+		pkgs = append(pkgs, PkgUpgrade{Name: name, Available: version})
+	}
+	if pkgs == nil {
+		return []PkgUpgrade{}
+	}
+	return pkgs
 }
 
 // UpgradePackage upgrades one user-space package via apk add.
