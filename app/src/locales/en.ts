@@ -20,6 +20,7 @@ export default {
     refresh: "Refresh",
     theme: "Toggle theme",
     overview: "Overview",
+    wan: "WAN",
     clients: "Clients",
     coverage: "Coverage",
     services: "Services",
