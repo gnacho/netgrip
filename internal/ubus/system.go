@@ -1,7 +1,6 @@
 package ubus
 
 import (
-	"bufio"
 	"encoding/json"
 	"os"
 	"strconv"
@@ -56,52 +55,56 @@ func GetSystemInfo() (*SystemInfo, error) {
 	info.Memory = payload.Memory
 	info.Root = payload.Root
 
-	// On ubifs/overlay routers MemAvailable is pessimistic (it does not
-	// discount the dentry cache), so (total-available)/total overreports
-	// the used percentage (e.g. 75% when the real usage is ~20%). Recompute
-	// available as free + buffers + cached + SReclaimable (/proc/meminfo),
-	// which is what can actually be reclaimed, and expose it.
-	if mem := readMeminfo(); len(mem) > 0 {
-		total := mem["MemTotal"] * 1024
-		available := (mem["MemFree"] + mem["Buffers"] + mem["Cached"] + mem["SReclaimable"]) * 1024
-		if total > 0 && available > 0 {
-			info.Memory.Available = available
-			if info.Memory.Total == 0 {
-				info.Memory.Total = total
-			}
-		}
+	// /proc/meminfo is misleading on ubifs/overlay routers: MemAvailable is
+	// pessimistic and the squashfs page cache is not counted as free, so
+	// (total-available)/total overreports (75% when most is reclaimable
+	// cache, still ~59% after discounting cached/sreclaimable). What a panel
+	// user really wants is the memory held by processes. Report the used as
+	// the sum of process VmRSS, so an AP with ~70 MB of processes shows ~17%
+	// instead of an inflated figure.
+	if rss := sumProcRSS(); rss > 0 && info.Memory.Total > rss {
+		info.Memory.Available = info.Memory.Total - rss
 	}
 	return info, nil
 }
 
-// readMeminfo returns /proc/meminfo values in KiB (per-line key -> value).
-func readMeminfo() map[string]int64 {
-	data, err := os.ReadFile("/proc/meminfo")
+// sumProcRSS sums the VmRSS of every user-space process (/proc/<pid>/status),
+// i.e. the memory actually held by processes (kernel page cache excluded).
+func sumProcRSS() int64 {
+	entries, err := os.ReadDir("/proc")
 	if err != nil {
-		return nil
+		return 0
 	}
-	return parseMeminfo(string(data))
+	var total int64
+	for _, e := range entries {
+		pid := e.Name()
+		if !isDigits(pid) {
+			continue
+		}
+		b, err := os.ReadFile("/proc/" + pid + "/status")
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(b), "\n") {
+			if strings.HasPrefix(line, "VmRSS:") {
+				fields := strings.Fields(line)
+				if len(fields) >= 2 {
+					if v, err := strconv.ParseInt(fields[1], 10, 64); err == nil {
+						total += v * 1024
+					}
+				}
+				break
+			}
+		}
+	}
+	return total
 }
 
-// parseMeminfo parses the /proc/meminfo text format (key: value KiB).
-func parseMeminfo(text string) map[string]int64 {
-	out := map[string]int64{}
-	sc := bufio.NewScanner(strings.NewReader(text))
-	for sc.Scan() {
-		line := sc.Text()
-		sep := strings.IndexByte(line, ':')
-		if sep < 0 {
-			continue
-		}
-		key := strings.TrimSpace(line[:sep])
-		fields := strings.Fields(line[sep+1:])
-		if len(fields) == 0 {
-			continue
-		}
-		v, err := strconv.ParseInt(fields[0], 10, 64)
-		if err == nil {
-			out[key] = v
+func isDigits(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
 		}
 	}
-	return out
+	return len(s) > 0
 }
