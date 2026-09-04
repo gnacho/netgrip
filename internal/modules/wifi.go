@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gnacho/netgrip/internal/executor"
 	"github.com/gnacho/netgrip/internal/ubus"
@@ -161,8 +162,8 @@ func SetWifiRadio(edit RadioEdit) (*ubus.WirelessRadio, bool, error) {
 	}
 	_ = executor.Run(executor.Op{Kind: "wifi_reload", Args: []string{edit.Radio}})
 
-	radio, perr := radioFromStatus(edit.Radio)
-	if perr != nil || !radioHealthy(edit, radio) {
+	radio, perr := waitRadioHealthy(edit)
+	if perr != nil {
 		rollback()
 		return &ubus.WirelessRadio{}, true, fmt.Errorf("radio healthcheck failed, rolled back")
 	}
@@ -216,6 +217,23 @@ func radioFromStatus(name string) (*ubus.WirelessRadio, error) {
 		}
 	}
 	return nil, fmt.Errorf("radio %q not found", name)
+}
+
+// waitRadioHealthy polls the radio up to ~16s after a reload: the interface
+// needs a moment to come back up, so an immediate read could wrongly report a
+// change as a failure (false rollback). Only after the window is it fatal.
+func waitRadioHealthy(edit RadioEdit) (*ubus.WirelessRadio, error) {
+	var last *ubus.WirelessRadio
+	for i := 0; i < 8; i++ {
+		if r, err := radioFromStatus(edit.Radio); err == nil {
+			last = r
+			if radioHealthy(edit, r) {
+				return r, nil
+			}
+		}
+		time.Sleep(2 * time.Second)
+	}
+	return last, fmt.Errorf("radio %q did not stabilise", edit.Radio)
 }
 
 // wifiUIFIState synthesises a WifiUI for a disabled (not enumerated) radio.
