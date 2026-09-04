@@ -113,7 +113,8 @@ export function SwitchCard({ index = 2 }: { index?: number }) {
                         autoFocus
                         onKeyDown={(e) => e.key === "Enter" && saveDesc()}
                         aria-label={t("switch.description")}
-                        className="!h-8 text-small"
+                        placeholder={t("switch.addPlaceholder")}
+                        className="!h-9 text-small"
                       />
                       <Button size="sm" onClick={saveDesc} loading={busyPort === p.name}>{t("lan.save")}</Button>
                       <Button size="sm" variant="ghost" onClick={() => setEditDesc(undefined)}>{t("common.cancel")}</Button>

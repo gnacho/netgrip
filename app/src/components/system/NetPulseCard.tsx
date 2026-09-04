@@ -21,6 +21,7 @@ export function NetPulseCard({ index = 0 }: { index?: number }) {
   const [token, setToken] = useState("");
   const [enabled, setEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [restarting, setRestarting] = useState(false);
   const [, forceTick] = useState(0);
 
   const refresh = () => {
@@ -114,6 +115,19 @@ export function NetPulseCard({ index = 0 }: { index?: number }) {
       <div className="flex gap-2 mt-4">
         <Button onClick={save} loading={saving} disabled={!server || !slug || (enabled && !state?.configured && !token)}>
           {t("netpulse.save")}
+        </Button>
+        <Button variant="secondary" onClick={async () => {
+          setRestarting(true);
+          try {
+            await api.restartAgent();
+            push({ tone: "ok", text: t("netpulse.restartDone") });
+          } catch (e) {
+            push({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
+          } finally {
+            setRestarting(false);
+          }
+        }} loading={restarting}>
+          {t("netpulse.restartAgent")}
         </Button>
       </div>
     </Card>

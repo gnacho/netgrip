@@ -46,12 +46,12 @@ export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChang
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-6 md:gap-8">
-      {/* VPN — para entrar a tu casa desde fuera */}
+      {/* Bloqueo y reglas — el bloqueador de anuncios arriba */}
       <section className="flex flex-col gap-[var(--card-gap)]">
-        <GroupHeader index={0} title={t("services.groupVpn")} desc={t("services.groupVpnDesc")} />
-        <WireguardCard probe={wg} onChange={onWgChange} index={0} />
-        <OpenvpnCard probe={ovpn} onChange={onOvpnChange} index={1} />
-        <TailscaleCard probe={ts} onChange={onTsChange} index={1} />
+        <GroupHeader index={0} title={t("services.groupRules")} desc={t("services.groupRulesDesc")} />
+        <AdguardCard index={0} />
+        <NlbwmonCard index={0} />
+        {!apMode && <FirewallCard index={0} />}
       </section>
 
       {/* Tu conexión — cómo sale tu casa a Internet */}
@@ -63,12 +63,12 @@ export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChang
         {!apMode && <SqmCard probe={sqm} onChange={onSqmChange} index={2} />}
       </section>
 
-      {/* Registro y reglas */}
+      {/* VPN — para entrar a tu casa desde fuera (al final) */}
       <section className="flex flex-col gap-[var(--card-gap)]">
-        <GroupHeader index={4} title={t("services.groupRules")} desc={t("services.groupRulesDesc")} />
-        <NlbwmonCard index={4} />
-        {!apMode && <FirewallCard index={4} />}
-        <AdguardCard index={4} />
+        <GroupHeader index={4} title={t("services.groupVpn")} desc={t("services.groupVpnDesc")} />
+        <WireguardCard probe={wg} onChange={onWgChange} index={4} />
+        <OpenvpnCard probe={ovpn} onChange={onOvpnChange} index={4} />
+        <TailscaleCard probe={ts} onChange={onTsChange} index={4} />
       </section>
     </div>
   );

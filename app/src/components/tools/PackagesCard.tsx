@@ -4,6 +4,7 @@ import { Package, Trash2 } from "lucide-react";
 import { api } from "../../api";
 import type { OptionalPackage } from "../../types";
 import { Button, Card, ConfirmDialog, Pill, SkeletonRows, useToast } from "../ui";
+import { useInstallJob } from "../wizard/common";
 
 /**
  * Paquetes opcionales (issue #202): catálogo con estado real, instalación y
@@ -13,6 +14,7 @@ import { Button, Card, ConfirmDialog, Pill, SkeletonRows, useToast } from "../ui
 export function PackagesCard({ index = 0 }: { index?: number }) {
   const { t } = useTranslation();
   const { push } = useToast();
+  const { begin } = useInstallJob();
   const [pkgs, setPkgs] = useState<OptionalPackage[]>();
   const [busyId, setBusyId] = useState<string>();
   const [delTarget, setDelTarget] = useState<OptionalPackage>();
@@ -31,7 +33,9 @@ export function PackagesCard({ index = 0 }: { index?: number }) {
   const install = async (id: string) => {
     setBusyId(id);
     try {
-      await api.wizardPackages([id]);
+      const j = await begin(() => api.wizardPackages([id]));
+      if (j.phase === "done") push({ tone: "ok", text: t("packages.installed") });
+      else push({ tone: "danger", text: j.error || t("error.network") });
       load();
     } catch (e) {
       push({ tone: "danger", text: e instanceof Error ? e.message : String(e) });

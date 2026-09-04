@@ -63,6 +63,9 @@ export function MdnsCard({ probe, onChange, index = 0 }: {
           <code className="text-foreground">{local.domain}</code>
         </p>
       )}
+      {local.enabled && (
+        <p className="text-caption text-muted mt-1"> {t("mdns.domainHint")}</p>
+      )}
     </Card>
   );
 }
