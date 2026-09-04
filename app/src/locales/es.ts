@@ -1761,6 +1761,8 @@ export default {
     tokenSet: "Token guardado; se conserva si lo dejas vacío",
     save: "Guardar",
     saved: "Configuración guardada",
+    restartAgent: "Reiniciar agente",
+    restartDone: "Agente reiniciado.",
     pushOk: "Enviando (último push {{time}})",
     pushFail: "Push fallido (último OK {{time}})",
     never: "nunca",

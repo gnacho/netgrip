@@ -522,8 +522,7 @@ export const demoApi: typeof api = {
       configured: cfg.enabled ? true : state.netpulse.configured,
       server: cfg.server || state.netpulse.server,
       slug: cfg.slug || state.netpulse.slug,
-    };
-    return {
+    };    return {
       ...state.netpulse,
       phase: cfg.enabled ? "connected" : "searching",
       discovery: { foundServer: cfg.server || state.netpulse.server, lastDiscoveryAt: new Date().toISOString(), lastEnrollNote: "" },
@@ -531,6 +530,7 @@ export const demoApi: typeof api = {
       standaloneReplacedAt: null,
     };
   },
+  restartAgent: async () => { await wait(200, 500); return { ok: true }; },
   nftqos: () => get({ ...state.nftqos }),
   setNftqos: async (limit) => {
     await wait(800, 1500);

@@ -201,6 +201,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/push-config/push", s.requireAuth(s.handlePushSnapshot))
 	s.mux.HandleFunc("POST /api/executor/apply", s.handleExecutorApply)
 	s.mux.HandleFunc("GET /api/executor/token", s.requireAuth(s.handleExecutorToken))
+	s.mux.HandleFunc("POST /api/netpulse/agent/restart", s.handleAgentRestart)
 	return s
 }
 
@@ -2071,6 +2072,31 @@ func (s *Server) handleExecutorApply(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlePushConfigGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, modules.GetPushConfig())
+}
+
+// handleAgentRestart restarts the embedded NetPulse agent. Accepts either a
+// local session (UI) or the executor Bearer token, so the NetPulse server can
+// trigger it remotely.
+func (s *Server) handleAgentRestart(w http.ResponseWriter, r *http.Request) {
+	authorized := false
+	if c, err := r.Cookie(sessionCookie); err == nil && auth.ValidSessionToken(c.Value) && !s.isRevoked(c.Value) {
+		authorized = true
+	}
+	if !authorized {
+		authH := r.Header.Get("Authorization")
+		if strings.HasPrefix(authH, "Bearer ") && modules.ValidateExecutorToken(strings.TrimPrefix(authH, "Bearer ")) {
+			authorized = true
+		}
+	}
+	if !authorized {
+		writeError(w, http.StatusUnauthorized, "login required")
+		return
+	}
+	if err := modules.RestartNetPulseAgent(); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
 }
 
 func (s *Server) handlePushConfigSet(w http.ResponseWriter, r *http.Request) {
