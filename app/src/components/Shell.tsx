@@ -145,7 +145,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   }, [usteerAps]);
   const visible = (id: Page) => {
     if (isSwitch && (id === "wifi" || id === "services")) return false;
-    if (apMode && (id === "lan" || id === "ports")) return false;
+    if (apMode && (id === "lan" || id === "ports" || id === "wan")) return false;
     if (id === "storage" && !storage?.applicable) return false;
     if (id === "coverage" && !usteerMultiRouter) return false;
     return true;
