@@ -108,9 +108,10 @@ func ListClients(requesterIP string) []Client {
 			if wifiPorts[port] {
 				continue
 			}
+			cableBlk := cableBlockedSet()
 			for _, mac := range macs {
 				mac = strings.ToLower(mac)
-				c := Client{MAC: mac, Type: "cable", Iface: port, Blocked: len(denied[mac]) > 0}
+				c := Client{MAC: mac, Type: "cable", Iface: port, Blocked: len(denied[mac]) > 0 || cableBlk[mac]}
 				fillIdentity(&c, mac, requesterIP, leaseSource, byMac, arp)
 				c.Reserved = reserved[mac]
 				c.Reservable = c.IP != ""
@@ -639,25 +640,7 @@ func BlockedClients() []BlockedClient {
 		})
 	}
 	// Wired: firewall rules written by setCableBlocked.
-	cmdOut, _ := exec.Command("sh", "-c", "uci show firewall | grep 'src_mac='").Output()
-	for _, line := range strings.Split(string(cmdOut), "\n") {
-		line = strings.TrimSpace(line)
-		if !strings.Contains(line, "=netgrip-block-") {
-			continue
-		}
-		// firewall.netgrip_block_<mac>.src_mac='<mac>'
-		eq := strings.Index(line, ".src_mac=")
-		if eq < 0 {
-			continue
-		}
-		start := strings.LastIndex(line[:eq], ".")
-		if start < 0 {
-			continue
-		}
-		mac := strings.ToLower(strings.Trim(line[eq+len(".src_mac="):], "'\""))
-		if !reMac.MatchString(mac) {
-			continue
-		}
+	for mac := range cableBlockedSet() {
 		already := false
 		for i := range out {
 			if out[i].MAC == mac {
@@ -671,6 +654,41 @@ func BlockedClients() []BlockedClient {
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].MAC < out[j].MAC })
+	return out
+}
+
+// cableBlockedSet returns the MACs of wired clients currently blocked by a
+// firewall REJECT rule written by setCableBlocked (netgrip_block_* sections).
+func cableBlockedSet() map[string]bool {
+	cmdOut, _ := exec.Command("sh", "-c", "uci show firewall | grep 'src_mac='").Output()
+	return parseCableBlocked(string(cmdOut))
+}
+
+// parseCableBlocked extracts the MACs from `uci show firewall` output lines
+// that belong to a netgrip_block_* section (src_mac='<mac>').
+func parseCableBlocked(output string) map[string]bool {
+	out := map[string]bool{}
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+		line = strings.TrimSpace(line)
+		// Only the netgrip_block_* sections written by setCableBlocked count;
+		// the section name carries the MAC without separators.
+		if !strings.Contains(line, ".netgrip_block_") {
+			continue
+		}
+		// firewall.netgrip_block_<mac>.src_mac='<mac>'
+		eq := strings.Index(line, ".src_mac=")
+		if eq < 0 {
+			continue
+		}
+		start := strings.LastIndex(line[:eq], ".")
+		if start < 0 {
+			continue
+		}
+		mac := strings.ToLower(strings.Trim(line[eq+len(".src_mac="):], "'\""))
+		if reMac.MatchString(mac) {
+			out[mac] = true
+		}
+	}
 	return out
 }
 
