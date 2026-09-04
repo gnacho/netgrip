@@ -1129,6 +1129,7 @@ export default {
     hostIp: "IP",
     hostName: "Nombre de host",
     agenda: "DNS: la agenda de nombres",
+    dnsSaved: "Servidores DNS guardados.",
     rebindShort: "Protección anti-rebind",
     rebindDesc: "Bloquea trucos de webs maliciosas para alcanzar equipos de tu casa. Déjala activada.",
     overrideShort: "DNS personalizados",

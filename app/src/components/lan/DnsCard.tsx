@@ -4,7 +4,7 @@ import { BookText, CloudOff, Lock, Server, ShieldCheck, Trash2 } from "lucide-re
 import { api } from "../../api";
 import type { DNSConfig } from "../../types";
 import {
-  ActionBanner, Banner, Button, Card, EmptyState, Field, SettingRow, SkeletonRows,
+  ActionBanner, Banner, Button, Card, EmptyState, Field, SettingRow, SkeletonRows, useToast,
 } from "../ui";
 import { useActionCycle } from "../wifi/action";
 import { isValidIp } from "./LanConfigCard";
@@ -14,7 +14,11 @@ type DnsKey = "rebind_protection" | "override_dns" | "dns_vpn";
 /** Card "DNS: la agenda de nombres" (lan.md §3). */
 export function DnsCard({ index = 1 }: { index?: number }) {
   const { t } = useTranslation();
+  const { push } = useToast();
   const [cfg, setCfg] = useState<DNSConfig>();
+  const [lan, setLan] = useState<import("../../types").LANConfig>();
+  const [dns1, setDns1] = useState("");
+  const [dns2, setDns2] = useState("");
   const [error, setError] = useState(false);
   const [vpnActive, setVpnActive] = useState<boolean>();
   const { phase, detail, busy, run, clear } = useActionCycle();
@@ -25,6 +29,11 @@ export function DnsCard({ index = 1 }: { index?: number }) {
     setError(false);
     try {
       setCfg(await api.dns());
+      api.lan().then((l) => {
+        setLan(l);
+        setDns1(l.dhcp.dns1 ?? "");
+        setDns2(l.dhcp.dns2 ?? "");
+      }).catch(() => {});
     } catch {
       setError(true);
     }
@@ -39,6 +48,15 @@ export function DnsCard({ index = 1 }: { index?: number }) {
     run(() => api.setDns({ [key]: value })).then((res) => {
       if (res?.status === "applied") setCfg(res.state);
     });
+  };
+
+  const saveDns = async () => {
+    if (!lan) return;
+    const res = await run(() => api.setDhcp({ ...lan.dhcp, dns1: dns1.trim(), dns2: dns2.trim() }));
+    if (res?.status === "applied") {
+      setLan(res.state);
+      push({ tone: "ok", text: t("dns.dnsSaved") });
+    }
   };
 
   const host = (remove: boolean) => {
@@ -97,6 +115,16 @@ export function DnsCard({ index = 1 }: { index?: number }) {
               />
             ))}
           </div>
+
+          {cfg.override_dns && (
+            <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto] items-end">
+              <Field label={t("lan.dns1")} mono
+                inputProps={{ value: dns1, onChange: (e) => setDns1(e.target.value), placeholder: t("lan.optional") }} />
+              <Field label={t("lan.dns2")} mono
+                inputProps={{ value: dns2, onChange: (e) => setDns2(e.target.value), placeholder: t("lan.optional") }} />
+              <Button size="sm" onClick={saveDns} loading={busy}>{t("lan.save")}</Button>
+            </div>
+          )}
 
           <div className="mt-2 border-t border-border/60 pt-4">
             <p className="text-body font-medium">{t("dns.hostsTitle")}</p>
