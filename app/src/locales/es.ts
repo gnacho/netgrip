@@ -1605,6 +1605,7 @@ export default {
       seeCatalog: "Ver catálogo de paquetes",
       customHint: "En el siguiente paso podrás marcar los servicios opcionales uno a uno.",
       apkOrOpkg: "NetGrip detecta automáticamente si tu router usa apk (OpenWrt 25.12+) u opkg (versiones anteriores).",
+      installFailed: "La instalación de paquetes ha fallado. Comprueba la conexión del router a internet e inténtalo de nuevo.",
       canInstallLater: "Puedes instalar o quitar paquetes en cualquier momento desde el panel; no hay prisa.",
     },
     step: {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Check, ChevronDown, ChevronUp, Download, Info, ListChecks, Package, ShieldCheck,
+  AlertTriangle, Check, ChevronDown, ChevronUp, Download, Info, ListChecks, Package, ShieldCheck,
   Sparkles, Wrench,
 } from "lucide-react";
 import { Banner, Pill } from "../ui";
@@ -25,6 +25,7 @@ export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
   const [mode, setMode] = useState<InstallMode>("full");
   const [showDetails, setShowDetails] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [installError, setInstallError] = useState<string | null>(null);
 
   const groupByID = (id: string) => probe.groups.find((g) => g.id === id);
   const selectedGroupIDs = mode === "minimal"
@@ -58,8 +59,11 @@ export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
 
   const install = async () => {
     setBusy(true);
+    setInstallError(null);
     try {
       await onInstall(mode, selectedGroupIDs);
+    } catch (e) {
+      setInstallError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -97,6 +101,17 @@ export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
       }
     >
       <div className="space-y-4">
+        {installError && (
+          <Banner tone="danger">
+            <span className="flex items-start gap-2">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              <span>
+                <span className="block font-medium">{t("wizard.setup.installFailed")}</span>
+                <span className="mt-0.5 block font-mono text-caption break-all">{installError}</span>
+              </span>
+            </span>
+          </Banner>
+        )}
         <div className="grid grid-cols-1 gap-3" role="radiogroup" aria-label={t("wizard.setup.title")}>
           {modes.map((m) => {
             const active = mode === m.id;
