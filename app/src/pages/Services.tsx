@@ -26,7 +26,7 @@ function GroupHeader({ title, desc, index }: { title: string; desc: string; inde
  * Servicios (services.md): toggles con superpoderes agrupados por tarea.
  * Entrada escalonada por grupo (VPN inmediato, siguientes +80ms).
  */
-export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChange, mdns, onMdnsChange, sqm, onSqmChange, ovpn, onOvpnChange, ts, onTsChange }: {
+export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChange, mdns, onMdnsChange, sqm, onSqmChange, ovpn, onOvpnChange, ts, onTsChange, apMode = false }: {
   wg: WGProbe | undefined;
   onWgChange: (p: WGProbe) => void;
   ipv6: IPv6Probe | undefined;
@@ -41,6 +41,7 @@ export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChang
   onOvpnChange: (p: OVPNProbe) => void;
   ts: TSProbe | undefined;
   onTsChange: (p: TSProbe) => void;
+  apMode?: boolean;
 }) {
   const { t } = useTranslation();
   return (
@@ -56,17 +57,17 @@ export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChang
       {/* Tu conexión — cómo sale tu casa a Internet */}
       <section className="flex flex-col gap-[var(--card-gap)]">
         <GroupHeader index={2} title={t("services.groupConn")} desc={t("services.groupConnDesc")} />
-        <DdnsCard probe={ddns} onChange={onDdnsChange} index={2} />
+        {!apMode && <DdnsCard probe={ddns} onChange={onDdnsChange} index={2} />}
         <MdnsCard probe={mdns} onChange={onMdnsChange} index={2} />
-        <Ipv6Card probe={ipv6} onChange={onIpv6Change} index={2} />
-        <SqmCard probe={sqm} onChange={onSqmChange} index={2} />
+        {!apMode && <Ipv6Card probe={ipv6} onChange={onIpv6Change} index={2} />}
+        {!apMode && <SqmCard probe={sqm} onChange={onSqmChange} index={2} />}
       </section>
 
       {/* Registro y reglas */}
       <section className="flex flex-col gap-[var(--card-gap)]">
         <GroupHeader index={4} title={t("services.groupRules")} desc={t("services.groupRulesDesc")} />
         <NlbwmonCard index={4} />
-        <FirewallCard index={4} />
+        {!apMode && <FirewallCard index={4} />}
         <AdguardCard index={4} />
       </section>
     </div>
