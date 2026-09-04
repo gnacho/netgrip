@@ -297,7 +297,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         <LanPage />
       )}
       {activePage === "services" && (
-        <Services wg={wg} onWgChange={setWg} ipv6={ipv6} onIpv6Change={setIpv6} ddns={ddns} onDdnsChange={setDdns} mdns={mdns} onMdnsChange={setMdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} ts={ts} onTsChange={setTs} />
+        <Services wg={wg} onWgChange={setWg} ipv6={ipv6} onIpv6Change={setIpv6} ddns={ddns} onDdnsChange={setDdns} mdns={mdns} onMdnsChange={setMdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} ts={ts} onTsChange={setTs} apMode={apMode} />
       )}
       {activePage === "ports" && (
         <Ports fwd={fwd} onFwdChange={setFwd} />

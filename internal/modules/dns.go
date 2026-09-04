@@ -36,7 +36,7 @@ func ProbeDNS() *DNSConfig {
 	c := &DNSConfig{
 		Applicable:    dnsApplicable(),
 		RebindProtect: dnsmasqBool("rebind_protection"),
-		OverrideDNS:   dnsmasqBool("localservice"),
+		OverrideDNS:   !dnsmasqBool("localservice"),
 		DnsVpn:        dnsmasqBool("dns_vpn_local"),
 		AdGuardActive: dnsmasqBool("adguard_active") || uciGet("dhcp.lan.dhcp_option") != "",
 		Hosts:         parseHostsFile(hostsPath()),
