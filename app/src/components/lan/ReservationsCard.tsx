@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pin, Trash2 } from "lucide-react";
 import { api } from "../../api";
-import type { LANConfig } from "../../types";
+import type { Client, LANConfig } from "../../types";
 import {
   ActionBanner, Button, Card, ConfirmDialog, EmptyState, Field, Pill,
 } from "../ui";
@@ -24,8 +24,33 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
   const [rMac, setRMac] = useState("");
   const [rIp, setRIp] = useState("");
   const [confirmClear, setConfirmClear] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+
+  useEffect(() => {
+    api.clients().then((r) => setClients(r.clients)).catch(() => {});
+  }, []);
 
   const reservations = cfg.reservations;
+
+  // Primera IP libre del rango DHCP (start..start+limit-1) no reservada.
+  const defaultIp = () => {
+    const start = cfg.dhcp.start || 100;
+    const limit = cfg.dhcp.limit || 150;
+    const used = new Set(reservations.map((r) => r.ip));
+    for (let i = 0; i < limit; i++) {
+      const ip = `${cfg.ipaddr.split(".").slice(0, 3).join(".")}.${start + i}`;
+      if (!used.has(ip)) return ip;
+    }
+    return "";
+  };
+
+  const fillFromMac = (mac: string) => {
+    const c = clients.find((x) => x.mac?.toLowerCase() === mac.trim().toLowerCase());
+    if (c) {
+      if (c.name) setRName(c.name);
+      if (c.ip && isValidIp(c.ip)) setRIp(c.ip);
+    }
+  };
 
   const formError = useMemo(() => {
     if (!rMac && !rIp) return undefined;
@@ -109,11 +134,17 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
       <div className="mt-4 border-t border-border/60 pt-4">
         <div className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] items-end">
           <Field label={t("lan.name")}
-            inputProps={{ value: rName, onChange: (e) => setRName(e.target.value), placeholder: t("lan.namePlaceholder") }} />
+            inputProps={{ value: rName, onChange: (e) => setRName(e.target.value), placeholder: t("lan.namePlaceholder"), list: "resv-clients-name" }} />
           <Field label={t("lan.mac")} mono error={rMac && !MAC_RE.test(rMac.trim()) ? t("lan.invalidMac") : undefined}
-            inputProps={{ value: rMac, onChange: (e) => setRMac(e.target.value), placeholder: "00:11:22:33:44:55" }} />
+            inputProps={{ value: rMac, onChange: (e) => { setRMac(e.target.value); if (!rIp) setRIp(defaultIp()); }, onBlur: () => fillFromMac(rMac), placeholder: "00:11:22:33:44:55", list: "resv-clients" }} />
           <Field label="IP" mono error={rIp && !isValidIp(rIp) ? t("lan.invalidIp") : undefined}
-            inputProps={{ value: rIp, onChange: (e) => setRIp(e.target.value), placeholder: "192.168.8.10" }} />
+            inputProps={{ value: rIp, onFocus: () => { if (!rIp) setRIp(defaultIp()); }, onChange: (e) => setRIp(e.target.value), placeholder: "192.168.8.10" }} />
+          <datalist id="resv-clients">
+            {clients.map((c) => (c.mac ? <option key={c.mac} value={c.mac} label={c.name || c.ip || undefined}>{`${c.name || c.ip || ""} · ${c.mac}`}</option> : null))}
+          </datalist>
+          <datalist id="resv-clients-name">
+            {clients.map((c) => (c.name ? <option key={c.mac} value={c.name} label={c.ip || undefined}>{`${c.name} · ${c.ip || ""}`}</option> : null))}
+          </datalist>
           <Button size="sm" onClick={add} disabled={busy || !rMac || !rIp || !!formError} loading={busy}>
             {t("lan.pin")}
           </Button>
