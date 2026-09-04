@@ -4,9 +4,10 @@ import { AlertTriangle, Copy, Download, Globe, Lock, Plus, Trash2 } from "lucide
 import { api } from "../../api";
 import type { OVPNProbe } from "../../types";
 import {
-  ActionBanner, Banner, Button, Card, ConfirmDialog, EmptyState, Input,
+  ActionBanner, Banner, Button, Card, ConfirmDialog, Input,
   KeyValue, Modal, Pill, SettingRow, SkeletonRows, Toggle, useToast,
 } from "../ui";
+import { ServiceRow } from "./ServiceRow";
 import { useActionCycle } from "../wifi/action";
 import { downloadText, Reveal, TechName } from "./shared";
 
@@ -101,11 +102,10 @@ export function OpenvpnCard({ probe, onChange, index = 0 }: {
       {!probe ? (
         <SkeletonRows rows={3} />
       ) : !probe.installed ? (
-        <EmptyState
-          small
-          illustration={<Lock size={24} />}
+        <ServiceRow
+          icon={<Lock size={18} />}
           title={t("ovpn.notInstalled")}
-          body={t("services.installHint")}
+          description={t("services.installHint")}
           action={<Button size="sm" onClick={install} loading={installing}>{t("services.installNow")}</Button>}
         />
       ) : (

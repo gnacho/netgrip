@@ -4,9 +4,10 @@ import { Plus, QrCode, ShieldCheck, Trash2 } from "lucide-react";
 import { api } from "../../api";
 import type { WGPeer, WGProbe } from "../../types";
 import {
-  ActionBanner, AdvancedDisclosure, Button, Card, ConfirmDialog, EmptyState,
+  ActionBanner, AdvancedDisclosure, Button, Card, ConfirmDialog,
   Input, Modal, Pill, SettingRow, SkeletonRows, Toggle, useToast,
 } from "../ui";
+import { ServiceRow } from "./ServiceRow";
 import { QrBox } from "../wifi/qr";
 import { useActionCycle } from "../wifi/action";
 import { CopyButton, downloadText, Reveal, shortKey, TechName, useQrData } from "./shared";
@@ -90,11 +91,10 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
       {!probe ? (
         <SkeletonRows rows={3} />
       ) : !probe.installed ? (
-        <EmptyState
-          small
-          illustration={<ShieldCheck size={24} />}
+        <ServiceRow
+          icon={<ShieldCheck size={18} />}
           title={t("wg.notInstalled")}
-          body={t("services.installHint")}
+          description={t("services.installHint")}
           action={<Button size="sm" onClick={install} loading={installing}>{t("services.installNow")}</Button>}
         />
       ) : (

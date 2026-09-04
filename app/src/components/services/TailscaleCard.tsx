@@ -4,9 +4,10 @@ import { ExternalLink, Waypoints } from "lucide-react";
 import { api } from "../../api";
 import type { TSProbe } from "../../types";
 import {
-  ActionBanner, Banner, Button, Card, EmptyState, KeyValue, Pill,
+  ActionBanner, Banner, Button, Card, KeyValue, Pill,
   SettingRow, SkeletonRows, Toggle,
 } from "../ui";
+import { ServiceRow } from "./ServiceRow";
 import { useActionCycle } from "../wifi/action";
 import { CopyButton, Reveal, TechName } from "./shared";
 
@@ -52,11 +53,10 @@ export function TailscaleCard({ probe, onChange, index = 0 }: {
       {!probe ? (
         <SkeletonRows rows={3} />
       ) : !probe.installed ? (
-        <EmptyState
-          small
-          illustration={<Waypoints size={24} />}
+        <ServiceRow
+          icon={<Waypoints size={18} />}
           title={t("ts.notInstalled")}
-          body={t("services.installHint")}
+          description={t("services.installHint")}
           action={<Button size="sm" onClick={install} loading={installing}>{t("services.installNow")}</Button>}
         />
       ) : (
