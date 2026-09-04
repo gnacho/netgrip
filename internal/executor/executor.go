@@ -2,6 +2,7 @@ package executor
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,11 +16,109 @@ type Op struct {
 	Args []string `json:"args"`
 }
 
+// UnmarshalJSON accepts `args` both as the positional []string (internal form)
+// and as the object NetPulse sends ({config,section,option,value,...}); the
+// object form is converted into the internal key/value args per kind (#235).
+func (o *Op) UnmarshalJSON(b []byte) error {
+	var raw struct {
+		Kind string          `json:"kind"`
+		Args json.RawMessage `json:"args"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	o.Kind = raw.Kind
+	args, err := decodeOpArgs(raw.Kind, raw.Args)
+	if err != nil {
+		return err
+	}
+	o.Args = args
+	return nil
+}
+
+// decodeOpArgs turns the raw `args` JSON into the internal []string form.
+func decodeOpArgs(kind string, raw json.RawMessage) ([]string, error) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, nil
+	}
+	// Positional form: keep as-is.
+	var arr []string
+	if err := json.Unmarshal(raw, &arr); err == nil {
+		return arr, nil
+	}
+	// Object form: convert {config,section,option,value} / {service,action}
+	// into the internal positional args.
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil, fmt.Errorf("args must be an array or object")
+	}
+	get := func(k string) string {
+		if v, ok := m[k]; ok {
+			var s string
+			if err := json.Unmarshal(v, &s); err == nil {
+				return s
+			}
+			return strings.TrimSpace(string(v))
+		}
+		return ""
+	}
+	switch kind {
+	case "uci_set", "uci_add_list", "uci_del_list":
+		key := uciKeyFromObject(m)
+		return []string{key, get("value")}, nil
+	case "uci_delete":
+		return []string{uciKeyFromObject(m)}, nil
+	case "uci_commit":
+		return []string{get("config")}, nil
+	case "service":
+		name := get("service")
+		if name == "" {
+			name = get("name")
+		}
+		return []string{name, get("action")}, nil
+	case "install", "apk_install":
+		if p := get("package"); p != "" {
+			return []string{p}, nil
+		}
+		return []string{get("name")}, nil
+	default:
+		// Generic: collect the object values in a stable key order.
+		keys := []string{"config", "section", "option", "value", "service", "action"}
+		var out []string
+		for _, k := range keys {
+			if v := get(k); v != "" {
+				out = append(out, v)
+			}
+		}
+		return out, nil
+	}
+}
+
+func uciKeyFromObject(m map[string]json.RawMessage) string {
+	get := func(k string) string {
+		if v, ok := m[k]; ok {
+			var s string
+			if err := json.Unmarshal(v, &s); err == nil {
+				return s
+			}
+		}
+		return ""
+	}
+	key := get("config")
+	if s := get("section"); s != "" {
+		key += "." + s
+	}
+	if s := get("option"); s != "" {
+		key += "." + s
+	}
+	return key
+}
+
 var (
 	// UCI keys look like config.section.option. Sections may be named
 	// ("ddns.netgrip") or indexed ("network.@device[0]", the form printed
 	// by `uci show` for anonymous sections and accepted by the CLI).
-	reUCIKey = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.(@[a-zA-Z0-9_-]+\[\d+\]|[a-zA-Z0-9_@:-]+))+$`)
+	reUCIKey    = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.(@[a-zA-Z0-9_-]+\[\d+\]|[a-zA-Z0-9_@:-]+))+$`)
 	reUCIConfig = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	reService   = regexp.MustCompile(`^[a-z0-9_-]+$`)
 	rePkg       = regexp.MustCompile(`^[a-z0-9][a-z0-9+_.-]*$`)
