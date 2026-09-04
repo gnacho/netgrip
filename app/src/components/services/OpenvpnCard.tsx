@@ -140,6 +140,7 @@ export function OpenvpnCard({ probe, onChange, index = 0 }: {
           {!probe.has_pki && (
             <div className="mt-2">
               <Banner tone="warn">{t("ovpn.noPki")}</Banner>
+              <p className="text-caption text-muted mt-1.5">{t("ovpn.noPkiSteps")}</p>
             </div>
           )}
 

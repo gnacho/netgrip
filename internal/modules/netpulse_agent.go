@@ -267,6 +267,16 @@ func SetNetPulseConfig(cfg NetPulseConfig) error {
 	return setNetPulseConfigAt(prodNetPulsePaths(), cfg)
 }
 
+// RestartNetPulseAgent re-applies the current config, which cancels and
+// restarts the embedded agent without restarting the netgrip service.
+func RestartNetPulseAgent() error {
+	cfg, err := ReadNetPulseConfig(prodNetPulsePaths().env)
+	if err != nil {
+		return err
+	}
+	return SetNetPulseConfig(cfg)
+}
+
 // setNetPulseConfigAt es SetNetPulseConfig con rutas inyectables (tests y
 // enrollment zero-touch sobre un env de prueba).
 func setNetPulseConfigAt(p netpulsePaths, cfg NetPulseConfig) error {

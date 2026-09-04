@@ -104,7 +104,7 @@ export function LagCard({ index = 2 }: { index?: number }) {
             <Field label={t("lag.nameLabel")}>
               <Input value={name} onChange={(e) => setName(e.target.value)} mono />
             </Field>
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
               <span className="text-caption text-muted">{t("lag.modeLabel")}</span>
               <SegmentedControl<LagMode>
                 ariaLabel={t("lag.modeLabel")}

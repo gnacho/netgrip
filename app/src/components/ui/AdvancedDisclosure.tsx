@@ -19,7 +19,7 @@ export function AdvancedDisclosure({ label, children, className = "" }: {
         {label ?? t("common.advanced")}
       </summary>
       <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 ease-[var(--ease-soft)] group-open:grid-rows-[1fr]">
-        <div className="overflow-hidden">
+        <div className="overflow-hidden min-h-0">
           <div className="pt-1 pb-2">{children}</div>
         </div>
       </div>

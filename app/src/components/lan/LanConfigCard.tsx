@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Globe, Network, Pencil } from "lucide-react";
+import { Network, Pencil } from "lucide-react";
 import { api } from "../../api";
 import type { LANConfig } from "../../types";
 import {
@@ -192,12 +192,8 @@ export function LanConfigCard({ cfg, onChange, index = 0 }: {
                 </div>
                 <AdvancedDisclosure label={t("lan.advancedDhcp")}>
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <Field label={t("lan.gateway")} mono
+                    <Field label={t("lan.gateway")} mono hint={t("lan.gatewayHint")}
                       inputProps={{ value: gateway, onChange: (e) => setGateway(e.target.value), placeholder: t("lan.optional") }} />
-                    <Field label={t("lan.dns1")} mono icon={Globe}
-                      inputProps={{ value: dns1, onChange: (e) => setDns1(e.target.value), placeholder: t("lan.optional") }} />
-                    <Field label={t("lan.dns2")} mono icon={Globe}
-                      inputProps={{ value: dns2, onChange: (e) => setDns2(e.target.value), placeholder: t("lan.optional") }} />
                   </div>
                 </AdvancedDisclosure>
               </div>

@@ -3,6 +3,7 @@ package executor
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -119,6 +120,14 @@ func Run(op Op) error {
 		if _, err := exec.LookPath("apk"); err == nil {
 			cmd = exec.Command("apk", append([]string{"add"}, op.Args...)...)
 		} else {
+			// opkg needs the feed indexes in /var/opkg-lists; a freshly
+			// flashed router has none and `opkg install` fails with
+			// "Unknown package". Self-heal: refresh once when missing.
+			if opkgListsMissingDir(opkgListsDir) {
+				if out, err := exec.Command("opkg", "update").CombinedOutput(); err != nil {
+					return fmt.Errorf("pkg_add [opkg update]: %w (%s)", err, strings.TrimSpace(string(out)))
+				}
+			}
 			cmd = exec.Command("opkg", append([]string{"install"}, op.Args...)...)
 		}
 	case "pkg_del":
@@ -145,6 +154,17 @@ func Run(op Op) error {
 		return fmt.Errorf("%s %v: %w (%s)", op.Kind, op.Args, err, strings.TrimSpace(string(out)))
 	}
 	return nil
+}
+
+// opkgListsDir is where opkg caches the feed indexes.
+const opkgListsDir = "/var/opkg-lists"
+
+// opkgListsMissingDir reports whether dir holds no feed indexes, meaning
+// `opkg install` would fail with "Unknown package" until `opkg update` runs.
+// A missing dir counts as missing lists.
+func opkgListsMissingDir(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	return err != nil || len(entries) == 0
 }
 
 // Apply runs ops in order; on failure it runs rollbackOps (best effort,

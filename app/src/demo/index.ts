@@ -121,7 +121,7 @@ export const demoApi: typeof api = {
   me: () => get(undefined as void),
   wizardState: () => get(D.demoWizard),
   wizardSetup: () => get(D.demoWizardSetup),
-  installWizardSetup: async () => { await wait(800, 1500); return { installed: ["ethtool-full"] }; },
+  installWizardSetup: async () => { await wait(800, 1500); return { job: { phase: "done", total: 1, done: 1, installed: ["ethtool-full"] } }; },
   wizardComplete: async () => { await wait(400, 800); return { status: "ok" }; },
 
   // núcleo
@@ -447,8 +447,9 @@ export const demoApi: typeof api = {
   wizardPackages: async (ids) => {
     await wait(800, 1500);
     for (const p of state.optionalPkgs) if (ids.includes(p.id)) p.installed = true;
-    return { installed: ids };
+    return { job: { phase: "done", total: ids.length, done: ids.length, installed: ids } };
   },
+  installJob: async () => ({ job: { phase: "done", total: 0, done: 0, installed: [] } }),
   removePackages: async (ids) => {
     await wait(800, 1500);
     const removed: string[] = [];
@@ -523,8 +524,7 @@ export const demoApi: typeof api = {
       configured: cfg.enabled ? true : state.netpulse.configured,
       server: cfg.server || state.netpulse.server,
       slug: cfg.slug || state.netpulse.slug,
-    };
-    return {
+    };    return {
       ...state.netpulse,
       phase: cfg.enabled ? "connected" : "searching",
       discovery: { foundServer: cfg.server || state.netpulse.server, lastDiscoveryAt: new Date().toISOString(), lastEnrollNote: "" },
@@ -532,6 +532,7 @@ export const demoApi: typeof api = {
       standaloneReplacedAt: null,
     };
   },
+  restartAgent: async () => { await wait(200, 500); return { ok: true }; },
   nftqos: () => get({ ...state.nftqos }),
   setNftqos: async (limit) => {
     await wait(800, 1500);

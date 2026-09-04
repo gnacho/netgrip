@@ -261,25 +261,15 @@ function NewRuleModal({ template, probe, busy, onClose, onConfirm }: {
 
       {/* 2. ¿A qué equipo? */}
       <p className="text-small font-medium mt-4 mb-2">{t("fwd.stepWhere")}</p>
-      {clients.length > 0 && (
-        <select
-          value={clients.some((c) => c.ip === destIP) ? destIP : ""}
-          onChange={(e) => e.target.value && setDestIP(e.target.value)}
-          aria-label={t("fwd.stepWhere")}
-          className="w-full h-10 rounded-sm border border-border bg-surface-2 px-3 text-body outline-none focus:border-accent ring-focus"
-        >
-          <option value="">{t("fwd.chooseDevice")}</option>
-          {clients.map((c) => (
-            <option key={c.mac} value={c.ip}>{c.name} · {c.ip}</option>
-          ))}
-        </select>
-      )}
-      <div className="mt-2">
-        <Input mono value={destIP} onChange={(e) => setDestIP(e.target.value)}
-          placeholder={t("fwd.manualIp")} aria-label={t("fwd.manualIp")}
-          error={!!destIP && !isValidIp(destIP)} />
+      <Input mono list="netgrip-devices" value={destIP} onChange={(e) => setDestIP(e.target.value)}
+        placeholder={t("fwd.manualIp")} aria-label={t("fwd.manualIp")}
+        error={!!destIP && !isValidIp(destIP)} />
+      <datalist id="netgrip-devices">
+        {clients.map((c) => (
+          <option key={c.mac} value={c.ip} label={c.name}>{`${c.name} · ${c.ip}`}</option>
+        ))}
+      </datalist>
         {destIP && !isValidIp(destIP) && <p className="text-caption text-danger mt-1">{t("fwd.invalidIp")}</p>}
-      </div>
 
       {/* 3. Puertos y protocolo (auto-rellenados por la plantilla) */}
       <div className="mt-4 grid grid-cols-2 gap-3">
