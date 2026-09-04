@@ -70,6 +70,8 @@ var reEthPortName = regexp.MustCompile(`^(lan\d+|wan|eth\d+|swp\d+)$`)
 
 // EthPorts lists the physical ports with link state, speed and the
 // devices learned on each (names resolved from DHCP leases when present).
+// On DSA switches the ports show up as lanX@<master> (master = the SoC
+// uplink, not a user port), so the uplink is excluded.
 func EthPorts() []EthPort {
 	out, err := exec.Command("ip", "-o", "link").Output()
 	if err != nil {
@@ -77,25 +79,45 @@ func EthPorts() []EthPort {
 	}
 	fdb := bridgeFdb()
 	names := leaseNames()
+
+	masters := map[string]bool{}
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+		n := strings.TrimSuffix(fields[1], ":")
+		if i := strings.LastIndexByte(n, '@'); i >= 0 {
+			masters[n[i+1:]] = true
+		}
+	}
+
 	var ports []EthPort
 	for _, line := range strings.Split(string(out), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) < 3 {
 			continue
 		}
-		name := strings.TrimSuffix(fields[1], ":")
-		if !reEthPortName.MatchString(name) {
+		full := strings.TrimSuffix(fields[1], ":")
+		base := full
+		if i := strings.LastIndexByte(full, '@'); i >= 0 {
+			base = full[:i]
+		}
+		if !reEthPortName.MatchString(base) {
 			continue
 		}
-		port := EthPort{Name: name, Devices: []EthDevice{}}
-		port.Wan = name == "wan" && WanPortActive()
+		if masters[base] {
+			continue // switch uplink, not a user port
+		}
+		port := EthPort{Name: base, Devices: []EthDevice{}}
+		port.Wan = base == "wan" && WanPortActive()
 		port.Up = strings.Contains(line, "LOWER_UP")
-		if speed, err := os.ReadFile("/sys/class/net/" + name + "/speed"); err == nil {
+		if speed, err := os.ReadFile("/sys/class/net/" + base + "/speed"); err == nil {
 			if mbps, err := strconv.Atoi(strings.TrimSpace(string(speed))); err == nil && mbps > 0 {
 				port.SpeedMbps = mbps
 			}
 		}
-		if macs, ok := fdb[name]; ok {
+		if macs, ok := fdb[base]; ok {
 			for _, mac := range macs {
 				port.Devices = append(port.Devices, EthDevice{MAC: mac, Name: names[mac]})
 			}
