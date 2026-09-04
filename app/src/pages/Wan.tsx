@@ -19,19 +19,19 @@ const PROTO_KEY: Record<string, string> = {
 /** Anillo de estado de conexión: verde = Internet OK, rojo = sin conexión. */
 function ConnRing({ up }: { up: boolean }) {
   const { t } = useTranslation();
-  const R = 30, C = 2 * Math.PI * R;
+  const R = 42, C = 2 * Math.PI * R;
   return (
     <div role="img" aria-label={up ? t("wan.up") : t("wan.down")}
-      className="relative inline-flex items-center justify-center shrink-0 text-ok"
-      style={{ width: 72, height: 72 }}>
-      <svg viewBox="0 0 72 72" className="absolute inset-0">
-        <circle cx="36" cy="36" r={R} fill="none" stroke="currentColor" strokeWidth="6" className="text-faint" />
-        <circle cx="36" cy="36" r={R} fill="none" stroke="currentColor" strokeWidth="6"
+      className={`relative inline-flex items-center justify-center shrink-0 ${up ? "animate-internet" : ""}`}
+      style={{ width: 104, height: 104 }}>
+      <svg viewBox="0 0 104 104" className="absolute inset-0">
+        <circle cx="52" cy="52" r={R} fill="none" stroke="currentColor" strokeWidth="8" className="text-faint" />
+        <circle cx="52" cy="52" r={R} fill="none" stroke="currentColor" strokeWidth="8"
           strokeLinecap="round" strokeDasharray={C} strokeDashoffset={0}
           className={up ? "text-ok" : "text-danger"} />
       </svg>
       <span className={`relative ${up ? "text-ok" : "text-danger"}`}>
-        {up ? <Globe size={30} /> : <CloudOff size={30} />}
+        {up ? <Globe size={42} /> : <CloudOff size={42} />}
       </span>
     </div>
   );
@@ -115,13 +115,16 @@ export function WanPage({ fwd, onFwdChange }: {
         ) : !status ? (
           <SkeletonRows rows={3} />
         ) : (
-          <div className="flex items-start gap-4">
+          <div className="flex items-start gap-5">
             <ConnRing up={status.up} />
             <div className="flex-1 min-w-0">
-              <Pill tone={status.up ? "ok" : "danger"}>
-                {status.up ? t("wan.up") : t("wan.down")}
-              </Pill>
-              <p className="font-mono text-h3 mt-1 break-all">{stats.ip}</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Pill tone={status.up ? "ok" : "danger"}>
+                  {status.up ? t("wan.internetOk") : t("wan.down")}
+                </Pill>
+                {status.up && <span className="text-small text-ok font-medium">{t("wan.allGood")}</span>}
+              </div>
+              <p className="font-mono text-h2 mt-1.5 break-all">{stats.ip}</p>
               <dl className="mt-1 grid sm:grid-cols-2 gap-x-6 gap-y-0.5 text-small">
                 <div className="flex gap-3"><dt className="text-muted">{t("lan.gateway")}</dt><dd className="font-mono text-right break-all">{stats.gateway}</dd></div>
                 <div className="flex gap-3"><dt className="text-muted">{t("wan.dns")}</dt><dd className="font-mono text-right break-all">{stats.dns}</dd></div>
