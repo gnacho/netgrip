@@ -168,6 +168,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/wizard/setup", s.requireAuth(s.handleWizardSetupGet))
 	s.mux.HandleFunc("POST /api/wizard/setup", s.requireAuth(s.handleWizardSetupPost))
 	s.mux.HandleFunc("POST /api/wizard/packages", s.requireAuth(s.handleWizardPackages))
+	s.mux.HandleFunc("GET /api/wizard/job", s.requireAuth(s.handleInstallJobGet))
 	s.mux.HandleFunc("POST /api/wizard/complete", s.requireAuth(s.handleWizardComplete))
 	s.mux.HandleFunc("GET /api/drift", s.requireAuth(s.handleDriftGet))
 	s.mux.HandleFunc("GET /api/telegram", s.requireAuth(s.handleTelegramGet))
@@ -705,16 +706,13 @@ func (s *Server) handleWizardSetupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	mode := modules.SetupMode(req.Mode)
-	installed, err := modules.InstallSetupPackages(mode, req.Groups)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
 	if err := modules.WizardSetupChoice(mode); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, map[string]any{"installed": installed})
+	pkgs := modules.SetupPackagesForMode(mode, req.Groups)
+	job := modules.StartInstallPackages(pkgs)
+	writeJSON(w, map[string]any{"job": job})
 }
 
 func (s *Server) handleWizardPackages(w http.ResponseWriter, r *http.Request) {
@@ -723,12 +721,17 @@ func (s *Server) handleWizardPackages(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	installed, err := modules.InstallOptionalPackages(req.IDs)
+	pkgs, err := modules.ResolveOptionalPackageIDs(req.IDs)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	writeJSON(w, map[string]any{"installed": installed})
+	job := modules.StartInstallPackages(pkgs)
+	writeJSON(w, map[string]any{"job": job})
+}
+
+func (s *Server) handleInstallJobGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"job": modules.JobStatus()})
 }
 
 type packagesRemoveRequest struct {

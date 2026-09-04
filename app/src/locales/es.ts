@@ -1282,6 +1282,7 @@ export default {
     removeAllBody_other: "Se desinstalarán {{count}} servicios opcionales. Sus ajustes se conservan.",
     removeAllConfirm: "Quitar todos",
     removed: "Paquetes desinstalados",
+    installOk: "Paquete instalado",
   },
   selfupdate: {
     title: "El propio NetGrip",
@@ -1681,6 +1682,9 @@ export default {
       install_other: "Instalar {{count}}",
       installed: "Instalado",
       later: "No hace falta decidir ahora: si activas un servicio más adelante desde el panel, su paquete se instala automáticamente.",
+      updating: "Actualizando la lista de paquetes del router…",
+      installing: "Instalando {{current}} ({{done}} de {{total}})…",
+      done: "Instalación completada.",
       wireguard: {
         title: "WireGuard",
         desc: "VPN ligera para entrar en tu red desde fuera.",

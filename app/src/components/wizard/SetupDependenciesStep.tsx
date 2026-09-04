@@ -7,7 +7,8 @@ import {
 import { Banner, Pill } from "../ui";
 import { IlluRouter } from "../ui/illustrations";
 import type { WizardSetupGroup, WizardSetupProbe } from "../../types";
-import { Reveal, StepFooter, StepShell } from "./common";
+import { Reveal, StepFooter, StepShell, useInstallJob, InstallProgress } from "./common";
+import { api } from "../../api";
 
 type InstallMode = "full" | "minimal" | "custom";
 
@@ -15,17 +16,17 @@ type InstallMode = "full" | "minimal" | "custom";
  * Paso inicial de preparación del router.
  * Ofrece tres niveles: recomendado, mínimo y personalizado.
  */
-export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
+export function SetupDependenciesStep({ probe, onDone, onBack, onSkip }: {
   probe: WizardSetupProbe;
-  onInstall: (mode: InstallMode, groups: string[]) => void;
+  onDone: () => void;
   onBack: () => void;
   onSkip: () => void;
 }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<InstallMode>("minimal");
   const [showDetails, setShowDetails] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [installError, setInstallError] = useState<string | null>(null);
+  const { job, running, begin } = useInstallJob();
 
   const groupByID = (id: string) => probe.groups.find((g) => g.id === id);
   const selectedGroupIDs = mode === "minimal"
@@ -58,14 +59,13 @@ export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
   ];
 
   const install = async () => {
-    setBusy(true);
     setInstallError(null);
     try {
-      await onInstall(mode, selectedGroupIDs);
+      const j = await begin(() => api.installWizardSetup(mode, selectedGroupIDs));
+      if (j.phase === "done") onDone();
+      else setInstallError(j.error || t("error.network"));
     } catch (e) {
       setInstallError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -83,10 +83,11 @@ export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
       body={t("wizard.setup.body")}
       footer={
         <div className="mt-8 space-y-4">
+          <InstallProgress job={job} />
           <StepFooter
             onBack={onBack}
             onNext={install}
-            busy={busy}
+            busy={running}
             nextDisabled={mode === "custom"}
             nextLabel={nextLabel}
             onSkip={onSkip}
@@ -117,7 +118,7 @@ export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
                 role="radio"
                 aria-checked={active}
                 onClick={() => setMode(m.id)}
-                disabled={busy}
+                disabled={running}
                 className={`flex items-start gap-3 rounded-xl border p-4 text-left ring-focus transition-all duration-[var(--dur-fast)]
                   ${active
                     ? "border-accent bg-accent-soft shadow-sm"

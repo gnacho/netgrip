@@ -1,5 +1,16 @@
 export class UnauthorizedError extends Error {}
 
+export type InstallPhase = "idle" | "updating" | "installing" | "done" | "error";
+
+export interface InstallJob {
+  phase: InstallPhase;
+  total: number;
+  done: number;
+  current?: string;
+  installed?: string[];
+  error?: string;
+}
+
 /**
  * Modo demo §9: activo con `?demo=1` en la URL, localStorage
  * "netgrip:demo"="1" o build con VITE_DEMO=1. Cuando está activo, cada
@@ -259,7 +270,7 @@ const realApi = {
   optionalPackages: () =>
     request<{ packages: import("./types").OptionalPackage[] }>("/api/packages/optional"),
   wizardPackages: (ids: string[]) =>
-    request<{ installed: string[] }>("/api/wizard/packages", {
+    request<{ job: InstallJob }>("/api/wizard/packages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids }),
@@ -380,11 +391,12 @@ const realApi = {
   wizardSetup: () =>
     request<import("./types").WizardSetupProbe>("/api/wizard/setup"),
   installWizardSetup: (mode: string, groups?: string[]) =>
-    request<{ installed: string[] }>("/api/wizard/setup", {
+    request<{ job: InstallJob }>("/api/wizard/setup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode, groups }),
     }),
+  installJob: () => request<{ job: InstallJob }>("/api/wizard/job"),
   wizardComplete: () =>
     request<{ status: string }>("/api/wizard/complete", { method: "POST" }),
   drift: () =>

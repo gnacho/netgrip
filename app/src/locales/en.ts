@@ -1282,6 +1282,7 @@ export default {
     removeAllBody_other: "{{count}} optional services will be uninstalled. Settings are kept.",
     removeAllConfirm: "Remove all",
     removed: "Packages uninstalled",
+    installOk: "Package installed",
   },
   selfupdate: {
     title: "NetGrip itself",
@@ -1681,6 +1682,9 @@ export default {
       install_other: "Install {{count}}",
       installed: "Installed",
       later: "You don't have to decide now: if you enable a service later from the panel, its package installs automatically.",
+      updating: "Refreshing the router package list…",
+      installing: "Installing {{current}} ({{done}} of {{total}})…",
+      done: "Installation finished.",
       wireguard: {
         title: "WireGuard",
         desc: "Lightweight VPN to reach your network from outside.",
