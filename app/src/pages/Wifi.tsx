@@ -4,7 +4,7 @@ import { Ban, CloudOff, Copy, Eye, EyeOff, Pencil, QrCode as QrCodeIcon, Wifi as
 import { api } from "../api";
 import type { BlockedClient, GuestProbe, IoTProbe, WifiUI, WirelessRadio } from "../types";
 import {
-  Banner, Button, Card, EmptyState,
+  Button, Card, EmptyState,
   Modal, Pill, Skeleton,
 } from "../components/ui";
 import { IlluWifiWaves } from "../components/ui/illustrations";
@@ -77,14 +77,6 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
   const secondarySsids = [guest?.ssid, iot?.ssid].filter(Boolean);
   const main = (ifaces ?? []).filter((i) => !secondary.includes(i.ifname) && !secondarySsids.includes(i.ssid));
 
-  // Aviso si dos radios principales comparten el mismo SSID.
-  const seen = new Map<string, string[]>();
-  for (const i of ifaces ?? []) {
-    if (!i.ssid) continue;
-    seen.set(i.ssid, [...(seen.get(i.ssid) ?? []), i.ifname]);
-  }
-  const dupSsid = [...seen.entries()].filter(([, ifs]) => ifs.length > 1).map(([ssid]) => ssid);
-
   const saved = (updated: WifiUI, sessionKey?: string) => {
     setIfaces((prev) => prev?.map((p) => (p.section === updated.section ? updated : p)));
     if (sessionKey) setKeys((k) => ({ ...k, [updated.section]: sessionKey }));
@@ -92,9 +84,6 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
 
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
-      {dupSsid.length > 0 && (
-        <Banner tone="warn">{t("wifi.dupSsid", { ssids: dupSsid.join(", ") })}</Banner>
-      )}
       <Card index={0}>
         {error ? (
           <EmptyState

@@ -325,7 +325,6 @@ export default {
     title: "WiFi",
     band24: "2.4 GHz",
     band5: "5 GHz",
-    dupSsid: "Several networks share the same name ({{ssids}}) and devices won't be able to tell them apart. Use distinct names per band.",
     channel: "Channel",
     power: "TX power",
     clients_one: "{{count}} client",
