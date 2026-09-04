@@ -1,12 +1,14 @@
 package modules
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -14,9 +16,15 @@ import (
 
 const (
 	githubRepo = "gnacho/netgrip"
-	assetName  = "netgrip-linux-arm64"
 	tmpPath    = "/tmp/netgrip.update"
 )
+
+// binaryAssetName is the release asset for this build's architecture, so an
+// unsupported arch (e.g. mipsel before #236) never matches an existing asset
+// and the update is not offered/applied with a wrong-architecture binary (#237).
+func binaryAssetName() string {
+	return "netgrip-linux-" + runtime.GOARCH
+}
 
 // Overridable in tests.
 var (
@@ -106,7 +114,7 @@ func CheckSelfUpdate(currentVersion string) *SelfUpdateCheck {
 	newer := isNewerVersion(release.TagName, currentVersion)
 
 	for _, a := range release.Assets {
-		if a.Name == assetName {
+		if a.Name == binaryAssetName() {
 			result.AssetURL = a.BrowserDownloadURL
 			result.AssetSize = a.Size
 			break
@@ -212,6 +220,14 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 	f.Close()
 	os.Chmod(tmpPath, 0755)
 
+	// Fail safe: never replace a working binary with one built for another
+	// architecture. Check the ELF e_machine against this build's GOARCH.
+	if ok, err := elfArchMatches(runtime.GOARCH, tmpPath); err != nil || !ok {
+		os.Remove(tmpPath)
+		setUpdateStatus("error", 0, "binary is not for this architecture, keeping current version")
+		return
+	}
+
 	setUpdateStatus("installing", 100, "")
 
 	currentBin, err := os.Executable()
@@ -238,6 +254,43 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 
 	setUpdateStatus("restarting", 100, "")
 	exec.Command("/etc/init.d/netgrip", "restart").Start()
+}
+
+// elfMachineByGOARCH maps a Go arch to the ELF e_machine value it expects.
+var elfMachineByGOARCH = map[string]uint16{
+	"amd64":   62,  // EM_X86_64
+	"arm64":   183, // EM_AARCH64
+	"arm":     40,  // EM_ARM
+	"386":     3,   // EM_386
+	"mipsle":  8,   // EM_MIPS (soft-float)
+	"mips":    8,   // EM_MIPS
+	"riscv64": 243, // EM_RISCV
+	"ppc64le": 21,  // EM_PPC64
+	"loong64": 258, // EM_LOONGARCH
+}
+
+// elfArchMatches verifies the ELF e_machine of a downloaded binary matches the
+// given Go architecture, refusing cross-architecture installs (#237).
+func elfArchMatches(goarch, path string) (bool, error) {
+	want, ok := elfMachineByGOARCH[goarch]
+	if !ok {
+		// Unknown arch: fail closed (refuse) to avoid bricking.
+		return false, fmt.Errorf("unknown architecture %q", goarch)
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	hdr := make([]byte, 20)
+	if _, err := io.ReadFull(f, hdr); err != nil {
+		return false, err
+	}
+	if hdr[0] != 0x7f || hdr[1] != 'E' || hdr[2] != 'L' || hdr[3] != 'F' {
+		return false, fmt.Errorf("not an ELF file")
+	}
+	// e_machine is at offset 18 (2 bytes), little-endian for the usual LE ELF.
+	return binary.LittleEndian.Uint16(hdr[18:20]) == want, nil
 }
 
 func copyFile(src, dst string) error {

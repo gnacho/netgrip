@@ -3,6 +3,7 @@ package modules
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -96,8 +97,8 @@ func TestCheckSelfUpdateWithAssetIsAvailable(t *testing.T) {
 	if ck.AssetsPending {
 		t.Fatal("AssetsPending = true, want false when asset exists")
 	}
-	if ck.AssetURL != "http://example.com/netgrip-linux-arm64" {
-		t.Fatalf("AssetURL = %q", ck.AssetURL)
+	if ck.AssetURL != "http://example.com/"+binaryAssetName() {
+		t.Fatalf("AssetURL = %q, want the asset for this architecture", ck.AssetURL)
 	}
 }
 
@@ -118,7 +119,7 @@ func TestStartSelfUpdateRechecksEmptyCache(t *testing.T) {
 		t.Fatalf("StartSelfUpdate: %v", err)
 	}
 	waitFor(t, called.Load)
-	if len(*urls) != 1 || (*urls)[0] != "http://example.com/netgrip-linux-arm64" {
+	if len(*urls) != 1 || (*urls)[0] != "http://example.com/"+binaryAssetName() {
 		t.Fatalf("runner urls = %v", *urls)
 	}
 }
@@ -179,5 +180,42 @@ func TestStartSelfUpdateUsesValidCacheWithoutRecheck(t *testing.T) {
 	waitFor(t, called.Load)
 	if len(*urls) != 1 || (*urls)[0] != "http://example.com/cached" {
 		t.Fatalf("runner urls = %v, want cached url", *urls)
+	}
+}
+
+func TestElfArchMatches(t *testing.T) {
+	mk := func(machine uint16) string {
+		p := t.TempDir() + "/bin"
+		// ELF: EI_MAG + class(2=64) + data(1=LE) + e_machine at 18
+		b := make([]byte, 64)
+		copy(b[0:4], []byte{0x7f, 'E', 'L', 'F'})
+		b[4], b[5] = 2, 1
+		b[18] = byte(machine)
+		b[19] = byte(machine >> 8)
+		if err := os.WriteFile(p, b, 0755); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	if ok, err := elfArchMatches("arm64", mk(183)); err != nil || !ok {
+		t.Fatalf("arm64/EM_AARCH64 expected ok, got %v %v", ok, err)
+	}
+	if ok, _ := elfArchMatches("mipsle", mk(8)); !ok {
+		t.Fatal("mipsle/EM_MIPS expected ok")
+	}
+	if ok, _ := elfArchMatches("arm64", mk(8)); ok {
+		t.Fatal("arm64 on a MIPS ELF must be refused")
+	}
+	if ok, err := elfArchMatches("arm64", mk(0)); err != nil {
+		t.Fatal("unexpected error")
+	} else if ok {
+		t.Fatal("EM 0 must not match arm64")
+	}
+	if _, err := elfArchMatches("arm64", t.TempDir()+"/no-elf"); err == nil {
+		t.Fatal("non-ELF should error")
+	}
+	// Unknown arch fails closed.
+	if ok, err := elfArchMatches("s390x", mk(183)); err == nil || ok {
+		t.Fatalf("unknown arch must fail closed, got %v %v", ok, err)
 	}
 }
