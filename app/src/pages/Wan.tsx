@@ -1,17 +1,52 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Globe, KeyRound, Save } from "lucide-react";
+import { CloudOff, Globe, KeyRound, Pencil, Save } from "lucide-react";
 import { api } from "../api";
 import type { WANConfig } from "../api";
 import type { FwdProbe, WanStatus } from "../types";
 import {
-  Banner, Button, Card, Field, SegmentedControl, SkeletonRows, useToast,
+  Banner, Button, Card, Field, Pill, SegmentedControl, SkeletonRows, useToast,
 } from "../components/ui";
 import { PortForwardCard } from "../components/ports/PortForwardCard";
 
 const PROTO = ["dhcp", "static", "pppoe"] as const;
+const PROTO_KEY: Record<string, string> = {
+  dhcp: "wan.protoDhcp",
+  static: "wan.protoStatic",
+  pppoe: "wan.protoPppoe",
+};
 
-/** Página WAN (#243): estado de salida a Internet + configuración + forwards. */
+/** Anillo de estado de conexión: verde = Internet OK, rojo = sin conexión. */
+function ConnRing({ up }: { up: boolean }) {
+  const { t } = useTranslation();
+  const R = 30, C = 2 * Math.PI * R;
+  return (
+    <div role="img" aria-label={up ? t("wan.up") : t("wan.down")}
+      className="relative inline-flex items-center justify-center shrink-0 text-ok"
+      style={{ width: 72, height: 72 }}>
+      <svg viewBox="0 0 72 72" className="absolute inset-0">
+        <circle cx="36" cy="36" r={R} fill="none" stroke="currentColor" strokeWidth="6" className="text-faint" />
+        <circle cx="36" cy="36" r={R} fill="none" stroke="currentColor" strokeWidth="6"
+          strokeLinecap="round" strokeDasharray={C} strokeDashoffset={0}
+          className={up ? "text-ok" : "text-danger"} />
+      </svg>
+      <span className={`relative ${up ? "text-ok" : "text-danger"}`}>
+        {up ? <Globe size={30} /> : <CloudOff size={30} />}
+      </span>
+    </div>
+  );
+}
+
+function fmtDur(s: number): string {
+  if (!s || s <= 0) return "—";
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+/** Página WAN (#243): estado de salida a Internet + configuración (lectura con
+ *  Editar; el form no abre por defecto) + port-forwarding. */
 export function WanPage({ fwd, onFwdChange }: {
   fwd?: FwdProbe;
   onFwdChange?: (p: FwdProbe) => void;
@@ -21,6 +56,7 @@ export function WanPage({ fwd, onFwdChange }: {
   const [status, setStatus] = useState<WanStatus>();
   const [cfg, setCfg] = useState<WANConfig>();
   const [form, setForm] = useState<WANConfig>({ proto: "dhcp" });
+  const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
 
@@ -31,6 +67,7 @@ export function WanPage({ fwd, onFwdChange }: {
   useEffect(load, []);
 
   const set = (patch: Partial<WANConfig>) => setForm((f) => ({ ...f, ...patch }));
+  const protoLabel = (p: string) => t(PROTO_KEY[p] ?? p);
 
   const save = async () => {
     setSaving(true);
@@ -38,6 +75,7 @@ export function WanPage({ fwd, onFwdChange }: {
       const res = await api.setWanConfig(form);
       setCfg(res);
       setForm(res);
+      setEditing(false);
       push({ tone: "ok", text: t("wan.saved") });
     } catch (e) {
       push({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
@@ -50,8 +88,24 @@ export function WanPage({ fwd, onFwdChange }: {
     ip: status?.ipv4?.join(", ") ?? "—",
     gateway: status?.gateway ?? "—",
     dns: status?.dns?.join(", ") || t("wan.dhcpDns"),
-    uptime: status?.uptime ? t("wan.uptime", { s: status.uptime }) : "—",
+    uptime: status?.uptime ? fmtDur(status.uptime) : "—",
   }), [status, t]);
+
+  // Datos de configuración mostrados en la vista de lectura.
+  const cfgRows: [string, string][] = [];
+  if (cfg) {
+    cfgRows.push([t("wan.proto"), protoLabel(cfg.proto)]);
+    if (cfg.proto === "static") {
+      if (cfg.ipaddr) cfgRows.push([t("wan.ip"), cfg.ipaddr]);
+      if (cfg.netmask) cfgRows.push([t("wan.netmask"), cfg.netmask]);
+      if (cfg.gateway) cfgRows.push([t("lan.gateway"), cfg.gateway]);
+      if (cfg.dns) cfgRows.push([t("wan.dns"), cfg.dns]);
+    }
+    if (cfg.proto === "pppoe" && cfg.username) cfgRows.push([t("wan.username"), cfg.username]);
+    if (cfg.device) cfgRows.push([t("wan.device"), cfg.device]);
+    if (cfg.mtu) cfgRows.push(["MTU", cfg.mtu]);
+    if (cfg.vlanid) cfgRows.push(["VLAN ID", cfg.vlanid]);
+  }
 
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
@@ -61,61 +115,81 @@ export function WanPage({ fwd, onFwdChange }: {
         ) : !status ? (
           <SkeletonRows rows={3} />
         ) : (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <span className={`h-2.5 w-2.5 rounded-full ${status.up ? "bg-ok" : "bg-danger"}`} />
-              <span className="text-body font-medium">{status.up ? t("wan.up") : t("wan.down")}</span>
+          <div className="flex items-start gap-4">
+            <ConnRing up={status.up} />
+            <div className="flex-1 min-w-0">
+              <Pill tone={status.up ? "ok" : "danger"}>
+                {status.up ? t("wan.up") : t("wan.down")}
+              </Pill>
+              <p className="font-mono text-h3 mt-1 break-all">{stats.ip}</p>
+              <dl className="mt-1 grid sm:grid-cols-2 gap-x-6 gap-y-0.5 text-small">
+                <div className="flex gap-3"><dt className="text-muted">{t("lan.gateway")}</dt><dd className="font-mono text-right break-all">{stats.gateway}</dd></div>
+                <div className="flex gap-3"><dt className="text-muted">{t("wan.dns")}</dt><dd className="font-mono text-right break-all">{stats.dns}</dd></div>
+                <div className="flex gap-3"><dt className="text-muted">{t("wan.uptimeLabel")}</dt><dd className="font-mono">{stats.uptime}</dd></div>
+              </dl>
             </div>
-            <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-small">
-              <div className="flex justify-between gap-3"><dt className="text-muted">{t("wan.ip")}</dt><dd className="font-mono text-right break-all">{stats.ip}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-muted">{t("lan.gateway")}</dt><dd className="font-mono text-right break-all">{stats.gateway}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-muted">{t("wan.dns")}</dt><dd className="font-mono text-right break-all">{stats.dns}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-muted">{t("wan.uptimeLabel")}</dt><dd className="font-mono text-right">{stats.uptime}</dd></div>
-            </dl>
           </div>
         )}
       </Card>
 
-      <Card index={1} icon={Save} title={t("wan.configTitle")}>
+      <Card index={1} icon={Save} title={t("wan.configTitle")}
+        action={
+          !editing && cfg !== undefined ? (
+            <Button variant="secondary" size="sm" icon={Pencil} onClick={() => setEditing(true)}>{t("wan.edit")}</Button>
+          ) : undefined
+        }>
         {cfg === undefined ? (
           <SkeletonRows rows={4} />
-        ) : (
+        ) : editing ? (
           <>
-            <div className="mb-3">
-              <span className="text-caption text-muted block mb-1.5">{t("wan.proto")}</span>
+            <div className="space-y-3">
+              <span className="text-caption text-muted block">{t("wan.proto")}</span>
               <SegmentedControl
                 ariaLabel={t("wan.proto")}
                 value={form.proto}
                 onChange={(v) => set({ proto: v as WANConfig["proto"] })}
-                options={PROTO.map((p) => ({ value: p, label: t(`wan.proto${p}`) }))}
+                options={PROTO.map((p) => ({ value: p, label: protoLabel(p) }))}
               />
+
+              {form.proto === "pppoe" && (
+                <div className="space-y-3">
+                  <Field label={t("wan.username")} mono inputProps={{ value: form.username ?? "", onChange: (e) => set({ username: e.target.value }) }} />
+                  <Field label={t("wan.password")} icon={KeyRound} inputProps={{ type: "password", value: form.password ?? "", onChange: (e) => set({ password: e.target.value }), placeholder: t("wan.passwordKeep") }} />
+                </div>
+              )}
+
+              {form.proto === "static" && (
+                <div className="space-y-3">
+                  <Field label={t("wan.ip")} mono inputProps={{ value: form.ipaddr ?? "", onChange: (e) => set({ ipaddr: e.target.value }) }} />
+                  <Field label={t("wan.netmask")} mono inputProps={{ value: form.netmask ?? "", onChange: (e) => set({ netmask: e.target.value }) }} />
+                  <Field label={t("lan.gateway")} mono inputProps={{ value: form.gateway ?? "", onChange: (e) => set({ gateway: e.target.value }) }} />
+                  <Field label={t("wan.dns")} mono inputProps={{ value: form.dns ?? "", onChange: (e) => set({ dns: e.target.value }) }} />
+                </div>
+              )}
+
+              <div className="grid sm:grid-cols-3 gap-3">
+                <Field label="VLAN ID" mono inputProps={{ value: form.vlanid ?? "", onChange: (e) => set({ vlanid: e.target.value }), inputMode: "numeric" }} />
+                <Field label="MTU" mono inputProps={{ value: form.mtu ?? "", onChange: (e) => set({ mtu: e.target.value }), inputMode: "numeric" }} />
+                <Field label={t("wan.device")} mono inputProps={{ value: form.device ?? "", onChange: (e) => set({ device: e.target.value }) }} />
+              </div>
             </div>
 
-            {form.proto === "pppoe" && (
-              <div className="space-y-3">
-                <Field label={t("wan.username")} mono inputProps={{ value: form.username ?? "", onChange: (e) => set({ username: e.target.value }) }} />
-                <Field label={t("wan.password")} icon={KeyRound} inputProps={{ type: "password", value: form.password ?? "", onChange: (e) => set({ password: e.target.value }), placeholder: t("wan.passwordKeep") }} />
-              </div>
-            )}
-
-            {form.proto === "static" && (
-              <div className="space-y-3">
-                <Field label={t("wan.ip")} mono inputProps={{ value: form.ipaddr ?? "", onChange: (e) => set({ ipaddr: e.target.value }) }} />
-                <Field label={t("wan.netmask")} mono inputProps={{ value: form.netmask ?? "", onChange: (e) => set({ netmask: e.target.value }) }} />
-                <Field label={t("lan.gateway")} mono inputProps={{ value: form.gateway ?? "", onChange: (e) => set({ gateway: e.target.value }) }} />
-                <Field label={t("wan.dns")} mono inputProps={{ value: form.dns ?? "", onChange: (e) => set({ dns: e.target.value }) }} />
-              </div>
-            )}
-
-            <div className="mt-3 grid sm:grid-cols-3 gap-3">
-              <Field label="VLAN ID" mono inputProps={{ value: form.vlanid ?? "", onChange: (e) => set({ vlanid: e.target.value }), inputMode: "numeric" }} />
-              <Field label="MTU" mono inputProps={{ value: form.mtu ?? "", onChange: (e) => set({ mtu: e.target.value }), inputMode: "numeric" }} />
-              <Field label={t("wan.device")} mono inputProps={{ value: form.device ?? "", onChange: (e) => set({ device: e.target.value }) }} />
-            </div>
-
-            <div className="mt-4">
+            <div className="mt-4 flex gap-2">
               <Button onClick={save} loading={saving}>{t("lan.save")}</Button>
+              <Button variant="ghost" onClick={() => { setForm(cfg); setEditing(false); }}>{t("common.cancel")}</Button>
             </div>
+          </>
+        ) : (
+          <>
+            <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-small">
+              {cfgRows.map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-3">
+                  <dt className="text-muted">{k}</dt>
+                  <dd className="font-mono text-right break-all">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            {cfg.proto === "pppoe" && <p className="text-caption text-muted mt-2">{t("wan.passwordHidden")}</p>}
           </>
         )}
       </Card>

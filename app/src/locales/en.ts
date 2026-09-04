@@ -1672,6 +1672,8 @@ export default {
     device: "Interface",
     dhcpDns: "Automatic (DHCP)",
     saved: "WAN settings saved.",
+    edit: "Edit",
+    passwordHidden: "The password is not shown for security.",
   },
   wifi: {
       title: "Your Wi-Fi",

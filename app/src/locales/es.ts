@@ -1672,6 +1672,8 @@ export default {
     device: "Interfaz",
     dhcpDns: "Automático (DHCP)",
     saved: "Configuración de la conexión guardada.",
+    edit: "Editar",
+    passwordHidden: "La contraseña no se muestra por seguridad.",
   },
   wifi: {
       title: "Tu WiFi",
