@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftRight, Blocks, ChartColumn, Download, HardDrive, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, Smartphone, Wifi, Wrench } from "lucide-react";
+import { ArrowLeftRight, Blocks, ChartColumn, Download, Globe, HardDrive, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, Smartphone, Wifi, Wrench } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
 import type { Board, Client, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MDNSProbe, ModeProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
@@ -11,6 +11,7 @@ import { Overview } from "../pages/Overview";
 import { CoveragePage } from "../pages/Coverage";
 import { ClientsPage } from "../pages/Clients";
 import { WifiPage } from "../pages/Wifi";
+import { WanPage } from "../pages/Wan";
 import { Services } from "../pages/Services";
 import { Ports } from "../pages/Ports";
 import { System } from "../pages/System";
@@ -21,10 +22,11 @@ import { StoragePage } from "../pages/Storage";
 import { DpiPage } from "../pages/Dpi";
 import { SelfUpdateDialog } from "../components/system/SelfUpdateDialog";
 
-export type Page = "overview" | "clients" | "coverage" | "wifi" | "lan" | "services" | "ports" | "tools" | "fleet" | "storage" | "system" | "dpi";
+export type Page = "overview" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "ports" | "tools" | "fleet" | "storage" | "system" | "dpi";
 
 const NAV_ICONS: Record<Page, LucideIcon> = {
   overview: LayoutDashboard,
+  wan: Globe,
   clients: Smartphone,
   coverage: Radar,
   wifi: Wifi,
@@ -41,7 +43,7 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
 /** Nav agrupada §7.1 (tareas, nombres llanos §7.2). */
 const NAV_GROUPS: { group: string | null; items: Page[] }[] = [
   { group: null, items: ["overview"] },
-  { group: "nav.group.network", items: ["clients", "coverage", "wifi", "lan", "ports", "dpi"] },
+  { group: "nav.group.network", items: ["wan", "clients", "coverage", "wifi", "lan", "ports", "dpi"] },
   { group: "nav.group.services", items: ["services"] },
   { group: "nav.group.router", items: ["tools", "storage", "fleet", "system"] },
 ];
@@ -295,6 +297,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         />
       )}
       {activePage === "clients" && <ClientsPage />}
+      {activePage === "wan" && <WanPage />}
       {activePage === "coverage" && <CoveragePage aps={usteerAps} error={usteerError} />}
       {activePage === "wifi" && (
         <WifiPage iot={iot} onIotChange={setIot} guest={guest} onGuestChange={setGuest} />

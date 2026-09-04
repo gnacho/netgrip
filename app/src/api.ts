@@ -1,5 +1,18 @@
 export class UnauthorizedError extends Error {}
 
+export interface WANConfig {
+  proto: "dhcp" | "static" | "pppoe";
+  device?: string;
+  ipaddr?: string;
+  netmask?: string;
+  gateway?: string;
+  dns?: string;
+  mtu?: string;
+  username?: string;
+  password?: string;
+  vlanid?: string;
+}
+
 /**
  * Modo demo §9: activo con `?demo=1` en la URL, localStorage
  * "netgrip:demo"="1" o build con VITE_DEMO=1. Cuando está activo, cada
@@ -53,6 +66,13 @@ const realApi = {
   board: () => request<import("./types").Board>("/api/board"),
   system: () => request<import("./types").SystemInfo>("/api/system"),
   wan: () => request<import("./types").WanStatus>("/api/wan"),
+  wanConfig: () => request<WANConfig>("/api/wan/config"),
+  setWanConfig: (cfg: WANConfig) =>
+    request<WANConfig>("/api/wan/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
   wireless: () => request<import("./types").WirelessRadio[]>("/api/wireless"),
   leases: () => request<import("./types").Lease[]>("/api/leases"),
   clients: () => request<{ clients: import("./types").Client[]; bands: string[]; ts: number }>("/api/clients"),
