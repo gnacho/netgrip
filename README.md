@@ -102,7 +102,6 @@ running on my home routers since I first built the two-file spike.
 - **v0.54.0** - Per-device bandwidth limits using a native nftables table.
 
 ### Pending
-- Plan a mesh topology with BATMAN-adv as the next phase.
 - Validate per-device bandwidth limit enforcement on a gateway-mode router.
 - Publish a custom packages feed so ASU/owut can keep NetGrip inside a firmware image.
 - Redeploy the public demo to include the latest features.
