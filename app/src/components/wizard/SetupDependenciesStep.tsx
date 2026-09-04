@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  AlertTriangle, Check, ChevronDown, ChevronUp, Download, Info, ListChecks, Package, ShieldCheck,
+  AlertTriangle, Check, ChevronDown, ChevronUp, Download, ListChecks, Package, ShieldCheck,
   Sparkles, Wrench,
 } from "lucide-react";
 import { Banner, Pill } from "../ui";
@@ -22,7 +22,7 @@ export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
   onSkip: () => void;
 }) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<InstallMode>("full");
+  const [mode, setMode] = useState<InstallMode>("minimal");
   const [showDetails, setShowDetails] = useState(false);
   const [busy, setBusy] = useState(false);
   const [installError, setInstallError] = useState<string | null>(null);
@@ -37,17 +37,17 @@ export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
 
   const modes: { id: InstallMode; icon: typeof Package; title: string; desc: string; pill?: string }[] = [
     {
-      id: "full",
-      icon: Sparkles,
-      title: t("wizard.setup.fullTitle"),
-      desc: t("wizard.setup.fullDesc"),
-      pill: t("wizard.setup.recommended"),
-    },
-    {
       id: "minimal",
       icon: ShieldCheck,
       title: t("wizard.setup.minimalTitle"),
       desc: t("wizard.setup.minimalDesc"),
+      pill: t("wizard.setup.recommended"),
+    },
+    {
+      id: "full",
+      icon: Sparkles,
+      title: t("wizard.setup.fullTitle"),
+      desc: t("wizard.setup.fullDesc"),
     },
     {
       id: "custom",
@@ -83,12 +83,6 @@ export function SetupDependenciesStep({ probe, onInstall, onBack, onSkip }: {
       body={t("wizard.setup.body")}
       footer={
         <div className="mt-8 space-y-4">
-          <Banner tone="info">
-            <span className="flex items-start gap-2">
-              <Info size={16} className="mt-0.5 shrink-0" />
-              <span>{t("wizard.setup.apkOrOpkg")}</span>
-            </span>
-          </Banner>
           <StepFooter
             onBack={onBack}
             onNext={install}
