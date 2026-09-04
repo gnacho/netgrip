@@ -1,5 +1,18 @@
 export class UnauthorizedError extends Error {}
 
+export interface WANConfig {
+  proto: "dhcp" | "static" | "pppoe";
+  device?: string;
+  ipaddr?: string;
+  netmask?: string;
+  gateway?: string;
+  dns?: string;
+  mtu?: string;
+  username?: string;
+  password?: string;
+  vlanid?: string;
+}
+
 export type InstallPhase = "idle" | "updating" | "installing" | "done" | "error";
 
 export interface InstallJob {
@@ -64,6 +77,13 @@ const realApi = {
   board: () => request<import("./types").Board>("/api/board"),
   system: () => request<import("./types").SystemInfo>("/api/system"),
   wan: () => request<import("./types").WanStatus>("/api/wan"),
+  wanConfig: () => request<WANConfig>("/api/wan/config"),
+  setWanConfig: (cfg: WANConfig) =>
+    request<WANConfig>("/api/wan/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
   wireless: () => request<import("./types").WirelessRadio[]>("/api/wireless"),
   leases: () => request<import("./types").Lease[]>("/api/leases"),
   clients: () => request<{ clients: import("./types").Client[]; bands: string[]; ts: number }>("/api/clients"),
@@ -188,6 +208,12 @@ const realApi = {
   wifiKey: (section: string) => request<{ key: string }>(`/api/wifi/key?section=${encodeURIComponent(section)}`),
   setWifi: (edit: { section: string; ssid?: string; key?: string; encryption?: string; hidden?: boolean; disabled?: boolean; mac?: string }) =>
     request<import("./types").ModuleResult<import("./types").WifiUI>>("/api/wifi", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(edit),
+    }),
+  setWifiRadio: (edit: { radio: string; channel?: string; htmode?: string; txpower?: number }) =>
+    request<import("./types").ModuleResult<import("./types").WirelessRadio>>("/api/wifi/radio", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(edit),

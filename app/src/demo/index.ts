@@ -128,6 +128,8 @@ export const demoApi: typeof api = {
   board: () => get(D.demoBoard),
   system: () => get(D.demoSystem),
   wan: () => get(D.demoWan),
+  wanConfig: async () => ({ proto: "dhcp", device: "wan", mtu: "1500" }),
+  setWanConfig: async (cfg) => { await wait(300, 600); return cfg; },
   wireless: () => get(state.wireless),
   leases: () => get(D.demoLeases),
   clients: async () => { await wait(150, 400); return nextClients(); },
@@ -561,6 +563,15 @@ export const demoApi: typeof api = {
       if (edit.key !== undefined) w.has_key = edit.key.length > 0;
     }
     return write(w ?? state.wifi[0]);
+  },
+  setWifiRadio: async (edit) => {
+    const r = state.wireless.find((x) => x.name === edit.radio);
+    if (r) {
+      if (edit.channel !== undefined) r.channel = edit.channel;
+      if (edit.htmode !== undefined) r.htmode = edit.htmode;
+      if (edit.txpower) r.txpower = edit.txpower;
+    }
+    return write(r ?? state.wireless[0]);
   },
 
   // almacenamiento

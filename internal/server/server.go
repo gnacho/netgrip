@@ -46,6 +46,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/board", s.requireAuth(s.handleBoard))
 	s.mux.HandleFunc("GET /api/system", s.requireAuth(s.handleSystem))
 	s.mux.HandleFunc("GET /api/wan", s.requireAuth(s.handleWan))
+	s.mux.HandleFunc("GET /api/wan/config", s.requireAuth(s.handleWanConfigGet))
+	s.mux.HandleFunc("POST /api/wan/config", s.requireAuth(s.handleWanConfigPost))
 	s.mux.HandleFunc("GET /api/wireless", s.requireAuth(s.handleWireless))
 	s.mux.HandleFunc("GET /api/leases", s.requireAuth(s.handleLeases))
 	s.mux.HandleFunc("GET /api/ipv6", s.requireAuth(s.handleIPv6Get))
@@ -96,6 +98,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/wifi", s.requireAuth(s.handleWifiGet))
 	s.mux.HandleFunc("GET /api/wifi/key", s.requireAuth(s.handleWifiKey))
 	s.mux.HandleFunc("POST /api/wifi", s.requireAuth(s.handleWifiSet))
+	s.mux.HandleFunc("POST /api/wifi/radio", s.requireAuth(s.handleWifiRadioSet))
 	s.mux.HandleFunc("GET /api/lan", s.requireAuth(s.handleLANGet))
 	s.mux.HandleFunc("POST /api/lan", s.requireAuth(s.handleLANSet))
 	s.mux.HandleFunc("POST /api/lan/dhcp", s.requireAuth(s.handleDHCPSet))
@@ -335,6 +338,24 @@ func (s *Server) handleWan(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	writeJSON(w, status)
+}
+
+func (s *Server) handleWanConfigGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ReadWANConfig())
+}
+
+func (s *Server) handleWanConfigPost(w http.ResponseWriter, r *http.Request) {
+	var cfg modules.WANConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	applied, err := modules.ApplyWANConfig(cfg)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, applied)
 }
 
 func (s *Server) handleWireless(w http.ResponseWriter, _ *http.Request) {
@@ -1000,6 +1021,16 @@ func (s *Server) handleWifiSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	probe, rolledBack, err := modules.SetWifi(edit)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleWifiRadioSet(w http.ResponseWriter, r *http.Request) {
+	var edit modules.RadioEdit
+	if err := json.NewDecoder(r.Body).Decode(&edit); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetWifiRadio(edit)
 	writeModuleResult(w, probe, rolledBack, err)
 }
 
