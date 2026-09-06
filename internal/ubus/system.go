@@ -85,19 +85,26 @@ func sumProcRSS() int64 {
 		if err != nil {
 			continue
 		}
-		for _, line := range strings.Split(string(b), "\n") {
-			if strings.HasPrefix(line, "VmRSS:") {
-				fields := strings.Fields(line)
-				if len(fields) >= 2 {
-					if v, err := strconv.ParseInt(fields[1], 10, 64); err == nil {
-						total += v * 1024
-					}
-				}
-				break
-			}
-		}
+		total += parseVmRSS(string(b))
 	}
 	return total
+}
+
+// parseVmRSS extracts the process VmRSS (in bytes) from a /proc/<pid>/status
+// dump; returns 0 when the line is missing or malformed.
+func parseVmRSS(status string) int64 {
+	for _, line := range strings.Split(status, "\n") {
+		if strings.HasPrefix(line, "VmRSS:") {
+			fields := strings.Fields(line)
+			if len(fields) >= 2 {
+				if v, err := strconv.ParseInt(fields[1], 10, 64); err == nil {
+					return v * 1024
+				}
+			}
+			return 0
+		}
+	}
+	return 0
 }
 
 func isDigits(s string) bool {

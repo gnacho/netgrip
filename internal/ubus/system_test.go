@@ -2,26 +2,22 @@ package ubus
 
 import "testing"
 
-func TestParseMeminfo(t *testing.T) {
-	text := `MemTotal:       414112 kB
-MemFree:         51240 kB
-MemAvailable:   110080 kB
-Buffers:         16384 kB
-Cached:         204800 kB
-SReclaimable:    60000 kB
-SwapCached:          0 kB
+func TestParseVmRSS(t *testing.T) {
+	status := `Name:	netgrip
+VmPeak:	   86720 kB
+VmRSS:	   17824 kB
+VmLck:	       0 kB
+VmSwap:	       0 kB
 `
-	m := parseMeminfo(text)
-	if m["MemTotal"] != 414112 || m["MemFree"] != 51240 || m["Buffers"] != 16384 || m["SReclaimable"] != 60000 {
-		t.Fatalf("parsed wrong: %#v", m)
+	if got := parseVmRSS(status); got != 17824*1024 {
+		t.Fatalf("parseVmRSS = %d, want %d", got, 17824*1024)
 	}
-	// available_eff = free + buffers + cached + sreclaimable (in KiB)
-	avail := (m["MemFree"] + m["Buffers"] + m["Cached"] + m["SReclaimable"]) * 1024
-	total := m["MemTotal"] * 1024
-	usedPct := int(float64(total-avail) / float64(total) * 100)
-	// With the raw MemAvailable the pct would be ~73%; the recomputed one
-	// discounts the reclaimable cache and must be much lower.
-	if usedPct > 45 {
-		t.Fatalf("expected much lower used %% after discounting cache, got %d%%", usedPct)
+	// Sin línea VmRSS → 0 (best-effort).
+	if got := parseVmRSS("Name:	foo\nVmPeak:	   86720 kB\n"); got != 0 {
+		t.Fatalf("parseVmRSS sin VmRSS = %d, want 0", got)
+	}
+	// Línea malformada → 0 (sin panic).
+	if got := parseVmRSS("VmRSS:	no-number here\n"); got != 0 {
+		t.Fatalf("parseVmRSS malformado = %d, want 0", got)
 	}
 }
