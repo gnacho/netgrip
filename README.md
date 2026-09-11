@@ -37,8 +37,9 @@
 - **[demo.netgrip.cloudless.club](https://demo.netgrip.cloudless.club)** runs
   the real panel on sample data: click every switch, open every card, nothing
   is applied anywhere.
-- **[netgrip.cloudless.club](https://netgrip.cloudless.club)** walks through
-  what NetGrip does, screen by screen, with the reasoning behind it.
+- **[netgrip.cloudless.club](https://netgrip.cloudless.club)** lists
+  **every single feature**, screen by screen, with the reasoning behind
+  each one.
 
 ## Why NetGrip?
 
@@ -98,9 +99,9 @@ radial graph via usteer.
 
 **And more:** advanced traffic analysis by application (netifyd) with a 24 h
 timeline, an optional `luci-app-netgrip` entry under LuCI > Services, and an
-ES/EN interface that switches in one click. The
-**[website](https://netgrip.cloudless.club)** has the full tour with
-screenshots at full size.
+ES/EN interface that switches in one click. That is still not the whole
+list: **[the website shows every feature](https://netgrip.cloudless.club)**,
+each one with its screenshots at full size.
 
 ## Get it on your router
 

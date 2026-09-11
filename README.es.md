@@ -37,9 +37,9 @@
 - **[demo.netgrip.cloudless.club](https://demo.netgrip.cloudless.club)** corre
   el panel real con datos de ejemplo: pulsa cada interruptor, abre cada
   tarjeta, no se aplica nada en ningún sitio.
-- **[netgrip.cloudless.club](https://netgrip.cloudless.club)** recorre qué
-  hace NetGrip, pantalla a pantalla, con el razonamiento detrás de cada
-  decisión.
+- **[netgrip.cloudless.club](https://netgrip.cloudless.club)** lista
+  **todas y cada una de las funcionalidades**, pantalla a pantalla, con el
+  razonamiento detrás de cada una.
 
 ## ¿Por qué NetGrip?
 
@@ -102,8 +102,9 @@ roaming dibujada como grafo radial vía usteer.
 
 **Y más:** análisis de tráfico avanzado por aplicación (netifyd) con
 timeline de 24 h, la entrada opcional `luci-app-netgrip` bajo LuCI >
-Servicios, e interfaz ES/EN que cambia en un clic. La
-**[web](https://netgrip.cloudless.club)** tiene el tour completo con las
+Servicios, e interfaz ES/EN que cambia en un clic. Y esto todavía no es
+todo: **[en la web están todas las
+funcionalidades](https://netgrip.cloudless.club)**, cada una con sus
 capturas a tamaño real.
 
 ## Ponlo en tu router
