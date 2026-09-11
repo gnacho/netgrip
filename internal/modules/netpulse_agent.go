@@ -21,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gnacho/netpulse/agent/probe"
 	"github.com/gnacho/netpulse/agent/runtime"
 )
 
@@ -54,6 +55,7 @@ type NetPulseConfig struct {
 	Token         string
 	ServerFP      string
 	Interval      string // "30", "15s", "1m"
+	ScanInterval  string // NETPULSE_SCAN_INTERVAL: "0" desactiva los scans periódicos; "900"/"15m"; vacío = default 30m (#699)
 	WanTarget     string
 	GwTarget      string
 	Enabled       bool
@@ -225,6 +227,7 @@ func ReadNetPulseConfig(path string) (NetPulseConfig, error) {
 		Token:         kv["NETPULSE_TOKEN"],
 		ServerFP:      kv["NETPULSE_SERVER_FP"],
 		Interval:      kv["NETPULSE_INTERVAL"],
+		ScanInterval:  kv["NETPULSE_SCAN_INTERVAL"],
 		WanTarget:     kv["NETPULSE_WAN_TARGET"],
 		GwTarget:      kv["NETPULSE_GW_TARGET"],
 		Enabled:       kv["NETPULSE_ENABLED"] == "1",
@@ -308,6 +311,9 @@ func writeNetPulseEnv(path string, cfg NetPulseConfig) error {
 	}
 	if cfg.Interval != "" {
 		b.WriteString("NETPULSE_INTERVAL=" + cfg.Interval + "\n")
+	}
+	if cfg.ScanInterval != "" {
+		b.WriteString("NETPULSE_SCAN_INTERVAL=" + cfg.ScanInterval + "\n")
 	}
 	if cfg.WanTarget != "" {
 		b.WriteString("NETPULSE_WAN_TARGET=" + cfg.WanTarget + "\n")
@@ -492,18 +498,19 @@ func applyNetPulseAgent(p netpulsePaths) {
 	}
 
 	opts := runtime.Options{
-		Server:    cfg.Server,
-		Token:     cfg.Token,
-		Slug:      cfg.Slug,
-		ServerFP:  cfg.ServerFP,
-		Interval:  parseNetPulseInterval(cfg.Interval),
-		WanTarget: cfg.WanTarget,
-		GwTarget:  cfg.GwTarget,
-		EnvFile:   p.env,
-		Version:   version,
-		Kind:      "netgrip",
-		OnStatus:  storeNetPulseStatus,
-		OnUpgrade: netPulseUpgradeTrigger,
+		Server:       cfg.Server,
+		Token:        cfg.Token,
+		Slug:         cfg.Slug,
+		ServerFP:     cfg.ServerFP,
+		Interval:     parseNetPulseInterval(cfg.Interval),
+		ScanInterval: parseNetPulseScanInterval(cfg.ScanInterval),
+		WanTarget:    cfg.WanTarget,
+		GwTarget:     cfg.GwTarget,
+		EnvFile:      p.env,
+		Version:      version,
+		Kind:         "netgrip",
+		OnStatus:     storeNetPulseStatus,
+		OnUpgrade:    netPulseUpgradeTrigger,
 	}
 
 	ctx, cancel := context.WithCancel(base)
@@ -532,6 +539,27 @@ func parseNetPulseInterval(v string) time.Duration {
 	v = strings.TrimSpace(v)
 	if v == "" {
 		return 0
+	}
+	if sec, err := strconv.Atoi(v); err == nil && sec > 0 {
+		return time.Duration(sec) * time.Second
+	}
+	if d, err := time.ParseDuration(v); err == nil && d > 0 {
+		return d
+	}
+	return 0
+}
+
+// parseNetPulseScanInterval (#699): como parseNetPulseInterval pero "0"
+// desactiva los scans periódicos (probe.ScanDisabled: cada off-channel gap
+// puede costar un deauth de beacon-loss en clientes Intel). Vacío o inválido
+// devuelve 0 y el runtime/probe aplican su default (30m).
+func parseNetPulseScanInterval(v string) time.Duration {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return 0
+	}
+	if v == "0" {
+		return probe.ScanDisabled
 	}
 	if sec, err := strconv.Atoi(v); err == nil && sec > 0 {
 		return time.Duration(sec) * time.Second

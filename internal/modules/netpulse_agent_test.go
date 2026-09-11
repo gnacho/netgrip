@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gnacho/netpulse/agent/probe"
 )
 
 func tmpPaths(t *testing.T) netpulsePaths {
@@ -202,6 +204,58 @@ func TestParseNetPulseInterval(t *testing.T) {
 		if got := parseNetPulseInterval(in); got != want {
 			t.Fatalf("parseNetPulseInterval(%q) = %v, want %v", in, got, want)
 		}
+	}
+}
+
+// #699: "0" desactiva los scans periódicos (probe.ScanDisabled); vacío o
+// inválido = 0 (el runtime/probe aplican su default 30m).
+func TestParseNetPulseScanInterval(t *testing.T) {
+	cases := map[string]time.Duration{
+		"0":    probe.ScanDisabled,
+		"900":  15 * time.Minute,
+		"15m":  15 * time.Minute,
+		"1h":   time.Hour,
+		"":     0,
+		"nada": 0,
+		"-5":   0,
+	}
+	for in, want := range cases {
+		if got := parseNetPulseScanInterval(in); got != want {
+			t.Fatalf("parseNetPulseScanInterval(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
+
+// #699: NETPULSE_SCAN_INTERVAL debe sobrevivir al roundtrip
+// ReadNetPulseConfig -> writeNetPulseEnv (la UI reescribe el env file en
+// cada cambio de config y no debe borrar la clave).
+func TestNetPulseEnvScanIntervalSurvivesRewrite(t *testing.T) {
+	dir := t.TempDir()
+	env := filepath.Join(dir, "netpulse.env")
+	original := "NETPULSE_SERVER=http://s\n" +
+		"NETPULSE_SLUG=s\n" +
+		"NETPULSE_TOKEN=t\n" +
+		"NETPULSE_SCAN_INTERVAL=0\n" +
+		"NETPULSE_ENABLED=1\n"
+	if err := os.WriteFile(env, []byte(original), 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	cfg, err := ReadNetPulseConfig(env)
+	if err != nil {
+		t.Fatalf("ReadNetPulseConfig: %v", err)
+	}
+	if cfg.ScanInterval != "0" {
+		t.Fatalf("ScanInterval leído = %q, want \"0\"", cfg.ScanInterval)
+	}
+	if err := writeNetPulseEnv(env, cfg); err != nil {
+		t.Fatalf("writeNetPulseEnv: %v", err)
+	}
+	cfg2, err := ReadNetPulseConfig(env)
+	if err != nil {
+		t.Fatalf("ReadNetPulseConfig post-escritura: %v", err)
+	}
+	if cfg2.ScanInterval != "0" {
+		t.Fatalf("NETPULSE_SCAN_INTERVAL no sobrevivió a la reescritura: %q", cfg2.ScanInterval)
 	}
 }
 
