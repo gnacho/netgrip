@@ -6,17 +6,16 @@
 # attended upgrade drops netgrip from the image. The files survive the
 # flash via /etc/sysupgrade.conf (postinst adds them) and procd starts the
 # panel on first boot, but the apk/opkg registry entry is gone: the package
-# stops being "installed", package managers never upgrade it again and a
-# reinstall demands manual work.
+# stops being "installed" and package managers never upgrade it again.
 #
-# This script runs in the background from the init script and:
-#   - exits immediately when the registry already lists netgrip
-#   - apk (OpenWrt 25): installs the running version from the feed
-#     (the postinst registers the feed and its signing key); dev builds
-#     newer than the feed are left alone
-#   - opkg (OpenWrt 24): installs the matching .ipk from the latest GitHub
-#     release; again, dev builds newer than the release are left alone
-# Failures are logged and retried on the next boot. Never blocks the panel.
+# This script runs in the background from the init script and reinstalls
+# the running version from the latest GitHub release:
+#   - apk (OpenWrt 25): the matching netgrip-<ver>-r1-<arch>.apk asset,
+#     installed with --allow-untrusted (custom feeds would need a
+#     PGP-signed packages.adb, which the CI cannot produce yet)
+#   - opkg (OpenWrt 24): the matching netgrip_<ver>-1_<arch>.ipk asset
+# Dev builds newer than the latest release are left alone. Failures are
+# logged and retried on the next boot. Never blocks the panel.
 
 PKG=netgrip
 BIN=/usr/sbin/netgrip
@@ -46,6 +45,23 @@ fi
 ver=$("$BIN" -version 2>/dev/null)
 log "registry entry lost (running ${ver:-unknown}): restoring"
 
+# Resolve the release asset for this flavor and architecture.
+if command -v apk >/dev/null 2>&1; then
+	arch=$(apk --print-arch 2>/dev/null)
+	case "$arch" in
+		aarch64*) asset=netgrip-*-arm64.apk ;;
+		x86_64*) asset=netgrip-*-amd64.apk ;;
+		*) log "no release asset for apk arch $arch"; exit 1 ;;
+	esac
+	pkgfile=/tmp/netgrip-heal.apk
+else
+	arch=$(opkg print-architecture 2>/dev/null | awk 'tolower($1)=="arch"{print $2; exit}')
+	[ -n "$arch" ] || arch=$(opkg status 2>/dev/null | sed -n 's/^Architecture: *//p' | head -n1)
+	[ -n "$arch" ] || { log "cannot determine architecture"; exit 1; }
+	asset="netgrip*_${arch}.ipk"
+	pkgfile=/tmp/netgrip-heal.ipk
+fi
+
 # Wait for WAN, up to ~3 minutes.
 i=0
 while [ "$i" -lt 36 ]; do
@@ -56,47 +72,17 @@ while [ "$i" -lt 36 ]; do
 	i=$((i + 1))
 done
 
-if command -v apk >/dev/null 2>&1; then
-	apk update >/dev/null 2>&1 || true
-	if [ -n "$ver" ]; then
-		if apk add "$PKG=$ver" >/dev/null 2>&1; then
-			log "restored $PKG=$ver from feed"
-			exit 0
-		fi
-		# A dev build newer than the feed must not be downgraded.
-		feed_ver=$(apk search -x "$PKG" 2>/dev/null | sed -n "s/^$PKG-//p" | head -n1)
-		case "$feed_ver" in
-			"$ver"-*|"$ver") ;;
-			*)
-				if [ -n "$feed_ver" ]; then
-					log "feed has $feed_ver, running $ver is newer or unknown: skipping"
-					exit 0
-				fi
-				;;
-		esac
-	fi
-	if apk add "$PKG" >/dev/null 2>&1; then
-		log "restored $PKG (latest) from feed"
-		exit 0
-	fi
-	log "apk restore failed"
-	exit 1
-fi
-
-# opkg flavor: fetch the ipk for this architecture from the latest release.
-arch=$(opkg print-architecture 2>/dev/null | awk 'tolower($1)=="arch"{print $2; exit}')
-[ -n "$arch" ] || arch=$(opkg status 2>/dev/null | sed -n "s/^Architecture: *//p" | head -n1)
-[ -n "$arch" ] || { log "cannot determine architecture"; exit 1; }
-
 json=$(wget -q -O - -T 15 "$RELEASES_API" 2>/dev/null)
 [ -n "$json" ] || { log "cannot reach GitHub releases API"; exit 1; }
 
-url=$(printf '%s' "$json" | tr ',' '\n' | grep -o '"browser_download_url": *"[^"]*"' | cut -d'"' -f4 | grep "_${arch}\.ipk$" | head -n1)
-[ -n "$url" ] || { log "no ipk asset for arch $arch in latest release"; exit 1; }
+url=$(printf '%s' "$json" | tr ',' '\n' | grep -o '"browser_download_url": *"[^"]*"' | cut -d'"' -f4 | grep -E "/$(printf '%s' "$asset" | sed 's/\*/[^/]*/g')$" | head -n1)
+[ -n "$url" ] || { log "no release asset matching $asset"; exit 1; }
 
+# Never downgrade a dev build: only heal when the asset matches the
+# running version.
 if [ -n "$ver" ]; then
 	case "$url" in
-		*"_${ver}-"*) ;;
+		*"netgrip-${ver}-"*|*"netgrip_${ver}-"*) ;;
 		*)
 			log "latest release does not match running $ver: skipping (reinstall manually)"
 			exit 0
@@ -104,16 +90,25 @@ if [ -n "$ver" ]; then
 	esac
 fi
 
-if ! wget -q -O /tmp/netgrip-heal.ipk -T 120 "$url"; then
-	rm -f /tmp/netgrip-heal.ipk
+if ! wget -q -O "$pkgfile" -T 120 "$url"; then
+	rm -f "$pkgfile"
 	log "download failed: $url"
 	exit 1
 fi
-if opkg install /tmp/netgrip-heal.ipk >/dev/null 2>&1; then
-	rm -f /tmp/netgrip-heal.ipk
-	log "restored from $url"
-	exit 0
+
+if command -v apk >/dev/null 2>&1; then
+	if apk add --allow-untrusted "$pkgfile" >/dev/null 2>&1; then
+		rm -f "$pkgfile"
+		log "restored from $url"
+		exit 0
+	fi
+else
+	if opkg install "$pkgfile" >/dev/null 2>&1; then
+		rm -f "$pkgfile"
+		log "restored from $url"
+		exit 0
+	fi
 fi
-rm -f /tmp/netgrip-heal.ipk
-log "opkg install failed"
+rm -f "$pkgfile"
+log "install failed"
 exit 1

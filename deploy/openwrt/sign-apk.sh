@@ -1,22 +1,34 @@
 #!/bin/sh
-# sign-apk.sh - Generates and signs a signed APKINDEX for OpenWrt .apk feeds.
+# sign-apk.sh - Builds the OpenWrt 25 .apk feed index and signs it.
 #
 # Usage:
-#   ./deploy/openwrt/sign-apk.sh [output-dir] [private-key]
+#   sign-apk.sh [output-dir] [usign-secret-key] [public-key]
 #
-# Requires: apk-tools (3.x), abuild-sign
+# Requires: apk-tools 3 built for OpenWrt (the SDK host build; the Alpine
+# apk-tools speaks a different package format) and usign, both under
+# staging_dir/host/bin of an extracted OpenWrt SDK.
 #
-# For apk v3 (OpenWrt 25.12+) packages are pre-built by the SDK and do not need
-# per-package repacking/signature. The feed only needs a signed APKINDEX.tar.gz.
-# This script:
-#   1. Generates APKINDEX.tar.gz from all *.apk in output-dir
-#   2. Signs APKINDEX.tar.gz with the private key
-#   3. Extracts the matching public key into output-dir
+# Produces in output-dir:
+#   packages.adb      - repository index (v3), the file repositories.d
+#                       entries must point at
+#   packages.adb.asc  - usign detached signature of the index
+#   <public-key copy> - the matching public key, for /etc/apk/keys
+#
+# The release apks are signed by the SDK build keys, which this run does
+# not trust; the index is built with --allow-untrusted and the trust lives
+# in the usign signature of packages.adb.
+#
+# NOTE (#296): OpenWrt 25.12 routers currently only verify indexes signed
+# with the official OpenWrt build-system PGP key, so third-party adb feeds
+# are not verifiable on-device yet. The structure published here is the
+# correct feed layout; routers can still install the apks directly with
+# `apk add --allow-untrusted`, which is what netgrip-heal-register does.
 
 set -eu
 
 out_dir="${1:-feed}"
-privkey="${2:-~/.abuild/netgrip-signing-key.rsa}"
+privkey="${2:?usage: sign-apk.sh <output-dir> <usign-secret-key> <public-key>}"
+pubkey="${3:?usage: sign-apk.sh <output-dir> <usign-secret-key> <public-key>}"
 
 if [ ! -d "$out_dir" ]; then
   echo "Error: output directory not found: $out_dir" >&2
@@ -24,25 +36,27 @@ if [ ! -d "$out_dir" ]; then
 fi
 
 if [ ! -f "$privkey" ]; then
-  echo "Error: Private key not found: $privkey" >&2
+  echo "Error: usign secret key not found: $privkey" >&2
+  exit 1
+fi
+
+if [ ! -f "$pubkey" ]; then
+  echo "Error: public key not found: $pubkey" >&2
   exit 1
 fi
 
 cd "$out_dir"
 
-echo "==> Extracting public key"
-openssl rsa -in "$privkey" -pubout -out netgrip.rsa.pub 2>/dev/null
+echo "==> Generating packages.adb"
+# Fail closed: a feed without a signed index is a broken feed. This used
+# to warn and exit 0, which published apk files nobody could install (#296).
+apk mkndx --allow-untrusted -o packages.adb *.apk
 
-echo "==> Generating APKINDEX"
-# The release apks are signed by the build SDK keys, which this container
-# does not trust; index with --allow-untrusted and let the trust live in
-# the APKINDEX signature below. Fail closed: a feed without a signed index
-# is a broken feed. This used to warn and exit 0, which published apk
-# files nobody could install (#296).
-apk index --allow-untrusted -o APKINDEX.tar.gz --description "NetGrip $(date +%Y-%m-%d)" *.apk
+echo "==> Signing packages.adb"
+usign -S -s "$privkey" -m packages.adb -x packages.adb.asc
 
-echo "==> Signing APKINDEX"
-abuild-sign -k "$privkey" APKINDEX.tar.gz
+echo "==> Publishing public key"
+cp "$pubkey" .
 
 echo "==> Done"
-echo "Signed index: $out_dir/APKINDEX.tar.gz"
+echo "Index: $out_dir/packages.adb (signed: packages.adb.asc)"

@@ -33,12 +33,6 @@ define Package/netgrip/install
 	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/usr/libexec/netgrip-restore-rules $(1)/usr/libexec/netgrip-restore-rules
 	$(INSTALL_BIN) ./files/usr/libexec/netgrip-heal-register $(1)/usr/libexec/netgrip-heal-register
-# The signing key lands in files/usr/share/netgrip/netgrip.rsa.pub once the
-# feed job has published it; until then package without it (#296).
-ifneq ($(wildcard ./files/usr/share/netgrip/netgrip.rsa.pub),)
-	$(INSTALL_DIR) $(1)/usr/share/netgrip
-	$(INSTALL_DATA) ./files/usr/share/netgrip/netgrip.rsa.pub $(1)/usr/share/netgrip/netgrip.rsa.pub
-endif
 endef
 
 define Package/netgrip/postinst
@@ -85,15 +79,6 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
 	for f in /usr/sbin/netgrip /etc/init.d/netgrip /etc/rc.d/S99netgrip /usr/libexec/netgrip-restore-rules /usr/libexec/netgrip-heal-register /etc/netgrip/; do
 		grep -qxF "$$f" /etc/sysupgrade.conf 2>/dev/null || echo "$$f" >> /etc/sysupgrade.conf
 	done
-	# Register the apk feed + signing key (#296): upgrades arrive with
-	# `apk upgrade` and the registry self-heal can reinstall after owut.
-	if command -v apk >/dev/null 2>&1 && [ -d /etc/apk ]; then
-		mkdir -p /etc/apk/keys /etc/apk/repositories.d
-		if [ -f /usr/share/netgrip/netgrip.rsa.pub ]; then
-			cp /usr/share/netgrip/netgrip.rsa.pub /etc/apk/keys/
-		fi
-		printf '%s\n' "https://gnacho.github.io/netgrip" > /etc/apk/repositories.d/netgrip.list
-	fi
 fi
 exit 0
 endef

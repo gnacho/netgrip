@@ -259,7 +259,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          apk add --no-cache git nodejs npm openssl abuild apk-tools curl github-cli
+          apk add --no-cache git nodejs npm openssl curl github-cli zstd tar
 
       - uses: actions/checkout@v4
 
@@ -287,21 +287,30 @@ jobs:
 
       - name: Set up signing key
         env:
-          APK_SIGN_KEY: ${{ secrets.APK_SIGN_KEY }}
+          NETGRIP_FEED_KEY: ${{ secrets.NETGRIP_FEED_KEY }}
         run: |
-          if [ -z "$APK_SIGN_KEY" ]; then
-            echo "::error::APK_SIGN_KEY secret not set. Generate a key with: abuild-keygen -n"
-            echo "::error::Then add the private key content as APK_SIGN_KEY in repo secrets."
+          if [ -z "$NETGRIP_FEED_KEY" ]; then
+            echo "::error::NETGRIP_FEED_KEY secret not set. Generate a key with:"
+            echo "::error::  usign -G -s netgrip-feed-sec -p deploy/openwrt/keys/netgrip-feed.pub"
+            echo "::error::Then add the secret key content as NETGRIP_FEED_KEY in repo secrets."
             exit 1
           fi
           mkdir -p ~/.abuild
-          echo "$APK_SIGN_KEY" > ~/.abuild/netgrip-signing-key.rsa
-          chmod 600 ~/.abuild/netgrip-signing-key.rsa
+          echo "$NETGRIP_FEED_KEY" > ~/.abuild/netgrip-feed-sec
+          chmod 600 ~/.abuild/netgrip-feed-sec
 
       - name: Sign APKs and generate index
         run: |
           chmod +x deploy/openwrt/sign-apk.sh
-          ./deploy/openwrt/sign-apk.sh feed ~/.abuild/netgrip-signing-key.rsa
+          # The feed index must be built with the OpenWrt apk-tools: the
+          # Alpine one (also 3.x) speaks a different package format and
+          # fails on every apk with "file format not supported" (#296).
+          SDK_URL_DIR="https://downloads.openwrt.org/releases/25.12.5/targets/x86/64/"
+          SDK_NAME="$(curl -fsSL "$SDK_URL_DIR" | grep -o 'openwrt-sdk-[^"]*\.tar\.zst' | head -1)"
+          curl -fsSL "${SDK_URL_DIR}${SDK_NAME}" -o sdk.tar.zst
+          tar --zstd -xf sdk.tar.zst
+          export PATH="${PWD}/${SDK_NAME%.tar.zst}/staging_dir/host/bin:$PATH"
+          ./deploy/openwrt/sign-apk.sh feed ~/.abuild/netgrip-feed-sec deploy/openwrt/keys/netgrip-feed.pub
 
       - name: Upload feed artifact
         uses: actions/upload-artifact@v4
