@@ -52,7 +52,7 @@ function EntryRow({ entry, wanIp, busySection, onToggle, onDelete, onForce }: {
           <span>{t("ddns.lastUpdate")}: {lastUpdate.valid ? lastUpdate.text : <span title={entry.last_update}>—</span>}</span>
         </div>
         {diverged && (
-          <div className="mt-1.5 flex flex-col gap-1">
+          <div className="mt-1.5 flex flex-col items-start gap-1">
             <Pill tone="warn">{t("ddns.diverged")}</Pill>
             <p className="text-small text-warn">{t("ddns.divergedHint")}</p>
           </div>
