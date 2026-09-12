@@ -243,6 +243,20 @@ export interface GuestProbe {
   gl_conflict: boolean;
 }
 
+export interface CaptivePortalProbe {
+  applicable: boolean;
+  installed: boolean;
+  active: boolean;
+  running: boolean;
+  interface: string;
+  title: string;
+  message: string;
+  has_access_code: boolean;
+  session_minutes: number;
+  custom_html: boolean;
+  has_image: boolean;
+}
+
 export interface IfaceCounters {
   name: string;
   rx_bytes: number;

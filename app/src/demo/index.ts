@@ -29,6 +29,7 @@ const state = {
   ovpn: structuredClone(D.demoOvpn),
   ipv6: { ...D.demoIpv6 },
   guest: { ...D.demoGuest },
+  captive: { ...D.demoCaptivePortal },
   iot: { ...D.demoIot },
   fwd: structuredClone(D.demoFwd),
   ts: { ...D.demoTailscale },
@@ -300,6 +301,21 @@ export const demoApi: typeof api = {
     state.guest.active = cfg.enabled;
     if (cfg.ssid) state.guest.ssid = cfg.ssid;
     return write(state.guest);
+  },
+  captiveportal: () => get(state.captive),
+  setCaptiveportal: async (cfg) => {
+    state.captive.active = cfg.enabled;
+    state.captive.running = cfg.enabled;
+    if (cfg.title !== undefined) state.captive.title = cfg.title;
+    if (cfg.message !== undefined) state.captive.message = cfg.message;
+    state.captive.has_access_code = !!cfg.access_code;
+    if (cfg.session_minutes !== undefined) state.captive.session_minutes = cfg.session_minutes;
+    state.captive.custom_html = !!cfg.custom_html;
+    return write(state.captive);
+  },
+  uploadCaptivePortalImage: async () => {
+    state.captive.has_image = true;
+    return write(state.captive);
   },
   iotwifi: () => get(state.iot),
   setIotwifi: async (cfg) => {

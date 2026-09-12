@@ -86,6 +86,9 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/tailscale", s.requireAuth(s.handleTSSet))
 	s.mux.HandleFunc("GET /api/guestwifi", s.requireAuth(s.handleGuestGet))
 	s.mux.HandleFunc("POST /api/guestwifi", s.requireAuth(s.handleGuestSet))
+	s.mux.HandleFunc("GET /api/captiveportal", s.requireAuth(s.handleCaptivePortalGet))
+	s.mux.HandleFunc("POST /api/captiveportal", s.requireAuth(s.handleCaptivePortalSet))
+	s.mux.HandleFunc("POST /api/captiveportal/image", s.requireAuth(s.handleCaptivePortalImage))
 	s.mux.HandleFunc("GET /api/mode", s.requireAuth(s.handleMode))
 	s.mux.HandleFunc("POST /api/mode", s.requireAuth(s.handleModeSet))
 	s.mux.HandleFunc("GET /api/access", s.requireAuth(s.handleAccessGet))
@@ -897,6 +900,30 @@ func (s *Server) handleGuestSet(w http.ResponseWriter, r *http.Request) {
 	}
 	probe, rolledBack, err := modules.SetGuest(cfg)
 	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleCaptivePortalGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeCaptivePortal())
+}
+
+func (s *Server) handleCaptivePortalSet(w http.ResponseWriter, r *http.Request) {
+	var cfg modules.CaptivePortalConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetCaptivePortal(cfg)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleCaptivePortalImage(w http.ResponseWriter, r *http.Request) {
+	var img modules.CaptivePortalImage
+	if err := json.NewDecoder(r.Body).Decode(&img); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, err := modules.SetCaptivePortalImage(img)
+	writeModuleResult(w, probe, false, err)
 }
 
 func (s *Server) handleMode(w http.ResponseWriter, _ *http.Request) {

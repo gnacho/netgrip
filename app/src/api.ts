@@ -271,6 +271,26 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg),
     }),
+  captiveportal: () => request<import("./types").CaptivePortalProbe>("/api/captiveportal"),
+  setCaptiveportal: (cfg: {
+    enabled: boolean;
+    title?: string;
+    message?: string;
+    access_code?: string;
+    session_minutes?: number;
+    custom_html?: string;
+  }) =>
+    request<import("./types").ModuleResult<import("./types").CaptivePortalProbe>>("/api/captiveportal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
+  uploadCaptivePortalImage: (imageBase64: string, imageExt: string) =>
+    request<import("./types").ModuleResult<import("./types").CaptivePortalProbe>>("/api/captiveportal/image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image_base64: imageBase64, image_ext: imageExt }),
+    }),
   tailscale: () => request<import("./types").TSProbe>("/api/tailscale"),
   setTailscale: (enabled: boolean) =>
     request<import("./types").ModuleResult<import("./types").TSProbe>>("/api/tailscale", {

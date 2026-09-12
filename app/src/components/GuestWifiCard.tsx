@@ -6,6 +6,7 @@ import type { GuestProbe } from "../types";
 import { ActionBanner, Banner, Button, Card, Input, KeyValue, Pill, SettingRow, SkeletonRows, Toggle } from "./ui";
 import { QrBox, useWifiQr } from "./wifi/qr";
 import { useActionCycle } from "./wifi/action";
+import { CaptivePortalPanel } from "./wifi/CaptivePortalPanel";
 
 /**
  * WiFi para visitas (wifi.md §3). SettingRow héroe + datos cuando está activa.
@@ -202,6 +203,8 @@ export function GuestWifiCard({ probe, mainSsid, onChange }: {
               </div>
             </div>
           )}
+
+          {probe.gateway && <CaptivePortalPanel gateway={probe.gateway} />}
         </>
       )}
     </Card>

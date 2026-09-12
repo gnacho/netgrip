@@ -204,6 +204,20 @@ export const demoGuest: T.GuestProbe = {
   gl_conflict: false,
 };
 
+export const demoCaptivePortal: T.CaptivePortalProbe = {
+  applicable: true,
+  installed: true,
+  active: false,
+  running: false,
+  interface: "br-guest",
+  title: "",
+  message: "",
+  has_access_code: false,
+  session_minutes: 0,
+  custom_html: false,
+  has_image: false,
+};
+
 export const demoEthPorts: T.EthPort[] = [
   { name: "wan", wan: true, up: true, speed_mbps: 1000, devices: [] },
   { name: "lan1", wan: false, up: true, speed_mbps: 1000, devices: [{ mac: "00:11:32:9A:BC:10", name: "NAS" }] },
