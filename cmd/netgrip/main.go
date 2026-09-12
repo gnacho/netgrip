@@ -16,9 +16,14 @@ var version = "dev"
 
 func main() {
 	listen := flag.String("listen", "0.0.0.0", "listen address")
+	showVersion := flag.Bool("version", false, "print version and exit")
 	port := flag.Int("port", 8090, "listen port")
 	rpcdURL := flag.String("rpcd-url", auth.DefaultRPCdURL, "rpcd JSON-RPC endpoint used for login validation")
 	flag.Parse()
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
 
 	// The flag always has a value (its default), so only treat it as an
 	// explicit override when it differs from the default endpoint.
