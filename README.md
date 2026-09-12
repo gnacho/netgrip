@@ -55,8 +55,10 @@ waits, checks the service came up, and undoes itself if it did not.
 Three rules shape it:
 
 - **It lives on the router.** One static Go binary with the UI embedded
-  (~6 MB on disk, ~7 MB RAM), packaged as a real OpenWrt `.apk`/`.ipk` that
-  survives sysupgrade. No container, no extra box, no Node on a router.
+  (about 10 MB on disk and ~15 MB of RAM in use, measured on an ARM64
+  router; ~11.4 MB on mipsle), packaged as a real OpenWrt `.apk`/`.ipk`
+  that survives sysupgrade. No container, no extra box, no Node on a
+  router.
 - **Safe by construction.** Every change goes through an allowlisted
   executor with a config snapshot and automatic rollback. The panel cannot
   wander off the beaten path.
@@ -102,6 +104,11 @@ timeline, an optional `luci-app-netgrip` entry under LuCI > Services, and an
 ES/EN interface that switches in one click. That is still not the whole
 list: **[the website shows every feature](https://netgrip.cloudless.club)**,
 each one with its screenshots at full size.
+
+**A NetPulse agent built in.** The same binary also reports metrics, WiFi
+events and clients to [NetPulse](https://netpulse.cloudless.club), so the
+router shows up labeled as NetGrip in its fleet with no extra install. It is
+a capability, not a requirement: if you do not use NetPulse, nothing changes.
 
 ## Get it on your router
 

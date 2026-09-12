@@ -56,9 +56,10 @@ se deshace solo si no fue así.
 Tres reglas lo dan forma:
 
 - **Vive en el router.** Un único binario Go estático con la UI embebida
-  (~6 MB en disco, ~7 MB de RAM), empaquetado como `.apk`/`.ipk` real de
-  OpenWrt que sobrevive al sysupgrade. Sin contenedores, sin caja extra, sin
-  Node en un router.
+  (unos 10 MB en disco y ~15 MB de RAM en uso, medidos en un router ARM64;
+  ~11,4 MB en mipsle), empaquetado como `.apk`/`.ipk` real de OpenWrt que
+  sobrevive al sysupgrade. Sin contenedores, sin caja extra, sin Node en un
+  router.
 - **Seguro por construcción.** Cada cambio pasa por un executor con
   allowlist, con snapshot de config y rollback automático. El panel no puede
   salirse del camino trazado.
@@ -106,6 +107,11 @@ Servicios, e interfaz ES/EN que cambia en un clic. Y esto todavía no es
 todo: **[en la web están todas las
 funcionalidades](https://netgrip.cloudless.club)**, cada una con sus
 capturas a tamaño real.
+
+**Agente de NetPulse integrado.** El mismo binario reporta métricas, eventos
+WiFi y clientes a [NetPulse](https://netpulse.cloudless.club): el router
+aparece etiquetado como NetGrip en su flota sin instalar nada más. Es una
+capacidad adicional, no un requisito: si no usas NetPulse, nada cambia.
 
 ## Ponlo en tu router
 
