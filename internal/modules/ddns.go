@@ -51,8 +51,21 @@ type DDNSEntry struct {
 type DDNSProbe struct {
 	Installed bool        `json:"installed"`
 	Entries   []DDNSEntry `json:"entries"`
+	// WanIP is the current WAN IPv4, shown next to the registered IP so the
+	// UI can warn when they diverge.
+	WanIP string `json:"wan_ip"`
 }
 
+// validDDNSSection reports whether s is a safe UCI section name.
+func validDDNSSection(s string) bool {
+	return regexp.MustCompile(`^[a-zA-Z0-9_@:-]{1,64}$`).MatchString(s)
+}
+
+// ddnsSectionExists is a test seam for uciSectionExists (no uci binary in
+// unit tests).
+var ddnsSectionExists = uciSectionExists
+
+// ddnsInstalled reports whether ddns-scripts is present.
 func ddnsInstalled() bool {
 	_, err := os.Stat("/etc/init.d/ddns")
 	return err == nil
@@ -126,6 +139,7 @@ func ProbeDDNS() *DDNSProbe {
 	if !p.Installed {
 		return p
 	}
+	p.WanIP = wanIPv4()
 	for _, section := range ddnsSections() {
 		if uciGet("ddns."+section) != "service" {
 			continue
@@ -137,6 +151,28 @@ func ProbeDDNS() *DDNSProbe {
 		p.Entries = append(p.Entries, *e)
 	}
 	return p
+}
+
+// ForceDDNSUpdate triggers a one-shot ddns-scripts update for a single
+// section and returns fresh DDNS state. ddns-scripts has no force flag: it
+// sends an update when the registered IP differs from the current IP or when
+// the last-update marker is missing, so removing the marker forces one. The
+// updater is started fire-and-forget (the script sleeps check_interval before
+// exiting, and procd respawns the instance it replaces).
+func ForceDDNSUpdate(section string) (*DDNSProbe, error) {
+	if !validDDNSSection(section) {
+		return ProbeDDNS(), fmt.Errorf("invalid section name")
+	}
+	if !ddnsSectionExists("ddns." + section) {
+		return ProbeDDNS(), fmt.Errorf("ddns section %q not found", section)
+	}
+	_ = os.Remove("/tmp/run/ddns/" + section + ".update")
+	cmd := exec.Command("/usr/lib/ddns/dynamic_dns_updater.sh", "-S", section, "-v", "2")
+	if err := cmd.Start(); err != nil {
+		return ProbeDDNS(), fmt.Errorf("failed to start ddns updater: %w", err)
+	}
+	_ = cmd.Process.Release()
+	return ProbeDDNS(), nil
 }
 
 func ddnsEntryByDomain(domain string) *DDNSEntry {
@@ -230,7 +266,7 @@ func findDDNSEntry(entries []DDNSEntry, domain string) *DDNSEntry {
 
 // DeleteDDNSSection removes one DDNS entry by its unique section id (#204).
 func DeleteDDNSSection(section string) (*DDNSProbe, bool, error) {
-	if !regexp.MustCompile(`^[a-zA-Z0-9_@:-]{1,64}$`).MatchString(section) {
+	if !validDDNSSection(section) {
 		return ProbeDDNS(), false, fmt.Errorf("invalid section name")
 	}
 	if !uciSectionExists("ddns." + section) {

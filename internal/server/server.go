@@ -63,6 +63,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/ddns", s.requireAuth(s.handleDDNSGet))
 	s.mux.HandleFunc("POST /api/ddns", s.requireAuth(s.handleDDNSSet))
 	s.mux.HandleFunc("DELETE /api/ddns", s.requireAuth(s.handleDDNSDelete))
+	s.mux.HandleFunc("POST /api/ddns/force", s.requireAuth(s.handleDDNSForce))
 	s.mux.HandleFunc("GET /api/sqm", s.requireAuth(s.handleSQMGet))
 	s.mux.HandleFunc("POST /api/sqm", s.requireAuth(s.handleSQMSet))
 	s.mux.HandleFunc("POST /api/sqm/test", s.requireAuth(s.handleBufferbloatTest))
@@ -578,6 +579,20 @@ func (s *Server) handleDDNSDelete(w http.ResponseWriter, r *http.Request) {
 		probe, rolledBack, err = modules.DeleteDDNS(req.Domain)
 	}
 	writeModuleResult(w, probe, rolledBack, err)
+}
+
+type ddnsForceRequest struct {
+	Section string `json:"section"`
+}
+
+func (s *Server) handleDDNSForce(w http.ResponseWriter, r *http.Request) {
+	var req ddnsForceRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, err := modules.ForceDDNSUpdate(req.Section)
+	writeModuleResult(w, probe, false, err)
 }
 
 func (s *Server) handleSQMGet(w http.ResponseWriter, _ *http.Request) {

@@ -135,6 +135,7 @@ export interface DDNSEntry {
 export interface DDNSProbe {
   installed: boolean;
   entries: DDNSEntry[];
+  wan_ip: string;
 }
 
 export interface MDNSProbe {

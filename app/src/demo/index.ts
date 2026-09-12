@@ -241,6 +241,15 @@ export const demoApi: typeof api = {
     state.ddns.entries = state.ddns.entries.filter((e) => e.section !== section);
     return { status: "applied" as const, rolled_back: false, state: state.ddns };
   },
+  forceDdns: async (section) => {
+    await wait(800, 1500);
+    const e = state.ddns.entries.find((x) => x.section === section);
+    if (e) {
+      e.registered_ip = state.ddns.wan_ip ?? "";
+      e.last_update = new Date().toISOString();
+    }
+    return { status: "applied" as const, rolled_back: false, state: state.ddns };
+  },
   mdns: () => get(state.mdns),
   setMdns: async (enabled) => {
     state.mdns.enabled = state.mdns.running = enabled;

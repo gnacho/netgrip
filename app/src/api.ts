@@ -156,6 +156,12 @@ const realApi = {
       },
     ),
   ddns: () => request<import("./types").DDNSProbe>("/api/ddns"),
+  forceDdns: (section: string) =>
+    request<import("./types").ModuleResult<import("./types").DDNSProbe>>("/api/ddns/force", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ section }),
+    }),
   netdev: () => request<{ counters: import("./types").IfaceCounters[]; ts: number }>("/api/netdev"),
   mode: () => request<import("./types").ModeProbe>("/api/mode"),
   setMode: (target: "router" | "ap") =>

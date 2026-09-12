@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AtSign, Plus, Trash2 } from "lucide-react";
+import { AtSign, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { api } from "../../api";
 import type { DDNSProbe, DDNSEntry } from "../../types";
 import {
@@ -23,15 +23,18 @@ function useRelativeUpdate(iso: string | undefined): { text: string; valid: bool
   return { text: t("ddns.agoDays", { count: Math.floor(hours / 24) }), valid: true };
 }
 
-function EntryRow({ entry, busySection, onToggle, onDelete }: {
+function EntryRow({ entry, wanIp, busySection, onToggle, onDelete, onForce }: {
   entry: DDNSEntry;
+  wanIp: string;
   busySection: string | null;
   onToggle: (domain: string, enabled: boolean) => void;
   onDelete: (section: string) => void;
+  onForce: (section: string) => void;
 }) {
   const { t } = useTranslation();
   const lastUpdate = useRelativeUpdate(entry.last_update);
   const busy = busySection === entry.section;
+  const diverged = !!(entry.registered_ip && wanIp && entry.registered_ip !== wanIp);
 
   return (
     <div className="flex items-start gap-3 py-3 border-b border-border/60 last:border-0">
@@ -45,8 +48,15 @@ function EntryRow({ entry, busySection, onToggle, onDelete }: {
         <div className="text-small text-muted mt-0.5 flex flex-wrap gap-x-3">
           <span>{entry.service_name}</span>
           {entry.registered_ip && <span>{t("ddns.registeredIp")}: <code>{entry.registered_ip}</code></span>}
+          {wanIp && <span>{t("ddns.currentIp")}: <code>{wanIp}</code></span>}
           <span>{t("ddns.lastUpdate")}: {lastUpdate.valid ? lastUpdate.text : <span title={entry.last_update}>—</span>}</span>
         </div>
+        {diverged && (
+          <div className="mt-1.5 flex flex-col gap-1">
+            <Pill tone="warn">{t("ddns.diverged")}</Pill>
+            <p className="text-small text-warn">{t("ddns.divergedHint")}</p>
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <Toggle
@@ -55,6 +65,15 @@ function EntryRow({ entry, busySection, onToggle, onDelete }: {
           onChange={(checked) => onToggle(entry.domain, checked)}
           label={t(entry.enabled ? "ddns.doneOn" : "ddns.doneOff")}
         />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onForce(entry.section)}
+          disabled={busy}
+          aria-label={t("ddns.force")}
+        >
+          <RefreshCw size={16} />
+        </Button>
         <Button
           variant="ghost"
           size="sm"
@@ -140,6 +159,14 @@ export function DdnsCard({ probe, onChange, index = 0 }: {
     setBusyDomain(null);
   };
 
+  const force = async (section: string) => {
+    setBusyDomain(section);
+    const res = await run(() => api.forceDdns(section));
+    handleResult(res, t("ddns.forceDone"));
+    setTimeout(async () => onChange(await api.ddns()), 6000);
+    setBusyDomain(null);
+  };
+
   return (
     <Card index={index} title={t("ddns.title")} icon={AtSign}>
       {!probe ? (
@@ -163,9 +190,11 @@ export function DdnsCard({ probe, onChange, index = 0 }: {
                 <EntryRow
                   key={entry.section}
                   entry={entry}
+                  wanIp={probe.wan_ip}
                   busySection={busyDomain}
                   onToggle={toggle}
                   onDelete={remove}
+                  onForce={force}
                 />
               ))}
             </div>

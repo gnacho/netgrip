@@ -108,6 +108,7 @@ export const demoWg: T.WGProbe = {
 
 export const demoDdns: T.DDNSProbe = {
   installed: true,
+  wan_ip: "82.158.44.21",
   entries: [
     {
       section: "casa_duckdns_org",
@@ -117,7 +118,7 @@ export const demoDdns: T.DDNSProbe = {
       domain: "casa.duckdns.org",
       lookup_host: "casa.duckdns.org",
       username: "casa",
-      registered_ip: "82.158.44.21",
+      registered_ip: "82.158.44.87",
       last_update: new Date(Date.now() - 42 * 60000).toISOString(),
     },
   ],
