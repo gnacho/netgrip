@@ -101,7 +101,13 @@ export function SqmCard({ probe, onChange, index = 0 }: {
     ));
     if (res) {
       onChange(res.state);
-      if (res.status === "applied") setDoneMsg(enabled ? t("sqm.doneOn") : t("sqm.doneOff"));
+      if (res.status === "applied") {
+        setDoneMsg(enabled ? t("sqm.doneOn") : t("sqm.doneOff"));
+      } else {
+        // Rollback: the probe may keep the same object identity (demo), so
+        // resync the selector from the real state.
+        setProfile(res.state.profile || "balanced");
+      }
     } else {
       onChange(await api.sqm());
     }
