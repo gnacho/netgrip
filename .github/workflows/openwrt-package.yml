@@ -259,7 +259,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          apk add --no-cache git nodejs npm openssl curl github-cli zstd tar
+          apk add --no-cache git nodejs npm openssl curl github-cli zstd tar bash
 
       - uses: actions/checkout@v4
 
