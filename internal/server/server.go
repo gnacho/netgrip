@@ -167,6 +167,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/selfupdate", s.requireAuth(s.handleSelfUpdateCheck))
 	s.mux.HandleFunc("GET /api/selfupdate/status", s.requireAuth(s.handleSelfUpdateStatus))
 	s.mux.HandleFunc("POST /api/selfupdate", s.requireAuth(s.handleSelfUpdateApply))
+	s.mux.HandleFunc("GET /api/selfupdate/schedule", s.requireAuth(s.handleSelfUpdateSchedule))
+	s.mux.HandleFunc("PUT /api/selfupdate/schedule", s.requireAuth(s.handleSelfUpdateSchedulePut))
 	s.mux.HandleFunc("GET /api/wizard", s.requireAuth(s.handleWizardGet))
 	s.mux.HandleFunc("GET /api/wizard/setup", s.requireAuth(s.handleWizardSetupGet))
 	s.mux.HandleFunc("POST /api/wizard/setup", s.requireAuth(s.handleWizardSetupPost))
@@ -711,8 +713,8 @@ type wizardPackagesRequest struct {
 
 func (s *Server) handleWizardSetupGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, map[string]any{
-		"manager":  modules.DetectPkgManager(),
-		"groups":   modules.ProbeSetupPackages(),
+		"manager": modules.DetectPkgManager(),
+		"groups":  modules.ProbeSetupPackages(),
 	})
 }
 
@@ -1411,6 +1413,48 @@ func (s *Server) handleSelfUpdateApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "started"})
+}
+
+func (s *Server) handleSelfUpdateSchedule(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.SelfUpdateScheduleStatus{
+		Config: modules.ReadSelfUpdateConfig(),
+		State:  modules.SelfUpdateScheduleStateOf(),
+		Status: modules.GetSelfUpdateStatus(),
+	})
+}
+
+type selfUpdateScheduleRequest struct {
+	Enabled     *bool `json:"enabled"`
+	IntervalH   *int  `json:"intervalHours"`
+	WindowStart *int  `json:"windowStart"`
+	WindowEnd   *int  `json:"windowEnd"`
+}
+
+func (s *Server) handleSelfUpdateSchedulePut(w http.ResponseWriter, r *http.Request) {
+	var req selfUpdateScheduleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_body")
+		return
+	}
+	cfg := modules.ReadSelfUpdateConfig()
+	if req.Enabled != nil {
+		cfg.Enabled = *req.Enabled
+	}
+	if req.IntervalH != nil {
+		cfg.IntervalH = *req.IntervalH
+	}
+	if req.WindowStart != nil {
+		cfg.WindowStart = *req.WindowStart
+	}
+	if req.WindowEnd != nil {
+		cfg.WindowEnd = *req.WindowEnd
+	}
+	cfg, err := modules.WriteSelfUpdateConfig(cfg)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, cfg)
 }
 
 func (s *Server) handleWizardGet(w http.ResponseWriter, _ *http.Request) {

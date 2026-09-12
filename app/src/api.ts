@@ -412,6 +412,19 @@ const realApi = {
     }),
   selfUpdateStatus: () =>
     request<import("./types").SelfUpdateStatus>("/api/selfupdate/status"),
+  selfUpdateSchedule: () =>
+    request<import("./types").SelfUpdateSchedule>("/api/selfupdate/schedule"),
+  selfUpdateScheduleSave: (cfg: {
+    enabled?: boolean;
+    intervalHours?: number;
+    windowStart?: number;
+    windowEnd?: number;
+  }) =>
+    request<import("./types").SelfUpdateConfig>("/api/selfupdate/schedule", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
   wizardState: () =>
     request<import("./types").WizardState>("/api/wizard"),
   wizardSetup: () =>

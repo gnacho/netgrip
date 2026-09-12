@@ -894,3 +894,21 @@ export interface NetPulseSet {
   wanTarget?: string;
   gwTarget?: string;
 }
+
+export interface SelfUpdateConfig {
+  enabled: boolean;
+  intervalHours: number;
+  windowStart: number;
+  windowEnd: number;
+}
+
+export interface SelfUpdateSchedule {
+  config: SelfUpdateConfig;
+  state: {
+    lastCheck: number;
+    lastResult: string;
+    lastApply: number;
+    lastVersion: string;
+  };
+  status: SelfUpdateStatus;
+}
