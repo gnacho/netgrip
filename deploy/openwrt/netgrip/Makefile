@@ -33,8 +33,12 @@ define Package/netgrip/install
 	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/usr/libexec/netgrip-restore-rules $(1)/usr/libexec/netgrip-restore-rules
 	$(INSTALL_BIN) ./files/usr/libexec/netgrip-heal-register $(1)/usr/libexec/netgrip-heal-register
+# The signing key lands in files/usr/share/netgrip/netgrip.rsa.pub once the
+# feed job has published it; until then package without it (#296).
+ifneq ($(wildcard ./files/usr/share/netgrip/netgrip.rsa.pub),)
 	$(INSTALL_DIR) $(1)/usr/share/netgrip
 	$(INSTALL_DATA) ./files/usr/share/netgrip/netgrip.rsa.pub $(1)/usr/share/netgrip/netgrip.rsa.pub
+endif
 endef
 
 define Package/netgrip/postinst
