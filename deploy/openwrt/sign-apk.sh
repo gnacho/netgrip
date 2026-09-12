@@ -45,6 +45,10 @@ if [ ! -f "$pubkey" ]; then
   exit 1
 fi
 
+# Resolve inputs to absolute paths before changing directory.
+out_dir="$(cd "$(dirname "$out_dir")" && pwd)/$(basename "$out_dir")"
+pubkey="$(cd "$(dirname "$pubkey")" && pwd)/$(basename "$pubkey")"
+
 cd "$out_dir"
 
 echo "==> Generating packages.adb"
