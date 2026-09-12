@@ -30,16 +30,19 @@ fi
 
 cd "$out_dir"
 
+echo "==> Extracting public key"
+openssl rsa -in "$privkey" -pubout -out netgrip.rsa.pub 2>/dev/null
+
 echo "==> Generating APKINDEX"
-# Fail closed: a feed without a signed index is a broken feed. This used to
-# warn and exit 0, which published apk files nobody could install (#296).
-apk index -o APKINDEX.tar.gz --description "NetGrip $(date +%Y-%m-%d)" *.apk
+# The release apks are signed by the build SDK keys, which this container
+# does not trust; index with --allow-untrusted and let the trust live in
+# the APKINDEX signature below. Fail closed: a feed without a signed index
+# is a broken feed. This used to warn and exit 0, which published apk
+# files nobody could install (#296).
+apk index --allow-untrusted -o APKINDEX.tar.gz --description "NetGrip $(date +%Y-%m-%d)" *.apk
 
 echo "==> Signing APKINDEX"
 abuild-sign -k "$privkey" APKINDEX.tar.gz
-
-echo "==> Extracting public key"
-openssl rsa -in "$privkey" -pubout -out netgrip.rsa.pub 2>/dev/null
 
 echo "==> Done"
 echo "Signed index: $out_dir/APKINDEX.tar.gz"

@@ -25,4 +25,8 @@ start() {
 	start_service
 	# Reapply MAC ACL and storm control rules after boot
 	[ -x /usr/libexec/netgrip-restore-rules ] && /usr/libexec/netgrip-restore-rules &
+	# Restore the package registry entry after attended sysupgrades (#296):
+	# owut/ASU drops packages outside official feeds from the image, files
+	# survive via /etc/sysupgrade.conf but the apk/opkg registry does not.
+	[ -x /usr/libexec/netgrip-heal-register ] && /usr/libexec/netgrip-heal-register &
 }

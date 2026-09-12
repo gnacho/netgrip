@@ -69,6 +69,12 @@ cp "$REPO_ROOT/deploy/openwrt/netgrip/files/netgrip.init" "$PKG_DIR/etc/init.d/n
 chmod 755 "$PKG_DIR/etc/init.d/netgrip"
 cp "$REPO_ROOT/deploy/openwrt/netgrip/files/netgrip-restore-rules" "$PKG_DIR/usr/libexec/netgrip-restore-rules"
 chmod 755 "$PKG_DIR/usr/libexec/netgrip-restore-rules"
+cp "$REPO_ROOT/deploy/openwrt/netgrip/files/usr/libexec/netgrip-heal-register" "$PKG_DIR/usr/libexec/netgrip-heal-register"
+chmod 755 "$PKG_DIR/usr/libexec/netgrip-heal-register"
+mkdir -p "$PKG_DIR/usr/share/netgrip"
+if [ -f "$REPO_ROOT/deploy/openwrt/keys/netgrip.rsa.pub" ]; then
+  cp "$REPO_ROOT/deploy/openwrt/keys/netgrip.rsa.pub" "$PKG_DIR/usr/share/netgrip/netgrip.rsa.pub"
+fi
 
 # CONTROL files
 cat > "$PKG_DIR/CONTROL/control" << CTRL
@@ -125,9 +131,18 @@ fi
 # Survive sysupgrades: the apk registry does not survive, but the
 # preserved files do, so procd starts the panel on first boot.
 # /etc/netgrip/ keeps the netpulse embedded-agent env across upgrades.
-for f in /usr/sbin/netgrip /etc/init.d/netgrip /etc/rc.d/S99netgrip /usr/libexec/netgrip-restore-rules /etc/netgrip/; do
+for f in /usr/sbin/netgrip /etc/init.d/netgrip /etc/rc.d/S99netgrip /usr/libexec/netgrip-restore-rules /usr/libexec/netgrip-heal-register /etc/netgrip/; do
   grep -qxF "$f" /etc/sysupgrade.conf 2>/dev/null || echo "$f" >> /etc/sysupgrade.conf
 done
+# Register the apk feed + signing key (#296): upgrades arrive with
+# `apk upgrade` and the registry self-heal can reinstall after owut.
+if command -v apk >/dev/null 2>&1 && [ -d /etc/apk ]; then
+  mkdir -p /etc/apk/keys /etc/apk/repositories.d
+  if [ -f /usr/share/netgrip/netgrip.rsa.pub ]; then
+    cp /usr/share/netgrip/netgrip.rsa.pub /etc/apk/keys/
+  fi
+  printf '%s\n' "https://gnacho.github.io/netgrip" > /etc/apk/repositories.d/netgrip.list
+fi
 exit 0
 POSTINST
 chmod 755 "$PKG_DIR/CONTROL/postinst"

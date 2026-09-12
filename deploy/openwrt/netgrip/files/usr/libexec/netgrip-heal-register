@@ -1,0 +1,119 @@
+#!/bin/sh
+# netgrip-heal-register: restore the package registry entry after an
+# attended sysupgrade (#296).
+#
+# owut/ASU only builds images with packages from official feeds, so an
+# attended upgrade drops netgrip from the image. The files survive the
+# flash via /etc/sysupgrade.conf (postinst adds them) and procd starts the
+# panel on first boot, but the apk/opkg registry entry is gone: the package
+# stops being "installed", package managers never upgrade it again and a
+# reinstall demands manual work.
+#
+# This script runs in the background from the init script and:
+#   - exits immediately when the registry already lists netgrip
+#   - apk (OpenWrt 25): installs the running version from the feed
+#     (the postinst registers the feed and its signing key); dev builds
+#     newer than the feed are left alone
+#   - opkg (OpenWrt 24): installs the matching .ipk from the latest GitHub
+#     release; again, dev builds newer than the release are left alone
+# Failures are logged and retried on the next boot. Never blocks the panel.
+
+PKG=netgrip
+BIN=/usr/sbin/netgrip
+RELEASES_API=https://api.github.com/repos/gnacho/netgrip/releases/latest
+
+log() { logger -t netgrip-heal "$*"; }
+
+lock=/var/run/netgrip-heal.pid
+if [ -f "$lock" ] && kill -0 "$(cat "$lock" 2>/dev/null)" 2>/dev/null; then
+	exit 0
+fi
+echo $$ > "$lock"
+trap 'rm -f "$lock"' EXIT INT TERM
+
+registered() {
+	if command -v apk >/dev/null 2>&1; then
+		apk info "$PKG" >/dev/null 2>&1
+	else
+		opkg list-installed "$PKG" 2>/dev/null | grep -q .
+	fi
+}
+
+if registered; then
+	exit 0
+fi
+
+ver=$("$BIN" -version 2>/dev/null)
+log "registry entry lost (running ${ver:-unknown}): restoring"
+
+# Wait for WAN, up to ~3 minutes.
+i=0
+while [ "$i" -lt 36 ]; do
+	if wget -q -O /dev/null -T 5 https://api.github.com 2>/dev/null; then
+		break
+	fi
+	sleep 5
+	i=$((i + 1))
+done
+
+if command -v apk >/dev/null 2>&1; then
+	apk update >/dev/null 2>&1 || true
+	if [ -n "$ver" ]; then
+		if apk add "$PKG=$ver" >/dev/null 2>&1; then
+			log "restored $PKG=$ver from feed"
+			exit 0
+		fi
+		# A dev build newer than the feed must not be downgraded.
+		feed_ver=$(apk search -x "$PKG" 2>/dev/null | sed -n "s/^$PKG-//p" | head -n1)
+		case "$feed_ver" in
+			"$ver"-*|"$ver") ;;
+			*)
+				if [ -n "$feed_ver" ]; then
+					log "feed has $feed_ver, running $ver is newer or unknown: skipping"
+					exit 0
+				fi
+				;;
+		esac
+	fi
+	if apk add "$PKG" >/dev/null 2>&1; then
+		log "restored $PKG (latest) from feed"
+		exit 0
+	fi
+	log "apk restore failed"
+	exit 1
+fi
+
+# opkg flavor: fetch the ipk for this architecture from the latest release.
+arch=$(opkg print-architecture 2>/dev/null | awk 'tolower($1)=="arch"{print $2; exit}')
+[ -n "$arch" ] || arch=$(opkg status 2>/dev/null | sed -n "s/^Architecture: *//p" | head -n1)
+[ -n "$arch" ] || { log "cannot determine architecture"; exit 1; }
+
+json=$(wget -q -O - -T 15 "$RELEASES_API" 2>/dev/null)
+[ -n "$json" ] || { log "cannot reach GitHub releases API"; exit 1; }
+
+url=$(printf '%s' "$json" | tr ',' '\n' | grep -o '"browser_download_url": *"[^"]*"' | cut -d'"' -f4 | grep "_${arch}\.ipk$" | head -n1)
+[ -n "$url" ] || { log "no ipk asset for arch $arch in latest release"; exit 1; }
+
+if [ -n "$ver" ]; then
+	case "$url" in
+		*"_${ver}-"*) ;;
+		*)
+			log "latest release does not match running $ver: skipping (reinstall manually)"
+			exit 0
+			;;
+	esac
+fi
+
+if ! wget -q -O /tmp/netgrip-heal.ipk -T 120 "$url"; then
+	rm -f /tmp/netgrip-heal.ipk
+	log "download failed: $url"
+	exit 1
+fi
+if opkg install /tmp/netgrip-heal.ipk >/dev/null 2>&1; then
+	rm -f /tmp/netgrip-heal.ipk
+	log "restored from $url"
+	exit 0
+fi
+rm -f /tmp/netgrip-heal.ipk
+log "opkg install failed"
+exit 1
