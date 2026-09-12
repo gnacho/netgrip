@@ -277,6 +277,10 @@ export default {
       title: "How do I get a bot?",
       body: "1. In Telegram, talk to @BotFather and create a bot: you'll get a token. 2. Send any message to your bot. 3. Talk to @userinfobot to learn your chat ID. Paste both here.",
     },
+    ntfy: {
+      title: "How do I set up ntfy?",
+      body: "1. Install the ntfy app or use ntfy.sh in the browser. 2. Pick a topic name (like netgrip-casa) and subscribe to it. 3. Paste the server (https://ntfy.sh or your self-hosted one) and the topic here. The token is optional, for protected topics.",
+    },
     storage: {
       title: "Why a USB drive on the router?",
       body: "A USB drive on the router works for backups, home file sharing or logs. Not a NAS replacement, but handy.",
@@ -1809,6 +1813,19 @@ export default {
     bot: "Bot",
     chat: "Chat",
     error: "Error",
+  },
+  ntfy: {
+    title: "ntfy alerts",
+    description: "The router pushes a plain-text message to your ntfy topic if something important happens.",
+    enabled: "Turn alerts on",
+    server: "Server",
+    topic: "Topic",
+    token: "Access token",
+    tokenSet: "A token is stored",
+    save: "Save",
+    sendTest: "Send a test message",
+    testSent: "Test message sent. Check your ntfy.",
+    saved: "Saved",
   },
   netpulse: {
     title: "NetPulse monitoring",

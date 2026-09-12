@@ -51,6 +51,7 @@ const state = {
   fleet: structuredClone(D.demoFleet),
   discoveredFleet: structuredClone(D.demoDiscoveredFleet),
   telegram: { ...D.demoTelegram },
+  ntfy: { ...D.demoNtfy },
   netpulse: {
     enabled: true,
     configured: true,
@@ -520,6 +521,13 @@ export const demoApi: typeof api = {
     return { ok: true, botName: "NetGripCasaBot", chatName: "Familia García" };
   },
   telegramTest: async () => { await wait(400, 900); return { ok: true } },
+  ntfyGet: () => get(state.ntfy),
+  ntfySet: async (server, topic, token, enabled) => {
+    await wait(800, 1500);
+    state.ntfy = { server, topic, tokenSet: token !== "" || state.ntfy.tokenSet, enabled };
+    return { ok: true };
+  },
+  ntfyTest: async () => { await wait(400, 900); return { ok: true } },
 
   // netpulse (agente embebido): estado sano y push reciente en la demo
   netpulse: () => get({

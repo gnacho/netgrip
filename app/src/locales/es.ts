@@ -277,6 +277,10 @@ export default {
       title: "¿Cómo consigo un bot?",
       body: "1. En Telegram, habla con @BotFather y crea un bot: te dará un token. 2. Escríbele cualquier mensaje a tu bot. 3. Habla con @userinfobot para saber tu chat ID. Pega ambos datos aquí.",
     },
+    ntfy: {
+      title: "¿Cómo configuro ntfy?",
+      body: "1. Instala la app de ntfy o usa ntfy.sh en el navegador. 2. Elige un nombre de topic (por ejemplo netgrip-casa) y suscríbete a él. 3. Pega aquí el servidor (https://ntfy.sh o el tuyo propio) y el topic. El token es opcional, para topics protegidos.",
+    },
     storage: {
       title: "¿Para qué un USB en el router?",
       body: "Un USB en el router sirve para copias, compartir archivos en casa o guardar registros. No reemplaza a un NAS, pero apaña.",
@@ -1809,6 +1813,19 @@ export default {
     bot: "Bot",
     chat: "Chat",
     error: "Error",
+  },
+  ntfy: {
+    title: "Avisos por ntfy",
+    description: "El router te envía un mensaje de texto plano a tu topic de ntfy si pasa algo importante.",
+    enabled: "Activar avisos",
+    server: "Servidor",
+    topic: "Topic",
+    token: "Token de acceso",
+    tokenSet: "Hay un token guardado",
+    save: "Guardar",
+    sendTest: "Enviar mensaje de prueba",
+    testSent: "Mensaje de prueba enviado. Mira tu ntfy.",
+    saved: "Guardado",
   },
   netpulse: {
     title: "Monitorización NetPulse",

@@ -4,6 +4,7 @@ import { SecurityCard } from "../components/system/SecurityCard";
 import { RemoteAccessCard } from "../components/system/RemoteAccessCard";
 import { AccessCard } from "../components/system/AccessCard";
 import { TelegramCard } from "../components/system/TelegramCard";
+import { NtfyCard } from "../components/system/NtfyCard";
 import { ModeCard } from "../components/system/ModeCard";
 import { IdentityCard } from "../components/system/IdentityCard";
 import { NetPulseCard } from "../components/system/NetPulseCard";
@@ -40,6 +41,7 @@ export function System({ board, update, onUpdateChange, onLogout }: {
         <RemoteAccessCard index={1} />
         <AccessCard index={2} />
         <TelegramCard index={3} />
+        <NtfyCard index={4} />
       </section>
 
       {/* Este equipo */}

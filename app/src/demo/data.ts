@@ -504,6 +504,8 @@ export const demoLoops: T.LoopResult = { loops: [], has_hub: false };
 
 export const demoTelegram = { botToken: "", chatId: "", enabled: false };
 
+export const demoNtfy = { server: "", topic: "", tokenSet: false, enabled: false };
+
 /**
  * Histórico 24 h (muestras cada 5 min, contadores acumulados): día tranquilo
  * con pico de streaming a las 21:00.

@@ -83,6 +83,10 @@ func failUpdate(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	log.Printf("netgrip: self-update failed: %s", msg)
 	setUpdateStatus("error", 0, msg)
+	notifyAll("NetGrip",
+		"🔴 <b>NetGrip</b>\nSelf-update failed: "+htmlEsc(msg),
+		"🔴 NetGrip\nSelf-update failed: "+msg,
+		true)
 }
 
 func setUpdateStatus(phase string, progress int, msg string) {
@@ -275,6 +279,11 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 		return
 	}
 	os.Remove(tmpPath)
+
+	notifyAll("NetGrip",
+		"✅ <b>NetGrip</b>\nSelf-update applied - restarting",
+		"✅ NetGrip\nSelf-update applied - restarting",
+		true)
 
 	setUpdateStatus("restarting", 100, "")
 	exec.Command("/etc/init.d/netgrip", "restart").Start()

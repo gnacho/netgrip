@@ -54,16 +54,15 @@ func (m *Monitor) run() {
 }
 
 func (m *Monitor) check() {
-	cfg := LoadTelegramConfig()
-	if !cfg.Enabled || cfg.BotToken == "" || cfg.ChatID == "" {
+	if !anyChannelEnabled() {
 		return
 	}
 
-	m.checkWan(cfg)
-	m.checkNewClients(cfg)
+	m.checkWan()
+	m.checkNewClients()
 }
 
-func (m *Monitor) checkWan(cfg TelegramConfig) {
+func (m *Monitor) checkWan() {
 	wan, err := ubus.GetWanStatus()
 	if err != nil {
 		return
@@ -85,19 +84,19 @@ func (m *Monitor) checkWan(cfg TelegramConfig) {
 	}
 
 	if isUp {
-		text := fmt.Sprintf("✅ <b>NetGrip</b>\n🌐 WAN recovered — Internet connection restored")
-		if err := SendTelegram(cfg, text, true); err != nil {
-			log.Printf("[monitor] telegram WAN up: %v", err)
-		}
+		notifyAll("NetGrip",
+			"✅ <b>NetGrip</b>\n🌐 WAN recovered — Internet connection restored",
+			"✅ NetGrip\n🌐 WAN recovered - Internet connection restored",
+			true)
 	} else {
-		text := fmt.Sprintf("🔴 <b>NetGrip</b>\n🌐 WAN down — Internet connection lost")
-		if err := SendTelegram(cfg, text, true); err != nil {
-			log.Printf("[monitor] telegram WAN down: %v", err)
-		}
+		notifyAll("NetGrip",
+			"🔴 <b>NetGrip</b>\n🌐 WAN down — Internet connection lost",
+			"🔴 NetGrip\n🌐 WAN down - Internet connection lost",
+			true)
 	}
 }
 
-func (m *Monitor) checkNewClients(cfg TelegramConfig) {
+func (m *Monitor) checkNewClients() {
 	clients := ListClients("")
 
 	currentMACs := make(map[string]bool, len(clients))
@@ -133,10 +132,39 @@ func (m *Monitor) checkNewClients(cfg TelegramConfig) {
 		if name == "" {
 			name = "Unknown device"
 		}
-		text := fmt.Sprintf("📱 <b>NetGrip</b>\nNew client: <b>%s</b>\nMAC: %s · %s",
-			htmlEsc(name), c.MAC, c.Type)
-		if err := SendTelegram(cfg, text, false); err != nil {
-			log.Printf("[monitor] telegram new client: %v", err)
+		notifyAll("NetGrip",
+			fmt.Sprintf("📱 <b>NetGrip</b>\nNew client: <b>%s</b>\nMAC: %s · %s", htmlEsc(name), c.MAC, c.Type),
+			fmt.Sprintf("📱 NetGrip\nNew client: %s\nMAC: %s · %s", name, c.MAC, c.Type),
+			false)
+	}
+}
+
+// notifyAll sends one notification to every enabled channel (Telegram and
+// ntfy), fail-silent: a channel outage never breaks the caller. telegramText
+// is HTML (Telegram parse_mode), ntfyText is plain text (ntfy does not parse
+// HTML) and title is the ntfy Title header.
+func notifyAll(title, telegramText, ntfyText string, urgent bool) {
+	tg := LoadTelegramConfig()
+	if tg.Enabled && tg.BotToken != "" && tg.ChatID != "" {
+		if err := SendTelegram(tg, telegramText, urgent); err != nil {
+			log.Printf("[notify] telegram: %v", err)
 		}
 	}
+	nt := LoadNtfyConfig()
+	if nt.Enabled && nt.Topic != "" {
+		if err := SendNtfy(nt, title, ntfyText, urgent); err != nil {
+			log.Printf("[notify] ntfy: %v", err)
+		}
+	}
+}
+
+// anyChannelEnabled reports whether at least one notification channel is
+// configured, so the monitor can skip work when nothing would be notified.
+func anyChannelEnabled() bool {
+	tg := LoadTelegramConfig()
+	if tg.Enabled && tg.BotToken != "" && tg.ChatID != "" {
+		return true
+	}
+	nt := LoadNtfyConfig()
+	return nt.Enabled && nt.Topic != ""
 }

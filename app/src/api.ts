@@ -495,6 +495,16 @@ const realApi = {
     }),
   telegramTest: () =>
     request<{ ok: boolean }>("/api/telegram/test", { method: "POST" }),
+  ntfyGet: () =>
+    request<{ server: string; topic: string; tokenSet: boolean; enabled: boolean }>("/api/ntfy"),
+  ntfySet: (server: string, topic: string, token: string, enabled: boolean) =>
+    request<{ ok: boolean }>("/api/ntfy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ server, topic, token, enabled }),
+    }),
+  ntfyTest: () =>
+    request<{ ok: boolean }>("/api/ntfy/test", { method: "POST" }),
   nlbwmon: () =>
     request<import("./types").NlbwmonProbe>("/api/nlbwmon"),
   setNlbwmon: (cfg: import("./types").NlbwmonConfig) =>
