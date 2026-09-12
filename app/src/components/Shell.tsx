@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftRight, Blocks, ChartColumn, Download, Globe, HardDrive, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, Smartphone, Wifi, Wrench } from "lucide-react";
+import { Activity, ArrowLeftRight, Blocks, ChartColumn, Download, Globe, HardDrive, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, Smartphone, Wifi, Wrench } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
 import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MDNSProbe, ModeProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
@@ -17,12 +17,13 @@ import { Ports } from "../pages/Ports";
 import { System } from "../pages/System";
 import { LanPage } from "../pages/Lan";
 import { ToolsPage } from "../pages/Tools";
+import { DiagnosticsPage } from "../pages/Diagnostics";
 import { FleetPage } from "../pages/Fleet";
 import { StoragePage } from "../pages/Storage";
 import { DpiPage } from "../pages/Dpi";
 import { SelfUpdateDialog } from "../components/system/SelfUpdateDialog";
 
-export type Page = "overview" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "ports" | "tools" | "fleet" | "storage" | "system" | "dpi";
+export type Page = "overview" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "ports" | "tools" | "diagnostics" | "fleet" | "storage" | "system" | "dpi";
 
 const NAV_ICONS: Record<Page, LucideIcon> = {
   overview: LayoutDashboard,
@@ -34,6 +35,7 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
   services: Blocks,
   ports: ArrowLeftRight,
   tools: Wrench,
+  diagnostics: Activity,
   storage: HardDrive,
   fleet: Server,
   system: Settings,
@@ -45,7 +47,7 @@ const NAV_GROUPS: { group: string | null; items: Page[] }[] = [
   { group: null, items: ["overview"] },
   { group: "nav.group.network", items: ["wan", "clients", "coverage", "wifi", "lan", "ports", "dpi"] },
   { group: "nav.group.services", items: ["services"] },
-  { group: "nav.group.router", items: ["tools", "storage", "fleet", "system"] },
+  { group: "nav.group.router", items: ["tools", "diagnostics", "storage", "fleet", "system"] },
 ];
 
 function ShellInner({ onLogout }: { onLogout: () => void }) {
@@ -308,6 +310,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
       {activePage === "tools" && (
         <ToolsPage ethports={ethports ?? []} />
       )}
+      {activePage === "diagnostics" && <DiagnosticsPage />}
       {activePage === "fleet" && (
         <FleetPage />
       )}

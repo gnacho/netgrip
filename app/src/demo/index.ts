@@ -430,6 +430,17 @@ export const demoApi: typeof api = {
   setIgmp: async (enabled) => { await wait(800, 1500); state.igmp.enabled = enabled; return { ...state.igmp }; },
   loops: () => get(D.demoLoops),
   cableTest: () => get(D.demoCableTest),
+  selftest: () => get(D.demoSelfTest),
+  runDiagnostics: async (test) => {
+    await wait(800, 2000);
+    switch (test) {
+      case "ping": return D.demoPing;
+      case "traceroute": return D.demoTraceroute;
+      case "dns": return D.demoDnsLookup;
+      case "tcp": return D.demoTcp;
+      default: return D.demoPing;
+    }
+  },
   stormControl: () => get(D.demoStorm),
   setStormControl: async () => { await wait(800, 1500); return { status: "ok" }; },
   macAcl: () => get(D.demoMacAcl),

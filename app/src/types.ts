@@ -817,6 +817,80 @@ export interface CableTestProbe {
   ports: CableTestResult[];
 }
 
+export interface DiagnosticsTools {
+  ping: boolean;
+  traceroute: boolean;
+  nslookup: boolean;
+  dig: boolean;
+}
+
+export interface SelfTestResult {
+  gateway: boolean;
+  wan: boolean;
+  dns: boolean;
+  ntp: boolean;
+  all_ok: boolean;
+  tools: DiagnosticsTools;
+}
+
+export interface PingSample {
+  seq: number;
+  time_ms: number;
+  error: boolean;
+}
+
+export interface PingResult {
+  host: string;
+  count: number;
+  sent: number;
+  received: number;
+  loss_pct: number;
+  min_ms: number;
+  avg_ms: number;
+  max_ms: number;
+  samples: PingSample[];
+  missing_tool?: string;
+}
+
+export interface TraceHop {
+  hop: number;
+  host: string;
+  rtts: number[];
+  raw?: string;
+  parsed: boolean;
+}
+
+export interface TracerouteResult {
+  host: string;
+  hops: TraceHop[];
+  missing_tool?: string;
+}
+
+export interface DNSAnswer {
+  name: string;
+  type?: string;
+  value: string;
+  ttl?: number;
+}
+
+export interface DNSResult {
+  query: string;
+  resolver?: string;
+  answers: DNSAnswer[];
+  raw?: string;
+  parsed: boolean;
+  missing_tool?: string;
+}
+
+export interface TCPResult {
+  host: string;
+  port: number;
+  open: boolean;
+  error?: string;
+}
+
+export type DiagnosticsResult = PingResult | TracerouteResult | DNSResult | TCPResult;
+
 export interface StormPort {
   port: string;
   link_speed_mbps: number;

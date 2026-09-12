@@ -502,6 +502,56 @@ export const demoIgmp: T.IGMPProbe = { applicable: true, enabled: true };
 
 export const demoLoops: T.LoopResult = { loops: [], has_hub: false };
 
+export const demoSelfTest: T.SelfTestResult = {
+  gateway: true,
+  wan: true,
+  dns: true,
+  ntp: true,
+  all_ok: true,
+  tools: { ping: true, traceroute: true, nslookup: true, dig: false },
+};
+
+export const demoPing: T.PingResult = {
+  host: "8.8.8.8",
+  count: 4,
+  sent: 4,
+  received: 4,
+  loss_pct: 0,
+  min_ms: 19.87,
+  avg_ms: 20.59,
+  max_ms: 21.46,
+  samples: [
+    { seq: 0, time_ms: 20.12, error: false },
+    { seq: 1, time_ms: 21.46, error: false },
+    { seq: 2, time_ms: 19.88, error: false },
+    { seq: 3, time_ms: 20.9, error: false },
+  ],
+};
+
+export const demoTraceroute: T.TracerouteResult = {
+  host: "8.8.8.8",
+  hops: [
+    { hop: 1, host: "192.168.1.1", rtts: [0.5, 0.48, 0.51], parsed: true },
+    { hop: 2, host: "10.0.0.1", rtts: [1.2, 1.1, 1.3], parsed: true },
+    { hop: 3, host: "8.8.8.8", rtts: [20.1, 20.2, 20.3], parsed: true },
+  ],
+};
+
+export const demoDnsLookup: T.DNSResult = {
+  query: "example.com",
+  resolver: "",
+  answers: [
+    { name: "example.com", type: "A", value: "93.184.216.34", ttl: 3600 },
+  ],
+  parsed: true,
+};
+
+export const demoTcp: T.TCPResult = {
+  host: "example.com",
+  port: 443,
+  open: true,
+};
+
 export const demoTelegram = { botToken: "", chatId: "", enabled: false };
 
 /**

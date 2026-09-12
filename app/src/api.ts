@@ -649,6 +649,14 @@ const realApi = {
     }),
   cableTest: () =>
     request<import("./types").CableTestProbe>("/api/cable-test"),
+  selftest: () =>
+    request<import("./types").SelfTestResult>("/api/diagnostics/selftest"),
+  runDiagnostics: (test: "ping" | "traceroute" | "dns" | "tcp", params: { host?: string; count?: number; query?: string; resolver?: string; port?: number }) =>
+    request<import("./types").DiagnosticsResult>("/api/diagnostics", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ test, ...params }),
+    }),
   stormControl: () =>
     request<import("./types").StormProbe>("/api/storm"),
   setStormControl: (port: string, percent: number) =>
