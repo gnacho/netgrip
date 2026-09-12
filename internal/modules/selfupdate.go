@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -73,6 +74,15 @@ func GetSelfUpdateStatus() SelfUpdateStatus {
 	updateMu.Lock()
 	defer updateMu.Unlock()
 	return updateStatus
+}
+
+// failUpdate logs and records a terminal self-update failure. Errors used
+// to disappear into the status struct only, which made overlayfs failures
+// look like silent hangs (#299).
+func failUpdate(format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	log.Printf("netgrip: self-update failed: %s", msg)
+	setUpdateStatus("error", 0, msg)
 }
 
 func setUpdateStatus(phase string, progress int, msg string) {
@@ -167,12 +177,12 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 	client := &http.Client{Timeout: 120 * time.Second}
 	resp, err := client.Get(assetURL)
 	if err != nil {
-		setUpdateStatus("error", 0, fmt.Sprintf("download: %v", err))
+		failUpdate("download: %v", err)
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		setUpdateStatus("error", 0, fmt.Sprintf("download: HTTP %d", resp.StatusCode))
+		failUpdate("download: HTTP %d", resp.StatusCode)
 		return
 	}
 
@@ -183,7 +193,7 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 
 	f, err := os.Create(tmpPath)
 	if err != nil {
-		setUpdateStatus("error", 0, fmt.Sprintf("create temp: %v", err))
+		failUpdate("create temp: %v", err)
 		return
 	}
 
@@ -195,7 +205,7 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 			if _, writeErr := f.Write(buf[:n]); writeErr != nil {
 				f.Close()
 				os.Remove(tmpPath)
-				setUpdateStatus("error", 0, fmt.Sprintf("write: %v", writeErr))
+				failUpdate("write: %v", writeErr)
 				return
 			}
 			downloaded += int64(n)
@@ -211,7 +221,7 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 			f.Close()
 			if readErr != io.EOF {
 				os.Remove(tmpPath)
-				setUpdateStatus("error", 0, fmt.Sprintf("read: %v", readErr))
+				failUpdate("read: %v", readErr)
 				return
 			}
 			break
@@ -224,7 +234,7 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 	// architecture. Check the ELF e_machine against this build's GOARCH.
 	if ok, err := elfArchMatches(runtime.GOARCH, tmpPath); err != nil || !ok {
 		os.Remove(tmpPath)
-		setUpdateStatus("error", 0, "binary is not for this architecture, keeping current version")
+		failUpdate("arch mismatch: ok=%v err=%v", ok, err)
 		return
 	}
 
@@ -237,20 +247,34 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 	currentBin = strings.TrimSuffix(currentBin, " (deleted)")
 
 	backupPath := currentBin + ".bak"
-	if err := os.Rename(currentBin, backupPath); err != nil {
+	stagedPath := currentBin + ".update"
+	// Backup by content: renaming the running binary fails on OpenWrt
+	// overlayfs with ESTALE (#299); copying it is always safe.
+	if err := copyFile(currentBin, backupPath); err != nil {
 		os.Remove(tmpPath)
-		setUpdateStatus("error", 0, fmt.Sprintf("backup: %v", err))
+		failUpdate("backup: %v", err)
 		return
 	}
-
-	if err := copyFile(tmpPath, currentBin); err != nil {
-		os.Rename(backupPath, currentBin)
+	os.Chmod(backupPath, 0755)
+	// Stage next to the target and swap with a same-filesystem rename:
+	// rename(2) does not cross devices (/tmp is tmpfs), writing the binary
+	// in place would give ETXTBSY, and renaming the running binary gives
+	// ESTALE on overlayfs (#299). The rename itself only replaces the
+	// directory entry, so the running inode keeps working. On failure the
+	// current binary is untouched, so no rollback is needed.
+	if err := copyFile(tmpPath, stagedPath); err != nil {
 		os.Remove(tmpPath)
-		setUpdateStatus("error", 0, fmt.Sprintf("install: %v", err))
+		failUpdate("stage: %v", err)
+		return
+	}
+	os.Chmod(stagedPath, 0755)
+	if err := os.Rename(stagedPath, currentBin); err != nil {
+		os.Remove(stagedPath)
+		os.Remove(tmpPath)
+		failUpdate("install: %v", err)
 		return
 	}
 	os.Remove(tmpPath)
-	os.Chmod(currentBin, 0755)
 
 	setUpdateStatus("restarting", 100, "")
 	exec.Command("/etc/init.d/netgrip", "restart").Start()
