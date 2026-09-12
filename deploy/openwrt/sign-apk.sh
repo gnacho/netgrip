@@ -31,10 +31,9 @@ fi
 cd "$out_dir"
 
 echo "==> Generating APKINDEX"
-apk index -o APKINDEX.tar.gz --description "NetGrip $(date +%Y-%m-%d)" *.apk || {
-  echo "Warning: apk index failed, continuing without index" >&2
-  exit 0
-}
+# Fail closed: a feed without a signed index is a broken feed. This used to
+# warn and exit 0, which published apk files nobody could install (#296).
+apk index -o APKINDEX.tar.gz --description "NetGrip $(date +%Y-%m-%d)" *.apk
 
 echo "==> Signing APKINDEX"
 abuild-sign -k "$privkey" APKINDEX.tar.gz

@@ -249,7 +249,9 @@ jobs:
     needs: [package, package-luci]
     runs-on: ubuntu-24.04
     container:
-      image: alpine:3.21
+      # apk index needs apk-tools 3.x to read OpenWrt 25 .apk packages;
+      # alpine:3.21 ships 2.14 and fails every package with IO ERROR (#296).
+      image: alpine:edge
     if: github.event_name != 'workflow_dispatch' || inputs.version != ''
     permissions:
       contents: write
