@@ -339,7 +339,7 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ host }),
     }),
-  setSqm: (cfg: { enabled: boolean; download?: string; upload?: string }) =>
+  setSqm: (cfg: { enabled: boolean; download?: string; upload?: string; profile?: string }) =>
     request<import("./types").ModuleResult<import("./types").SQMProbe>>("/api/sqm", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

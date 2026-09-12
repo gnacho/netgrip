@@ -1,13 +1,20 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Gauge, Play } from "lucide-react";
+import { Clapperboard, ExternalLink, Gamepad2, Gauge, Play, Scale, SlidersHorizontal } from "lucide-react";
 import { api } from "../../api";
 import type { BufferbloatResult, SQMProbe } from "../../types";
 import {
-  ActionBanner, Button, Card, Field, Pill, SettingRow, SkeletonRows, Toggle,
+  ActionBanner, Button, Card, Field, KeyValue, Pill, SegmentedControl, SettingRow, SkeletonRows, Toggle,
 } from "../ui";
 import { useActionCycle } from "../wifi/action";
 import { TechName } from "./shared";
+
+const SQM_PROFILES: { value: string; label: string; icon: typeof Scale }[] = [
+  { value: "balanced", label: "sqm.profileBalanced", icon: Scale },
+  { value: "gaming", label: "sqm.profileGaming", icon: Gamepad2 },
+  { value: "streaming", label: "sqm.profileStreaming", icon: Clapperboard },
+  { value: "custom", label: "sqm.profileCustom", icon: SlidersHorizontal },
+];
 
 function GradePill({ grade }: { grade: string }) {
   const tone = grade === "A" || grade === "B" ? "ok" : grade === "C" ? "warn" : "danger";
@@ -44,6 +51,7 @@ export function SqmCard({ probe, onChange, index = 0 }: {
   const [doneMsg, setDoneMsg] = useState<string>();
   const [download, setDownload] = useState("");
   const [upload, setUpload] = useState("");
+  const [profile, setProfile] = useState<string>("balanced");
   const [latest, setLatest] = useState<BufferbloatResult>();
   const [history, setHistory] = useState<BufferbloatResult[]>([]);
   const [testing, setTesting] = useState(false);
@@ -52,6 +60,7 @@ export function SqmCard({ probe, onChange, index = 0 }: {
     if (probe) {
       setDownload(probe.download || "");
       setUpload(probe.upload || "");
+      setProfile(probe.profile || "balanced");
     }
   }, [probe]);
 
@@ -79,11 +88,16 @@ export function SqmCard({ probe, onChange, index = 0 }: {
   const active = probe?.active ?? false;
   const hasWan = probe?.has_wan ?? false;
   const ratesOk = Number(download) > 0 && Number(upload) > 0;
+  const luciSqmUrl = `http://${window.location.hostname}/cgi-bin/luci/admin/network/sqm`;
 
-  const apply = async (enabled: boolean) => {
+  const profileName = (p: string) => t(SQM_PROFILES.find((o) => o.value === p)?.label ?? "sqm.profileBalanced");
+  const profileDesc = (p: string) => t(`${SQM_PROFILES.find((o) => o.value === p)?.label ?? "sqm.profileBalanced"}Desc`);
+
+  const apply = async (enabled: boolean, nextProfile?: string) => {
     setDoneMsg(undefined);
+    const prof = nextProfile ?? profile;
     const res = await run(() => api.setSqm(
-      enabled ? { enabled, download, upload } : { enabled },
+      enabled ? { enabled, download, upload, profile: prof } : { enabled },
     ));
     if (res) {
       onChange(res.state);
@@ -91,6 +105,12 @@ export function SqmCard({ probe, onChange, index = 0 }: {
     } else {
       onChange(await api.sqm());
     }
+  };
+
+  const handleProfileChange = (value: string) => {
+    if (busy) return;
+    setProfile(value);
+    if (active) apply(true, value);
   };
 
   return (
@@ -133,6 +153,41 @@ export function SqmCard({ probe, onChange, index = 0 }: {
             // Los campos de tasas también se muestran apagado: hacen falta
             // para poder activar (el toggle exige tasas válidas).
             <div className="pt-2 flex flex-col gap-3">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-eyebrow text-faint">{t("sqm.profileLabel")}</span>
+                  <span className="text-caption text-muted">{profileName(profile)}</span>
+                </div>
+                <SegmentedControl
+                  options={SQM_PROFILES.map((o) => ({
+                    value: o.value,
+                    label: <o.icon size={16} aria-hidden="true" />,
+                    title: t(o.label),
+                  }))}
+                  value={profile}
+                  onChange={handleProfileChange}
+                  ariaLabel={t("sqm.profileLabel")}
+                />
+                <p className="text-caption text-muted mt-1">{profileDesc(profile)}</p>
+              </div>
+
+              <div>
+                <span className="text-eyebrow text-faint">{t("sqm.statusTitle")}</span>
+                <KeyValue className="mt-1" items={[
+                  { label: t("sqm.queue"), value: probe.qdisc && probe.script ? `${probe.qdisc} · ${probe.script}` : "-", mono: true },
+                  { label: t("sqm.profileLabel"), value: profileName(probe.profile || "balanced") },
+                ]} />
+                <a
+                  href={luciSqmUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-small text-accent hover:text-accent-hover ring-focus rounded-sm"
+                >
+                  {t("sqm.luciLink")}
+                  <ExternalLink size={12} aria-hidden="true" />
+                </a>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <Field label={t("sqm.download")} mono
                   inputProps={{ value: download, onChange: (e) => setDownload(e.target.value), inputMode: "numeric", disabled: active }} />
@@ -142,6 +197,13 @@ export function SqmCard({ probe, onChange, index = 0 }: {
               <div>
                 <p className="text-caption text-muted">{t("sqm.rateHelp")}</p>
                 <p className="text-caption text-faint mt-0.5 font-mono">{t("sqm.rateExample")}</p>
+                <p className="text-caption text-muted mt-1">
+                  {t("sqm.bandwidthHint")}{" "}
+                  <a href="https://fast.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-accent hover:text-accent-hover">
+                    {t("sqm.speedTest")}
+                    <ExternalLink size={12} aria-hidden="true" />
+                  </a>
+                </p>
               </div>
               <div className="pt-2 border-t border-border/60">
                 <div className="flex items-center justify-between mb-1">

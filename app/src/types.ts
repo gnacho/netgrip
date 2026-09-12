@@ -152,6 +152,9 @@ export interface SQMProbe {
   interface: string;
   download: string;
   upload: string;
+  profile: string;
+  qdisc: string;
+  script: string;
 }
 
 export interface BufferbloatResult {

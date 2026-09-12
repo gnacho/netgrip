@@ -256,6 +256,7 @@ export const demoApi: typeof api = {
     state.sqm.active = state.sqm.running = cfg.enabled;
     if (cfg.download) state.sqm.download = cfg.download;
     if (cfg.upload) state.sqm.upload = cfg.upload;
+    if (cfg.profile) state.sqm.profile = cfg.profile;
     return { status: "applied" as const, rolled_back: false, state: state.sqm };
   },
   openvpn: () => get(state.ovpn),
