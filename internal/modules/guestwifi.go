@@ -166,10 +166,7 @@ func guestOps(cfg GuestConfig) ([]executor.Op, error) {
 			return nil, fmt.Errorf("no wireless radio found for band %q", cfg.Band)
 		}
 		for i, device := range devices {
-			section := guestSection
-			if len(devices) > 1 {
-				section = fmt.Sprintf("%s_%d", guestSection, i)
-			}
+			section := guestSectionName(i)
 			base := "wireless." + section
 			set(base, "wifi-iface")
 			set(base+".device", device)
@@ -207,6 +204,18 @@ func guestOps(cfg GuestConfig) ([]executor.Op, error) {
 		}
 	}
 	return ops, nil
+}
+
+// guestSectionName returns the wifi-iface section name for radio index i.
+// The first radio always uses the base name because ProbeGuest and
+// ProbeGuestBand read wireless.<guestSection> directly; suffixing every
+// section when band=both left the base section missing and the post-apply
+// healthcheck rolled the whole change back (#315).
+func guestSectionName(i int) string {
+	if i == 0 {
+		return guestSection
+	}
+	return fmt.Sprintf("%s_%d", guestSection, i)
 }
 
 func guestSections() []string {
