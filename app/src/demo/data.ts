@@ -478,6 +478,34 @@ export const demoDiscoveredFleet: T.DiscoveredFleetPeer[] = [
   { id: "ap-jardin", name: "ap-jardin", version: "0.1.2", address: "192.168.8.4", port: 8090, seen_at: new Date().toISOString() },
 ];
 
+export const demoLanServices: T.LanServicesProbe = {
+  services: [
+    { id: "jellyfin", name: "Jellyfin", kind: "jellyfin", host: "nas", port: 8096, scheme: "http", enabled: true, ok: true, latency_ms: 12, http_status: 200, resolved_ip: "192.168.8.10" },
+    { id: "homeassistant", name: "Home Assistant", kind: "homeassistant", host: "nas", port: 8123, scheme: "http", enabled: true, ok: true, latency_ms: 9, http_status: 200, resolved_ip: "192.168.8.10" },
+    { id: "proxmox", name: "Proxmox", kind: "proxmox", host: "server", port: 8006, scheme: "https", enabled: true, ok: false, error: "dial tcp 192.168.8.30:8006: connect: connection refused" },
+  ],
+  catalog: [
+    { kind: "homeassistant", port: 8123, scheme: "http", path: "" },
+    { kind: "pihole", port: 80, scheme: "http", path: "/admin" },
+    { kind: "adguardhome", port: 3000, scheme: "http", path: "" },
+    { kind: "proxmox", port: 8006, scheme: "https", path: "" },
+    { kind: "immich", port: 2283, scheme: "http", path: "" },
+    { kind: "jellyfin", port: 8096, scheme: "http", path: "" },
+    { kind: "plex", port: 32400, scheme: "http", path: "/web" },
+    { kind: "truenas", port: 80, scheme: "http", path: "" },
+    { kind: "synology", port: 5000, scheme: "http", path: "" },
+    { kind: "openmediavault", port: 80, scheme: "http", path: "" },
+    { kind: "portainer", port: 9443, scheme: "https", path: "" },
+    { kind: "grafana", port: 3000, scheme: "http", path: "" },
+  ],
+  hosts: [
+    { name: "nas", ip: "192.168.8.10" },
+    { name: "tv", ip: "192.168.8.11" },
+    { name: "printer", ip: "192.168.8.20" },
+  ],
+  ts: 0,
+};
+
 export const demoCableTest: T.CableTestProbe = {
   applicable: true,
   ports: [

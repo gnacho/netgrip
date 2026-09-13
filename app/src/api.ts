@@ -766,6 +766,16 @@ const realApi = {
     }),
   pushSnapshot: () =>
     request<{ ok: boolean; snapshot_id?: string; error?: string }>("/api/push-config/push", { method: "POST" }),
+  lanServices: () =>
+    request<import("./types").LanServicesProbe>("/api/lanservices"),
+  upsertLanService: (svc: import("./types").LanService) =>
+    request<import("./types").LanServicesProbe>("/api/lanservices", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(svc),
+    }),
+  deleteLanService: (id: string) =>
+    request<void>(`/api/lanservices?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
 
 };
 

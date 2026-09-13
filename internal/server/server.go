@@ -219,6 +219,9 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/push-config", s.requireAuth(s.handlePushConfigGet))
 	s.mux.HandleFunc("POST /api/push-config", s.requireAuth(s.handlePushConfigSet))
 	s.mux.HandleFunc("POST /api/push-config/push", s.requireAuth(s.handlePushSnapshot))
+	s.mux.HandleFunc("GET /api/lanservices", s.requireAuth(s.handleLanServicesGet))
+	s.mux.HandleFunc("POST /api/lanservices", s.requireAuth(s.handleLanServicesPost))
+	s.mux.HandleFunc("DELETE /api/lanservices", s.requireAuth(s.handleLanServicesDelete))
 	s.mux.HandleFunc("POST /api/executor/apply", s.handleExecutorApply)
 	s.mux.HandleFunc("GET /api/executor/token", s.requireAuth(s.handleExecutorToken))
 	s.mux.HandleFunc("POST /api/netpulse/agent/restart", s.handleAgentRestart)
@@ -2301,4 +2304,40 @@ func (s *Server) handlePushConfigSet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlePushSnapshot(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, modules.PushLatestSnapshot())
+}
+
+func (s *Server) handleLanServicesGet(w http.ResponseWriter, _ *http.Request) {
+	probe, err := modules.ListLanServices()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, probe)
+}
+
+func (s *Server) handleLanServicesPost(w http.ResponseWriter, r *http.Request) {
+	var svc modules.LanService
+	if err := json.NewDecoder(r.Body).Decode(&svc); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, err := modules.UpsertLanService(svc)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, probe)
+}
+
+func (s *Server) handleLanServicesDelete(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "id query param required")
+		return
+	}
+	if err := modules.DeleteLanService(id); err != nil {
+		writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

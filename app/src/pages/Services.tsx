@@ -11,6 +11,7 @@ import { SqmCard } from "../components/services/SqmCard";
 import { NlbwmonCard } from "../components/services/NlbwmonCard";
 import { FirewallCard } from "../components/services/FirewallCard";
 import { AdguardCard } from "../components/services/AdguardCard";
+import { LanServicesCard } from "../components/services/LanServicesCard";
 
 /** Cabecera de grupo: eyebrow + una frase llana small muted (services.md §1). */
 function GroupHeader({ title, desc, index }: { title: string; desc: string; index: number }) {
@@ -69,6 +70,12 @@ export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChang
         <WireguardCard probe={wg} onChange={onWgChange} index={4} />
         <OpenvpnCard probe={ovpn} onChange={onOvpnChange} index={4} />
         <TailscaleCard probe={ts} onChange={onTsChange} index={4} />
+      </section>
+
+      {/* Servicios locales: tus servicios self-hosted en otras máquinas */}
+      <section className="flex flex-col gap-[var(--card-gap)]">
+        <GroupHeader index={6} title={t("services.groupLocal")} desc={t("services.groupLocalDesc")} />
+        <LanServicesCard />
       </section>
     </div>
   );

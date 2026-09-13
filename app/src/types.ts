@@ -1051,3 +1051,42 @@ export interface SelfUpdateSchedule {
   };
   status: SelfUpdateStatus;
 }
+
+export interface LanService {
+  id: string;
+  name: string;
+  kind: string; // a catalog preset (e.g. "jellyfin") or "custom"
+  host?: string;
+  port?: number;
+  scheme?: string;
+  path?: string;
+  url?: string;
+  enabled: boolean;
+}
+
+export interface LanServiceStatus extends LanService {
+  ok: boolean;
+  latency_ms?: number;
+  http_status?: number;
+  resolved_ip?: string;
+  error?: string;
+}
+
+export interface LanServiceCatalogEntry {
+  kind: string;
+  port: number;
+  scheme: string;
+  path: string;
+}
+
+export interface LanHost {
+  name: string;
+  ip: string;
+}
+
+export interface LanServicesProbe {
+  services: LanServiceStatus[];
+  catalog: LanServiceCatalogEntry[];
+  hosts: LanHost[];
+  ts: number;
+}

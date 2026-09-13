@@ -51,6 +51,7 @@ const state = {
   storage: structuredClone(D.demoStorage),
   fleet: structuredClone(D.demoFleet),
   discoveredFleet: structuredClone(D.demoDiscoveredFleet),
+  lanServices: structuredClone(D.demoLanServices),
   telegram: { ...D.demoTelegram },
   ntfy: { ...D.demoNtfy },
   netpulse: {
@@ -725,5 +726,21 @@ export const demoApi: typeof api = {
   setFleetDiscoveryConfig: async (enabled: boolean) => {
     await wait(200, 400);
     return { enabled };
+  },
+  lanServices: () => get(state.lanServices),
+  upsertLanService: async (svc) => {
+    await wait(600, 1200);
+    const id = svc.id || svc.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "service";
+    const existing = state.lanServices.services.find((s) => s.id === id);
+    if (existing) {
+      Object.assign(existing, svc, { id, ok: true, latency_ms: 8, http_status: 200, resolved_ip: "192.168.8.10", error: undefined });
+    } else {
+      state.lanServices.services.push({ ...svc, id, ok: true, latency_ms: 8, http_status: 200, resolved_ip: "192.168.8.10" });
+    }
+    return { ...state.lanServices };
+  },
+  deleteLanService: async (id) => {
+    await wait(400, 800);
+    state.lanServices.services = state.lanServices.services.filter((s) => s.id !== id);
   },
 };
