@@ -744,6 +744,18 @@ const realApi = {
     request<import("./types").ParentalProbe>(`/api/parental?mac=${encodeURIComponent(mac)}`, {
       method: "DELETE",
     }),
+  quotas: () =>
+    request<import("./types").QuotaProbe>("/api/quotas"),
+  setQuota: (quota: import("./types").Quota) =>
+    request<import("./types").QuotaProbe>("/api/quotas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(quota),
+    }),
+  deleteQuota: (mac: string) =>
+    request<import("./types").QuotaProbe>(`/api/quotas?mac=${encodeURIComponent(mac)}`, {
+      method: "DELETE",
+    }),
   pushConfigGet: () =>
     request<{ server_url: string; router_id: string; token: string }>("/api/push-config"),
   pushConfigSet: (server_url: string, router_id: string, token: string) =>

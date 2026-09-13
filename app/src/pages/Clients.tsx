@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, ArrowUpDown, Ban, MoreVertical, Pencil, Pin, Search, Smartphone, Wifi, Cable, Eye, Clock, Pause, Play } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Ban, MoreVertical, Pencil, Pin, Search, Smartphone, Wifi, Cable, Eye, Clock, Pause, Play, Gauge } from "lucide-react";
 import { api } from "../api";
-import type { BlockedClient, Client, DeviceType, NftQoSProbe, ParentalProbe, ParentalRule } from "../types";
-import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Modal, Pill, SkeletonRows, Toggle } from "../components/ui";
+import type { BlockedClient, Client, DeviceType, NftQoSProbe, ParentalProbe, ParentalRule, Quota, QuotaProbe, QuotaUsage } from "../types";
+import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Modal, Pill, SegmentedControl, SkeletonRows, Toggle } from "../components/ui";
 import { DEVICE_TYPES, DEVICE_TYPE_KEYS, deviceTypeIcon } from "../components/clients/catalog";
 import { IlluDevices } from "../components/ui/illustrations";
 import { fmtBytes, fmtRate, signalColor } from "../lib/format";
@@ -71,6 +71,9 @@ function SignalBars({ signal, title }: { signal?: number; title?: string }) {
 
 const BAND_KEYS: Record<string, string> = { "2g": "clients.band2g", "5g": "clients.band5g", "6g": "clients.band6g" };
 
+const QUOTA_GB = 1024 * 1024 * 1024;
+const QUOTA_MB = 1024 * 1024;
+
 /** Pill de bloqueo (#160): total (todas las bandas) vs parcial (p. ej. solo 5 GHz). */
 function BlockedPill({ c }: { c: Client }) {
   const { t } = useTranslation();
@@ -98,6 +101,15 @@ function ParentalPill({ c }: { c: Client }) {
   if (c.parental_blocked) return <Pill tone="accent">{t("clients.parentalBlockedNow")}</Pill>;
   if (c.parental_next) return <Pill tone="muted">{t("clients.parentalNext", { time: c.parental_next })}</Pill>;
   return null;
+}
+
+/** Pill de cuota de datos (#308): throttled, excedida o restante del periodo. */
+function QuotaPill({ c }: { c: Client }) {
+  const { t } = useTranslation();
+  if (!c.quota_limit) return null;
+  if (c.quota_throttled) return <Pill tone="danger">{t("clients.quotaThrottled")}</Pill>;
+  if (c.quota_exceeded) return <Pill tone="warn">{t("clients.quotaExceeded")}</Pill>;
+  return <Pill tone="muted">{t("clients.quotaRemaining", { amount: fmtBytes(c.quota_remaining ?? 0) })}</Pill>;
 }
 
 function connectionKey(c: Client): string {
@@ -140,6 +152,7 @@ export function ClientsPage() {
   const [actionError, setActionError] = useState<string>();
   const [qos, setQos] = useState<NftQoSProbe>();
   const [parental, setParental] = useState<ParentalProbe>();
+  const [quota, setQuota] = useState<QuotaProbe>();
 
   const lastSnap = useRef<Record<string, { rx: number; tx: number; ts: number }>>({});
 
@@ -163,6 +176,14 @@ export function ClientsPage() {
   const loadParental = useCallback(async () => {
     try {
       setParental(await api.parental());
+    } catch {
+      // non-fatal
+    }
+  }, []);
+
+  const loadQuota = useCallback(async () => {
+    try {
+      setQuota(await api.quotas());
     } catch {
       // non-fatal
     }
@@ -193,11 +214,11 @@ export function ClientsPage() {
     }
   }, []);
 
-  useEffect(() => { load(); loadBlocked(); loadQos(); loadParental(); const id = setInterval(load, 5000); return () => clearInterval(id); }, [load, loadBlocked, loadQos, loadParental]);
+  useEffect(() => { load(); loadBlocked(); loadQos(); loadParental(); loadQuota(); const id = setInterval(load, 5000); const qid = setInterval(loadQuota, 30000); return () => { clearInterval(id); clearInterval(qid); }; }, [load, loadBlocked, loadQos, loadParental, loadQuota]);
 
   useEffect(() => {
-    if (detailTarget) loadQos();
-  }, [detailTarget, loadQos]);
+    if (detailTarget) { loadQos(); loadQuota(); }
+  }, [detailTarget, loadQos, loadQuota]);
 
   const filtered = useMemo(() => {
     if (!clients) return undefined;
@@ -311,6 +332,7 @@ export function ClientsPage() {
             {c.self && <Pill tone="accent">{t("overview.thisDevice")}</Pill>}
             <BlockedPill c={c} />
             <ParentalPill c={c} />
+            <QuotaPill c={c} />
             {c.reserved && <Pill tone="muted">{t("overview.fixed")}</Pill>}
           </span>
           <span className="block text-caption text-muted">
@@ -400,7 +422,34 @@ export function ClientsPage() {
         )}
       </Card>
 
-      <Card index={1} title={t("clients.title")} icon={Cable} iconTone="teal"
+      <Card index={1} title={t("clients.quotaOverview")} icon={Gauge} iconTone="teal">
+        {Object.keys(quota?.quotas ?? {}).length === 0 ? (
+          <EmptyState small title={t("clients.quotaOverviewEmpty")} />
+        ) : (
+          <ul className="flex flex-col divide-y divide-border/60">
+            {Object.entries(quota?.quotas ?? {}).map(([mac, q]) => {
+              const u = quota?.usage?.[mac];
+              const name = clients?.find((c) => c.mac === mac)?.name ?? mac;
+              return (
+                <li key={mac} className="flex items-center gap-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-small font-medium">{name}</p>
+                    <p className="text-caption text-muted">{t(q.period === "monthly" ? "clients.quotaPeriodMonthly" : "clients.quotaPeriodDaily")}</p>
+                  </div>
+                  <span className="text-caption font-mono text-muted whitespace-nowrap" style={{ fontVariantNumeric: "tabular-nums" }}>
+                    {u ? `${fmtBytes(u.remaining)} / ${fmtBytes(u.limit)}` : fmtBytes(q.limit)}
+                  </span>
+                  {u?.throttled ? <Pill tone="danger">{t("clients.quotaThrottled")}</Pill>
+                    : u?.exceeded ? <Pill tone="warn">{t("clients.quotaExceeded")}</Pill>
+                    : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
+
+      <Card index={2} title={t("clients.title")} icon={Cable} iconTone="teal"
         action={<div className="flex items-center gap-1">
           <button type="button" onClick={() => setBlockedTarget(true)}
             title={t("clients.blockedCount", { count: blockedList.length })}
@@ -498,6 +547,8 @@ export function ClientsPage() {
         onUpdateQos={setQos}
         parental={parental}
         onUpdateParental={loadParental}
+        quota={quota}
+        onUpdateQuota={loadQuota}
         onClose={() => setDetailTarget(undefined)}
       />
 
@@ -592,13 +643,15 @@ function DeviceTypeSelect({ value, onChange }: { value: string; onChange: (v: st
 
 /** Modal de detalle: editar nombre y tipo, y ver la info del cliente. */
 /** Modal de detalle (solo lectura): info del cliente estilo GL. */
-function DetailClientModal({ client, rate, qos, onUpdateQos, parental, onUpdateParental, onClose }: {
+function DetailClientModal({ client, rate, qos, onUpdateQos, parental, onUpdateParental, quota, onUpdateQuota, onClose }: {
   client?: Client;
   rate?: { rx: number; tx: number };
   qos?: NftQoSProbe;
   onUpdateQos?: (q: NftQoSProbe) => void;
   parental?: ParentalProbe;
   onUpdateParental?: () => void;
+  quota?: QuotaProbe;
+  onUpdateQuota?: () => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -746,6 +799,13 @@ function DetailClientModal({ client, rate, qos, onUpdateQos, parental, onUpdateP
           rule={parental?.rules?.[client.mac]}
           onChanged={onUpdateParental}
         />
+        <QuotaSection
+          client={client}
+          quota={quota?.quotas?.[client.mac]}
+          usage={quota?.usage?.[client.mac]}
+          applicable={quota?.applicable}
+          onChanged={onUpdateQuota}
+        />
       </div>
     </Modal>
   );
@@ -848,6 +908,181 @@ function ParentalSection({ client, rule, onChanged }: {
           <Button size="sm" variant="ghost" loading={busy} onClick={remove}>{t("common.remove")}</Button>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Sección de cuota de datos (#308) en el modal de detalle: límite diario o
+ *  mensual con acción al excederse (notificar o limitar la velocidad). */
+function QuotaSection({ client, quota, usage, applicable, onChanged }: {
+  client: Client;
+  quota?: Quota;
+  usage?: QuotaUsage;
+  applicable?: boolean;
+  onChanged?: () => void;
+}) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [enabled, setEnabled] = useState(false);
+  const [period, setPeriod] = useState<"daily" | "monthly">("daily");
+  const [limitVal, setLimitVal] = useState("");
+  const [unit, setUnit] = useState<"GB" | "MB">("GB");
+  const [action, setAction] = useState<"notify" | "throttle">("notify");
+  const [throttle, setThrottle] = useState("");
+
+  useEffect(() => {
+    if (quota) {
+      setEnabled(true);
+      setPeriod(quota.period);
+      setAction(quota.action);
+      setThrottle(quota.throttle_kbps > 0 ? String(quota.throttle_kbps) : "");
+      if (quota.limit % QUOTA_GB === 0) {
+        setLimitVal(String(quota.limit / QUOTA_GB));
+        setUnit("GB");
+      } else {
+        setLimitVal(String(Math.round(quota.limit / QUOTA_MB)));
+        setUnit("MB");
+      }
+    } else {
+      setEnabled(false);
+      setPeriod("daily");
+      setAction("notify");
+      setThrottle("");
+      setLimitVal("");
+      setUnit("GB");
+    }
+  }, [quota]);
+
+  if (!applicable || !client.ip) {
+    return (
+      <p className="text-caption text-muted">{t("clients.quotaNotApplicable")}</p>
+    );
+  }
+
+  const limitBytes = (() => {
+    const v = parseFloat(limitVal);
+    if (!Number.isFinite(v) || v <= 0) return 0;
+    return Math.round(v * (unit === "GB" ? QUOTA_GB : QUOTA_MB));
+  })();
+
+  const save = async () => {
+    if (!client.ip) return;
+    const limit = limitBytes;
+    if (limit <= 0) {
+      setError(t("clients.quotaLimitRequired"));
+      return;
+    }
+    const body: Quota = {
+      mac: client.mac,
+      ip: client.ip,
+      period,
+      limit,
+      action,
+      throttle_kbps: action === "throttle" ? (parseInt(throttle, 10) || 0) : 0,
+    };
+    setBusy(true);
+    setError("");
+    try {
+      await api.setQuota(body);
+      onChanged?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("clients.failed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await api.deleteQuota(client.mac);
+      onChanged?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("clients.failed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggle = (v: boolean) => {
+    setEnabled(v);
+    if (!v) remove();
+  };
+
+  return (
+    <div className="rounded-md border border-border/60 p-3">
+      {error && <p className="text-small text-danger mb-2">{error}</p>}
+      <div className="flex items-center justify-between mb-3">
+        <span className="inline-flex items-center gap-1.5 text-small font-medium">
+          <Gauge size={14} className="text-muted" aria-hidden="true" />
+          {t("clients.quotaTitle")}
+        </span>
+        <Toggle checked={enabled} onChange={toggle} label={t("clients.quotaTitle")} />
+      </div>
+      {enabled && (
+        <div className="flex flex-col gap-3">
+          {usage && (
+            <div className="flex items-center justify-between rounded-md bg-surface-2 px-3 py-2 text-caption">
+              <span className="text-muted">{t("clients.quotaUsed")}</span>
+              <span className="font-mono" style={{ fontVariantNumeric: "tabular-nums" }}>
+                {fmtBytes(usage.used)} / {fmtBytes(usage.limit)}
+              </span>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t("clients.quotaPeriod")}>
+              <SegmentedControl<"daily" | "monthly">
+                size="sm"
+                ariaLabel={t("clients.quotaPeriod")}
+                value={period}
+                onChange={setPeriod}
+                options={[
+                  { value: "daily", label: t("clients.quotaPeriodDaily") },
+                  { value: "monthly", label: t("clients.quotaPeriodMonthly") },
+                ]}
+              />
+            </Field>
+            <Field label={t("clients.quotaAction")}>
+              <SegmentedControl<"notify" | "throttle">
+                size="sm"
+                ariaLabel={t("clients.quotaAction")}
+                value={action}
+                onChange={setAction}
+                options={[
+                  { value: "notify", label: t("clients.quotaActionNotify") },
+                  { value: "throttle", label: t("clients.quotaActionThrottle") },
+                ]}
+              />
+            </Field>
+          </div>
+          <Field label={t("clients.quotaLimit")}>
+            <div className="flex items-center gap-2">
+              <Input type="number" min={1} value={limitVal} onChange={(e) => setLimitVal(e.target.value)} />
+              <SegmentedControl<"GB" | "MB">
+                size="sm"
+                ariaLabel={t("clients.quotaUnit")}
+                value={unit}
+                onChange={setUnit}
+                options={[
+                  { value: "GB", label: "GB" },
+                  { value: "MB", label: "MB" },
+                ]}
+              />
+            </div>
+          </Field>
+          {action === "throttle" && (
+            <Field label={t("clients.quotaThrottleKbps")}>
+              <Input type="number" min={1} value={throttle} onChange={(e) => setThrottle(e.target.value)} placeholder={t("clients.quotaThrottleKbpsPlaceholder")} />
+            </Field>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => { setEnabled(false); remove(); }}>{t("common.remove")}</Button>
+            <Button size="sm" loading={busy} onClick={save}>{t("common.save")}</Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -71,6 +71,7 @@ const state = {
       "9C:B6:D0:12:AB:77": { mac: "9C:B6:D0:12:AB:77", enabled: true, days: [0, 1, 2, 3, 4, 5, 6], start: "21:00", end: "07:00", paused: false },
     } as Record<string, T.ParentalRule>,
   },
+  quota: structuredClone(D.demoQuotas),
   portTemplates: [...D.demoPortTemplates],
   hasCert: true,
   history: D.buildDemoHistory(),
@@ -121,6 +122,23 @@ function nextClients() {
     const rule = state.parental.rules[c.mac];
     c.parental_blocked = !!rule?.paused;
     c.parental_next = rule && !rule.paused ? rule.start : undefined;
+    const q = state.quota.quotas[c.mac];
+    const u = q ? state.quota.usage[c.mac] : undefined;
+    if (q && u) {
+      c.quota_used = u.used;
+      c.quota_limit = u.limit;
+      c.quota_remaining = u.remaining;
+      c.quota_period = q.period;
+      c.quota_throttled = u.throttled;
+      c.quota_exceeded = u.exceeded;
+    } else {
+      delete c.quota_used;
+      delete c.quota_limit;
+      delete c.quota_remaining;
+      delete c.quota_period;
+      delete c.quota_throttled;
+      delete c.quota_exceeded;
+    }
   }
   return { ts, clients: state.clients, bands: DEMO_BANDS };
 }
@@ -615,6 +633,27 @@ export const demoApi: typeof api = {
     await wait(800, 1200);
     delete state.parental.rules[mac];
     return { rules: state.parental.rules, ts: Date.now() };
+  },
+  quotas: () => get({ ...state.quota }),
+  setQuota: async (q) => {
+    await wait(800, 1500);
+    state.quota.quotas[q.mac] = { ...q };
+    const prev = state.quota.usage[q.mac]?.used ?? 0;
+    state.quota.usage[q.mac] = {
+      used: prev,
+      limit: q.limit,
+      remaining: Math.max(0, q.limit - prev),
+      period: q.period,
+      throttled: false,
+      exceeded: prev >= q.limit,
+    };
+    return { ...state.quota };
+  },
+  deleteQuota: async (mac) => {
+    await wait(800, 1500);
+    delete state.quota.quotas[mac];
+    delete state.quota.usage[mac];
+    return { ...state.quota };
   },
 
   // wifi

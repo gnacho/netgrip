@@ -421,6 +421,12 @@ export interface Client {
   lease_expiry?: number;
   lease_source?: "local" | "gateway";
   ip_source?: "arp";
+  quota_used?: number;
+  quota_limit?: number;
+  quota_remaining?: number;
+  quota_period?: string;
+  quota_throttled?: boolean;
+  quota_exceeded?: boolean;
 }
 
 export interface BlockedClient {
@@ -830,6 +836,31 @@ export interface ParentalRule {
 
 export interface ParentalProbe {
   rules: Record<string, ParentalRule>;
+  ts: number;
+}
+
+export interface Quota {
+  mac: string;
+  ip: string;
+  period: "daily" | "monthly";
+  limit: number; // bytes
+  action: "notify" | "throttle";
+  throttle_kbps: number; // kbps, throttle action only
+}
+
+export interface QuotaUsage {
+  used: number;
+  limit: number;
+  remaining: number;
+  period: string;
+  throttled: boolean;
+  exceeded: boolean;
+}
+
+export interface QuotaProbe {
+  applicable: boolean;
+  quotas: Record<string, Quota>;
+  usage: Record<string, QuotaUsage>;
   ts: number;
 }
 

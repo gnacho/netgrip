@@ -38,6 +38,14 @@ type Client struct {
 	LeaseExpiry     int64  `json:"lease_expiry,omitempty"`
 	LeaseSource     string `json:"lease_source,omitempty"` // local | gateway
 	IPSource        string `json:"ip_source,omitempty"`    // arp: IP resolved from the neighbor table, no DHCP lease (#212)
+	// Data quota (#308): current-period usage vs the configured cap, empty
+	// when the client has no quota.
+	QuotaUsed      int64  `json:"quota_used,omitempty"`
+	QuotaLimit     int64  `json:"quota_limit,omitempty"`
+	QuotaRemaining int64  `json:"quota_remaining,omitempty"`
+	QuotaPeriod    string `json:"quota_period,omitempty"`
+	QuotaThrottled bool   `json:"quota_throttled,omitempty"`
+	QuotaExceeded  bool   `json:"quota_exceeded,omitempty"`
 }
 
 var reMac = regexp.MustCompile(`^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$`)
@@ -134,6 +142,7 @@ func ListClients(requesterIP string) []Client {
 
 	// Apply user-assigned metadata (custom name + device type) overrides.
 	meta := clientMeta()
+	quotaUsage := QuotaUsageForClients()
 	for i, c := range clients {
 		if m, ok := meta[strings.ToLower(c.MAC)]; ok {
 			if m.Name != "" {
@@ -143,6 +152,14 @@ func ListClients(requesterIP string) []Client {
 		}
 		clients[i].ParentalBlocked = parentalActive[strings.ToLower(c.MAC)]
 		clients[i].ParentalNext = parentalNext[strings.ToLower(c.MAC)]
+		if u, ok := quotaUsage[strings.ToLower(c.MAC)]; ok {
+			clients[i].QuotaUsed = u.Used
+			clients[i].QuotaLimit = u.Limit
+			clients[i].QuotaRemaining = u.Remaining
+			clients[i].QuotaPeriod = u.Period
+			clients[i].QuotaThrottled = u.Throttled
+			clients[i].QuotaExceeded = u.Exceeded
+		}
 	}
 
 	// Self first, then by name.

@@ -213,6 +213,9 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/nftqos", s.requireAuth(s.handleNftQoSGet))
 	s.mux.HandleFunc("POST /api/nftqos", s.requireAuth(s.handleNftQoSSet))
 	s.mux.HandleFunc("DELETE /api/nftqos", s.requireAuth(s.handleNftQoSDelete))
+	s.mux.HandleFunc("GET /api/quotas", s.requireAuth(s.handleQuotaGet))
+	s.mux.HandleFunc("POST /api/quotas", s.requireAuth(s.handleQuotaSet))
+	s.mux.HandleFunc("DELETE /api/quotas", s.requireAuth(s.handleQuotaDelete))
 	s.mux.HandleFunc("GET /api/push-config", s.requireAuth(s.handlePushConfigGet))
 	s.mux.HandleFunc("POST /api/push-config", s.requireAuth(s.handlePushConfigSet))
 	s.mux.HandleFunc("POST /api/push-config/push", s.requireAuth(s.handlePushSnapshot))
@@ -2194,6 +2197,38 @@ func (s *Server) handleNftQoSDelete(w http.ResponseWriter, r *http.Request) {
 		} else {
 			writeError(w, http.StatusBadRequest, err.Error())
 		}
+		return
+	}
+	writeJSON(w, probe)
+}
+
+func (s *Server) handleQuotaGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeQuota())
+}
+
+func (s *Server) handleQuotaSet(w http.ResponseWriter, r *http.Request) {
+	var req modules.Quota
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, err := modules.SetQuota(req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, probe)
+}
+
+func (s *Server) handleQuotaDelete(w http.ResponseWriter, r *http.Request) {
+	mac := r.URL.Query().Get("mac")
+	if mac == "" {
+		writeError(w, http.StatusBadRequest, "mac required")
+		return
+	}
+	probe, err := modules.RemoveQuota(mac)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	writeJSON(w, probe)

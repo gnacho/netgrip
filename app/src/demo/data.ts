@@ -67,6 +67,21 @@ export const demoClients: T.Client[] = [
   { name: "Robot aspiradora", ip: "192.168.8.183", mac: "DC:A6:32:08:51:90", type: "wifi24", device_type: "iot", iface: "phy0-ap2", signal: -69, rx_bytes: 31 * MIB, tx_bytes: 9 * MIB, self: false, reserved: false, reservable: true, blocked: false, blockable: true },
 ];
 
+export const demoQuotas: T.QuotaProbe = {
+  applicable: true,
+  quotas: {
+    "9C:B6:D0:12:AB:77": { mac: "9C:B6:D0:12:AB:77", ip: "192.168.8.112", period: "daily", limit: 10 * 1024 * MIB, action: "throttle", throttle_kbps: 512 },
+    "70:2A:D5:44:09:E1": { mac: "70:2A:D5:44:09:E1", ip: "192.168.8.131", period: "monthly", limit: 200 * 1024 * MIB, action: "notify", throttle_kbps: 0 },
+    "00:11:32:9A:BC:10": { mac: "00:11:32:9A:BC:10", ip: "192.168.8.10", period: "monthly", limit: 300 * 1024 * MIB, action: "throttle", throttle_kbps: 2048 },
+  },
+  usage: {
+    "9C:B6:D0:12:AB:77": { used: Math.round(8.5 * 1024 * MIB), limit: 10 * 1024 * MIB, remaining: Math.round(1.5 * 1024 * MIB), period: "daily", throttled: false, exceeded: false },
+    "70:2A:D5:44:09:E1": { used: Math.round(205 * 1024 * MIB), limit: 200 * 1024 * MIB, remaining: 0, period: "monthly", throttled: false, exceeded: true },
+    "00:11:32:9A:BC:10": { used: Math.round(310 * 1024 * MIB), limit: 300 * 1024 * MIB, remaining: 0, period: "monthly", throttled: true, exceeded: true },
+  },
+  ts: 0,
+};
+
 export const demoLeases: T.Lease[] = demoClients.filter((c) => c.ip).map((c) => ({
   expires: "11h 32m", mac: c.mac, ip: c.ip!, hostname: c.name.split(" (")[0],
 }));

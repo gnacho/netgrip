@@ -43,6 +43,7 @@ func main() {
 	modules.StartNetPulseAgent(version)
 	modules.StartSelfUpdateScheduler(version)
 	modules.StartParentalScheduler()
+	modules.StartQuotaScheduler()
 	modules.StartFleetDiscovery(version, *port)
 	modules.StartPoEWatchdog()
 	log.Printf("netgrip %s listening on %s (rpcd: %s)", version, addr, resolvedRPCd)
