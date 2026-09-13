@@ -732,6 +732,18 @@ const realApi = {
     request<import("./types").NftQoSProbe>(`/api/nftqos?mac=${encodeURIComponent(mac)}`, {
       method: "DELETE",
     }),
+  parental: () =>
+    request<import("./types").ParentalProbe>("/api/parental"),
+  setParental: (rule: import("./types").ParentalRule) =>
+    request<import("./types").ParentalProbe>("/api/parental", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rule),
+    }),
+  deleteParental: (mac: string) =>
+    request<import("./types").ParentalProbe>(`/api/parental?mac=${encodeURIComponent(mac)}`, {
+      method: "DELETE",
+    }),
   pushConfigGet: () =>
     request<{ server_url: string; router_id: string; token: string }>("/api/push-config"),
   pushConfigSet: (server_url: string, router_id: string, token: string) =>

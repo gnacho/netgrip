@@ -416,6 +416,8 @@ export interface Client {
   blocked: boolean;
   blocked_on?: string[];
   blockable: boolean;
+  parental_blocked?: boolean;
+  parental_next?: string;
   lease_expiry?: number;
   lease_source?: "local" | "gateway";
   ip_source?: "arp";
@@ -815,6 +817,20 @@ export interface NftQoSLimit {
 export interface NftQoSProbe {
   applicable: boolean;
   limits: Record<string, NftQoSLimit>;
+}
+
+export interface ParentalRule {
+  mac: string;
+  enabled: boolean;
+  days: number[]; // 0=Sunday..6=Saturday
+  start: string; // "HH:MM" local
+  end: string; // "HH:MM" local; earlier than start = overnight
+  paused: boolean;
+}
+
+export interface ParentalProbe {
+  rules: Record<string, ParentalRule>;
+  ts: number;
 }
 
 export interface CableTestResult {

@@ -16,24 +16,28 @@ import (
 
 // Client is one network client in the clients table.
 type Client struct {
-	Name        string   `json:"name"`
-	IP          string   `json:"ip,omitempty"`
-	MAC         string   `json:"mac"`
-	Type        string   `json:"type"`                  // wifi24 | wifi5 | cable
-	DeviceType  string   `json:"device_type,omitempty"` // user-assigned: pc | phone | ...
-	Iface       string   `json:"iface,omitempty"`
-	Signal      int      `json:"signal,omitempty"`
-	RxBytes     int64    `json:"rx_bytes"` // client upload (AP rx)
-	TxBytes     int64    `json:"tx_bytes"` // client download (AP tx)
-	Self        bool     `json:"self"`
-	Reserved    bool     `json:"reserved"`
-	Reservable  bool     `json:"reservable"`
-	Blocked     bool     `json:"blocked"`
-	BlockedOn   []string `json:"blocked_on,omitempty"` // bands with a deny entry (partial blocks)
-	Blockable   bool     `json:"blockable"`
-	LeaseExpiry int64    `json:"lease_expiry,omitempty"`
-	LeaseSource string   `json:"lease_source,omitempty"` // local | gateway
-	IPSource    string   `json:"ip_source,omitempty"`    // arp: IP resolved from the neighbor table, no DHCP lease (#212)
+	Name       string   `json:"name"`
+	IP         string   `json:"ip,omitempty"`
+	MAC        string   `json:"mac"`
+	Type       string   `json:"type"`                  // wifi24 | wifi5 | cable
+	DeviceType string   `json:"device_type,omitempty"` // user-assigned: pc | phone | ...
+	Iface      string   `json:"iface,omitempty"`
+	Signal     int      `json:"signal,omitempty"`
+	RxBytes    int64    `json:"rx_bytes"` // client upload (AP rx)
+	TxBytes    int64    `json:"tx_bytes"` // client download (AP tx)
+	Self       bool     `json:"self"`
+	Reserved   bool     `json:"reserved"`
+	Reservable bool     `json:"reservable"`
+	Blocked    bool     `json:"blocked"`
+	BlockedOn  []string `json:"blocked_on,omitempty"` // bands with a deny entry (partial blocks)
+	Blockable  bool     `json:"blockable"`
+	// Parental schedule state (#304): blocked now by a schedule/pause, and the
+	// next "HH:MM" block start still ahead today (manual block is separate).
+	ParentalBlocked bool   `json:"parental_blocked"`
+	ParentalNext    string `json:"parental_next,omitempty"`
+	LeaseExpiry     int64  `json:"lease_expiry,omitempty"`
+	LeaseSource     string `json:"lease_source,omitempty"` // local | gateway
+	IPSource        string `json:"ip_source,omitempty"`    // arp: IP resolved from the neighbor table, no DHCP lease (#212)
 }
 
 var reMac = regexp.MustCompile(`^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$`)
@@ -59,6 +63,11 @@ func ListClients(requesterIP string) []Client {
 	}
 	reserved := reservedMACs()
 	denied, availBands := blockedBands()
+	// Parental schedule (#304): which MACs are blocked now by a schedule/pause
+	// (distinct from the manual block), and the wifi MACs the scheduler owns in
+	// the shared macfilter deny list (to keep manual pills clean).
+	parentalActive, parentalNext := parentalActiveNow()
+	parentalApplied := loadParentalLedger()
 	isAP := ProbeMode().Mode == "ap"
 
 	var clients []Client
@@ -81,9 +90,11 @@ func ListClients(requesterIP string) []Client {
 					TxBytes:   wc.TxBytes,
 					Blockable: true,
 				}
-				if on := denied[mac]; len(on) > 0 {
-					c.BlockedOn = bandsList(on)
-					c.Blocked = blockedEverywhere(on, availBands)
+				if !parentalApplied[mac] {
+					if on := denied[mac]; len(on) > 0 {
+						c.BlockedOn = bandsList(on)
+						c.Blocked = blockedEverywhere(on, availBands)
+					}
 				}
 				fillIdentity(&c, mac, requesterIP, leaseSource, byMac, arp)
 				c.Reserved = reserved[mac]
@@ -130,6 +141,8 @@ func ListClients(requesterIP string) []Client {
 			}
 			clients[i].DeviceType = m.DeviceType
 		}
+		clients[i].ParentalBlocked = parentalActive[strings.ToLower(c.MAC)]
+		clients[i].ParentalNext = parentalNext[strings.ToLower(c.MAC)]
 	}
 
 	// Self first, then by name.
@@ -629,8 +642,14 @@ type BlockedClient struct {
 // modal can unblock a client that got kicked off the radios.
 func BlockedClients() []BlockedClient {
 	denied, avail := blockedBands()
+	// Parental wifi blocks share the macfilter deny list; exclude the MACs the
+	// scheduler owns so the manual block list only shows manual blocks (#304).
+	parentalApplied := loadParentalLedger()
 	out := make([]BlockedClient, 0, len(denied))
 	for mac, set := range denied {
+		if parentalApplied[mac] {
+			continue
+		}
 		bands := bandsList(set)
 		out = append(out, BlockedClient{
 			MAC:               mac,

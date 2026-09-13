@@ -120,6 +120,9 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/clients/meta", s.requireAuth(s.handleSetClientMeta))
 	s.mux.HandleFunc("POST /api/clients/reserve", s.requireAuth(s.handleClientReserve))
 	s.mux.HandleFunc("POST /api/clients/block", s.requireAuth(s.handleClientBlock))
+	s.mux.HandleFunc("GET /api/parental", s.requireAuth(s.handleParentalGet))
+	s.mux.HandleFunc("POST /api/parental", s.requireAuth(s.handleParentalSet))
+	s.mux.HandleFunc("DELETE /api/parental", s.requireAuth(s.handleParentalDelete))
 	s.mux.HandleFunc("GET /api/config/snapshots", s.requireAuth(s.handleSnapshotsList))
 	s.mux.HandleFunc("POST /api/config/snapshot", s.requireAuth(s.handleSnapshotCreate))
 	s.mux.HandleFunc("DELETE /api/config/snapshot", s.requireAuth(s.handleSnapshotDelete))
@@ -1265,6 +1268,33 @@ func (s *Server) handleClientBlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"rolled_back": rolledBack, "status": "applied"})
+}
+
+func (s *Server) handleParentalGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeParental())
+}
+
+func (s *Server) handleParentalSet(w http.ResponseWriter, r *http.Request) {
+	var req modules.ParentalRule
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	res, err := modules.SetParentalRule(req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, res)
+}
+
+func (s *Server) handleParentalDelete(w http.ResponseWriter, r *http.Request) {
+	res, err := modules.RemoveParentalRule(r.URL.Query().Get("mac"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, res)
 }
 
 // writeModuleResult is the shared response shape for write modules:

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, ArrowUpDown, Ban, MoreVertical, Pencil, Pin, Search, Smartphone, Wifi, Cable, Eye } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Ban, MoreVertical, Pencil, Pin, Search, Smartphone, Wifi, Cable, Eye, Clock, Pause, Play } from "lucide-react";
 import { api } from "../api";
-import type { BlockedClient, Client, DeviceType, NftQoSProbe } from "../types";
+import type { BlockedClient, Client, DeviceType, NftQoSProbe, ParentalProbe, ParentalRule } from "../types";
 import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Modal, Pill, SkeletonRows, Toggle } from "../components/ui";
 import { DEVICE_TYPES, DEVICE_TYPE_KEYS, deviceTypeIcon } from "../components/clients/catalog";
 import { IlluDevices } from "../components/ui/illustrations";
@@ -91,6 +91,15 @@ function blockedDetail(c: Client, t: (k: string, o?: Record<string, string>) => 
   return t("clients.off");
 }
 
+/** Pill de horario parental (#304): "bloqueado ahora" o "bloquea a las HH:MM".
+ *  Distinto del pill de bloqueo manual (tone danger). */
+function ParentalPill({ c }: { c: Client }) {
+  const { t } = useTranslation();
+  if (c.parental_blocked) return <Pill tone="accent">{t("clients.parentalBlockedNow")}</Pill>;
+  if (c.parental_next) return <Pill tone="muted">{t("clients.parentalNext", { time: c.parental_next })}</Pill>;
+  return null;
+}
+
 function connectionKey(c: Client): string {
   return c.type === "wifi5" ? "5G" : c.type === "wifi24" ? "2.4G" : "Cable";
 }
@@ -130,6 +139,7 @@ export function ClientsPage() {
   const [blockedList, setBlockedList] = useState<BlockedClient[]>([]);
   const [actionError, setActionError] = useState<string>();
   const [qos, setQos] = useState<NftQoSProbe>();
+  const [parental, setParental] = useState<ParentalProbe>();
 
   const lastSnap = useRef<Record<string, { rx: number; tx: number; ts: number }>>({});
 
@@ -145,6 +155,14 @@ export function ClientsPage() {
   const loadQos = useCallback(async () => {
     try {
       setQos(await api.nftqos());
+    } catch {
+      // non-fatal
+    }
+  }, []);
+
+  const loadParental = useCallback(async () => {
+    try {
+      setParental(await api.parental());
     } catch {
       // non-fatal
     }
@@ -175,7 +193,7 @@ export function ClientsPage() {
     }
   }, []);
 
-  useEffect(() => { load(); loadBlocked(); loadQos(); const id = setInterval(load, 5000); return () => clearInterval(id); }, [load, loadBlocked, loadQos]);
+  useEffect(() => { load(); loadBlocked(); loadQos(); loadParental(); const id = setInterval(load, 5000); return () => clearInterval(id); }, [load, loadBlocked, loadQos, loadParental]);
 
   useEffect(() => {
     if (detailTarget) loadQos();
@@ -292,6 +310,7 @@ export function ClientsPage() {
             <span className="truncate text-body font-medium">{c.name || <span className="font-mono text-small">{c.mac}</span>}</span>
             {c.self && <Pill tone="accent">{t("overview.thisDevice")}</Pill>}
             <BlockedPill c={c} />
+            <ParentalPill c={c} />
             {c.reserved && <Pill tone="muted">{t("overview.fixed")}</Pill>}
           </span>
           <span className="block text-caption text-muted">
@@ -477,6 +496,8 @@ export function ClientsPage() {
         rate={detailTarget ? rates[detailTarget.mac] : undefined}
         qos={qos}
         onUpdateQos={setQos}
+        parental={parental}
+        onUpdateParental={loadParental}
         onClose={() => setDetailTarget(undefined)}
       />
 
@@ -571,11 +592,13 @@ function DeviceTypeSelect({ value, onChange }: { value: string; onChange: (v: st
 
 /** Modal de detalle: editar nombre y tipo, y ver la info del cliente. */
 /** Modal de detalle (solo lectura): info del cliente estilo GL. */
-function DetailClientModal({ client, rate, qos, onUpdateQos, onClose }: {
+function DetailClientModal({ client, rate, qos, onUpdateQos, parental, onUpdateParental, onClose }: {
   client?: Client;
   rate?: { rx: number; tx: number };
   qos?: NftQoSProbe;
   onUpdateQos?: (q: NftQoSProbe) => void;
+  parental?: ParentalProbe;
+  onUpdateParental?: () => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -718,8 +741,114 @@ function DetailClientModal({ client, rate, qos, onUpdateQos, onClose }: {
         {!canLimit && (
           <p className="text-caption text-muted">{t("clients.limitNotApplicable")}</p>
         )}
+        <ParentalSection
+          client={client}
+          rule={parental?.rules?.[client.mac]}
+          onChanged={onUpdateParental}
+        />
       </div>
     </Modal>
+  );
+}
+
+const PARENTAL_DAYS = [0, 1, 2, 3, 4, 5, 6];
+
+/** Sección de horario parental (#304) en el modal de detalle: activar el
+ *  horario, elegir días, ventana (con soporte overnight) y pausa inmediata. */
+function ParentalSection({ client, rule, onChanged }: {
+  client: Client;
+  rule?: ParentalRule;
+  onChanged?: () => void;
+}) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [enabled, setEnabled] = useState(false);
+  const [days, setDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [start, setStart] = useState("21:00");
+  const [end, setEnd] = useState("07:00");
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    setEnabled(rule?.enabled ?? false);
+    setDays(rule?.days?.length ? [...rule.days].sort() : [0, 1, 2, 3, 4, 5, 6]);
+    setStart(rule?.start || "21:00");
+    setEnd(rule?.end || "07:00");
+    setPaused(rule?.paused ?? false);
+  }, [rule]);
+
+  const toggleDay = (d: number) => {
+    setDays((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d].sort()));
+  };
+
+  const persist = async (body: ParentalRule) => {
+    setBusy(true);
+    setError("");
+    try {
+      await api.setParental(body);
+      onChanged?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("clients.failed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const save = () => persist({ mac: client.mac, enabled, days, start, end, paused });
+  const togglePause = () => persist({ mac: client.mac, enabled, days, start, end, paused: !paused });
+
+  const remove = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await api.deleteParental(client.mac);
+      onChanged?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("clients.failed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-md border border-border/60 p-3">
+      {error && <p className="text-small text-danger mb-2">{error}</p>}
+      <div className="flex items-center justify-between mb-3">
+        <span className="inline-flex items-center gap-1.5 text-small font-medium">
+          <Clock size={14} className="text-muted" aria-hidden="true" />
+          {t("clients.parentalTitle")}
+        </span>
+        <Toggle checked={enabled} onChange={setEnabled} label={t("clients.parentalTitle")} />
+      </div>
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {PARENTAL_DAYS.map((d) => (
+          <button key={d} type="button" onClick={() => toggleDay(d)}
+            aria-pressed={days.includes(d)}
+            className={`h-8 w-8 rounded-md text-caption font-medium ring-focus transition-colors
+              ${days.includes(d) ? "bg-accent text-white" : "bg-surface-2 text-muted hover:text-text"}`}>
+            {t(`clients.day${d}`)}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <Field label={t("clients.parentalStart")}>
+          <Input type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+        </Field>
+        <Field label={t("clients.parentalEnd")}>
+          <Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+        </Field>
+      </div>
+      <p className="text-caption text-muted mb-3">{t("clients.parentalHint")}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant={paused ? "secondary" : "primary"} loading={busy} icon={paused ? Play : Pause} onClick={togglePause}>
+          {paused ? t("clients.parentalResume") : t("clients.parentalPause")}
+        </Button>
+        <Button size="sm" loading={busy} onClick={save}>{t("common.save")}</Button>
+        {rule && (
+          <Button size="sm" variant="ghost" loading={busy} onClick={remove}>{t("common.remove")}</Button>
+        )}
+      </div>
+    </div>
   );
 }
 

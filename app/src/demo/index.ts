@@ -65,6 +65,12 @@ const state = {
       "00:11:22:33:44:55": { mac: "00:11:22:33:44:55", ip: "192.168.1.100", download: 20, upload: 5 },
     } as Record<string, T.NftQoSLimit>,
   },
+  parental: {
+    rules: {
+      "FA:22:9C:71:08:55": { mac: "FA:22:9C:71:08:55", enabled: true, days: [5, 6], start: "21:00", end: "07:00", paused: true },
+      "9C:B6:D0:12:AB:77": { mac: "9C:B6:D0:12:AB:77", enabled: true, days: [0, 1, 2, 3, 4, 5, 6], start: "21:00", end: "07:00", paused: false },
+    } as Record<string, T.ParentalRule>,
+  },
   portTemplates: [...D.demoPortTemplates],
   hasCert: true,
   history: D.buildDemoHistory(),
@@ -112,6 +118,9 @@ function nextClients() {
     const noise = 1 + 0.5 * Math.sin(ts / 9000 + c.mac.length) * Math.random();
     c.rx_bytes += Math.round(6e5 * factor * noise * dt);
     c.tx_bytes += Math.round(1.2e5 * factor * (2 - noise) * dt);
+    const rule = state.parental.rules[c.mac];
+    c.parental_blocked = !!rule?.paused;
+    c.parental_next = rule && !rule.paused ? rule.start : undefined;
   }
   return { ts, clients: state.clients, bands: DEMO_BANDS };
 }
@@ -595,6 +604,17 @@ export const demoApi: typeof api = {
     await wait(800, 1500);
     delete state.nftqos.limits[mac];
     return { ...state.nftqos };
+  },
+  parental: () => get({ rules: state.parental.rules, ts: Date.now() }),
+  setParental: async (rule) => {
+    await wait(800, 1200);
+    state.parental.rules[rule.mac] = { ...rule };
+    return { rules: state.parental.rules, ts: Date.now() };
+  },
+  deleteParental: async (mac) => {
+    await wait(800, 1200);
+    delete state.parental.rules[mac];
+    return { rules: state.parental.rules, ts: Date.now() };
   },
 
   // wifi
