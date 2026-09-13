@@ -114,6 +114,9 @@ func TestLanServiceURL(t *testing.T) {
 		{"https default port elided", LanService{Scheme: "https", Host: "nas", Port: 443}, "https://nas"},
 		{"non-default port shown", LanService{Scheme: "http", Host: "nas", Port: 8096}, "http://nas:8096"},
 		{"empty scheme defaults http", LanService{Host: "nas", Port: 8096}, "http://nas:8096"},
+		{"alias preferred over host", LanService{Scheme: "http", Host: "nas", Alias: "jellyfin", Port: 8096}, "http://jellyfin.lan:8096"},
+		{"alias with default port elided", LanService{Scheme: "http", Host: "nas", Alias: "jellyfin", Port: 80}, "http://jellyfin.lan"},
+		{"alias with path", LanService{Scheme: "https", Host: "nas", Alias: "plex", Port: 32400, Path: "/web"}, "https://plex.lan:32400/web"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -186,9 +189,120 @@ func TestUniqueLanServiceID(t *testing.T) {
 	}
 }
 
+func TestNormalizeLanAlias(t *testing.T) {
+	cases := []struct {
+		in      string
+		want    string
+		wantErr bool
+	}{
+		{"jellyfin", "jellyfin", false},
+		{"  Jellyfin  ", "jellyfin", false},
+		{"JELLYFIN.LAN", "jellyfin", false},
+		{"jellyfin.lan", "jellyfin", false},
+		{"", "", false},
+		{"a.b.c", "", true},
+		{"foo.bar", "", true},
+		{"has space", "", true},
+		{"-leading", "", true},
+		{"trailing-", "", true},
+	}
+	for _, c := range cases {
+		t.Run(c.in, func(t *testing.T) {
+			got, err := normalizeLanAlias(c.in)
+			if c.wantErr {
+				if err == nil {
+					t.Fatalf("normalizeLanAlias(%q) expected error, got %q", c.in, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("normalizeLanAlias(%q) unexpected error: %v", c.in, err)
+			}
+			if got != c.want {
+				t.Fatalf("normalizeLanAlias(%q) = %q, want %q", c.in, got, c.want)
+			}
+		})
+	}
+}
+
+func TestLanAliasHelpers(t *testing.T) {
+	if got := lanAliasFQDN("jellyfin"); got != "jellyfin.lan" {
+		t.Fatalf("lanAliasFQDN = %q, want jellyfin.lan", got)
+	}
+	if got := lanAliasSection("jellyfin"); got != "netgrip_alias_jellyfin" {
+		t.Fatalf("lanAliasSection = %q, want netgrip_alias_jellyfin", got)
+	}
+}
+
+func TestSuggestLanAlias(t *testing.T) {
+	if got := suggestLanAlias(LanService{Name: "Jellyfin"}); got != "jellyfin" {
+		t.Fatalf("suggestLanAlias(name) = %q, want jellyfin", got)
+	}
+	if got := suggestLanAlias(LanService{Name: "Home Assistant"}); got != "home-assistant" {
+		t.Fatalf("suggestLanAlias(name with spaces) = %q, want home-assistant", got)
+	}
+	if got := suggestLanAlias(LanService{Name: "", Kind: "jellyfin"}); got != "jellyfin" {
+		t.Fatalf("suggestLanAlias(kind) = %q, want jellyfin", got)
+	}
+	if got := suggestLanAlias(LanService{Name: "", Kind: "custom"}); got != "" {
+		t.Fatalf("suggestLanAlias(empty) = %q, want empty", got)
+	}
+	if got := suggestLanAlias(LanService{Name: "!!!"}); got != "" {
+		t.Fatalf("suggestLanAlias(no slug) = %q, want empty", got)
+	}
+}
+
+func TestLanAliasConflicts(t *testing.T) {
+	services := []LanService{
+		{ID: "a", Alias: "jellyfin"},
+		{ID: "b"},
+	}
+	if !lanAliasConflicts("jellyfin.lan", services, "b", nil, nil) {
+		t.Fatal("expected conflict with another service alias")
+	}
+	if lanAliasConflicts("grafana.lan", services, "b", nil, nil) {
+		t.Fatal("did not expect conflict for unused alias")
+	}
+	// Self must be ignored (rename keeps its own alias).
+	if lanAliasConflicts("jellyfin.lan", services, "a", nil, nil) {
+		t.Fatal("self alias must not conflict")
+	}
+	// Existing dnsmasq cname.
+	if !lanAliasConflicts("plex.lan", nil, "", []string{"plex.lan"}, nil) {
+		t.Fatal("expected conflict with existing cname")
+	}
+	// Existing hosts-file hostname (FQDN and bare label).
+	if !lanAliasConflicts("nas.lan", nil, "", nil, []string{"nas.lan"}) {
+		t.Fatal("expected conflict with hosts FQDN")
+	}
+	if !lanAliasConflicts("nas.lan", nil, "", nil, []string{"NAS"}) {
+		t.Fatal("expected case-insensitive conflict with hosts label")
+	}
+}
+
+func TestValidateLanServiceAlias(t *testing.T) {
+	s := LanService{Name: "Jellyfin", Kind: "jellyfin", Host: "nas", Port: 8096, Alias: "Jellyfin.LAN"}
+	if err := validateLanService(&s); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if s.Alias != "jellyfin" {
+		t.Fatalf("alias should normalize to jellyfin, got %q", s.Alias)
+	}
+	// Alias requires a hostname, not an IP or a full URL.
+	if err := validateLanService(&LanService{Name: "X", Kind: "custom", Host: "192.168.8.10", Port: 80, Alias: "x"}); err == nil {
+		t.Fatal("expected error for alias on ip host")
+	}
+	if err := validateLanService(&LanService{Name: "X", Kind: "custom", URL: "https://x.example.com", Alias: "x"}); err == nil {
+		t.Fatal("expected error for alias on url service")
+	}
+	if err := validateLanService(&LanService{Name: "X", Kind: "custom", Host: "nas", Port: 80, Alias: "a.b"}); err == nil {
+		t.Fatal("expected error for dotted alias")
+	}
+}
+
 func TestLanServicesRoundtrip(t *testing.T) {
 	cfg := lanServicesFile{Services: []LanService{
-		{ID: "jellyfin", Name: "Jellyfin", Kind: "jellyfin", Host: "nas", Port: 8096, Scheme: "http", Enabled: true},
+		{ID: "jellyfin", Name: "Jellyfin", Kind: "jellyfin", Host: "nas", Port: 8096, Scheme: "http", Alias: "jellyfin", Enabled: true},
 		{ID: "proxy", Name: "Proxy", Kind: "custom", URL: "https://home.example.com", Enabled: true},
 	}}
 	data, err := json.Marshal(cfg)
@@ -205,7 +319,7 @@ func TestLanServicesRoundtrip(t *testing.T) {
 	if len(back.Services) != 2 {
 		t.Fatalf("expected 2 services, got %d", len(back.Services))
 	}
-	if back.Services[0].ID != "jellyfin" || back.Services[0].Port != 8096 {
+	if back.Services[0].ID != "jellyfin" || back.Services[0].Port != 8096 || back.Services[0].Alias != "jellyfin" {
 		t.Fatalf("roundtrip mismatch: %+v", back.Services[0])
 	}
 	if back.Services[1].URL != "https://home.example.com" {

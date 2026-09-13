@@ -9,6 +9,15 @@ import {
 } from "../ui";
 import { lanServiceIcon } from "./lanCatalog";
 
+/** Sufijo DNS fijo de los alias locales (coincide con el backend). */
+const LAN_ALIAS_SUFFIX = ".lan";
+
+/** Host preferente para mostrar/abrir: el alias .lan si existe, si no el host. */
+function serviceDisplayHost(s: LanService): string {
+  if (s.alias) return `${s.alias}${LAN_ALIAS_SUFFIX}`;
+  return s.host ?? "";
+}
+
 /** URL que abre el servicio desde el navegador del usuario. */
 function serviceOpenUrl(s: LanService): string {
   if (s.url) return s.url;
@@ -16,7 +25,7 @@ function serviceOpenUrl(s: LanService): string {
   const port = s.port && !((scheme === "http" && s.port === 80) || (scheme === "https" && s.port === 443))
     ? `:${s.port}`
     : "";
-  return `${scheme}://${s.host}${port}${s.path ?? ""}`;
+  return `${scheme}://${serviceDisplayHost(s)}${port}${s.path ?? ""}`;
 }
 
 /** "host:port" para mostrar bajo el nombre. */
@@ -28,7 +37,7 @@ function serviceTarget(s: LanService): string {
       return s.url;
     }
   }
-  return `${s.host ?? ""}${s.port ? `:${s.port}` : ""}`;
+  return `${serviceDisplayHost(s)}${s.port ? `:${s.port}` : ""}`;
 }
 
 interface FormState {
@@ -40,10 +49,11 @@ interface FormState {
   scheme: string;
   path: string;
   url: string;
+  alias: string;
 }
 
 function emptyForm(): FormState {
-  return { id: "", name: "", kind: "custom", host: "", port: "", scheme: "http", path: "", url: "" };
+  return { id: "", name: "", kind: "custom", host: "", port: "", scheme: "http", path: "", url: "", alias: "" };
 }
 
 function toForm(s?: LanService): FormState {
@@ -57,6 +67,7 @@ function toForm(s?: LanService): FormState {
     scheme: s.scheme || "http",
     path: s.path ?? "",
     url: s.url ?? "",
+    alias: s.alias ?? "",
   };
 }
 
@@ -290,6 +301,7 @@ function ServiceModal({ open, service, catalog, hosts, onClose, onSaved }: {
           port: parseInt(form.port, 10) || undefined,
           scheme: form.scheme || "http",
           path: form.path.trim(),
+          alias: form.alias.trim(),
           enabled: true,
         };
     setBusy(true);
@@ -394,6 +406,16 @@ function ServiceModal({ open, service, catalog, hosts, onClose, onSaved }: {
                 <option key={`${h.name}-${h.ip}`} value={h.name}>{h.ip}</option>
               ))}
             </datalist>
+            <Field
+              label={t("lanservices.aliasLabel")}
+              hint={t("lanservices.aliasHint")}
+              mono
+              inputProps={{
+                value: form.alias,
+                onChange: (e) => set({ alias: e.target.value }),
+                placeholder: "jellyfin",
+              }}
+            />
             <div className="grid grid-cols-2 gap-3">
               <Field
                 label={t("lanservices.schemeLabel")}

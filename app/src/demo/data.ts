@@ -480,7 +480,7 @@ export const demoDiscoveredFleet: T.DiscoveredFleetPeer[] = [
 
 export const demoLanServices: T.LanServicesProbe = {
   services: [
-    { id: "jellyfin", name: "Jellyfin", kind: "jellyfin", host: "nas", port: 8096, scheme: "http", enabled: true, ok: true, latency_ms: 12, http_status: 200, resolved_ip: "192.168.8.10" },
+    { id: "jellyfin", name: "Jellyfin", kind: "jellyfin", host: "nas", port: 8096, scheme: "http", alias: "jellyfin", enabled: true, ok: true, latency_ms: 12, http_status: 200, resolved_ip: "192.168.8.10" },
     { id: "homeassistant", name: "Home Assistant", kind: "homeassistant", host: "nas", port: 8123, scheme: "http", enabled: true, ok: true, latency_ms: 9, http_status: 200, resolved_ip: "192.168.8.10" },
     { id: "proxmox", name: "Proxmox", kind: "proxmox", host: "server", port: 8006, scheme: "https", enabled: true, ok: false, error: "dial tcp 192.168.8.30:8006: connect: connection refused" },
   ],

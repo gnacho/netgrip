@@ -42,6 +42,7 @@ type LanService struct {
 	Scheme  string `json:"scheme,omitempty"`
 	Path    string `json:"path,omitempty"`
 	URL     string `json:"url,omitempty"`
+	Alias   string `json:"alias,omitempty"`
 	Enabled bool   `json:"enabled"`
 }
 
@@ -143,6 +144,20 @@ func validateLanService(s *LanService) error {
 	s.Host = strings.TrimSpace(s.Host)
 	s.Scheme = strings.ToLower(strings.TrimSpace(s.Scheme))
 	s.Path = strings.TrimSpace(s.Path)
+	s.Alias = strings.TrimSpace(s.Alias)
+
+	if s.Alias != "" {
+		alias, err := normalizeLanAlias(s.Alias)
+		if err != nil {
+			return err
+		}
+		s.Alias = alias
+		// A cname target must be a resolvable name, not a full URL or a
+		// literal IP (a CNAME cannot point at an address).
+		if s.URL != "" || s.Host == "" || reIPv4.MatchString(s.Host) {
+			return fmt.Errorf("alias requires a hostname (not a full url or ip)")
+		}
+	}
 
 	if s.URL != "" {
 		u, err := url.Parse(s.URL)
@@ -193,6 +208,10 @@ func lanServiceURL(s LanService) string {
 	if s.URL != "" {
 		return s.URL
 	}
+	host := s.Host
+	if s.Alias != "" {
+		host = lanAliasFQDN(s.Alias)
+	}
 	scheme := s.Scheme
 	if scheme == "" {
 		scheme = "http"
@@ -201,7 +220,7 @@ func lanServiceURL(s LanService) string {
 	if s.Port > 0 && !((scheme == "http" && s.Port == 80) || (scheme == "https" && s.Port == 443)) {
 		port = ":" + strconv.Itoa(s.Port)
 	}
-	return scheme + "://" + s.Host + port + s.Path
+	return scheme + "://" + host + port + s.Path
 }
 
 // lanServiceTarget normalizes a service into the pieces needed for a probe,
@@ -366,9 +385,11 @@ func UpsertLanService(in LanService) (*LanServicesProbe, error) {
 	if in.ID == "" {
 		in.ID = uniqueLanServiceID(cfg.Services, slugLanServiceID(in.Name))
 	}
+	var prev LanService
 	replaced := false
 	for i := range cfg.Services {
 		if cfg.Services[i].ID == in.ID {
+			prev = cfg.Services[i]
 			cfg.Services[i] = in
 			replaced = true
 			break
@@ -377,7 +398,13 @@ func UpsertLanService(in LanService) (*LanServicesProbe, error) {
 	if !replaced {
 		cfg.Services = append(cfg.Services, in)
 	}
+	if in.Alias != "" && lanAliasConflicts(lanAliasFQDN(in.Alias), cfg.Services, in.ID, readCnameList(), dnsHostNames()) {
+		return nil, fmt.Errorf("alias %q is already in use", lanAliasFQDN(in.Alias))
+	}
 	if err := saveLanServices(cfg); err != nil {
+		return nil, err
+	}
+	if err := reconcileLanServiceAlias(in, prev); err != nil {
 		return nil, err
 	}
 	return buildLanServicesProbe(cfg), nil
@@ -390,10 +417,12 @@ func DeleteLanService(id string) error {
 		return err
 	}
 	found := false
+	var removed LanService
 	filtered := make([]LanService, 0, len(cfg.Services))
 	for _, s := range cfg.Services {
 		if s.ID == id {
 			found = true
+			removed = s
 			continue
 		}
 		filtered = append(filtered, s)
@@ -402,7 +431,10 @@ func DeleteLanService(id string) error {
 		return fmt.Errorf("service not found")
 	}
 	cfg.Services = filtered
-	return saveLanServices(cfg)
+	if err := saveLanServices(cfg); err != nil {
+		return err
+	}
+	return reconcileLanServiceAlias(LanService{}, removed)
 }
 
 // slugLanServiceID turns a display name into a stable id slug.

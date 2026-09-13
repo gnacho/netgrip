@@ -1061,6 +1061,7 @@ export interface LanService {
   scheme?: string;
   path?: string;
   url?: string;
+  alias?: string;
   enabled: boolean;
 }
 
