@@ -221,6 +221,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/push-config/push", s.requireAuth(s.handlePushSnapshot))
 	s.mux.HandleFunc("GET /api/lanservices", s.requireAuth(s.handleLanServicesGet))
 	s.mux.HandleFunc("POST /api/lanservices", s.requireAuth(s.handleLanServicesPost))
+	s.mux.HandleFunc("POST /api/lanservices/discover", s.requireAuth(s.handleLanServicesDiscover))
 	s.mux.HandleFunc("DELETE /api/lanservices", s.requireAuth(s.handleLanServicesDelete))
 	s.mux.HandleFunc("POST /api/executor/apply", s.handleExecutorApply)
 	s.mux.HandleFunc("GET /api/executor/token", s.requireAuth(s.handleExecutorToken))
@@ -2327,6 +2328,15 @@ func (s *Server) handleLanServicesPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, probe)
+}
+
+func (s *Server) handleLanServicesDiscover(w http.ResponseWriter, _ *http.Request) {
+	result, err := modules.DiscoverLanServices()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, result)
 }
 
 func (s *Server) handleLanServicesDelete(w http.ResponseWriter, r *http.Request) {

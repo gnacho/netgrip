@@ -768,6 +768,8 @@ const realApi = {
     request<{ ok: boolean; snapshot_id?: string; error?: string }>("/api/push-config/push", { method: "POST" }),
   lanServices: () =>
     request<import("./types").LanServicesProbe>("/api/lanservices"),
+  discoverLanServices: () =>
+    request<import("./types").LanDiscoveryResult>("/api/lanservices/discover", { method: "POST" }),
   upsertLanService: (svc: import("./types").LanService) =>
     request<import("./types").LanServicesProbe>("/api/lanservices", {
       method: "POST",

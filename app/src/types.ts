@@ -1090,3 +1090,19 @@ export interface LanServicesProbe {
   hosts: LanHost[];
   ts: number;
 }
+
+export interface LanDiscoverySuggestion {
+  host: string;
+  ip: string;
+  kind: string;
+  port: number;
+  scheme: string;
+  path?: string;
+}
+
+export interface LanDiscoveryResult {
+  suggestions: LanDiscoverySuggestion[];
+  scanned_hosts: number;
+  skipped_hosts?: number;
+  ts: number;
+}

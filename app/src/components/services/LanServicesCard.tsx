@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
-import { AppWindow, ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
+import { AppWindow, ExternalLink, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { api } from "../../api";
-import type { LanService, LanServiceStatus, LanServicesProbe } from "../../types";
+import type { LanDiscoverySuggestion, LanService, LanServiceStatus, LanServicesProbe } from "../../types";
 import {
   AdvancedDisclosure, Button, ConfirmDialog, EmptyState, Field, IconTile,
   Modal, Pill, SegmentedControl, Skeleton, useToast,
@@ -71,6 +71,8 @@ export function LanServicesCard() {
   const [editing, setEditing] = useState<LanService | undefined>();
   const [showAdd, setShowAdd] = useState(false);
   const [toRemove, setToRemove] = useState<LanServiceStatus>();
+  const [suggestions, setSuggestions] = useState<LanDiscoverySuggestion[]>([]);
+  const [discovering, setDiscovering] = useState(false);
 
   const load = useCallback(async () => {
     setLoadError(false);
@@ -94,6 +96,43 @@ export function LanServicesCard() {
       setProbe((prev) => prev && { ...prev, services: prev.services.filter((s) => s.id !== toRemove.id) });
       toast.push({ tone: "ok", text: t("lanservices.removedOk", { name: toRemove.name }) });
       setToRemove(undefined);
+    } catch (e) {
+      toast.push({ tone: "danger", text: t("common.loadError"), detail: e instanceof Error ? e.message : String(e) });
+    }
+  };
+
+  const discover = useCallback(async () => {
+    setDiscovering(true);
+    try {
+      const res = await api.discoverLanServices();
+      const found = res.suggestions ?? [];
+      setSuggestions(found);
+      if (found.length === 0) {
+        toast.push({ tone: "info", text: t("lanservices.noResults") });
+      }
+    } catch (e) {
+      toast.push({ tone: "danger", text: t("common.loadError"), detail: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setDiscovering(false);
+    }
+  }, [t, toast]);
+
+  const addSuggestion = async (s: LanDiscoverySuggestion) => {
+    const name = t(`lanservices.kind.${s.kind}`);
+    try {
+      await api.upsertLanService({
+        id: "",
+        name,
+        kind: s.kind,
+        host: s.host,
+        port: s.port,
+        scheme: s.scheme,
+        path: s.path ?? "",
+        enabled: true,
+      });
+      setSuggestions((prev) => prev.filter((x) => !(x.host === s.host && x.port === s.port && x.kind === s.kind)));
+      toast.push({ tone: "ok", text: t("lanservices.savedOk", { name }) });
+      load();
     } catch (e) {
       toast.push({ tone: "danger", text: t("common.loadError"), detail: e instanceof Error ? e.message : String(e) });
     }
@@ -142,6 +181,48 @@ export function LanServicesCard() {
             <Plus size={20} aria-hidden="true" />
             <span className="text-body font-medium">{t("lanservices.add")}</span>
           </button>
+        </div>
+      )}
+
+      {!loadError && !loading && (
+        <div className="flex flex-col gap-[var(--card-gap)]">
+          <div className="flex items-center justify-between">
+            <Button variant="secondary" size="sm" icon={Search} loading={discovering} onClick={discover}>
+              {discovering ? t("lanservices.discovering") : t("lanservices.discover")}
+            </Button>
+          </div>
+          {suggestions.length > 0 && (
+            <div className="rounded-lg border border-border bg-surface p-3 flex flex-col gap-2 animate-fade-up">
+              <div className="flex items-center justify-between">
+                <h3 className="text-caption font-medium text-muted">
+                  {t("lanservices.suggestionsTitle", { count: suggestions.length })}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setSuggestions([])}
+                  aria-label={t("lanservices.dismiss")}
+                  className="text-muted hover:text-text ring-focus rounded-sm"
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+              </div>
+              {suggestions.map((s) => (
+                <div key={`${s.host}-${s.port}-${s.kind}`} className="flex items-center gap-2.5">
+                  <IconTile icon={lanServiceIcon(s.kind)} tone="accent" size={28} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-small truncate">{t(`lanservices.kind.${s.kind}`)}</p>
+                    <p className="text-caption text-muted font-mono">
+                      {s.host}:{s.port}
+                      {s.ip && s.ip !== s.host ? ` · ${s.ip}` : ""}
+                    </p>
+                  </div>
+                  <Button size="sm" variant="secondary" icon={Plus} onClick={() => addSuggestion(s)}>
+                    {t("lanservices.addSuggestion")}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

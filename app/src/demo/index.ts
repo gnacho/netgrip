@@ -743,4 +743,5 @@ export const demoApi: typeof api = {
     await wait(400, 800);
     state.lanServices.services = state.lanServices.services.filter((s) => s.id !== id);
   },
+  discoverLanServices: () => get(D.demoLanDiscovery),
 };

@@ -506,6 +506,15 @@ export const demoLanServices: T.LanServicesProbe = {
   ts: 0,
 };
 
+export const demoLanDiscovery: T.LanDiscoveryResult = {
+  suggestions: [
+    { host: "nas", ip: "192.168.8.10", kind: "immich", port: 2283, scheme: "http", path: "" },
+    { host: "tv", ip: "192.168.8.11", kind: "plex", port: 32400, scheme: "http", path: "/web" },
+  ],
+  scanned_hosts: 3,
+  ts: 0,
+};
+
 export const demoCableTest: T.CableTestProbe = {
   applicable: true,
   ports: [
