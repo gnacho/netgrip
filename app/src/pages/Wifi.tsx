@@ -82,6 +82,8 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
   const saved = (updated: WifiUI, sessionKey?: string) => {
     setIfaces((prev) => prev?.map((p) => (p.section === updated.section ? updated : p)));
     if (sessionKey) setKeys((k) => ({ ...k, [updated.section]: sessionKey }));
+    // Un cambio puede afectar a varias bandas (unificar); refresca el estado real.
+    load();
   };
 
   return (
@@ -113,17 +115,20 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
               }
               return [...bySsid.values()].map((group) => {
                 const rep = group[0];
+                const groupRadios = group
+                  .map((g) => radios?.find((r) => r.name === g.radio))
+                  .filter((r): r is WirelessRadio => !!r);
                 return (
                   <RadioCard
                     key={rep.section}
                     iface={rep}
-                    groupBands={group.map((g) => g.band)}
-                    radio={radios?.find((r) => r.name === rep.radio)}
+                    group={group}
+                    radios={groupRadios}
                     index={1}
                     passkey={keys[rep.section]}
                     blocked={blocked.filter((b) => b.type === "wifi" && (b.bands ?? []).includes(rep.band))}
                     onEdit={() => setEditing(rep)}
-                    onRadio={() => setEditingRadio(radios?.find((r) => r.name === rep.radio))}
+                    onRadio={(r) => setEditingRadio(r)}
                     onEnlargeQr={() => setQrOpen(rep)}
                     onManageBlocked={() => setBlockedOpen(rep.band as "2g" | "5g")}
                   />
@@ -138,7 +143,13 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
       <IotWifiCard probe={iot} mainSsid={main[0]?.ssid} onChange={onIotChange} />
 
       {editing && (
-        <WifiEditModal iface={editing} onClose={() => setEditing(undefined)} onSaved={saved} />
+        <WifiEditModal
+          iface={editing}
+          group={main.filter((i) => i.ssid === editing.ssid)}
+          main={main}
+          onClose={() => setEditing(undefined)}
+          onSaved={saved}
+        />
       )}
 
       {editingRadio && (
@@ -173,21 +184,23 @@ function mainIfaces(ifaces: WifiUI[], guest: GuestProbe | undefined, iot: IoTPro
 
 /* ══════════════ Tarjeta full-width por radio (#168) ══════════════ */
 
-function RadioCard({ iface, radio, index, passkey, blocked, onEdit, onRadio, onEnlargeQr, onManageBlocked, groupBands }: {
+function RadioCard({ iface, group, radios, index, passkey, blocked, onEdit, onRadio, onEnlargeQr, onManageBlocked }: {
   iface: WifiUI;
-  radio?: WirelessRadio;
+  group: WifiUI[];
+  radios: WirelessRadio[];
   index: number;
   passkey?: string;
   blocked: BlockedClient[];
   onEdit: () => void;
-  onRadio: () => void;
+  onRadio: (radio: WirelessRadio) => void;
   onEnlargeQr: () => void;
   onManageBlocked: () => void;
-  groupBands: string[];
 }) {
   const { t } = useTranslation();
   const band = iface.band === "5g" ? "band5" : "band24";
-  const on = !iface.disabled;
+  const groupBands = group.map((g) => g.band);
+  const on = group.every((i) => !i.disabled);
+  const clients = group.reduce((n, i) => n + i.clients.length, 0);
   const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState(false);
   const qr = useWifiQr(iface.ssid, passkey ?? "", iface.encryption, 96);
@@ -207,7 +220,7 @@ function RadioCard({ iface, radio, index, passkey, blocked, onEdit, onRadio, onE
       index={index}
       title={oneLine(iface.ssid)}
       icon={WifiIcon}
-      iconTone="teal"
+      iconTone={on ? "teal" : "danger"}
       help={band}
       action={
         <span className="flex items-center gap-2">
@@ -225,12 +238,21 @@ function RadioCard({ iface, radio, index, passkey, blocked, onEdit, onRadio, onE
         <div className="flex-1 min-w-0 space-y-3">
           {on ? (
             <>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-small">
-                <span className="text-muted">{t("wifi.channel")}: <span className="font-medium text-text">{radio?.channel ?? "—"}</span></span>
-                <span className="text-muted">{t("wifi.width")}: <span className="font-medium text-text">{radio ? fmtWidth(radio.htmode) : "—"}</span></span>
-                <span className="text-muted">{t("wifi.power")}: <span className="font-medium text-text">{radio ? `${radio.txpower} dBm` : "—"}</span></span>
+              <div className="flex flex-col gap-1 text-small">
+                {group.map((g) => {
+                  const r = radios.find((x) => x.name === g.radio);
+                  const bandName = t(g.band === "5g" ? "wifi.band5" : "wifi.band24");
+                  return (
+                    <span key={g.section} className="text-muted">
+                      <span className="font-medium text-text">{bandName}</span>
+                      {" · "}{t("wifi.channel")} {r?.channel ?? "—"}
+                      {" · "}{t("wifi.width")} {r ? fmtWidth(r.htmode) : "—"}
+                      {" · "}{t("wifi.power")} {r ? `${r.txpower} dBm` : "—"}
+                    </span>
+                  );
+                })}
               </div>
-              <p className="text-small text-muted">{t("wifi.devices", { count: iface.clients.length })}</p>
+              <p className="text-small text-muted">{t("wifi.devices", { count: clients })}</p>
 
               <div className="flex items-center gap-2">
                 <span className="text-muted text-small shrink-0">{t("wifi.keyLabel")}:</span>
@@ -264,9 +286,16 @@ function RadioCard({ iface, radio, index, passkey, blocked, onEdit, onRadio, onE
 
           <div className="pt-1 flex flex-wrap items-center gap-2">
             <Button variant="secondary" size="sm" icon={Pencil} onClick={onEdit}>{t("wifi.bandSettings")}</Button>
-            {radio && (
-              <Button variant="secondary" size="sm" icon={Settings2} onClick={onRadio}>{t("wifi.radioSettings")}</Button>
-            )}
+            {group.map((g) => {
+              const r = radios.find((x) => x.name === g.radio);
+              if (!r) return null;
+              const bandName = t(g.band === "5g" ? "wifi.band5" : "wifi.band24");
+              return (
+                <Button key={g.section} variant="secondary" size="sm" icon={Settings2} onClick={() => onRadio(r)}>
+                  {group.length > 1 ? t("wifi.radioSettingsFor", { band: bandName }) : t("wifi.radioSettings")}
+                </Button>
+              );
+            })}
             {blocked.length > 0 && (
               <button type="button" onClick={onManageBlocked}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-surface px-2.5 py-1 text-small text-muted hover:text-text hover:bg-surface-2 ring-focus transition-colors">
@@ -277,24 +306,26 @@ function RadioCard({ iface, radio, index, passkey, blocked, onEdit, onRadio, onE
           </div>
         </div>
 
-        {/* Derecha: QR */}
-        <div className="shrink-0 flex flex-col items-center gap-1.5 self-start">
-          {qr ? (
-            <>
-              <button type="button" onClick={onEnlargeQr}
-                title={t("wifi.enlargeQr")}
-                aria-label={t("wifi.enlargeQr")}
-                className="rounded-md ring-focus transition-transform hover:scale-[1.03]">
-                <QrBox data={qr} size={96} />
-              </button>
-              <p className="text-[10px] text-muted">{t("wifi.scanQr")}</p>
-            </>
-          ) : (
-            <div className="w-[96px] h-[96px] rounded-md border border-dashed border-border-strong flex items-center justify-center text-faint">
-              <QrCodeIcon size={24} aria-hidden="true" />
-            </div>
-          )}
-        </div>
+        {/* Derecha: QR (solo si la red emite) */}
+        {on && (
+          <div className="shrink-0 flex flex-col items-center gap-1.5 self-start">
+            {qr ? (
+              <>
+                <button type="button" onClick={onEnlargeQr}
+                  title={t("wifi.enlargeQr")}
+                  aria-label={t("wifi.enlargeQr")}
+                  className="rounded-md ring-focus transition-transform hover:scale-[1.03]">
+                  <QrBox data={qr} size={96} />
+                </button>
+                <p className="text-[10px] text-muted">{t("wifi.scanQr")}</p>
+              </>
+            ) : (
+              <div className="w-[96px] h-[96px] rounded-md border border-dashed border-border-strong flex items-center justify-center text-faint">
+                <QrCodeIcon size={24} aria-hidden="true" />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );

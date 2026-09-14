@@ -13,9 +13,12 @@ import (
 
 // WifiEdit is the user-provided change to one AP interface (a "radio"'s
 // principal network). Empty fields are left unchanged. Key is write-only:
-// it is never read back.
+// it is never read back. Sections optionally lists extra wifi-iface sections
+// to apply the same change to in one transaction (band steering: one network
+// across radios); Section stays the primary section.
 type WifiEdit struct {
-	Section    string `json:"section"` // UCI section, e.g. default_radio0
+	Section    string   `json:"section"` // UCI section, e.g. default_radio0
+	Sections   []string `json:"sections,omitempty"`
 	SSID       string `json:"ssid,omitempty"`
 	Key        string `json:"key,omitempty"`
 	Encryption string `json:"encryption,omitempty"`
@@ -80,46 +83,87 @@ func ProbeWifiUI() ([]WifiUI, error) {
 	return out, nil
 }
 
-// SetWifi applies a WifiEdit to a single AP interface with snapshot of
-// wireless, wifi reload of the radio, a healthcheck that hostapd is still up
-// and the SSID reflects the change, and rollback on failure.
+// SetWifi applies a WifiEdit to one AP interface, or to several when
+// edit.Sections is set (band steering), with a single snapshot of wireless,
+// a reload of every affected radio, a healthcheck per section, and rollback
+// on failure.
 func SetWifi(edit WifiEdit) (*WifiUI, bool, error) {
 	if edit.Section == "" {
 		return nil, false, fmt.Errorf("section is required")
+	}
+	sections := wifiTargetSections(edit)
+	for _, sec := range sections {
+		if !uciSectionExists("wireless." + sec) {
+			return nil, false, fmt.Errorf("unknown wireless section: %q", sec)
+		}
 	}
 	snap, err := executor.Snapshot("wireless")
 	if err != nil {
 		return nil, false, fmt.Errorf("snapshot wireless: %w", err)
 	}
-	radio := wirelessSectionDevice(edit.Section)
-	rollback := func() {
-		_ = executor.Restore("wireless", snap)
-		if radio != "" {
-			_ = executor.Run(executor.Op{Kind: "wifi_reload", Args: []string{radio}})
+	reloadAll := func() {
+		for _, sec := range sections {
+			if r := wirelessSectionDevice(sec); r != "" {
+				_ = executor.Run(executor.Op{Kind: "wifi_reload", Args: []string{r}})
+			}
 		}
 	}
-
-	ops, err := wifiEditOps(edit)
-	if err != nil {
-		return nil, false, err
+	rollback := func() {
+		_ = executor.Restore("wireless", snap)
+		reloadAll()
 	}
+
+	var ops []executor.Op
+	for _, sec := range sections {
+		o, err := wifiEditOpsFor(sec, edit)
+		if err != nil {
+			return nil, false, err
+		}
+		ops = append(ops, o...)
+	}
+	if len(ops) == 0 {
+		return nil, false, fmt.Errorf("nothing to change")
+	}
+	ops = append(ops, executor.Op{Kind: "uci_commit", Args: []string{"wireless"}})
 	if err := executor.Apply(ops, nil); err != nil {
 		rollback()
 		return nil, true, err
 	}
-	if radio != "" {
-		_ = executor.Run(executor.Op{Kind: "wifi_reload", Args: []string{radio}})
-	}
+	reloadAll()
 
 	probe, perr := ProbeWifiUI()
-	if perr != nil || !wifiHealthy(edit, probe) {
+	if perr != nil {
 		rollback()
 		return &WifiUI{}, true, fmt.Errorf("wifi healthcheck failed, rolled back")
+	}
+	for _, sec := range sections {
+		e := edit
+		e.Section = sec
+		if !wifiHealthy(e, probe) {
+			rollback()
+			return &WifiUI{}, true, fmt.Errorf("wifi healthcheck failed, rolled back")
+		}
 	}
 	if uciGet("wireless."+edit.Section+".disabled") == "1" {
 		return wifiUIFIState(edit.Section), false, nil
 	}
 	return probeWifiSection(edit.Section), false, nil
+}
+
+// wifiTargetSections returns the wifi-iface sections an edit applies to: the
+// explicit Sections list when given (deduplicated, primary first), else just
+// the primary Section.
+func wifiTargetSections(edit WifiEdit) []string {
+	out := []string{edit.Section}
+	seen := map[string]bool{edit.Section: true}
+	for _, s := range edit.Sections {
+		if s == "" || seen[s] {
+			continue
+		}
+		seen[s] = true
+		out = append(out, s)
+	}
+	return out
 }
 
 // SetWifiRadio applies a RadioEdit (channel/txpower/htmode) to a wireless
@@ -261,7 +305,7 @@ func wirelessSectionDevice(section string) string {
 	return uciGet("wireless." + section + ".device")
 }
 
-func wifiEditOps(edit WifiEdit) ([]executor.Op, error) {
+func wifiEditOpsFor(section string, edit WifiEdit) ([]executor.Op, error) {
 	var ops []executor.Op
 	set := func(key, value string) {
 		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{key, value}})
@@ -269,7 +313,7 @@ func wifiEditOps(edit WifiEdit) ([]executor.Op, error) {
 	del := func(key string) {
 		ops = append(ops, executor.Op{Kind: "uci_delete", Args: []string{key}})
 	}
-	base := "wireless." + edit.Section
+	base := "wireless." + section
 
 	if edit.SSID != "" {
 		set(base+".ssid", edit.SSID)
@@ -310,7 +354,6 @@ func wifiEditOps(edit WifiEdit) ([]executor.Op, error) {
 	if len(ops) == 0 {
 		return nil, fmt.Errorf("nothing to change")
 	}
-	ops = append(ops, executor.Op{Kind: "uci_commit", Args: []string{"wireless"}})
 	return ops, nil
 }
 

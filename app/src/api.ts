@@ -212,7 +212,7 @@ const realApi = {
     }),
   wifi: () => request<{ interfaces: import("./types").WifiUI[] }>("/api/wifi"),
   wifiKey: (section: string) => request<{ key: string }>(`/api/wifi/key?section=${encodeURIComponent(section)}`),
-  setWifi: (edit: { section: string; ssid?: string; key?: string; encryption?: string; hidden?: boolean; disabled?: boolean; mac?: string }) =>
+  setWifi: (edit: { section: string; sections?: string[]; ssid?: string; key?: string; encryption?: string; hidden?: boolean; disabled?: boolean; mac?: string }) =>
     request<import("./types").ModuleResult<import("./types").WifiUI>>("/api/wifi", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

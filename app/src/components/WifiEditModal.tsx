@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { EyeOff, KeyRound, RadioTower, Shuffle, Wifi } from "lucide-react";
+import { EyeOff, KeyRound, Link2, RadioTower, Shuffle, Wifi } from "lucide-react";
 import { api } from "../api";
 import type { WifiUI } from "../types";
 import {
@@ -26,10 +26,16 @@ function generateKey(): string {
 /**
  * Modal de edición WiFi (wifi.md §2): nombre, seguridad segmentada, clave con
  * generador, red oculta, emisión de la banda, QR en vivo y aviso de reinicio.
+ * Cuando varias radios comparten SSID (o hay más de una radio) ofrece unificar
+ * bandas: el cambio se aplica a todas en una sola transacción (#328).
  * Guardar → ActionBanner applying/verifying; rollback → "sigue como estaba".
  */
-export function WifiEditModal({ iface, onClose, onSaved }: {
+export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
   iface: WifiUI;
+  /** Interfaces que comparten el SSID de `iface` (la red ya unificada). */
+  group: WifiUI[];
+  /** Todas las interfaces principales del router (radios 2.4/5/6). */
+  main: WifiUI[];
   onClose: () => void;
   onSaved: (updated: WifiUI, sessionKey?: string) => void;
 }) {
@@ -39,9 +45,15 @@ export function WifiEditModal({ iface, onClose, onSaved }: {
   const [sec, setSec] = useState<Sec>(toSec(iface.encryption));
   const [hidden, setHidden] = useState(iface.hidden);
   const [emitting, setEmitting] = useState(!iface.disabled);
+  const [unify, setUnify] = useState(group.length > 1);
   const { phase, detail, busy, run } = useActionCycle();
 
-  const bandLabel = iface.band === "5g" ? t("wifi.band5") : t("wifi.band24");
+  // Objetivo del cambio: al unificar, todas las radios principales si la red
+  // estaba suelta; si ya estaba unificada, su propio grupo (sin arrastrar otras
+  // redes). Sin unificar, solo esta interfaz.
+  const target = unify ? (group.length > 1 ? group : main) : [iface];
+  const bands = [...new Set(target.map((i) => (i.band === "5g" ? t("wifi.band5") : t("wifi.band24"))))];
+  const bandLabel = bands.join(" + ");
   const keyError = key.length > 0 && key.length < 8 ? t("wifi.keyMin") : undefined;
   const qr = useWifiQr(ssid, key, sec, 160);
 
@@ -54,8 +66,9 @@ export function WifiEditModal({ iface, onClose, onSaved }: {
 
   const save = () => {
     run(async () => {
-      const edit: { section: string; ssid: string; encryption: string; hidden: boolean; disabled: boolean; key?: string } = {
+      const edit: { section: string; sections: string[]; ssid: string; encryption: string; hidden: boolean; disabled: boolean; key?: string } = {
         section: iface.section,
+        sections: target.map((i) => i.section),
         ssid,
         encryption: sec,
         hidden,
@@ -130,6 +143,16 @@ export function WifiEditModal({ iface, onClose, onSaved }: {
         </Field>
 
         <div className="rounded-md border border-border/60 px-3 divide-y divide-border/60">
+          {main.length > 1 && (
+            <SettingRow
+              icon={Link2}
+              iconTone="teal"
+              title={t("wifi.unifyBands")}
+              description={t("wifi.unifyBandsDesc")}
+              checked={unify}
+              onChange={setUnify}
+            />
+          )}
           <SettingRow
             icon={EyeOff}
             iconTone="teal"
