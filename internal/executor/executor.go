@@ -250,9 +250,23 @@ func Run(op Op) error {
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		// `uci delete` is not idempotent: deleting an option or section that
+		// is already absent exits 1 with "Entry not found". Absence already
+		// satisfies a delete, so treat it as success. Otherwise an idempotent
+		// batch (e.g. clearing the unset `hidden` of a Wi-Fi interface) aborts
+		// at that op and rolls back the whole edit.
+		if op.Kind == "uci_delete" && uciEntryNotFound(out) {
+			return nil
+		}
 		return fmt.Errorf("%s %v: %w (%s)", op.Kind, op.Args, err, strings.TrimSpace(string(out)))
 	}
 	return nil
+}
+
+// uciEntryNotFound reports whether uci printed its "Entry not found" error,
+// which it emits when the target of a delete does not exist.
+func uciEntryNotFound(out []byte) bool {
+	return strings.Contains(string(out), "Entry not found")
 }
 
 // opkgListsDir is where opkg caches the feed indexes.

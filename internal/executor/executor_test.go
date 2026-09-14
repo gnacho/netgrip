@@ -79,3 +79,28 @@ func TestOpUnmarshalObjectArgs(t *testing.T) {
 		t.Fatalf("array got %+v", op)
 	}
 }
+
+// fakeUCI puts a stub `uci` on PATH that always answers with the given body.
+func fakeUCI(t *testing.T, body string) {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "uci")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+func TestUCIDeleteAbsentEntryIsNoOp(t *testing.T) {
+	fakeUCI(t, "echo 'uci: Entry not found' >&2; exit 1\n")
+	if err := Run(Op{Kind: "uci_delete", Args: []string{"wireless.default_radio0.hidden"}}); err != nil {
+		t.Fatalf("deleting an absent entry should be a no-op, got %v", err)
+	}
+}
+
+func TestUCIDeleteOtherErrorStillFails(t *testing.T) {
+	fakeUCI(t, "echo 'uci: I/O error' >&2; exit 1\n")
+	if err := Run(Op{Kind: "uci_delete", Args: []string{"wireless.default_radio0.hidden"}}); err == nil {
+		t.Fatal("a delete failure other than 'Entry not found' must be reported")
+	}
+}
