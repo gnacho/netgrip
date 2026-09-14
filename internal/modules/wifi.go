@@ -315,6 +315,7 @@ func wifiUIFIState(section string) *WifiUI {
 		Hidden:     uciGet("wireless."+section+".hidden") == "1",
 		Disabled:   uciGet("wireless."+section+".disabled") == "1",
 		HasKey:     uciGet("wireless."+section+".key") != "",
+		Clients:    []ubus.WirelessClient{},
 	}
 }
 

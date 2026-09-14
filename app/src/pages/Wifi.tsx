@@ -200,7 +200,7 @@ function RadioCard({ iface, group, radios, index, passkey, blocked, onEdit, onRa
   const band = iface.band === "5g" ? "band5" : "band24";
   const groupBands = group.map((g) => g.band);
   const on = group.every((i) => !i.disabled);
-  const clients = group.reduce((n, i) => n + i.clients.length, 0);
+  const clients = group.reduce((n, i) => n + (i.clients?.length ?? 0), 0);
   const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState(false);
   const qr = useWifiQr(iface.ssid, passkey ?? "", iface.encryption, 96);
