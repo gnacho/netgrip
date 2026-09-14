@@ -69,3 +69,17 @@ func TestWifiEditOpsForRejectsEmptyEdit(t *testing.T) {
 		t.Fatal("an edit with no fields should be rejected")
 	}
 }
+
+func TestMissingWifiSections(t *testing.T) {
+	seen := map[string]bool{"default_radio0": true}
+	got := missingWifiSections(seen, []string{"default_radio0", "default_radio1", "", "guest2g"})
+	want := []string{"default_radio1", "guest2g"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+	}
+}

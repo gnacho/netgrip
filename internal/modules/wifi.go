@@ -61,6 +61,7 @@ func ProbeWifiUI() ([]WifiUI, error) {
 		return nil, err
 	}
 	var out []WifiUI
+	seen := make(map[string]bool)
 	for _, r := range radios {
 		for _, iface := range r.Interfaces {
 			u := WifiUI{
@@ -77,10 +78,30 @@ func ProbeWifiUI() ([]WifiUI, error) {
 			}
 			u.HasKey = wifiHasKey(iface.RFaceName)
 			u.MAC = wifiGetMAC(iface.RFaceName)
+			seen[iface.RFaceName] = true
 			out = append(out, u)
 		}
 	}
+	// Disabled interfaces drop out of ubus; report the configured ones anyway
+	// so the panel can turn them back on (turning every radio off used to
+	// leave the Wi-Fi page with nothing to edit).
+	for _, sec := range missingWifiSections(seen, wifiIfaceSections()) {
+		out = append(out, *wifiUIFIState(sec))
+	}
 	return out, nil
+}
+
+// missingWifiSections returns the configured wifi-iface sections that the
+// probe does not list yet, preserving the configured order.
+func missingWifiSections(seen map[string]bool, configured []string) []string {
+	var out []string
+	for _, sec := range configured {
+		if sec == "" || seen[sec] {
+			continue
+		}
+		out = append(out, sec)
+	}
+	return out
 }
 
 // SetWifi applies a WifiEdit to one AP interface, or to several when
@@ -280,15 +301,19 @@ func waitRadioHealthy(edit RadioEdit) (*ubus.WirelessRadio, error) {
 	return last, fmt.Errorf("radio %q did not stabilise", edit.Radio)
 }
 
-// wifiUIFIState synthesises a WifiUI for a disabled (not enumerated) radio.
+// wifiUIFIState synthesises a WifiUI for a configured wifi-iface that ubus
+// does not enumerate (typically a disabled one), so the panel can still show
+// it and turn it back on.
 func wifiUIFIState(section string) *WifiUI {
+	device := wirelessSectionDevice(section)
 	return &WifiUI{
 		Section:    section,
-		Radio:      wirelessSectionDevice(section),
+		Radio:      device,
+		Band:       uciGet("wireless." + device + ".band"),
 		SSID:       uciGet("wireless." + section + ".ssid"),
 		Encryption: uciGet("wireless." + section + ".encryption"),
 		Hidden:     uciGet("wireless."+section+".hidden") == "1",
-		Disabled:   true,
+		Disabled:   uciGet("wireless."+section+".disabled") == "1",
 		HasKey:     uciGet("wireless."+section+".key") != "",
 	}
 }
