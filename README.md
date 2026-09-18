@@ -112,8 +112,9 @@ a capability, not a requirement: if you do not use NetPulse, nothing changes.
 
 ## Get it on your router
 
-Requirements: a 64-bit ARM router (`aarch64_cortex-a53`, covers MediaTek
-filogic and Qualcomm ipq807x) or x86_64, running OpenWrt 24.10 or 25.12. The
+Requirements: an ARM router (`aarch64_cortex-a53`, covers MediaTek
+filogic and Qualcomm ipq807x; or `arm_cortex-a7_neon-vfpv4`, covers
+Qualcomm ipq40xx) or x86_64, running OpenWrt 24.10 or 25.12. The
 panel listens on port 8090 and logs in with your LuCI credentials.
 
 SSH into the router and run:

@@ -35,8 +35,12 @@ case "$(uname -m)" in
     ASSET_ARCH=amd64
     IPK_ARCH=x86_64
     ;;
+  armv7l|armv7)
+    ASSET_ARCH=armv7
+    IPK_ARCH=arm_cortex-a7_neon-vfpv4
+    ;;
   *)
-    die 3 "unsupported architecture: $(uname -m) (assets exist for aarch64 and x86_64)"
+    die 3 "unsupported architecture: $(uname -m) (assets exist for aarch64, x86_64 and armv7)"
     ;;
 esac
 

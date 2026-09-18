@@ -23,7 +23,11 @@ const (
 // binaryAssetName is the release asset for this build's architecture, so an
 // unsupported arch (e.g. mipsel before #236) never matches an existing asset
 // and the update is not offered/applied with a wrong-architecture binary (#237).
+// The single 32-bit arm build is published as armv7 (GOARM=7, ipq40xx, #325).
 func binaryAssetName() string {
+	if runtime.GOARCH == "arm" {
+		return "netgrip-linux-armv7"
+	}
 	return "netgrip-linux-" + runtime.GOARCH
 }
 

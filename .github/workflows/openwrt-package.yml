@@ -91,6 +91,20 @@ jobs:
             goarch: mipsle
             pkgarch: mipsel_24kc
             upload-binary: true
+          - sdk-version: 24.10.5
+            sdk-target: ipq40xx/generic
+            format: ipk
+            arch: armv7
+            goarch: arm
+            pkgarch: arm_cortex-a7_neon-vfpv4
+            upload-binary: true
+          - sdk-version: 25.12.5
+            sdk-target: ipq40xx/generic
+            format: apk
+            arch: armv7
+            goarch: arm
+            pkgarch: arm_cortex-a7_neon-vfpv4
+            upload-binary: false
 
     steps:
       - uses: actions/checkout@v4
@@ -122,7 +136,14 @@ jobs:
         env:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          GOOS=linux GOARCH=${{ matrix.goarch }} GOMIPS=softfloat CGO_ENABLED=0 go build \
+          # armv7 (ipq40xx) needs GOARM=7; mips needs soft-float. Other arches
+          # ignore both (GOMIPS only affects mips, GOARM only arm).
+          if [ "${{ matrix.goarch }}" = "arm" ]; then
+            export GOARM=7
+          else
+            export GOMIPS=softfloat
+          fi
+          GOOS=linux GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build \
             -ldflags "-s -w -X main.version=${TAG}" -o /tmp/netgrip ./cmd/netgrip
           ls -la /tmp/netgrip
           file /tmp/netgrip
@@ -191,6 +212,14 @@ jobs:
             sdk-target: x86/64
             format: apk
             arch: amd64
+          - sdk-version: 24.10.5
+            sdk-target: ipq40xx/generic
+            format: ipk
+            arch: armv7
+          - sdk-version: 25.12.5
+            sdk-target: ipq40xx/generic
+            format: apk
+            arch: armv7
 
     steps:
       - uses: actions/checkout@v4
@@ -226,10 +255,11 @@ jobs:
         run: |
           echo "LuCI packages generated:"
           ls -la dist/packages/
-          # The luci-app ipk is arch-all: both 24.10 legs would upload the
+          # The luci-app ipk is arch-all: every 24.10 leg would upload the
           # same filename concurrently and race on the release assets.
-          # Upload it once, from the arm64 leg (#214).
-          if [ "${{ matrix.format }}" = "ipk" ] && [ "${{ matrix.arch }}" = "amd64" ]; then
+          # Upload it once, from the arm64 leg (#214); the other ipk legs
+          # (x86_64, mipsel, armv7) skip.
+          if [ "${{ matrix.format }}" = "ipk" ] && [ "${{ matrix.arch }}" != "arm64" ]; then
             echo "luci ipk is arch-all; already uploaded by the arm64 leg, skipping."
             exit 0
           fi

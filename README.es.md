@@ -115,8 +115,9 @@ capacidad adicional, no un requisito: si no usas NetPulse, nada cambia.
 
 ## Ponlo en tu router
 
-Requisitos: un router ARM de 64 bits (`aarch64_cortex-a53`, cubre MediaTek
-filogic y Qualcomm ipq807x) o x86_64, con OpenWrt 24.10 o 25.12. El panel
+Requisitos: un router ARM (`aarch64_cortex-a53`, cubre MediaTek
+filogic y Qualcomm ipq807x; u `arm_cortex-a7_neon-vfpv4`, cubre
+Qualcomm ipq40xx) o x86_64, con OpenWrt 24.10 o 25.12. El panel
 escucha en el puerto 8090 y entra con tus credenciales de LuCI.
 
 SSH al router y ejecuta:

@@ -49,8 +49,9 @@ log "registry entry lost (running ${ver:-unknown}): restoring"
 if command -v apk >/dev/null 2>&1; then
 	arch=$(apk --print-arch 2>/dev/null)
 	case "$arch" in
-		aarch64*) asset=netgrip-*-arm64.apk ;;
-		x86_64*) asset=netgrip-*-amd64.apk ;;
+		aarch64*) pattern='netgrip-[^/]*-arm64\.apk$' ;;
+		x86_64*) pattern='netgrip-[^/]*-amd64\.apk$' ;;
+		arm_cortex-a7*) pattern='netgrip-[^/]*-armv7\.apk$' ;;
 		*) log "no release asset for apk arch $arch"; exit 1 ;;
 	esac
 	pkgfile=/tmp/netgrip-heal.apk
@@ -62,7 +63,7 @@ else
 		arch=$(opkg print-architecture 2>/dev/null | awk 'tolower($1)=="arch" && $2!="all" && $2!="noarch" {print $2; exit}')
 	fi
 	[ -n "$arch" ] || { log "cannot determine architecture"; exit 1; }
-	asset="netgrip*_${arch}.ipk"
+	pattern="netgrip_[^/]*_${arch}\.ipk$"
 	pkgfile=/tmp/netgrip-heal.ipk
 fi
 
@@ -79,8 +80,8 @@ done
 json=$(wget -q -O - -T 15 "$RELEASES_API" 2>/dev/null)
 [ -n "$json" ] || { log "cannot reach GitHub releases API"; exit 1; }
 
-url=$(printf '%s' "$json" | tr ',' '\n' | grep -o '"browser_download_url": *"[^"]*"' | cut -d'"' -f4 | grep -E "/netgrip_[^/]*_${arch}\.ipk$" | head -n1)
-[ -n "$url" ] || { log "no release asset matching $asset"; exit 1; }
+url=$(printf '%s' "$json" | tr ',' '\n' | grep -o '"browser_download_url": *"[^"]*"' | cut -d'"' -f4 | grep -E "/${pattern}" | head -n1)
+[ -n "$url" ] || { log "no release asset matching ${pattern}"; exit 1; }
 
 # Never downgrade a dev build: only heal when the asset matches the
 # running version.
