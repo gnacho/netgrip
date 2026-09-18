@@ -39,8 +39,18 @@ case "$(uname -m)" in
     ASSET_ARCH=armv7
     IPK_ARCH=arm_cortex-a7_neon-vfpv4
     ;;
+  mips)
+    # uname -m is "mips" on both endiannesses; ask opkg which flavor this
+    # router actually runs (there are no apk-only mips targets yet).
+    if command -v opkg >/dev/null 2>&1 && opkg print-architecture 2>/dev/null | grep -q '^arch mipsel'; then
+      ASSET_ARCH=mipsle
+      IPK_ARCH=mipsel_24kc
+    else
+      die 3 "unsupported architecture: mips big-endian (assets exist for aarch64, x86_64, armv7 and mipsel)"
+    fi
+    ;;
   *)
-    die 3 "unsupported architecture: $(uname -m) (assets exist for aarch64, x86_64 and armv7)"
+    die 3 "unsupported architecture: $(uname -m) (assets exist for aarch64, x86_64, armv7 and mipsel)"
     ;;
 esac
 
