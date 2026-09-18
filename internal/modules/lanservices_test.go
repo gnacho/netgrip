@@ -232,6 +232,22 @@ func TestLanAliasHelpers(t *testing.T) {
 	if got := lanAliasSection("jellyfin"); got != "netgrip_alias_jellyfin" {
 		t.Fatalf("lanAliasSection = %q, want netgrip_alias_jellyfin", got)
 	}
+	// Hyphens are valid in DNS labels but not in UCI section names (#334).
+	hyphenated := lanAliasSection("home-assistant")
+	if hyphenated == "netgrip_alias_home-assistant" || !strings.HasPrefix(hyphenated, "netgrip_alias_home_assistant_") {
+		t.Fatalf("lanAliasSection(hyphenated) = %q, want sanitized prefix netgrip_alias_home_assistant_", hyphenated)
+	}
+	if lanAliasSection("home-assistant") != hyphenated {
+		t.Fatal("lanAliasSection must be deterministic")
+	}
+	if lanAliasSection("home_assistant") == hyphenated {
+		t.Fatal("sanitized aliases that differ must not share a section name")
+	}
+	for _, r := range hyphenated[len(lanAliasSectionPrefix):] {
+		if !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '_') {
+			t.Fatalf("section name %q has invalid UCI char %q", hyphenated, r)
+		}
+	}
 }
 
 func TestSuggestLanAlias(t *testing.T) {

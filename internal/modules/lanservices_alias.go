@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"hash/fnv"
 	"os/exec"
 	"strings"
 
@@ -49,9 +50,25 @@ func lanAliasFQDN(alias string) string {
 	return alias + lanAliasSuffix
 }
 
-// lanAliasSection returns the dnsmasq UCI section name for an alias.
+// lanAliasSection returns the dnsmasq UCI section name for an alias. UCI
+// section names only allow [a-zA-Z0-9_], while aliases are DNS labels that
+// may contain hyphens (#334): disallowed chars map to "_" and a deterministic
+// hash suffix disambiguates aliases that would collide after sanitization
+// ("a-b" vs "a_b"). Aliases that need no sanitization keep their plain
+// section name, as before.
 func lanAliasSection(alias string) string {
-	return lanAliasSectionPrefix + alias
+	name := strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '_' {
+			return r
+		}
+		return '_'
+	}, alias)
+	if name != alias {
+		h := fnv.New32a()
+		h.Write([]byte(alias))
+		name = fmt.Sprintf("%s_%04x", name, h.Sum32()&0xffff)
+	}
+	return lanAliasSectionPrefix + name
 }
 
 // suggestLanAlias proposes an alias label from the service name (sluggified)
