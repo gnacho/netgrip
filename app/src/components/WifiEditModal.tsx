@@ -26,8 +26,9 @@ function generateKey(): string {
 /**
  * Modal de edición WiFi (wifi.md §2): nombre, seguridad segmentada, clave con
  * generador, red oculta, emisión de la banda, QR en vivo y aviso de reinicio.
- * Cuando varias radios comparten SSID (o hay más de una radio) ofrece unificar
- * bandas: el cambio se aplica a todas en una sola transacción (#328).
+ * Cuando varias radios comparten SSID ofrece "Unificar bandas" (#328): activado
+ * (default) un solo nombre/clave para todas; desactivado, un campo de nombre
+ * por banda para separarlas en una sola guardada (#330).
  * Guardar → ActionBanner applying/verifying; rollback → "sigue como estaba".
  */
 export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
@@ -41,6 +42,8 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
 }) {
   const { t } = useTranslation();
   const [ssid, setSsid] = useState(iface.ssid);
+  const [bandSsids, setBandSsids] = useState<Record<string, string>>(() =>
+    Object.fromEntries(group.map((g) => [g.section, g.ssid])));
   const [key, setKey] = useState("");
   const [sec, setSec] = useState<Sec>(toSec(iface.encryption));
   const [hidden, setHidden] = useState(iface.hidden);
@@ -50,12 +53,18 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
 
   // Objetivo del cambio: al unificar, todas las radios principales si la red
   // estaba suelta; si ya estaba unificada, su propio grupo (sin arrastrar otras
-  // redes). Sin unificar, solo esta interfaz.
+  // redes). Sin unificar, solo esta interfaz (con nombre por banda si el grupo
+  // tiene varias radios).
   const target = unify ? (group.length > 1 ? group : main) : [iface];
-  const bands = [...new Set(target.map((i) => (i.band === "5g" ? t("wifi.band5") : t("wifi.band24"))))];
+  const perBand = !unify && group.length > 1;
+  const bandName = (b: string) => (b === "5g" ? t("wifi.band5") : t("wifi.band24"));
+  const bands = [...new Set(target.map((i) => bandName(i.band)))];
   const bandLabel = bands.join(" + ");
   const keyError = key.length > 0 && key.length < 8 ? t("wifi.keyMin") : undefined;
   const qr = useWifiQr(ssid, key, sec, 160);
+  const saveDisabled = perBand
+    ? group.some((g) => !bandSsids[g.section]?.trim()) || !!keyError
+    : !ssid.trim() || !!keyError;
 
   const segments: { value: Sec; label: string }[] = [
     { value: "psk2", label: "WPA2" },
@@ -66,6 +75,26 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
 
   const save = () => {
     run(async () => {
+      if (perBand) {
+        // Renombra primero las demás bandas del grupo (solo el nombre, para no
+        // tocar su seguridad/emisión); la banda propia lleva el resto de campos.
+        const renamed = group.filter(
+          (g) => g.section !== iface.section && bandSsids[g.section].trim() !== g.ssid,
+        );
+        for (const g of renamed) {
+          const r = await api.setWifi({ section: g.section, sections: [g.section], ssid: bandSsids[g.section].trim() });
+          if (r.status !== "applied") return r;
+        }
+        return api.setWifi({
+          section: iface.section,
+          sections: [iface.section],
+          ssid: bandSsids[iface.section].trim(),
+          encryption: sec,
+          hidden,
+          disabled: !emitting,
+          ...(key ? { key } : {}),
+        });
+      }
       const edit: { section: string; sections: string[]; ssid: string; encryption: string; hidden: boolean; disabled: boolean; key?: string } = {
         section: iface.section,
         sections: target.map((i) => i.section),
@@ -97,16 +126,43 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-          <Button onClick={save} loading={busy} disabled={!ssid.trim() || !!keyError}>
+          <Button onClick={save} loading={busy} disabled={saveDisabled}>
             {t("access.save")}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <Field label={t("wifi.ssid")}>
-          <Input icon={Wifi} value={ssid} onChange={(e) => setSsid(e.target.value)} maxLength={32} />
-        </Field>
+        {main.length > 1 && (
+          <SettingRow
+            icon={Link2}
+            iconTone="teal"
+            title={t("wifi.unifyBands")}
+            description={t("wifi.unifyBandsDesc")}
+            checked={unify}
+            onChange={setUnify}
+          />
+        )}
+
+        {perBand ? (
+          group.map((g) => (
+            <Field key={g.section} label={t("wifi.ssidForBand", { band: bandName(g.band) })}>
+              <Input
+                icon={Wifi}
+                value={bandSsids[g.section]}
+                onChange={(e) => setBandSsids((s) => ({ ...s, [g.section]: e.target.value }))}
+                maxLength={32}
+              />
+            </Field>
+          ))
+        ) : (
+          <Field
+            label={t("wifi.ssid")}
+            hint={target.length > 1 ? t("wifi.nameAppliesTo", { bands: bandLabel }) : undefined}
+          >
+            <Input icon={Wifi} value={ssid} onChange={(e) => setSsid(e.target.value)} maxLength={32} />
+          </Field>
+        )}
 
         <Field label={t("wifi.encryption")} hint={t("wifi.securityCaption")}>
           <SegmentedControl
@@ -143,16 +199,6 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
         </Field>
 
         <div className="rounded-md border border-border/60 px-3 divide-y divide-border/60">
-          {main.length > 1 && (
-            <SettingRow
-              icon={Link2}
-              iconTone="teal"
-              title={t("wifi.unifyBands")}
-              description={t("wifi.unifyBandsDesc")}
-              checked={unify}
-              onChange={setUnify}
-            />
-          )}
           <SettingRow
             icon={EyeOff}
             iconTone="teal"
@@ -173,7 +219,13 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
           />
         </div>
 
-        {qr ? (
+        {perBand ? (
+          <div className="flex flex-wrap justify-center gap-4 py-1">
+            {group.map((g) => (
+              <BandQr key={g.section} ssid={bandSsids[g.section]} k={key} enc={sec} band={bandName(g.band)} />
+            ))}
+          </div>
+        ) : qr ? (
           <div className="flex flex-col items-center gap-1.5 py-1">
             <QrBox data={qr} size={160} />
             <p className="text-caption text-muted">{t("wifi.scanQr")}</p>
@@ -193,5 +245,20 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
         )}
       </div>
     </Modal>
+  );
+}
+
+/* QR por banda cuando el nombre se edita por separado (#330). */
+function BandQr({ ssid, k, enc, band }: { ssid: string; k: string; enc: string; band: string }) {
+  const qr = useWifiQr(ssid, k, enc, 120);
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      {qr ? (
+        <QrBox data={qr} size={120} />
+      ) : (
+        <div className="w-[120px] h-[120px] rounded-md border border-dashed border-border-strong" aria-hidden="true" />
+      )}
+      <p className="text-caption text-muted">{band}</p>
+    </div>
   );
 }

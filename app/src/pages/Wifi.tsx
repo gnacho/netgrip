@@ -285,7 +285,7 @@ function RadioCard({ iface, group, radios, index, passkey, blocked, onEdit, onRa
           )}
 
           <div className="pt-1 flex flex-wrap items-center gap-2">
-            <Button variant="secondary" size="sm" icon={Pencil} onClick={onEdit}>{t("wifi.bandSettings")}</Button>
+            <Button variant="secondary" size="sm" icon={Pencil} onClick={onEdit}>{group.length > 1 ? t("wifi.netSettings") : t("wifi.bandSettings")}</Button>
             {group.map((g) => {
               const r = radios.find((x) => x.name === g.radio);
               if (!r) return null;
