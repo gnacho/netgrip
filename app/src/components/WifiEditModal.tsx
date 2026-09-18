@@ -6,7 +6,6 @@ import type { WifiUI } from "../types";
 import {
   ActionBanner, Banner, Button, Field, Input, Modal, Pill, SegmentedControl, SettingRow,
 } from "./ui";
-import { QrBox, useWifiQr } from "./wifi/qr";
 import { useActionCycle } from "./wifi/action";
 
 type Sec = "psk2" | "sae" | "sae-mixed" | "none";
@@ -25,10 +24,10 @@ function generateKey(): string {
 
 /**
  * Modal de edición WiFi (wifi.md §2): nombre, seguridad segmentada, clave con
- * generador, red oculta, emisión de la banda, QR en vivo y aviso de reinicio.
+ * generador, red oculta, emisión de la banda y aviso de reinicio.
  * Cuando varias radios comparten SSID ofrece "Unificar bandas" (#328): activado
  * (default) un solo nombre/clave para todas; desactivado, un campo de nombre
- * por banda para separarlas en una sola guardada (#330).
+ * por banda para separarlas en una sola guardada (#328).
  * Guardar → ActionBanner applying/verifying; rollback → "sigue como estaba".
  */
 export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
@@ -61,7 +60,6 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
   const bands = [...new Set(target.map((i) => bandName(i.band)))];
   const bandLabel = bands.join(" + ");
   const keyError = key.length > 0 && key.length < 8 ? t("wifi.keyMin") : undefined;
-  const qr = useWifiQr(ssid, key, sec, 160);
   const saveDisabled = perBand
     ? group.some((g) => !bandSsids[g.section]?.trim()) || !!keyError
     : !ssid.trim() || !!keyError;
@@ -219,21 +217,6 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
           />
         </div>
 
-        {perBand ? (
-          <div className="flex flex-wrap justify-center gap-4 py-1">
-            {group.map((g) => (
-              <BandQr key={g.section} ssid={bandSsids[g.section]} k={key} enc={sec} band={bandName(g.band)} />
-            ))}
-          </div>
-        ) : qr ? (
-          <div className="flex flex-col items-center gap-1.5 py-1">
-            <QrBox data={qr} size={160} />
-            <p className="text-caption text-muted">{t("wifi.scanQr")}</p>
-          </div>
-        ) : (
-          <p className="text-small text-muted text-center">{t("wifi.qrNote")}</p>
-        )}
-
         <Banner tone="warn">{t("wifi.saveRestartWarn")}</Banner>
 
         {phase && (
@@ -245,20 +228,5 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
         )}
       </div>
     </Modal>
-  );
-}
-
-/* QR por banda cuando el nombre se edita por separado (#330). */
-function BandQr({ ssid, k, enc, band }: { ssid: string; k: string; enc: string; band: string }) {
-  const qr = useWifiQr(ssid, k, enc, 120);
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      {qr ? (
-        <QrBox data={qr} size={120} />
-      ) : (
-        <div className="w-[120px] h-[120px] rounded-md border border-dashed border-border-strong" aria-hidden="true" />
-      )}
-      <p className="text-caption text-muted">{band}</p>
-    </div>
   );
 }

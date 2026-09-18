@@ -382,7 +382,6 @@ export default {
     visible: "Visible",
     hiddenLabel: "Hidden",
     chipMode: "Mesh mode",
-    qrNote: "Type a new password to generate the join QR",
     cancel: "Cancel",
     yours: "Your Wi-Fi",
     activeCount_one: "Active · {{count}} device",

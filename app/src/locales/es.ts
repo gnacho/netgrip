@@ -382,7 +382,6 @@ export default {
     visible: "Mostrado",
     hiddenLabel: "Oculto",
     chipMode: "Modo inalambrico",
-    qrNote: "Introduce una nueva contraseña para generar el QR de conexión",
     cancel: "Cancelar",
     yours: "Tu WiFi",
     activeCount_one: "Activo · {{count}} equipo",
