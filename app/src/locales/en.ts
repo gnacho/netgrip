@@ -382,6 +382,7 @@ export default {
     visible: "Visible",
     hiddenLabel: "Hidden",
     chipMode: "Mesh mode",
+    sameNamesWarn: "To show one card per band, give them different names. If you leave them identical, they'll stay grouped.",
     cancel: "Cancel",
     yours: "Your Wi-Fi",
     activeCount_one: "Active · {{count}} device",

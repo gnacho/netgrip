@@ -382,6 +382,7 @@ export default {
     visible: "Mostrado",
     hiddenLabel: "Oculto",
     chipMode: "Modo inalambrico",
+    sameNamesWarn: "Para mostrar una tarjeta por banda, dales nombres distintos. Si los dejas iguales, seguirán agrupadas.",
     cancel: "Cancelar",
     yours: "Tu WiFi",
     activeCount_one: "Activo · {{count}} equipo",

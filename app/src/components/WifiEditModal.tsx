@@ -60,6 +60,9 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
   const bands = [...new Set(target.map((i) => bandName(i.band)))];
   const bandLabel = bands.join(" + ");
   const keyError = key.length > 0 && key.length < 8 ? t("wifi.keyMin") : undefined;
+  // Aviso: sin unificar pero con nombres iguales, las bandas siguen agrupadas.
+  const sameBandNames = perBand
+    && new Set(Object.values(bandSsids).map((s) => s.trim())).size <= 1;
   const saveDisabled = perBand
     ? group.some((g) => !bandSsids[g.section]?.trim()) || !!keyError
     : !ssid.trim() || !!keyError;
@@ -161,6 +164,8 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
             <Input icon={Wifi} value={ssid} onChange={(e) => setSsid(e.target.value)} maxLength={32} />
           </Field>
         )}
+
+        {sameBandNames && <Banner tone="info">{t("wifi.sameNamesWarn")}</Banner>}
 
         <Field label={t("wifi.encryption")} hint={t("wifi.securityCaption")}>
           <SegmentedControl
