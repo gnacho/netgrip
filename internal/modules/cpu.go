@@ -69,6 +69,11 @@ type CPUProbe struct {
 	TempSource string   `json:"temp_source,omitempty"`
 	// Procs: the heaviest processes since the previous poll.
 	Procs []CPUProc `json:"procs"`
+	// MemProcs: the processes holding the most resident memory, regardless
+	// of CPU usage. On a router with little RAM this is the list that
+	// matters when the box runs out of memory, and it is almost never the
+	// same as the CPU list.
+	MemProcs []CPUProc `json:"mem_procs"`
 	// Warming is true until there are two samples to compare.
 	Warming bool `json:"warming"`
 }
@@ -268,7 +273,7 @@ const clockTicks = 100.0
 // Warming, with no percentages: a value computed from boot-time totals
 // would describe the average since boot, not what is happening now.
 func ProbeCPU() *CPUProbe {
-	p := &CPUProbe{Cores: []CPUCore{}, Procs: []CPUProc{}, Load: []float64{}}
+	p := &CPUProbe{Cores: []CPUCore{}, Procs: []CPUProc{}, MemProcs: []CPUProc{}, Load: []float64{}}
 
 	if f := strings.Fields(readString("/proc/loadavg")); len(f) >= 3 {
 		for _, v := range f[:3] {
@@ -344,6 +349,19 @@ func ProbeCPU() *CPUProbe {
 	// handful is above the 0.5% floor, so keeping fifteen costs nothing.
 	if len(p.Procs) > 15 {
 		p.Procs = p.Procs[:15]
+	}
+
+	// Top by resident memory is a point-in-time ranking: no deltas needed,
+	// so it is available from the very first poll, unlike the CPU list.
+	for pid, r := range rss {
+		if r <= 0 {
+			continue // kernel threads and the like hold no user memory
+		}
+		p.MemProcs = append(p.MemProcs, CPUProc{PID: pid, Name: names[pid], RSS: r})
+	}
+	sort.Slice(p.MemProcs, func(i, j int) bool { return p.MemProcs[i].RSS > p.MemProcs[j].RSS })
+	if len(p.MemProcs) > 10 {
+		p.MemProcs = p.MemProcs[:10]
 	}
 	return p
 }

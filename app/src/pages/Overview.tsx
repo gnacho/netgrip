@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
   Activity, ArrowDown, ArrowUp, Cable, ChartColumn, CloudOff, Cpu, Globe, HardDrive,
-  History, Maximize2, MemoryStick, ShieldCheck, Smartphone,
+  History, MemoryStick, ShieldCheck, Smartphone,
 } from "lucide-react";
 import { api, isDemo } from "../api";
 import type {
@@ -19,6 +19,8 @@ import {
 } from "../components/ui";
 import { IlluDevices, IlluPlug } from "../components/ui/illustrations";
 import { CpuDetailModal } from "../components/CpuDetailModal";
+import { MemoryDetailModal } from "../components/MemoryDetailModal";
+import { FlashDetailModal } from "../components/FlashDetailModal";
 import { fmtBytes, fmtDate, fmtMB, fmtRate, fmtTime, fmtUptime } from "../lib/format";
 
 /** Título de tarjeta a una línea (design-rev2 §3): ellipsis + tooltip nativo. */
@@ -118,14 +120,6 @@ function InternetCard({ wan, mode }: { wan?: WanStatus; mode?: ModeProbe }) {
 
 /* ══════════════ CPU: por núcleo, no en promedio ══════════════ */
 
-/** 3225023 -> "3.2M": a dropped-packet count only needs its order of
- *  magnitude to tell the story. */
-function fmtCount(n: number): string {
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
-  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}k`;
-  return String(n);
-}
-
 /**
  * What the CPU is doing, core by core.
  *
@@ -149,23 +143,16 @@ function CpuCard() {
   }, []);
 
   const ready = cpu && !cpu.warming && cpu.cores.length > 0;
-  // Only worth showing when something is actually being lost now.
+  // Only worth surfacing on the card itself; everything else lives in the
+  // expand view so the three resource cards stay one line tall.
   const losing = (cpu?.cores ?? []).filter((c) => c.dropped_rate > 0 || c.squeezed_rate > 0);
 
   return (
     <Card index={1} id="cpu" className="md:col-span-4 order-5 md:order-none"
       title={oneLine(t("overview.cpu"))} icon={Cpu} iconTone="muted" help="cpu"
-      action={(
-        <div className="flex items-center gap-1.5">
-          {cpu?.governor ? <Pill tone="muted">{cpu.governor}</Pill> : null}
-          <button type="button" onClick={() => setDetail(true)}
-            aria-label={t("overview.cpuExpand")}
-            className="text-muted hover:text-text ring-focus rounded-sm">
-            <Maximize2 size={14} />
-          </button>
-        </div>
-      )}>
-      {!ready ? <SkeletonRows rows={3} /> : (
+      onExpand={() => setDetail(true)} expandLabel={t("overview.cpuExpand")}
+      action={cpu?.governor ? <Pill tone="muted">{cpu.governor}</Pill> : undefined}>
+      {!ready ? <SkeletonRows rows={1} /> : (
         <>
           <div className="flex items-center gap-4">
             <Gauge value={Math.round(cpu!.busiest_pct)} size="sm" mode="consumption"
@@ -178,51 +165,6 @@ function CpuCard() {
             </div>
           </div>
 
-          {/* Per core: the imbalance is the point. */}
-          <div className="mt-3 space-y-1.5">
-            {cpu!.cores.map((c) => (
-              <div key={c.idx} className="flex items-center gap-2 text-caption">
-                <span className="w-10 shrink-0 text-muted">{t("overview.cpuCore", { n: c.idx })}</span>
-                <div className="h-1.5 flex-1 rounded-full bg-surface-2 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-[width] duration-500 ${
-                      c.usage_pct >= 85 ? "bg-danger" : c.usage_pct >= 60 ? "bg-warn" : "bg-accent"
-                    }`}
-                    style={{ width: `${Math.min(100, c.usage_pct)}%` }}
-                  />
-                </div>
-                <span className="w-10 text-right text-muted" style={{ fontVariantNumeric: "tabular-nums" }}>
-                  {Math.round(c.usage_pct)}%
-                </span>
-                {c.freq_mhz ? (
-                  <span className="w-16 text-right text-faint" style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {c.freq_mhz} MHz
-                  </span>
-                ) : null}
-                {/* Drops since boot. Not an alarm — the banner covers what
-                    is happening now — but the record of a core that has
-                    been the bottleneck is worth seeing. */}
-                {c.dropped > 0 ? (
-                  <span className="w-20 text-right text-warn" style={{ fontVariantNumeric: "tabular-nums" }}
-                    title={t("overview.cpuDroppedTotal", { n: c.dropped.toLocaleString() })}>
-                    {fmtCount(c.dropped)} ↓
-                  </span>
-                ) : <span className="w-20" />}
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-caption text-muted">
-            {cpu!.load.length > 0 && (
-              <span>{t("overview.load")}: {cpu!.load.map((l) => l.toFixed(2)).join(" · ")}</span>
-            )}
-            {cpu!.temp_c != null && (
-              <span title={cpu!.temp_source}>
-                {Math.round(cpu!.temp_c)} °C{cpu!.temp_source ? ` (${cpu!.temp_source})` : ""}
-              </span>
-            )}
-          </div>
-
           {/* Packets the kernel threw away because a core could not keep
               up. Shown only while it is happening. */}
           {losing.length > 0 && (
@@ -233,18 +175,6 @@ function CpuCard() {
               })}
             </Banner>
           )}
-
-          {cpu!.procs.length > 0 && (
-            <div className="mt-3 border-t border-border/50 pt-2.5">
-              <div className="text-caption text-muted mb-1.5">{t("overview.cpuTop")}</div>
-              {cpu!.procs.slice(0, 5).map((pr) => (
-                <div key={pr.pid} className="flex items-center gap-2 text-caption">
-                  <span className="flex-1 truncate font-medium" translate="no">{pr.name}</span>
-                  <span className="text-muted" style={{ fontVariantNumeric: "tabular-nums" }}>{pr.usage_pct}%</span>
-                </div>
-              ))}
-            </div>
-          )}
         </>
       )}
       <CpuDetailModal open={detail} onClose={() => setDetail(false)} />
@@ -254,34 +184,37 @@ function CpuCard() {
 
 function MemoryCard({ system }: { system?: SystemInfo }) {
   const { t } = useTranslation();
+  const [detail, setDetail] = useState(false);
   const used = system ? system.memory.total - system.memory.available : 0;
   const pct = system ? Math.round((used / system.memory.total) * 100) : 0;
   return (
     <Card index={1} id="recursos" className="md:col-span-4 order-6 md:order-none"
-      title={oneLine(t("overview.memory"))} icon={MemoryStick} iconTone="muted" help="memory">
-      {!system ? <SkeletonRows rows={2} /> : (
+      title={oneLine(t("overview.memory"))} icon={MemoryStick} iconTone="muted" help="memory"
+      onExpand={() => setDetail(true)} expandLabel={t("overview.memExpand")}>
+      {!system ? <SkeletonRows rows={1} /> : (
         <div className="flex items-center gap-4">
           <Gauge value={pct} size="sm" mode="consumption" ariaLabel={`${t("overview.memory")} ${pct}%`} />
           <div className="min-w-0">
             <p className="stat-md">{fmtMB(used)} / {fmtMB(system.memory.total)}</p>
-            <p className="text-caption text-muted mt-1">
-              {t("overview.load")}: {system.load.map((l) => l.toFixed(2)).join(" · ")}
-            </p>
+            <p className="text-caption text-muted mt-1">{t("overview.memByProc")}</p>
           </div>
         </div>
       )}
+      <MemoryDetailModal system={system} open={detail} onClose={() => setDetail(false)} />
     </Card>
   );
 }
 
 function FlashCard({ system }: { system?: SystemInfo }) {
   const { t } = useTranslation();
+  const [detail, setDetail] = useState(false);
   const freePct = system ? Math.round((system.root.free / system.root.total) * 100) : 0;
   const tone = freePct <= 10 ? "danger" : freePct <= 20 ? "warn" : "ok";
   return (
     <Card index={1} className="md:col-span-4 order-7 md:order-none"
-      title={oneLine(t("overview.flash"))} icon={HardDrive} help="flash">
-      {!system ? <SkeletonRows rows={2} /> : (
+      title={oneLine(t("overview.flash"))} icon={HardDrive} help="flash"
+      onExpand={() => setDetail(true)} expandLabel={t("overview.flashExpand")}>
+      {!system ? <SkeletonRows rows={1} /> : (
         <div className="flex items-center gap-4">
           <Gauge value={freePct} size="sm" tone={tone} ariaLabel={`${t("overview.flash")} ${freePct}%`} />
           <p className="stat-md min-w-0">
@@ -292,6 +225,7 @@ function FlashCard({ system }: { system?: SystemInfo }) {
           </p>
         </div>
       )}
+      <FlashDetailModal system={system} open={detail} onClose={() => setDetail(false)} />
     </Card>
   );
 }

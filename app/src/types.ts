@@ -8,7 +8,7 @@ export interface Board {
 export interface SystemInfo {
   uptime: number;
   load: number[];
-  memory: { total: number; free: number; available: number; cached: number };
+  memory: { total: number; free: number; available: number; cached: number; buffered: number };
   root: { total: number; free: number };
 }
 
@@ -599,7 +599,8 @@ export interface CPUCore {
 export interface CPUProc {
   pid: number;
   name: string;
-  usage_pct: number;
+  /** CPU% between polls; absent on the memory ranking, where only RSS matters. */
+  usage_pct?: number;
   /** Resident set in bytes: the memory side of "who is consuming". */
   rss_bytes?: number;
 }
@@ -617,6 +618,8 @@ export interface CPUProbe {
    *  and a WiFi radio idles warmer than a SoC. */
   temp_source?: string;
   procs: CPUProc[];
+  /** Processes holding the most resident memory (point-in-time, top 10). */
+  mem_procs?: CPUProc[];
   /** True until there are two samples to compare. */
   warming: boolean;
 }

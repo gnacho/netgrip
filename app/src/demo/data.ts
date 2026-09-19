@@ -25,6 +25,7 @@ export const demoSystem: T.SystemInfo = {
     free: 96 * MIB,
     available: 247 * MIB,
     cached: 88 * MIB,
+    buffered: 12 * MIB,
   },
   // root en kB: 96/128 MB (75 % libre)
   root: { total: 128 * 1024, free: 96 * 1024 },
@@ -386,6 +387,12 @@ export const demoCpu = {
     { pid: 980, name: "hostapd", usage_pct: 3.4, rss_bytes: 5210112 },
     { pid: 1444, name: "dnsmasq", usage_pct: 1.1, rss_bytes: 1785856 },
     { pid: 1716, name: "wpa_supplicant", usage_pct: 0.8, rss_bytes: 4882432 },
+  ],
+  mem_procs: [
+    { pid: 1201, name: "netgrip", rss_bytes: 18747392 },
+    { pid: 1716, name: "wpa_supplicant", rss_bytes: 4882432 },
+    { pid: 980, name: "hostapd", rss_bytes: 5210112 },
+    { pid: 1444, name: "dnsmasq", rss_bytes: 1785856 },
   ],
   warming: false,
 };
