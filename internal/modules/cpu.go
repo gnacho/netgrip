@@ -43,6 +43,10 @@ type CPUProc struct {
 	PID      int     `json:"pid"`
 	Name     string  `json:"name"`
 	UsagePct float64 `json:"usage_pct"`
+	// RSS is the resident set in bytes: for routers the second question
+	// after "who is burning CPU" is "who is eating the little RAM there
+	// is", and the two are rarely the same process.
+	RSS int64 `json:"rss_bytes,omitempty"`
 }
 
 // CPUProbe is the whole picture for one poll.
@@ -80,6 +84,7 @@ var cpuState struct {
 	softnet  []softnetRow
 	procs    map[int]float64
 	procName map[int]string
+	procRSS  map[int]int64
 }
 
 // readCPUTimes parses the per-core lines of /proc/stat.
@@ -191,16 +196,46 @@ func readString(path string) string {
 	return strings.TrimSpace(string(b))
 }
 
+// parseProcStat decodes one /proc/<pid>/stat line: command, CPU ticks
+// (utime+stime) and resident set in bytes. The command is in parentheses
+// and may contain spaces, so the split happens after the closing one; the
+// utime/stime/rss indexes below are relative to what follows it.
+func parseProcStat(s string, page int64) (name string, ticks float64, rss int64, ok bool) {
+	open, close := strings.IndexByte(s, '('), strings.LastIndexByte(s, ')')
+	if open < 0 || close < open {
+		return "", 0, 0, false
+	}
+	name = s[open+1 : close]
+	f := strings.Fields(s[close+1:])
+	if len(f) < 13 {
+		return "", 0, 0, false
+	}
+	utime, err1 := strconv.ParseFloat(f[11], 64)
+	stime, err2 := strconv.ParseFloat(f[12], 64)
+	if err1 != nil || err2 != nil {
+		return "", 0, 0, false
+	}
+	if len(f) > 21 {
+		if pages, err := strconv.ParseInt(f[21], 10, 64); err == nil && pages > 0 {
+			rss = pages * page
+		}
+	}
+	return name, utime + stime, rss, true
+}
+
 // readProcTicks returns CPU ticks per process and their names, from
 // /proc/<pid>/stat. Reading a couple of hundred small files costs about a
-// millisecond; spawning anything would cost far more.
-func readProcTicks() (map[int]float64, map[int]string) {
+// millisecond; spawning anything would cost far more. RSS comes from the
+// same file (field 24, pages), so the memory answer costs nothing extra.
+func readProcTicks() (map[int]float64, map[int]string, map[int]int64) {
 	ticks := map[int]float64{}
 	names := map[int]string{}
+	rss := map[int]int64{}
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
-		return ticks, names
+		return ticks, names, rss
 	}
+	page := int64(os.Getpagesize())
 	for _, e := range entries {
 		pid, err := strconv.Atoi(e.Name())
 		if err != nil {
@@ -210,26 +245,17 @@ func readProcTicks() (map[int]float64, map[int]string) {
 		if err != nil {
 			continue
 		}
-		s := string(b)
-		// The command is in parentheses and may contain spaces, so split
-		// after the closing one.
-		open, close := strings.IndexByte(s, '('), strings.LastIndexByte(s, ')')
-		if open < 0 || close < open {
+		name, t, r, ok := parseProcStat(string(b), page)
+		if !ok {
 			continue
 		}
-		name := s[open+1 : close]
-		f := strings.Fields(s[close+1:])
-		// utime and stime are fields 14 and 15 of the whole line, which are
-		// 12 and 13 of what follows the command.
-		if len(f) < 13 {
-			continue
-		}
-		utime, _ := strconv.ParseFloat(f[11], 64)
-		stime, _ := strconv.ParseFloat(f[12], 64)
-		ticks[pid] = utime + stime
+		ticks[pid] = t
 		names[pid] = name
+		if r > 0 {
+			rss[pid] = r
+		}
 	}
-	return ticks, names
+	return ticks, names, rss
 }
 
 // clockTicks is USER_HZ. Linux fixes it at 100 on every architecture
@@ -257,11 +283,11 @@ func ProbeCPU() *CPUProbe {
 	now := time.Now()
 	cores := readCPUTimes()
 	softnet := readSoftnet()
-	ticks, names := readProcTicks()
+	ticks, names, rss := readProcTicks()
 
 	cpuState.mu.Lock()
 	prevAt, prevCores, prevSoftnet, prevProcs := cpuState.at, cpuState.cores, cpuState.softnet, cpuState.procs
-	cpuState.at, cpuState.cores, cpuState.softnet, cpuState.procs, cpuState.procName = now, cores, softnet, ticks, names
+	cpuState.at, cpuState.cores, cpuState.softnet, cpuState.procs, cpuState.procName, cpuState.procRSS = now, cores, softnet, ticks, names, rss
 	cpuState.mu.Unlock()
 
 	elapsed := now.Sub(prevAt).Seconds()
@@ -310,11 +336,14 @@ func ProbeCPU() *CPUProbe {
 		if pct < 0.5 {
 			continue
 		}
-		p.Procs = append(p.Procs, CPUProc{PID: pid, Name: names[pid], UsagePct: round1(pct)})
+		p.Procs = append(p.Procs, CPUProc{PID: pid, Name: names[pid], UsagePct: round1(pct), RSS: rss[pid]})
 	}
 	sort.Slice(p.Procs, func(i, j int) bool { return p.Procs[i].UsagePct > p.Procs[j].UsagePct })
-	if len(p.Procs) > 5 {
-		p.Procs = p.Procs[:5]
+	// The card shows the first few; the expand view gets the full list.
+	// A router runs a couple of hundred processes at most, and only a
+	// handful is above the 0.5% floor, so keeping fifteen costs nothing.
+	if len(p.Procs) > 15 {
+		p.Procs = p.Procs[:15]
 	}
 	return p
 }

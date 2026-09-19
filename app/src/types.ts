@@ -600,6 +600,8 @@ export interface CPUProc {
   pid: number;
   name: string;
   usage_pct: number;
+  /** Resident set in bytes: the memory side of "who is consuming". */
+  rss_bytes?: number;
 }
 
 export interface CPUProbe {

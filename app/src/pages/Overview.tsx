@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
   Activity, ArrowDown, ArrowUp, Cable, ChartColumn, CloudOff, Cpu, Globe, HardDrive,
-  History, MemoryStick, ShieldCheck, Smartphone,
+  History, Maximize2, MemoryStick, ShieldCheck, Smartphone,
 } from "lucide-react";
 import { api, isDemo } from "../api";
 import type {
@@ -18,6 +18,7 @@ import {
   KeyValue, Modal, MultiSeriesChart, Pill, SegmentedControl, SkeletonChart, SkeletonRows, type MultiSeries,
 } from "../components/ui";
 import { IlluDevices, IlluPlug } from "../components/ui/illustrations";
+import { CpuDetailModal } from "../components/CpuDetailModal";
 import { fmtBytes, fmtDate, fmtMB, fmtRate, fmtTime, fmtUptime } from "../lib/format";
 
 /** Título de tarjeta a una línea (design-rev2 §3): ellipsis + tooltip nativo. */
@@ -138,6 +139,7 @@ function fmtCount(n: number): string {
 function CpuCard() {
   const { t } = useTranslation();
   const [cpu, setCpu] = useState<CPUProbe>();
+  const [detail, setDetail] = useState(false);
 
   useEffect(() => {
     const load = () => api.cpu().then(setCpu).catch(() => {});
@@ -153,7 +155,16 @@ function CpuCard() {
   return (
     <Card index={1} id="cpu" className="md:col-span-4 order-5 md:order-none"
       title={oneLine(t("overview.cpu"))} icon={Cpu} iconTone="muted" help="cpu"
-      action={cpu?.governor ? <Pill tone="muted">{cpu.governor}</Pill> : undefined}>
+      action={(
+        <div className="flex items-center gap-1.5">
+          {cpu?.governor ? <Pill tone="muted">{cpu.governor}</Pill> : null}
+          <button type="button" onClick={() => setDetail(true)}
+            aria-label={t("overview.cpuExpand")}
+            className="text-muted hover:text-text ring-focus rounded-sm">
+            <Maximize2 size={14} />
+          </button>
+        </div>
+      )}>
       {!ready ? <SkeletonRows rows={3} /> : (
         <>
           <div className="flex items-center gap-4">
@@ -226,7 +237,7 @@ function CpuCard() {
           {cpu!.procs.length > 0 && (
             <div className="mt-3 border-t border-border/50 pt-2.5">
               <div className="text-caption text-muted mb-1.5">{t("overview.cpuTop")}</div>
-              {cpu!.procs.map((pr) => (
+              {cpu!.procs.slice(0, 5).map((pr) => (
                 <div key={pr.pid} className="flex items-center gap-2 text-caption">
                   <span className="flex-1 truncate font-medium" translate="no">{pr.name}</span>
                   <span className="text-muted" style={{ fontVariantNumeric: "tabular-nums" }}>{pr.usage_pct}%</span>
@@ -236,6 +247,7 @@ function CpuCard() {
           )}
         </>
       )}
+      <CpuDetailModal open={detail} onClose={() => setDetail(false)} />
     </Card>
   );
 }

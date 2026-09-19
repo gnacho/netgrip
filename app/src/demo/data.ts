@@ -382,9 +382,10 @@ export const demoCpu = {
   temp_c: 53,
   temp_source: "ath10k_hwmon",
   procs: [
-    { pid: 1201, name: "netgrip", usage_pct: 11.2 },
-    { pid: 980, name: "hostapd", usage_pct: 3.4 },
-    { pid: 1444, name: "dnsmasq", usage_pct: 1.1 },
+    { pid: 1201, name: "netgrip", usage_pct: 11.2, rss_bytes: 18747392 },
+    { pid: 980, name: "hostapd", usage_pct: 3.4, rss_bytes: 5210112 },
+    { pid: 1444, name: "dnsmasq", usage_pct: 1.1, rss_bytes: 1785856 },
+    { pid: 1716, name: "wpa_supplicant", usage_pct: 0.8, rss_bytes: 4882432 },
   ],
   warming: false,
 };

@@ -80,4 +80,27 @@ func TestProbeCPUWarmsUpBeforeReporting(t *testing.T) {
 	}
 }
 
+func TestParseProcStatHandlesCommandWithSpacesAndRSS(t *testing.T) {
+	// Fields 14/15 (utime/stime) carry the load; field 24 is RSS in pages.
+	// The command may contain spaces and parentheses of its own.
+	const line = "6390 (netgrip -listen 0.0.0.0) S 1 6390 6390 0 -1 4194304 12345 0 0 0 150 75 0 0 20 0 12 0 42 0 14080 24064 0 0 0 0 0 0"
+	name, ticks, rss, ok := parseProcStat(line, 4096)
+	if !ok {
+		t.Fatal("should parse")
+	}
+	if name != "netgrip -listen 0.0.0.0" {
+		t.Errorf("name: %q", name)
+	}
+	if ticks != 225 { // utime 150 + stime 75
+		t.Errorf("ticks: %v", ticks)
+	}
+	if rss != 14080*4096 {
+		t.Errorf("rss: %v", rss)
+	}
+
+	if _, _, _, ok := parseProcStat("garbage", 4096); ok {
+		t.Error("garbage must not parse")
+	}
+}
+
 func timeZero() time.Time { return time.Time{} }
