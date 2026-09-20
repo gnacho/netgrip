@@ -23,10 +23,13 @@ dhcp.@dnsmasq[0].localservice='1'`
 }
 
 func TestParseDnsmasqShowLists(t *testing.T) {
-	out := `dhcp.@dnsmasq[0]=dnsmasq
-dhcp.@dnsmasq[0].server='1.1.1.1' '9.9.9.9'
-dhcp.@dnsmasq[0].noresolv='1'
-dhcp.@dnsmasq[0].cachesize='150'`
+	// `uci show dhcp.@dnsmasq[0]` resolves the anonymous section to its
+	// cfgXXXXXX name in every emitted line; the parser must accept that
+	// real shape, not only the @dnsmasq[0] spelling.
+	out := `dhcp.cfg01411c=dnsmasq
+dhcp.cfg01411c.server='1.1.1.1' '9.9.9.9'
+dhcp.cfg01411c.noresolv='1'
+dhcp.cfg01411c.cachesize='150'`
 	st := parseDnsmasqShow(out)
 	if len(st.servers) != 2 || st.servers[0] != "1.1.1.1" || st.servers[1] != "9.9.9.9" {
 		t.Errorf("unexpected servers %v", st.servers)

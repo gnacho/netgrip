@@ -54,7 +54,7 @@ type dnsmasqState struct {
 
 var (
 	reAdGuardForwarder = regexp.MustCompile(`^127\.0\.0\.1#\d+$`)
-	reUCIShowLine      = regexp.MustCompile(`^dhcp\.@dnsmasq\[0\]\.([a-zA-Z_]+)=(.*)$`)
+	reUCIShowLine      = regexp.MustCompile(`^dhcp\.[A-Za-z0-9_]+\.([a-zA-Z_]+)=(.*)$`)
 	reQuoted           = regexp.MustCompile(`'([^']*)'`)
 )
 
