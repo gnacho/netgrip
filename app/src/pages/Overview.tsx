@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
   Activity, ArrowDown, ArrowUp, Cable, ChartColumn, CloudOff, Cpu, Globe, HardDrive,
-  History, MemoryStick, ShieldCheck, Smartphone,
+  MemoryStick, ShieldCheck, Smartphone,
 } from "lucide-react";
 import { api, isDemo } from "../api";
 import type {
@@ -235,6 +235,9 @@ function FlashCard({ system }: { system?: SystemInfo }) {
 type Sample = { ts: number; rates: Record<string, { rx: number; tx: number }> };
 const MAX_SAMPLES = 60;
 
+/** Ventanas de la tarjeta de tráfico: directo (counters) o histórico. */
+type TrafficMode = "live" | "1h" | "24h";
+
 function ifaceLabel(t: TFunction, name: string): string {
   if (name === "br-lan" || name.startsWith("br-")) return t("traffic.iface.lan");
   if (name === "eth0" || name === "wan" || name.startsWith("pppoe")) return t("traffic.iface.internet");
@@ -248,6 +251,9 @@ function LiveTrafficCard() {
   const [selected, setSelected] = useState<string>();
   const [failed, setFailed] = useState(false);
   const prev = useRef<{ counters: IfaceCounters[]; ts: number }>(undefined);
+  const [mode, setMode] = useState<TrafficMode>("live");
+  const [entries, setEntries] = useState<HistoryEntry[]>();
+  const [histFailed, setHistFailed] = useState(false);
 
   const poll = useCallback(async () => {
     try {
@@ -283,6 +289,19 @@ function LiveTrafficCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const loadHistory = useCallback(() => {
+    api.history()
+      .then((r) => { setEntries(r.entries ?? []); setHistFailed(false); })
+      .catch(() => setHistFailed(true));
+  }, []);
+
+  useEffect(() => {
+    if (mode === "live") return;
+    loadHistory();
+    const id = setInterval(loadHistory, 60000);
+    return () => clearInterval(id);
+  }, [mode, loadHistory]);
+
   const ifaces = useMemo(() => {
     const last = samples?.[samples.length - 1];
     return last ? Object.keys(last.rates) : [];
@@ -299,11 +318,66 @@ function LiveTrafficCard() {
   const avg = rxSeries.length ? rxSeries.reduce((a, b) => a + b, 0) / rxSeries.length : 0;
   const total = rxSeries.reduce((a, b) => a + b, 0) * 2 + txSeries.reduce((a, b) => a + b, 0) * 2; // ×dt(2s)
 
+  // Histórico: mismos deltas de bytes por muestra que antes en la tarjeta de
+  // 24h, ahora recortado a la ventana elegida (1h o 24h completas).
+  const historyModel = useMemo(() => {
+    if (mode === "live" || !entries || entries.length < 2) return null;
+    const cutoff = mode === "1h" ? entries[entries.length - 1].ts - 3600 : 0;
+    const slice = entries.filter((e) => e.ts >= cutoff);
+    if (slice.length < 2) return null;
+    const deltas = slice.slice(1).map((e, i) => {
+      const dt = Math.max(1, e.ts - slice[i].ts);
+      return { ts: e.ts, rx: Math.max(0, (e.rx - slice[i].rx) / dt), tx: Math.max(0, (e.tx - slice[i].tx) / dt), rxBytes: Math.max(0, e.rx - slice[i].rx), txBytes: Math.max(0, e.tx - slice[i].tx) };
+    });
+    const totalDown = deltas.reduce((a, d) => a + d.rxBytes, 0);
+    const totalUp = deltas.reduce((a, d) => a + d.txBytes, 0);
+    const peak = deltas.reduce((m, d) => (d.rx > m.rx ? m = d : m), deltas[0]);
+    return { deltas, totalDown, totalUp, peak };
+  }, [entries, mode]);
+
   return (
     <Card index={2} className="md:col-span-8 order-3 md:order-none"
       title={oneLine(t("overview.trafficLive"))} icon={Activity} iconTone="teal"
-      action={samples && samples.length > 1 ? <Pill tone="danger" live>{t("overview.live")}</Pill> : undefined}>
-      {failed ? (
+      action={mode === "live" && samples && samples.length > 1 ? <Pill tone="danger" live>{t("overview.live")}</Pill> : undefined}>
+      {mode !== "live" ? (
+        histFailed ? (
+          <EmptyState small title={t("common.loadError")}
+            illustration={<CloudOff size={24} />}
+            action={<Button variant="secondary" size="sm" onClick={loadHistory}>{t("common.retry")}</Button>} />
+        ) : !historyModel ? (
+          <SkeletonChart height={200} />
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-3 mb-2">
+              <SegmentedControl size="sm" ariaLabel={t("overview.trafficRange")}
+                options={[
+                  { value: "live" as const, label: t("overview.trafficModeLive") },
+                  { value: "1h" as const, label: t("history.range1h") },
+                  { value: "24h" as const, label: t("history.range24h") },
+                ]}
+                value={mode} onChange={setMode} />
+              <div className="ml-auto flex items-center gap-4">
+                <span className="stat-md inline-flex items-center gap-1 text-ok">
+                  <ArrowDown size={16} aria-hidden="true" /> {fmtBytes(historyModel.totalDown)}
+                </span>
+                <span className="stat-md inline-flex items-center gap-1 text-accent">
+                  <ArrowUp size={16} aria-hidden="true" /> {fmtBytes(historyModel.totalUp)}
+                </span>
+              </div>
+            </div>
+            <AreaChart
+              rx={historyModel.deltas.map((d) => d.rx)}
+              tx={historyModel.deltas.map((d) => d.tx)}
+              height={200}
+              xLabels={historyModel.deltas.map((d) => fmtTime(d.ts))}
+              ariaLabel={`${t("overview.trafficLive")}: ${fmtBytes(historyModel.totalDown)} ↓, ${fmtBytes(historyModel.totalUp)} ↑`}
+            />
+            <p className="text-caption text-muted mt-2">
+              {t("history.peakAt", { rate: fmtRate(historyModel.peak.rx), time: fmtTime(historyModel.peak.ts) })}
+            </p>
+          </>
+        )
+      ) : failed ? (
         <EmptyState small title={t("common.loadError")}
           illustration={<CloudOff size={24} />}
           action={<Button variant="secondary" size="sm" onClick={poll}>{t("common.retry")}</Button>} />
@@ -312,6 +386,13 @@ function LiveTrafficCard() {
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-3 mb-2">
+            <SegmentedControl size="sm" ariaLabel={t("overview.trafficRange")}
+              options={[
+                { value: "live" as const, label: t("overview.trafficModeLive") },
+                { value: "1h" as const, label: t("history.range1h") },
+                { value: "24h" as const, label: t("history.range24h") },
+              ]}
+              value={mode} onChange={setMode} />
             <SegmentedControl
               ariaLabel={t("traffic.title")}
               options={ifaces.slice(0, 4).map((name) => ({ value: name, label: ifaceLabel(t, name) }))}
@@ -332,76 +413,6 @@ function LiveTrafficCard() {
           <p className="text-caption text-muted mt-2">
             {t("traffic.peak")} {fmtRate(peak)} · {t("traffic.avg")} {fmtRate(avg)} · {t("traffic.total")} {fmtBytes(total)}
           </p>
-        </>
-      )}
-    </Card>
-  );
-}
-
-function HistoryCard() {
-  const { t } = useTranslation();
-  const [entries, setEntries] = useState<HistoryEntry[]>();
-  const [failed, setFailed] = useState(false);
-  const [range, setRange] = useState<"1h" | "24h">("24h");
-
-  const load = useCallback(() => {
-    api.history()
-      .then((r) => { setEntries(r.entries ?? []); setFailed(false); })
-      .catch(() => setFailed(true));
-  }, []);
-
-  useEffect(() => {
-    load();
-    const id = setInterval(load, 60000);
-    return () => clearInterval(id);
-  }, [load]);
-
-  const model = useMemo(() => {
-    if (!entries || entries.length < 2) return null;
-    const cutoff = range === "1h" ? entries[entries.length - 1].ts - 3600 : 0;
-    const slice = entries.filter((e) => e.ts >= cutoff);
-    if (slice.length < 2) return null;
-    const deltas = slice.slice(1).map((e, i) => {
-      const dt = Math.max(1, e.ts - slice[i].ts);
-      return { ts: e.ts, rx: Math.max(0, (e.rx - slice[i].rx) / dt), tx: Math.max(0, (e.tx - slice[i].tx) / dt), rxBytes: Math.max(0, e.rx - slice[i].rx), txBytes: Math.max(0, e.tx - slice[i].tx) };
-    });
-    const totalDown = deltas.reduce((a, d) => a + d.rxBytes, 0);
-    const totalUp = deltas.reduce((a, d) => a + d.txBytes, 0);
-    const peak = deltas.reduce((m, d) => (d.rx > m.rx ? m = d : m), deltas[0]);
-    return { deltas, totalDown, totalUp, peak };
-  }, [entries, range]);
-
-  const hasHour = !!entries && entries.length >= 2 && entries[entries.length - 1].ts - entries[0].ts > 3600;
-
-  return (
-    <Card index={2} className="md:col-span-4 order-9 md:order-none"
-      title={oneLine(t("overview.last24"))} icon={History} iconTone="teal">
-      {failed ? (
-        <EmptyState small title={t("common.loadError")} illustration={<CloudOff size={24} />}
-          action={<Button variant="secondary" size="sm" onClick={load}>{t("common.retry")}</Button>} />
-      ) : !model ? (
-        <SkeletonChart height={120} />
-      ) : (
-        <>
-          {hasHour && (
-            <SegmentedControl size="sm" ariaLabel={t("overview.last24")}
-              options={[{ value: "1h" as const, label: t("history.range1h") }, { value: "24h" as const, label: t("history.range24h") }]}
-              value={range} onChange={setRange} />
-          )}
-          <div className="mt-2">
-            <AreaChart
-              rx={model.deltas.map((d) => d.rx)}
-              tx={model.deltas.map((d) => d.tx)}
-              height={120}
-              xLabels={model.deltas.map((d) => fmtTime(d.ts))}
-              ariaLabel={t("overview.last24")}
-            />
-          </div>
-          <div className="mt-2 space-y-1 text-caption text-muted">
-            <p>{t("history.totalDown")}: <span className="text-text font-medium">{fmtBytes(model.totalDown)}</span>
-              {" · "}{t("history.totalUp")}: <span className="text-text font-medium">{fmtBytes(model.totalUp)}</span></p>
-            <p>{t("history.peakAt", { rate: fmtRate(model.peak.rx), time: fmtTime(model.peak.ts) })}</p>
-          </div>
         </>
       )}
     </Card>
@@ -566,7 +577,7 @@ function TopConsumersCard({ clients, onNavigate }: { clients?: Client[]; onNavig
   const hasAnything = deviceRows || multiSeries || appRows;
 
   return (
-    <Card index={3} className="md:col-span-8 order-8 md:order-none"
+    <Card index={3} className="md:col-span-12 order-8 md:order-none"
       title={oneLine(t("overview.topConsumers"))} icon={ChartColumn} iconTone="teal" help="dpi">
       {/* Devices — the half the title promises and the port chart can never
           show. nlbwmon covers wired clients and anything behind a switch;
@@ -867,8 +878,8 @@ export function Overview({ board, system, wan, ethports, drift, onDriftChange, i
       <CpuCard />
       <MemoryCard system={system} />
       <FlashCard system={system} />
-      {/* Consumo a lo largo del tiempo: histórico 4 + quién gasta 8. */}
-      <HistoryCard />
+      {/* Consumo a lo largo del tiempo: quién gasta más, a todo el ancho
+          (el histórico se integró en la tarjeta de tráfico con 1h/24h). */}
       {!isSwitch && <TopConsumersCard clients={clients} onNavigate={onNavigate} />}
       <PortsCard ports={ethports} onNavigate={onNavigate} />
       <ClientsCard clients={clients} onNavigate={onNavigate} />
