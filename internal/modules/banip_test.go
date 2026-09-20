@@ -347,7 +347,7 @@ func TestBanipMergeCatalog(t *testing.T) {
 		{Name: "manual", Enabled: true}, // not in catalog (hand-added in UCI)
 	}
 	catalog := []BanipCatalogFeed{
-		{Name: "cinsscore", Descr: "CINS", Chain: "in"},
+		{Name: "cinsscore", Descr: "CINS", Chain: "in", IPv6: true},
 		{Name: "doh", Descr: "DoH", Chain: "out"},
 	}
 	feeds, available := banipMergeCatalog(configured, catalog)
@@ -356,6 +356,9 @@ func TestBanipMergeCatalog(t *testing.T) {
 	}
 	if !feeds[0].InCatalog {
 		t.Errorf("configured catalog feed not marked: %+v", feeds[0])
+	}
+	if feeds[0].Chain != "in" || !feeds[0].IPv6 {
+		t.Errorf("catalog defaults not attached to configured feed: %+v", feeds[0])
 	}
 	if feeds[1].InCatalog {
 		t.Errorf("manual feed wrongly marked: %+v", feeds[1])

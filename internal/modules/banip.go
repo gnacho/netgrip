@@ -48,6 +48,10 @@ type BanipFeed struct {
 	// InCatalog is true when the feed exists in the local catalog
 	// (/etc/banip/banip.feeds or banip.custom.feeds).
 	InCatalog bool `json:"in_catalog"`
+	// Chain and IPv6 are the catalog defaults, attached to configured
+	// feeds too so the UI can explain them without a second lookup.
+	Chain string `json:"chain,omitempty"`
+	IPv6  bool   `json:"ipv6,omitempty"`
 }
 
 // BanipCatalogFeed is one feed available in the local catalog. The url_*
@@ -563,6 +567,8 @@ func banipMergeCatalog(feeds []BanipFeed, catalog []BanipCatalogFeed) ([]BanipFe
 			for i := range feeds {
 				if feeds[i].Name == cf.Name {
 					feeds[i].InCatalog = true
+					feeds[i].Chain = cf.Chain
+					feeds[i].IPv6 = cf.IPv6
 				}
 			}
 			continue
