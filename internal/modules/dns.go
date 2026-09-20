@@ -14,17 +14,23 @@ var reHostname = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9-]{0,62}[a-zA-Z0-9])
 
 // DNSConfig is the read-only DNS state.
 type DNSConfig struct {
-	Applicable    bool        `json:"applicable"`
-	RebindProtect bool        `json:"rebind_protection"`
-	OverrideDNS   bool        `json:"override_dns"`
-	DnsVpn        bool        `json:"dns_vpn_local"`
-	AdGuardActive bool        `json:"adguard_active"`
+	Applicable    bool `json:"applicable"`
+	RebindProtect bool `json:"rebind_protection"`
+	OverrideDNS   bool `json:"override_dns"`
+	DnsVpn        bool `json:"dns_vpn_local"`
+	AdGuardActive bool `json:"adguard_active"`
 	// AdGuardInstalled/AdGuardRunning describe the adguardhome package and
 	// its init.d service (lowercase "adguardhome", verified on OpenWrt
 	// 24.10); AdGuardActive is the dnsmasq side of the integration.
 	AdGuardInstalled bool `json:"adguard_installed"`
 	AdGuardRunning   bool `json:"adguard_running"`
-	Hosts            []HostEntry `json:"hosts"`
+	// AdGuardProtection is the DNS handoff (#360): dnsmasq forwards
+	// everything to the local AdGuard listener. AdGuardHasBackup reports the
+	// snapshot taken before the handoff, so the UI can promise a restore.
+	AdGuardProtection bool        `json:"adguard_protection"`
+	AdGuardHasBackup  bool        `json:"adguard_has_backup"`
+	AdGuardDnsPort    int         `json:"adguard_dns_port,omitempty"`
+	Hosts             []HostEntry `json:"hosts"`
 }
 
 // HostEntry is one line of the custom hosts mapping.
@@ -39,17 +45,22 @@ func dnsApplicable() bool {
 
 // ProbeDNS reads the DNS state.
 func ProbeDNS() *DNSConfig {
+	st := dnsmasqStateNow()
+	protection := adGuardProtected(st)
 	c := &DNSConfig{
-		Applicable:    dnsApplicable(),
-		RebindProtect: dnsmasqBool("rebind_protection"),
-		OverrideDNS:   !dnsmasqBool("localservice"),
-		DnsVpn:        dnsmasqBool("dns_vpn_local"),
-		AdGuardActive: dnsmasqBool("adguard_active") || uciGet("dhcp.lan.dhcp_option") != "",
-		Hosts:         parseHostsFile(hostsPath()),
+		Applicable:        dnsApplicable(),
+		RebindProtect:     dnsmasqBool("rebind_protection"),
+		OverrideDNS:       !dnsmasqBool("localservice"),
+		DnsVpn:            dnsmasqBool("dns_vpn_local"),
+		AdGuardActive:     dnsmasqBool("adguard_active") || uciGet("dhcp.lan.dhcp_option") != "" || protection,
+		AdGuardProtection: protection,
+		AdGuardHasBackup:  loadAdGuardBackup() != nil,
+		Hosts:             parseHostsFile(hostsPath()),
 	}
 	c.AdGuardInstalled = pkgInstalled("adguardhome")
 	if c.AdGuardInstalled {
 		c.AdGuardRunning = executor.ServiceRunning("adguardhome")
+		c.AdGuardDnsPort = adGuardResolvedPort()
 	}
 	return c
 }
