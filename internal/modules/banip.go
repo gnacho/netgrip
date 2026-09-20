@@ -363,10 +363,15 @@ func BanipAction(action string) (*BanipProbe, bool, error) {
 	switch action {
 	case "enable":
 		snap, _ := executor.Snapshot("banip")
+		// banIP's start_service refuses to run without the rc.d autostart
+		// symlink (`/etc/init.d/banip enabled` check): toggling only the UCI
+		// master switch leaves the service unable to start, so enable both
+		// and start in one batch.
 		ops = []executor.Op{
 			{Kind: "uci_set", Args: []string{"banip.global.ban_enabled", "1"}},
 			{Kind: "uci_commit", Args: []string{"banip"}},
-			{Kind: "initd", Args: []string{"banip", "reload"}},
+			{Kind: "initd", Args: []string{"banip", "enable"}},
+			{Kind: "initd", Args: []string{"banip", "start"}},
 		}
 		if err := executor.Apply(ops, nil); err != nil {
 			if snap != "" {
@@ -381,6 +386,7 @@ func BanipAction(action string) (*BanipProbe, bool, error) {
 			{Kind: "uci_set", Args: []string{"banip.global.ban_enabled", "0"}},
 			{Kind: "uci_commit", Args: []string{"banip"}},
 			{Kind: "initd", Args: []string{"banip", "stop"}},
+			{Kind: "initd", Args: []string{"banip", "disable"}},
 		}
 		if err := executor.Apply(ops, nil); err != nil {
 			if snap != "" {
