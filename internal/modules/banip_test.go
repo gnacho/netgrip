@@ -1,6 +1,8 @@
 package modules
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -382,5 +384,61 @@ func TestBanipCacheInvalidate(t *testing.T) {
 	banipCache.Unlock()
 	if p != nil {
 		t.Errorf("invalidate kept the probe")
+	}
+}
+
+func TestRunningFromPidfile(t *testing.T) {
+	dir := t.TempDir()
+	// Fake /proc so the test is hermetic: the pid dir existing means the
+	// process is alive, comm carries the name check.
+	proc := filepath.Join(dir, "proc")
+	if err := os.MkdirAll(proc, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	pidDir := func(pid string, comm string) {
+		d := filepath.Join(proc, pid)
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(d, "comm"), []byte(comm+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writePidfile := func(name, pid string) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(pid+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+
+	// Missing pidfile -> false (caller falls back to the init.d fork).
+	if runningFromPidfile(filepath.Join(dir, "nope.pid"), proc) {
+		t.Errorf("missing pidfile reported running")
+	}
+	// Malformed pidfile -> false.
+	if runningFromPidfile(writePidfile("bad.pid", "garbage"), proc) {
+		t.Errorf("garbage pidfile reported running")
+	}
+	// Dead pid -> false: no directory under the fake proc.
+	if runningFromPidfile(writePidfile("dead.pid", "424242"), proc) {
+		t.Errorf("dead pid reported running")
+	}
+	// Live banIP service pid -> true.
+	pidDir("100", "banip-service.s")
+	if !runningFromPidfile(writePidfile("live.pid", "100"), proc) {
+		t.Errorf("live banip pid not reported running")
+	}
+	// Live pid with a foreign comm -> false (pid reuse guard).
+	pidDir("200", "systemd")
+	if runningFromPidfile(writePidfile("foreign.pid", "200"), proc) {
+		t.Errorf("foreign live pid reported running")
+	}
+	// Live pid without a readable comm -> true (best effort, no comm).
+	if err := os.MkdirAll(filepath.Join(proc, "300"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if !runningFromPidfile(writePidfile("nocomm.pid", "300"), proc) {
+		t.Errorf("live pid without comm not reported running")
 	}
 }

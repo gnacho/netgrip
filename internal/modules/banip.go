@@ -122,11 +122,18 @@ type BanipProbe struct {
 // path invalidates the cache.
 var banipCache = struct {
 	sync.Mutex
-	probe *BanipProbe
-	at    time.Time
+	probe    *BanipProbe
+	at       time.Time
+	status   *BanipStatus
+	statusAt time.Time
 }{}
 
 const banipCacheTTL = 3 * time.Second
+
+// banipStatusTTL is shorter than the probe TTL: the status feeds the
+// Services card and the progressive page paint, where 2s of staleness is
+// invisible but every saved fork is felt.
+const banipStatusTTL = 2 * time.Second
 
 // ProbeBanIPCached returns the cached probe while it is fresh; mutations
 // invalidate via banipInvalidate.
@@ -144,12 +151,52 @@ func ProbeBanIPCached() *BanipProbe {
 	return p
 }
 
-// banipInvalidate drops the cached probe. Write paths call this (via defer)
-// so the next read recomputes from the router.
+// banipInvalidate drops the cached probe and status. Write paths call this
+// (via defer) so the next read recomputes from the router.
 func banipInvalidate() {
 	banipCache.Lock()
 	banipCache.probe = nil
+	banipCache.status = nil
 	banipCache.Unlock()
+}
+
+// ProbeBanipStatusCached is the cached variant of ProbeBanipStatus for
+// GET /api/banip/status; mutations invalidate it via banipInvalidate.
+func ProbeBanipStatusCached() *BanipStatus {
+	banipCache.Lock()
+	s, at := banipCache.status, banipCache.statusAt
+	banipCache.Unlock()
+	if s != nil && time.Since(at) < banipStatusTTL {
+		return s
+	}
+	s = ProbeBanipStatus()
+	banipCache.Lock()
+	banipCache.status, banipCache.statusAt = s, time.Now()
+	banipCache.Unlock()
+	return s
+}
+
+// runningFromPidfile reports whether the pid recorded in pidfile names a
+// live process under procDir whose comm mentions banip (guards against pid
+// reuse). Missing or malformed pidfiles answer false so the caller falls
+// back to the init.d fork. Pure on its arguments so tests run off-router.
+func runningFromPidfile(pidfile, procDir string) bool {
+	data, err := os.ReadFile(pidfile)
+	if err != nil {
+		return false
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil || pid <= 0 {
+		return false
+	}
+	if _, err := os.Stat(filepath.Join(procDir, strconv.Itoa(pid))); err != nil {
+		return false
+	}
+	if comm, err := os.ReadFile(filepath.Join(procDir, strconv.Itoa(pid), "comm")); err == nil {
+		return strings.Contains(strings.ToLower(string(comm)), "banip")
+	}
+	// No comm available (off-router tests): the live pid is enough.
+	return true
 }
 
 // BanipStatus is the lightweight status used by the Services overview card:
@@ -162,14 +209,20 @@ type BanipStatus struct {
 }
 
 // ProbeBanipStatus reads only installed/enabled/running. Cheap on purpose:
-// the Services page renders several cards at once.
+// the Services page renders several cards at once. The running check reads
+// the procd pidfile first (no fork) and only falls back to the init.d
+// command when there is no pidfile.
 func ProbeBanipStatus() *BanipStatus {
 	s := &BanipStatus{Installed: banipInstalled(), Applicable: hasUplink()}
 	if !s.Installed {
 		return s
 	}
 	s.Enabled = uciGet("banip.global.ban_enabled") == "1"
-	s.Running = executor.ServiceRunning("banip")
+	if runningFromPidfile("/var/run/banip.pid", "/proc") {
+		s.Running = true
+	} else {
+		s.Running = executor.ServiceRunning("banip")
+	}
 	return s
 }
 
@@ -496,16 +549,23 @@ func ProbeBanIP() *BanipProbe {
 	// the DoS thresholds from status are merged into the report afterwards,
 	// so they can run in parallel and degrade independently (fail-soft).
 	var (
-		wg                        sync.WaitGroup
-		opts                      map[string][]string
-		running                   bool
-		statusOut, reportOut      string
-		statusOK, reportOK        bool
-		allowlist, blocklist      []string
+		wg                   sync.WaitGroup
+		opts                 map[string][]string
+		running              bool
+		statusOut, reportOut string
+		statusOK, reportOK   bool
+		allowlist, blocklist []string
 	)
 	wg.Add(6)
 	go func() { defer wg.Done(); opts = banipGlobal() }()
-	go func() { defer wg.Done(); running = executor.ServiceRunning("banip") }()
+	go func() {
+		defer wg.Done()
+		if runningFromPidfile("/var/run/banip.pid", "/proc") {
+			running = true
+		} else {
+			running = executor.ServiceRunning("banip")
+		}
+	}()
 	go func() {
 		defer wg.Done()
 		if out, err := exec.Command("/etc/init.d/banip", "status").Output(); err == nil {

@@ -702,7 +702,9 @@ func (s *Server) handleBanipUninstall(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleBanipStatus(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, modules.ProbeBanipStatus())
+	// Cached (TTL 2s, shared invalidation with the full probe): the status
+	// feeds the Services card and the progressive page paint.
+	writeJSON(w, modules.ProbeBanipStatusCached())
 }
 
 func (s *Server) handleBanipSearch(w http.ResponseWriter, r *http.Request) {
