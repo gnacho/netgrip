@@ -1,0 +1,274 @@
+package modules
+
+import (
+	"strings"
+	"testing"
+)
+
+// reportFixture is the real `/etc/init.d/banip report` output from the
+// banIP 1.5.x README (trimmed: two feed sets with wrapped element lists,
+// the header counters and the footer).
+const reportFixture = `:::
+::: banIP Set Statistics
+:::
+    Timestamp: 2025-06-08 23:24:54
+    ------------------------------
+    blocked syn-flood packets  : 42
+    blocked udp-flood packets  : 7
+    blocked icmp-flood packets : 0
+    blocked invalid ct packets : 133
+    blocked invalid tcp packets: 5
+    ---
+    auto-added IPs to allowlist: 2
+    auto-added IPs to blocklist: 13
+
+    Set                  | Count        | Inbound (packets)     | Outbound (packets)    | Port/Protocol         | Elements (max. 50)
+    ---------------------+--------------+-----------------------+-----------------------+-----------------------+------------------------
+    allowlist.v4         | 1            | ON: 0                 | ON: 0                 | -                     |
+    allowlist.v4MAC      | 1            | -                     | ON: 177               | -                     | 65:34:31:1f:a5:b1
+    blocklist.v4         | 2            | ON: 3                 | ON: 0                 | -                     |
+    cinsscore.v4         | 11498        | ON: 444               | -                     | -                     | 3.92.139.143, 5.39.61.11
+                         |              |                       |                       |                       | 8, 8.137.54.171
+    country.v4           | 36432        | ON: 221               | -                     | -                     | 15.236.0.0, 24.56.0.0
+    country.v6           | 23665        | ON: 0                 | -                     | -                     |
+    doh.v4               | 1727         | -                     | ON: 2233              | tcp, udp: 53, 80, 443 | 8.8.8.8
+    doh.v6               | 1217         | -                     | ON: 0                 | tcp, udp: 53, 80, 443 |
+    ---------------------+--------------+-----------------------+-----------------------+-----------------------+------------------------
+    8                    | 74546        | 5 (668)               | 4 (2410)              | 2                     | 5
+`
+
+func TestParseBanipReport(t *testing.T) {
+	r := parseBanipReportText(reportFixture)
+	if !r.Parsed {
+		t.Fatalf("report not parsed")
+	}
+	if r.Timestamp != "2025-06-08 23:24:54" {
+		t.Errorf("timestamp = %q", r.Timestamp)
+	}
+	if r.Dos.SynPackets != 42 || r.Dos.UdpPackets != 7 || r.Dos.IcmpPackets != 0 {
+		t.Errorf("dos counters = %+v", r.Dos)
+	}
+	if r.Dos.InvalidCtPackets != 133 || r.Dos.InvalidTcpPackets != 5 {
+		t.Errorf("invalid counters = %+v", r.Dos)
+	}
+	if r.AutoAllow != 2 || r.AutoBlock != 13 {
+		t.Errorf("auto allow/block = %d/%d", r.AutoAllow, r.AutoBlock)
+	}
+	if len(r.Sets) != 8 {
+		t.Fatalf("sets = %d, want 8", len(r.Sets))
+	}
+	var cinsscore *BanipSetStat
+	for i := range r.Sets {
+		if r.Sets[i].Name == "cinsscore.v4" {
+			cinsscore = &r.Sets[i]
+		}
+	}
+	if cinsscore == nil {
+		t.Fatalf("cinsscore.v4 missing")
+	}
+	if cinsscore.Elements != 11498 {
+		t.Errorf("cinsscore elements = %d", cinsscore.Elements)
+	}
+	if cinsscore.PacketsIn != 444 || cinsscore.PacketsOut != 0 {
+		t.Errorf("cinsscore packets = %d/%d", cinsscore.PacketsIn, cinsscore.PacketsOut)
+	}
+	// Totals exclude allowlist sets but include blocklist + feed sets.
+	// 2 (blocklist.v4) + 11498 + 36432 + 23665 + 1727 + 1217 = 74541.
+	if r.TotalIPs != 74541 {
+		t.Errorf("total IPs = %d, want 74541", r.TotalIPs)
+	}
+	if r.PacketsIn != 444+3+221 {
+		t.Errorf("packets in = %d", r.PacketsIn)
+	}
+	// Allowlist sets are excluded from the blocked-packet sums.
+	if r.PacketsOut != 2233 {
+		t.Errorf("packets out = %d", r.PacketsOut)
+	}
+	// allowlist sets must be flagged local.
+	var allow *BanipSetStat
+	for i := range r.Sets {
+		if r.Sets[i].Name == "allowlist.v4" {
+			allow = &r.Sets[i]
+		}
+	}
+	if allow == nil || !allow.LocalAllow || allow.LocalBlock {
+		t.Errorf("allowlist flags wrong: %+v", allow)
+	}
+}
+
+func TestParseBanipStatus(t *testing.T) {
+	out := `::: banIP runtime information
+  + status            : active (nft: ✔, monitor: ✔)
+  + version           : 1.5.6-r7
+  + element_count     : 128 751 (chains: 7, sets: 19, rules: 47)
+  + nft_info          : ver: 1.1.1-r1, priority: -100, policy: performance, loglevel: warn, expiry: 2h, limit (icmp/syn/udp): 25/10/100
+  + run_info          : base: /tmp/banIP
+  + run_flags         : auto: ✔, proto (4/6): ✔/✔, count: ✔, dedup: ✔
+  + last_run          : mode: restart, 2025-06-08 21:11:21, duration: 0m 22s, memory: 1310.16 MB available
+  + system_info       : cores: 4
+`
+	version, elements, mem, il, sl, ul := parseBanipStatusText(out)
+	if version != "1.5.6-r7" {
+		t.Errorf("version = %q", version)
+	}
+	if elements != 128751 {
+		t.Errorf("elements = %d", elements)
+	}
+	if mem != 1310 {
+		t.Errorf("mem = %d", mem)
+	}
+	if il != 25 || sl != 10 || ul != 100 {
+		t.Errorf("limits = %d/%d/%d", il, sl, ul)
+	}
+}
+
+func TestBanipFeeds(t *testing.T) {
+	opts := map[string][]string{
+		"ban_enabled":   {"1"},
+		"ban_feed":      {"cinsscore", "doh", "country"},
+		"ban_feedout":   {"doh"},
+		"ban_feedinout": {"country"},
+		"ban_feedin":    {"turris"},
+		"ban_nftcount":  {"1"},
+	}
+	feeds := banipFeeds(opts)
+	byName := map[string]BanipFeed{}
+	for _, f := range feeds {
+		byName[f.Name] = f
+	}
+	if len(feeds) != 4 {
+		t.Fatalf("feeds = %d, want 4: %+v", len(feeds), feeds)
+	}
+	if !byName["cinsscore"].Enabled || byName["cinsscore"].Direction != "" {
+		t.Errorf("cinsscore = %+v", byName["cinsscore"])
+	}
+	if !byName["doh"].Enabled || byName["doh"].Direction != "out" {
+		t.Errorf("doh = %+v", byName["doh"])
+	}
+	if !byName["country"].Enabled || byName["country"].Direction != "inout" {
+		t.Errorf("country = %+v", byName["country"])
+	}
+	if byName["turris"].Enabled || byName["turris"].Direction != "in" {
+		t.Errorf("turris = %+v", byName["turris"])
+	}
+}
+
+func TestBanipFeedOps(t *testing.T) {
+	enabled, nftcount := true, true
+	cfg := BanipFeedsConfig{
+		Feeds: []BanipFeed{
+			{Name: "cinsscore", Enabled: true},
+			{Name: "doh", Enabled: true, Direction: "out"},
+			{Name: "turris", Enabled: false, Direction: "in"},
+		},
+		Enabled:  &enabled,
+		NftCount: &nftcount,
+	}
+	ops, err := banipFeedOps(cfg)
+	if err != nil {
+		t.Fatalf("ops error: %v", err)
+	}
+	var addList []string
+	for _, op := range ops {
+		if op.Kind != "uci_add_list" {
+			continue
+		}
+		addList = append(addList, op.Args[0]+"="+op.Args[1])
+	}
+	want := []string{
+		"banip.global.ban_feed=cinsscore",
+		"banip.global.ban_feed=doh",
+		"banip.global.ban_feedout=doh",
+		"banip.global.ban_feedin=turris",
+	}
+	got := strings.Join(addList, ",")
+	for _, w := range want {
+		if !strings.Contains(got, w) {
+			t.Errorf("missing op %q in %q", w, got)
+		}
+	}
+	if strings.Contains(got, "ban_feed=turris") {
+		t.Errorf("disabled feed ended up in ban_feed: %q", got)
+	}
+	// The last two ops must commit and reload.
+	last := ops[len(ops)-2:]
+	if last[0].Kind != "uci_commit" || last[1].Kind != "initd" || last[1].Args[1] != "reload" {
+		t.Errorf("tail ops = %+v", last)
+	}
+}
+
+func TestBanipFeedOpsRejectsGarbage(t *testing.T) {
+	if _, err := banipFeedOps(BanipFeedsConfig{Feeds: []BanipFeed{{Name: "bad;name", Enabled: true}}}); err == nil {
+		t.Errorf("invalid feed name accepted")
+	}
+	if _, err := banipFeedOps(BanipFeedsConfig{Feeds: []BanipFeed{{Name: "ok", Direction: "sideways"}}}); err == nil {
+		t.Errorf("invalid direction accepted")
+	}
+}
+
+func TestBanipFeedsMatch(t *testing.T) {
+	tru := true
+	cfg := BanipFeedsConfig{
+		Feeds:   []BanipFeed{{Name: "doh", Enabled: true, Direction: "out"}},
+		Enabled: &tru,
+	}
+	live := map[string][]string{
+		"ban_enabled": {"1"},
+		"ban_feed":    {"doh"},
+		"ban_feedout": {"doh"},
+	}
+	if !banipFeedsMatch(live, cfg) {
+		t.Errorf("identical config did not match")
+	}
+	live["ban_feed"] = []string{"doh", "extra"}
+	if banipFeedsMatch(live, cfg) {
+		t.Errorf("extra live feed matched")
+	}
+	delete(live, "ban_feedout")
+	if banipFeedsMatch(live, cfg) {
+		t.Errorf("missing direction override matched")
+	}
+}
+
+func TestValidBanipEntry(t *testing.T) {
+	valid := []string{
+		"192.168.1.10", "2001:db8::1", "10.0.0.0/8", "2001:db8::/32",
+		"66:34:31:1f:a5:b1", "example.com", "sub.dominio.es",
+		"66:34:31:1f:a5:b1 192.168.1.10",
+	}
+	for _, e := range valid {
+		if !validBanipEntry(e) {
+			t.Errorf("rejected valid entry %q", e)
+		}
+	}
+	invalid := []string{
+		"", "hello world", "1.2.3.4/33", "10.0.0.0/8; rm -rf /", "-", "#comment",
+		"192.168.1.1 192.168.1.2", "not_a_domain", "a b c",
+	}
+	for _, e := range invalid {
+		if validBanipEntry(e) {
+			t.Errorf("accepted invalid entry %q", e)
+		}
+	}
+}
+
+func TestBanipListContentPlanners(t *testing.T) {
+	base := "# comment\n192.168.1.5\nexample.com\n"
+	if got := addBanipEntryContent(base, "example.com"); got != base {
+		t.Errorf("dedupe changed content: %q", got)
+	}
+	got := addBanipEntryContent(base, "10.0.0.7")
+	if !strings.HasSuffix(got, "10.0.0.7\n") || !strings.HasPrefix(got, "# comment") {
+		t.Errorf("add result = %q", got)
+	}
+	if got := addBanipEntryContent("", "10.0.0.7"); got != "10.0.0.7\n" {
+		t.Errorf("add to empty = %q", got)
+	}
+	rem := removeBanipEntryContent(base, "192.168.1.5")
+	if strings.Contains(rem, "192.168.1.5") || !strings.Contains(rem, "example.com") {
+		t.Errorf("remove result = %q", rem)
+	}
+	if got := removeBanipEntryContent("10.0.0.7\n", "10.0.0.7"); got != "" {
+		t.Errorf("remove last = %q", got)
+	}
+}
