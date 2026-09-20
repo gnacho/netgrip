@@ -132,10 +132,11 @@ var banipCache = struct {
 
 const banipCacheTTL = 3 * time.Second
 
-// banipRevalidateAfter bounds the age of a stale probe served while a
-// background refresh runs: the report alone takes seconds on a router and
-// its numbers move slowly, so up to a minute of staleness is invisible in
-// the UI while every menu entry stays instant.
+// banipRevalidateAfter is the age at which serving a cached probe also
+// triggers a background refresh. Serving never blocks on age: the probe
+// takes seconds on a router and its numbers move slowly, so a menu entry
+// always gets the cached copy; the background recompute (bounded by this
+// threshold) keeps it converging to live state.
 const banipRevalidateAfter = 60 * time.Second
 
 // banipStatusTTL is shorter than the probe TTL: the status feeds the
@@ -144,10 +145,13 @@ const banipRevalidateAfter = 60 * time.Second
 const banipStatusTTL = 2 * time.Second
 
 // ProbeBanIPCached returns the cached probe. Fresh entries (3s) are served
-// as is; stale-but-recent entries (up to banipRevalidateAfter) are served
-// instantly AND refreshed in a background goroutine, so entering the menu
-// never blocks on the slow report. Older or missing entries compute
-// synchronously. Mutations invalidate via banipInvalidate.
+// as is; older entries are ALSO served instantly - the probe takes seconds
+// on a router and its numbers move slowly, so blocking a menu entry on it is
+// worse than showing slightly stale data. Any entry older than
+// banipRevalidateAfter triggers a background refresh (singleflight), so data
+// converges while the UI stays instant. Only an EMPTY cache (first read
+// after start or after a mutation invalidated it) computes synchronously.
+// Mutations invalidate via banipInvalidate.
 func ProbeBanIPCached() *BanipProbe {
 	banipCache.Lock()
 	p, at, gen := banipCache.probe, banipCache.at, banipCache.gen
@@ -156,8 +160,8 @@ func ProbeBanIPCached() *BanipProbe {
 	case p != nil && age < banipCacheTTL:
 		banipCache.Unlock()
 		return p
-	case p != nil && age < banipRevalidateAfter:
-		if !banipCache.revalidating {
+	case p != nil:
+		if age >= banipRevalidateAfter && !banipCache.revalidating {
 			banipCache.revalidating = true
 			go banipRevalidate(gen)
 		}
