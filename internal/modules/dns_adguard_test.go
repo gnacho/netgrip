@@ -40,8 +40,8 @@ dhcp.cfg01411c.cachesize='150'`
 }
 
 func TestParseDnsmasqShowProtected(t *testing.T) {
-	out := `dhcp.@dnsmasq[0].server='127.0.0.1#5353'
-dhcp.@dnsmasq[0].noresolv='1'`
+	out := `dhcp.cfg01411c.server='127.0.0.1#5353'
+dhcp.cfg01411c.noresolv='1'`
 	st := parseDnsmasqShow(out)
 	if !adGuardProtected(st) {
 		t.Error("127.0.0.1#5353 forwarder must count as protection")
