@@ -52,6 +52,12 @@ type BanipFeed struct {
 	// feeds too so the UI can explain them without a second lookup.
 	Chain string `json:"chain,omitempty"`
 	IPv6  bool   `json:"ipv6,omitempty"`
+	// LastDownloadFailed is true when the most recent download attempt of
+	// this feed failed and its sets are still empty in the report. banIP
+	// only logs failures (a successful run leaves no per-feed trace), so
+	// the marker combines the syslog failure with the empty report set to
+	// avoid accusing a feed that already recovered on a later run.
+	LastDownloadFailed bool `json:"last_download_failed,omitempty"`
 }
 
 // BanipCatalogFeed is one feed available in the local catalog. The url_*
@@ -421,6 +427,66 @@ func banipCatalog() []BanipCatalogFeed {
 	return out
 }
 
+// parseBanipDownloadFailures returns the set of feed names (without the
+// .v4/.v6 suffix) whose download failed, according to recent syslog lines.
+// banIP 1.5.x logs a line per failed download and nothing on success, so
+// the failure set alone cannot tell a broken feed from one that recovered
+// on a later run; the caller cross-checks with the report.
+func parseBanipDownloadFailures(out string) map[string]bool {
+	failed := map[string]bool{}
+	for _, m := range reBanipDownloadFail.FindAllStringSubmatch(out, -1) {
+		failed[m[1]] = true
+	}
+	return failed
+}
+
+// banipDownloadLog reads the recent syslog lines mentioning banIP. It tries
+// `logread -e banip` (the busybox grep filter) first and falls back to the
+// full `logread` output; the parser re-greps either way. Missing logread or
+// an empty log is an empty result, never an error: the marker is a hint,
+// not a verdict.
+func banipDownloadLog() string {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if out, err := exec.CommandContext(ctx, "logread", "-e", "banip").Output(); err == nil {
+		return string(out)
+	}
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel2()
+	out, err := exec.CommandContext(ctx2, "logread").Output()
+	if err != nil {
+		return ""
+	}
+	return string(out)
+}
+
+// banipMarkDownloadFailures flags configured feeds whose download failed
+// and whose sets are still empty in the report. A feed with elements in any
+// of its sets already recovered (banIP only logs failures, never successes,
+// so an old failure line may outlive the fix); without a parsed report the
+// signal is not actionable and nothing is marked.
+func banipMarkDownloadFailures(feeds []BanipFeed, failed map[string]bool, report *BanipReport) {
+	if len(failed) == 0 || report == nil || !report.Parsed {
+		return
+	}
+	elems := map[string]int64{}
+	for _, s := range report.Sets {
+		name := s.Name
+		for _, suf := range []string{".v4MAC", ".v6MAC", ".v4", ".v6"} {
+			if strings.HasSuffix(name, suf) {
+				name = strings.TrimSuffix(name, suf)
+				break
+			}
+		}
+		elems[name] += s.Elements
+	}
+	for i := range feeds {
+		if failed[feeds[i].Name] && elems[feeds[i].Name] == 0 {
+			feeds[i].LastDownloadFailed = true
+		}
+	}
+}
+
 // banipReadList reads a local allow/blocklist, one entry per line, skipping
 // comments and blanks.
 func banipReadList(path string) []string {
@@ -450,6 +516,9 @@ var (
 	reBanipVersionValue = regexp.MustCompile(`^[0-9][0-9a-zA-Z.-]*$`)
 	reStatusMem         = regexp.MustCompile(`memory:\s*([0-9.]+)\s*MB`)
 	reStatusElement     = regexp.MustCompile(`^([0-9 ]+)`)
+	// reBanipDownloadFail matches the banIP syslog failure lines, e.g.
+	// user.info banIP-1.5.6-r7[28527]: download for feed 'debl.v4' failed, rc: 4
+	reBanipDownloadFail = regexp.MustCompile(`download for feed '([a-z0-9_-]+)\.(?:v4|v6|v4MAC|v6MAC)' failed`)
 )
 
 // banipNum parses the report's space-grouped counters ("128 751").
@@ -593,7 +662,7 @@ func ProbeBanIP() *BanipProbe {
 		return p
 	}
 	// The independent reads fork (uci show, init.d running/status/report,
-	// the two list files): run them concurrently. status and report used
+	// the two list files, logread): run them concurrently. status and report used
 	// to be sequential with report gated on status; both are read-only and
 	// the DoS thresholds from status are merged into the report afterwards,
 	// so they can run in parallel and degrade independently (fail-soft).
@@ -604,8 +673,9 @@ func ProbeBanIP() *BanipProbe {
 		statusOut, reportOut string
 		statusOK, reportOK   bool
 		allowlist, blocklist []string
+		downloadLog          string
 	)
-	wg.Add(6)
+	wg.Add(7)
 	go func() { defer wg.Done(); opts = banipGlobal() }()
 	go func() {
 		defer wg.Done()
@@ -629,6 +699,7 @@ func ProbeBanIP() *BanipProbe {
 	}()
 	go func() { defer wg.Done(); allowlist = banipReadList(banipAllowlistPath) }()
 	go func() { defer wg.Done(); blocklist = banipReadList(banipBlocklistPath) }()
+	go func() { defer wg.Done(); downloadLog = banipDownloadLog() }()
 	wg.Wait()
 
 	p.Enabled = len(opts["ban_enabled"]) > 0 && opts["ban_enabled"][0] == "1"
@@ -659,6 +730,7 @@ func ProbeBanIP() *BanipProbe {
 
 	p.Allowlist = allowlist
 	p.Blocklist = blocklist
+	banipMarkDownloadFailures(p.Feeds, parseBanipDownloadFailures(downloadLog), p.Report)
 	return p
 }
 

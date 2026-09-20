@@ -371,6 +371,75 @@ func TestBanipMergeCatalog(t *testing.T) {
 	}
 }
 
+func TestParseBanipDownloadFailures(t *testing.T) {
+	log := `Sep 20 10:14:58 rt-lab user.info banIP-1.5.6-r7[28527]: download for feed 'debl.v4' failed, rc: 4
+Sep 20 10:15:01 rt-lab user.info banIP-1.5.6-r7[28527]: download for feed 'turris.v6' failed, rc: 4
+Sep 20 10:15:02 rt-lab user.info banIP-1.5.6-r7[28527]: download for feed 'doh.v4' failed, rc: 4
+Sep 20 10:15:03 rt-lab user.info banIP-1.5.6-r7[28527]: start banIP processing
+Sep 20 10:15:04 rt-lab user.info banIP-1.5.6-r7[28527]: download for feed 'hagezi_v6.v4MAC' failed, rc: 4
+`
+	failed := parseBanipDownloadFailures(log)
+	for _, name := range []string{"debl", "turris", "doh", "hagezi_v6"} {
+		if !failed[name] {
+			t.Errorf("expected %q flagged as failed, got %v", name, failed)
+		}
+	}
+	for name := range failed {
+		switch name {
+		case "debl", "turris", "doh", "hagezi_v6":
+		default:
+			t.Errorf("unexpected failed feed %q", name)
+		}
+	}
+	if len(parseBanipDownloadFailures("")) != 0 {
+		t.Errorf("empty log must yield no failures")
+	}
+}
+
+func TestBanipMarkDownloadFailures(t *testing.T) {
+	report := &BanipReport{
+		Parsed: true,
+		Sets: []BanipSetStat{
+			{Name: "debl.v4", Elements: 0},
+			{Name: "turris.v4", Elements: 4553},
+			{Name: "doh.v6MAC", Elements: 0},
+		},
+	}
+	feeds := []BanipFeed{
+		{Name: "debl", Enabled: true},      // failed + empty set -> marked
+		{Name: "turris", Enabled: true},    // failed but recovered -> not marked
+		{Name: "doh", Enabled: true},       // failed, MAC-only set empty -> marked
+		{Name: "cinsscore", Enabled: true}, // no failure -> not marked
+	}
+	banipMarkDownloadFailures(feeds, map[string]bool{"debl": true, "turris": true, "doh": true}, report)
+	if !feeds[0].LastDownloadFailed {
+		t.Errorf("debl should be marked: %+v", feeds[0])
+	}
+	if feeds[1].LastDownloadFailed {
+		t.Errorf("turris recovered (set has elements), must not be marked: %+v", feeds[1])
+	}
+	if !feeds[2].LastDownloadFailed {
+		t.Errorf("doh should be marked (MAC set empty): %+v", feeds[2])
+	}
+	if feeds[3].LastDownloadFailed {
+		t.Errorf("cinsscore has no failure line, must not be marked: %+v", feeds[3])
+	}
+	// No failures, no report, or unparsed report: never mark.
+	other := []BanipFeed{{Name: "debl", Enabled: true}}
+	banipMarkDownloadFailures(other, nil, report)
+	if other[0].LastDownloadFailed {
+		t.Errorf("no failures must never mark")
+	}
+	banipMarkDownloadFailures(other, map[string]bool{"debl": true}, nil)
+	if other[0].LastDownloadFailed {
+		t.Errorf("missing report must never mark")
+	}
+	banipMarkDownloadFailures(other, map[string]bool{"debl": true}, &BanipReport{Parsed: false})
+	if other[0].LastDownloadFailed {
+		t.Errorf("unparsed report must never mark")
+	}
+}
+
 func TestBanipCacheInvalidate(t *testing.T) {
 	banipInvalidate()
 	// Seed a fake fresh probe: the cached read must come back without forks.

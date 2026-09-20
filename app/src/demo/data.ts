@@ -733,7 +733,7 @@ export const demoBanip: T.BanipProbe = {
   mem_available_mb: 412,
   feeds: [
     { name: "cinsscore", enabled: true, direction: "", in_catalog: true, chain: "in", ipv6: true },
-    { name: "debl", enabled: true, direction: "", in_catalog: true, chain: "in", ipv6: true },
+    { name: "debl", enabled: true, direction: "", in_catalog: true, chain: "in", ipv6: true, last_download_failed: true }, // #352: descarga fallida, set vacío
     { name: "turris", enabled: true, direction: "", in_catalog: true, chain: "in", ipv6: true },
     { name: "doh", enabled: true, direction: "out", in_catalog: true, chain: "out", ipv6: true },
     { name: "hagezi", enabled: false, direction: "out", in_catalog: true, chain: "out", ipv6: true },
@@ -753,12 +753,11 @@ export const demoBanip: T.BanipProbe = {
       { name: "blocklist.v4", elements: 1, packets_in: 12, packets_out: 0, local_allow: false, local_block: true },
       { name: "cinsscore.v4", elements: 11498, packets_in: 444, packets_out: 0, local_allow: false, local_block: false },
       { name: "cinsscore.v6", elements: 136, packets_in: 0, packets_out: 0, local_allow: false, local_block: false },
-      { name: "debl.v4", elements: 13147, packets_in: 19, packets_out: 0, local_allow: false, local_block: false },
       { name: "turris.v4", elements: 4553, packets_in: 131, packets_out: 0, local_allow: false, local_block: false },
       { name: "doh.v4", elements: 1727, packets_in: 0, packets_out: 2233, local_allow: false, local_block: false },
       { name: "doh.v6", elements: 1217, packets_in: 0, packets_out: 0, local_allow: false, local_block: false },
     ],
-    total_ips: 32279,
+    total_ips: 19132,
     packets_in: 606,
     packets_out: 2233,
     auto_allow: 2,

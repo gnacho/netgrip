@@ -665,6 +665,8 @@ export interface BanipFeed {
   /** catalog defaults, attached by the backend for configured feeds too */
   chain?: "" | "in" | "out" | "inout";
   ipv6?: boolean;
+  /** true when the last download failed and the feed's sets are still empty */
+  last_download_failed?: boolean;
 }
 
 /** One feed available in the local catalog, not yet configured in UCI. */

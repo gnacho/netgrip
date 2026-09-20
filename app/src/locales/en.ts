@@ -648,6 +648,8 @@ export default {
     feedsNote: "Saving rewrites the feed lists and reloads banIP, which re-downloads every active feed (slow on slow links).",
     feedsSaved: "Feeds saved",
     feedRecommended: "Recommended",
+    feedDownloadFailed: "Download failed",
+    feedDownloadFailedHint: "The last download of this feed failed and its set is empty. The Reload button retries it.",
     addRecommended: "Add recommended",
     recommendedBanner: "Start by enabling the recommended feeds: a sensible community-maintained base (~20,000 IPs).",
     feedInfoLabel: "What {{name}} is",

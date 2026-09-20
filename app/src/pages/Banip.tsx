@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowDownToLine, ArrowUpDown, ArrowUpFromLine, Ban, Info, Play, Plus, RefreshCw, Search, ShieldBan, ShieldCheck, Square, Trash2 } from "lucide-react";
+import { ArrowDownToLine, ArrowUpDown, ArrowUpFromLine, Ban, Info, Play, Plus, RefreshCw, Search, ShieldBan, ShieldCheck, Square, Trash2, TriangleAlert } from "lucide-react";
 import { api } from "../api";
 import type { BanipCatalogFeed, BanipFeed, BanipProbe, BanipSearchResult, BanipStatus } from "../types";
 import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Pill, SegmentedControl, SkeletonRows, useToast } from "../components/ui";
@@ -30,7 +30,7 @@ function RecommendedTag() {
  * de banIP cuando no hay entrada. Solo las entradas del catálogo añaden
  * dirección por defecto e IPv6 (son los únicos datos que tenemos).
  */
-function FeedInfoButton({ name, descr, chain, ipv6 }: { name: string; descr?: string; chain?: BanipFeed["direction"] | ""; ipv6?: boolean }) {
+function FeedInfoButton({ name, descr, chain, ipv6, downloadFailed }: { name: string; descr?: string; chain?: BanipFeed["direction"] | ""; ipv6?: boolean; downloadFailed?: boolean }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
@@ -64,6 +64,12 @@ function FeedInfoButton({ name, descr, chain, ipv6 }: { name: string; descr?: st
         <span role="tooltip" className="absolute left-1/2 -translate-x-1/2 top-6 z-40 block w-[min(280px,calc(100vw-48px))] rounded-md border border-border bg-surface p-3 text-left shadow-elevated animate-banner-in">
           <span className="block text-small font-semibold mb-1">{name}</span>
           <span className="block text-small text-muted">{body}</span>
+          {downloadFailed && (
+            <span className="mt-2 flex items-start gap-1.5 text-caption text-warn">
+              <TriangleAlert size={12} className="mt-0.5 shrink-0" aria-hidden="true" />
+              <span>{t("banip.feedDownloadFailedHint")}</span>
+            </span>
+          )}
           {chain !== undefined && (
             <span className="mt-2 flex items-center gap-1.5 text-caption text-faint">
               {chain === "in" && <ArrowDownToLine size={12} aria-hidden="true" />}
@@ -423,10 +429,15 @@ function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: 
                 return (
                 <tr key={f.name} className="border-b border-border/40 last:border-0">
                   <td className="py-2 pr-4">
-                    <span className="inline-flex items-center">
+                      <span className="inline-flex items-center">
                       <span className="font-mono text-small">{f.name}</span>
                       {recommended(f.name) && <RecommendedTag />}
-                      <span className="ml-1.5"><FeedInfoButton name={f.name} chain={f.chain} ipv6={f.ipv6} /></span>
+                      {f.last_download_failed && (
+                        <Pill tone="warn" className="ml-2">
+                          <TriangleAlert size={12} aria-hidden="true" /> {t("banip.feedDownloadFailed")}
+                        </Pill>
+                      )}
+                      <span className="ml-1.5"><FeedInfoButton name={f.name} chain={f.chain} ipv6={f.ipv6} downloadFailed={f.last_download_failed} /></span>
                       {!f.in_catalog && <span className="ml-1 text-caption text-faint" title={t("banip.notInCatalog")}>·</span>}
                     </span>
                   </td>

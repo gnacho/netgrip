@@ -648,6 +648,8 @@ export default {
     feedsNote: "Guardar reescribe las listas de feeds y recarga banIP, que re-descarga cada feed activo (lento en conexiones lentas).",
     feedsSaved: "Feeds guardados",
     feedRecommended: "Recomendada",
+    feedDownloadFailed: "Descarga fallida",
+    feedDownloadFailedHint: "La última descarga de esta lista falló y su set está vacío. El botón Recargar reintenta la descarga.",
     addRecommended: "Añadir recomendadas",
     recommendedBanner: "Empieza activando las feeds recomendadas: una base sensata mantenida por la comunidad (~20.000 IPs).",
     feedInfoLabel: "Qué es {{name}}",
