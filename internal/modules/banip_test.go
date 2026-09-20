@@ -3,6 +3,7 @@ package modules
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 // reportFixture is the real `/etc/init.d/banip report` output from the
@@ -362,5 +363,24 @@ func TestBanipMergeCatalog(t *testing.T) {
 		if a.Name == "cinsscore" {
 			t.Errorf("duplicate of configured feed in catalog list")
 		}
+	}
+}
+
+func TestBanipCacheInvalidate(t *testing.T) {
+	banipInvalidate()
+	// Seed a fake fresh probe: the cached read must come back without forks.
+	banipCache.Lock()
+	banipCache.probe = &BanipProbe{Installed: true, Version: "test"}
+	banipCache.at = time.Now()
+	banipCache.Unlock()
+	if got := ProbeBanIPCached(); !got.Installed || got.Version != "test" {
+		t.Errorf("cached probe not returned: %+v", got)
+	}
+	banipInvalidate()
+	banipCache.Lock()
+	p := banipCache.probe
+	banipCache.Unlock()
+	if p != nil {
+		t.Errorf("invalidate kept the probe")
 	}
 }

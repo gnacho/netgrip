@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gnacho/netgrip/internal/executor"
@@ -112,6 +113,64 @@ type BanipProbe struct {
 	Report         *BanipReport       `json:"report,omitempty"`
 	Allowlist      []string           `json:"allowlist"`
 	Blocklist      []string           `json:"blocklist"`
+}
+
+// banipCache is the in-memory cache for GET /api/banip. The full probe
+// forks several commands and takes seconds on a router; the UI loads it on
+// page open and refresh, so a very short TTL removes back-to-back double
+// loads without ever serving stale state after a mutation: every write
+// path invalidates the cache.
+var banipCache = struct {
+	sync.Mutex
+	probe *BanipProbe
+	at    time.Time
+}{}
+
+const banipCacheTTL = 3 * time.Second
+
+// ProbeBanIPCached returns the cached probe while it is fresh; mutations
+// invalidate via banipInvalidate.
+func ProbeBanIPCached() *BanipProbe {
+	banipCache.Lock()
+	p, at := banipCache.probe, banipCache.at
+	banipCache.Unlock()
+	if p != nil && time.Since(at) < banipCacheTTL {
+		return p
+	}
+	p = ProbeBanIP()
+	banipCache.Lock()
+	banipCache.probe, banipCache.at = p, time.Now()
+	banipCache.Unlock()
+	return p
+}
+
+// banipInvalidate drops the cached probe. Write paths call this (via defer)
+// so the next read recomputes from the router.
+func banipInvalidate() {
+	banipCache.Lock()
+	banipCache.probe = nil
+	banipCache.Unlock()
+}
+
+// BanipStatus is the lightweight status used by the Services overview card:
+// no report, no lists, no catalog, just the cheap forks.
+type BanipStatus struct {
+	Installed  bool `json:"installed"`
+	Enabled    bool `json:"enabled"`
+	Running    bool `json:"running"`
+	Applicable bool `json:"applicable"`
+}
+
+// ProbeBanipStatus reads only installed/enabled/running. Cheap on purpose:
+// the Services page renders several cards at once.
+func ProbeBanipStatus() *BanipStatus {
+	s := &BanipStatus{Installed: banipInstalled(), Applicable: hasUplink()}
+	if !s.Installed {
+		return s
+	}
+	s.Enabled = uciGet("banip.global.ban_enabled") == "1"
+	s.Running = executor.ServiceRunning("banip")
+	return s
 }
 
 // banipInstalled reports whether the banIP init script is present.
@@ -431,32 +490,66 @@ func ProbeBanIP() *BanipProbe {
 	if !p.Installed {
 		return p
 	}
-	opts := banipGlobal()
+	// The independent reads fork (uci show, init.d running/status/report,
+	// the two list files): run them concurrently. status and report used
+	// to be sequential with report gated on status; both are read-only and
+	// the DoS thresholds from status are merged into the report afterwards,
+	// so they can run in parallel and degrade independently (fail-soft).
+	var (
+		wg                        sync.WaitGroup
+		opts                      map[string][]string
+		running                   bool
+		statusOut, reportOut      string
+		statusOK, reportOK        bool
+		allowlist, blocklist      []string
+	)
+	wg.Add(6)
+	go func() { defer wg.Done(); opts = banipGlobal() }()
+	go func() { defer wg.Done(); running = executor.ServiceRunning("banip") }()
+	go func() {
+		defer wg.Done()
+		if out, err := exec.Command("/etc/init.d/banip", "status").Output(); err == nil {
+			statusOut, statusOK = string(out), true
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		if out, err := exec.Command("/etc/init.d/banip", "report").Output(); err == nil {
+			reportOut, reportOK = string(out), true
+		}
+	}()
+	go func() { defer wg.Done(); allowlist = banipReadList(banipAllowlistPath) }()
+	go func() { defer wg.Done(); blocklist = banipReadList(banipBlocklistPath) }()
+	wg.Wait()
+
 	p.Enabled = len(opts["ban_enabled"]) > 0 && opts["ban_enabled"][0] == "1"
 	p.NftCount = len(opts["ban_nftcount"]) > 0 && opts["ban_nftcount"][0] == "1"
 	p.Feeds = banipFeeds(opts)
+	p.Running = running
 
 	// Catalog: available feeds that are not configured in UCI. Configured
 	// feeds get in_catalog so the UI can show which ones come from the
 	// stock/custom catalogs.
 	p.Feeds, p.Catalog = banipMergeCatalog(p.Feeds, banipCatalog())
-	p.Running = executor.ServiceRunning("banip")
 
-	if out, err := exec.Command("/etc/init.d/banip", "status").Output(); err == nil {
-		v, _, mem, il, sl, ul := parseBanipStatusText(string(out))
+	if statusOK {
+		v, _, mem, il, sl, ul := parseBanipStatusText(statusOut)
 		p.Version = v
 		p.MemAvailableMB = mem
-		if out, err := exec.Command("/etc/init.d/banip", "report").Output(); err == nil {
-			rep := parseBanipReportText(string(out))
+		if reportOK {
+			rep := parseBanipReportText(reportOut)
 			rep.Dos.IcmpLimit = il
 			rep.Dos.SynLimit = sl
 			rep.Dos.UdpLimit = ul
 			p.Report = rep
 		}
+	} else if reportOK {
+		// status failed but report answered: show it without thresholds.
+		p.Report = parseBanipReportText(reportOut)
 	}
 
-	p.Allowlist = banipReadList(banipAllowlistPath)
-	p.Blocklist = banipReadList(banipBlocklistPath)
+	p.Allowlist = allowlist
+	p.Blocklist = blocklist
 	return p
 }
 
@@ -473,6 +566,7 @@ var validBanipActions = map[string]bool{
 // fails. reload/restart re-download the feeds; start/stop only restore from
 // the local backups (that is banIP behaviour, surfaced in the UI note).
 func BanipAction(action string) (*BanipProbe, bool, error) {
+	defer banipInvalidate()
 	if !validBanipActions[action] {
 		return ProbeBanIP(), false, fmt.Errorf("unsupported action %q", action)
 	}
@@ -707,6 +801,7 @@ func banipFeedsMatch(opts map[string][]string, cfg BanipFeedsConfig) bool {
 // against the local catalog plus whatever is already configured in UCI, so
 // typos are rejected before any write.
 func SetBanipFeeds(cfg BanipFeedsConfig) (*BanipProbe, bool, error) {
+	defer banipInvalidate()
 	if !banipInstalled() {
 		return ProbeBanIP(), false, fmt.Errorf("banip is not installed")
 	}
@@ -885,6 +980,7 @@ func BanipListEntries(list string) ([]string, error) {
 // re-processes the feeds (banIP applies local lists on reload), which the
 // UI states next to the action.
 func SetBanipListEntry(list, entry string, remove bool) (*BanipProbe, bool, error) {
+	defer banipInvalidate()
 	path, err := banipListPath(list)
 	if err != nil {
 		return ProbeBanIP(), false, err
@@ -970,6 +1066,7 @@ func SearchBanipIP(ip string) (*BanipSearchResult, error) {
 // InstallBanip installs the banIP package after explicit confirmation from
 // the UI (disk/RAM impact is stated there). Never called implicitly.
 func InstallBanip(confirm bool) (*BanipProbe, error) {
+	defer banipInvalidate()
 	if !confirm {
 		return ProbeBanIP(), fmt.Errorf("installation needs explicit confirmation")
 	}
@@ -978,6 +1075,36 @@ func InstallBanip(confirm bool) (*BanipProbe, error) {
 	}
 	if err := executor.Run(executor.Op{Kind: "pkg_add", Args: []string{"banip"}}); err != nil {
 		return ProbeBanIP(), fmt.Errorf("install banip: %w", err)
+	}
+	return ProbeBanIP(), nil
+}
+
+// UninstallBanip removes the banIP packages after explicit confirmation.
+// The service is stopped and its rc.d autostart removed in the same batch
+// before the packages, so no half-removed state is left behind if a step
+// fails. The UCI config (/etc/config/banip) and the local lists stay on
+// disk, as opkg keeps conffiles: the UI says so in the confirmation.
+func UninstallBanip(confirm bool) (*BanipProbe, error) {
+	defer banipInvalidate()
+	if !confirm {
+		return ProbeBanIP(), fmt.Errorf("uninstall needs explicit confirmation")
+	}
+	if !banipInstalled() {
+		return ProbeBanIP(), nil
+	}
+	var ops []executor.Op
+	if executor.ServiceRunning("banip") {
+		ops = append(ops, executor.Op{Kind: "initd", Args: []string{"banip", "stop"}})
+	}
+	if executor.ServiceEnabled("banip") {
+		ops = append(ops, executor.Op{Kind: "initd", Args: []string{"banip", "disable"}})
+	}
+	ops = append(ops, executor.Op{Kind: "pkg_del", Args: []string{"banip"}})
+	if pkgInstalled("luci-app-banip") {
+		ops = append(ops, executor.Op{Kind: "pkg_del", Args: []string{"luci-app-banip"}})
+	}
+	if err := executor.Apply(ops, nil); err != nil {
+		return ProbeBanIP(), fmt.Errorf("uninstall banip: %w", err)
 	}
 	return ProbeBanIP(), nil
 }

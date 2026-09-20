@@ -68,6 +68,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/banip/action", s.requireAuth(s.handleBanipAction))
 	s.mux.HandleFunc("POST /api/banip/feeds", s.requireAuth(s.handleBanipFeeds))
 	s.mux.HandleFunc("POST /api/banip/install", s.requireAuth(s.handleBanipInstall))
+	s.mux.HandleFunc("POST /api/banip/uninstall", s.requireAuth(s.handleBanipUninstall))
+	s.mux.HandleFunc("GET /api/banip/status", s.requireAuth(s.handleBanipStatus))
 	s.mux.HandleFunc("GET /api/banip/search", s.requireAuth(s.handleBanipSearch))
 	s.mux.HandleFunc("GET /api/banip/allowlist", s.requireAuth(s.handleBanipListGet))
 	s.mux.HandleFunc("POST /api/banip/allowlist", s.requireAuth(s.handleBanipListAdd))
@@ -637,7 +639,9 @@ func (s *Server) handleDDNSForce(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleBanipGet(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, modules.ProbeBanIP())
+	// Cached (TTL 3s): the probe forks several commands and the UI loads
+	// it on page open; mutations invalidate the cache.
+	writeJSON(w, modules.ProbeBanIPCached())
 }
 
 type banipActionRequest struct {
@@ -680,6 +684,24 @@ func (s *Server) handleBanipInstall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, probe)
+}
+
+func (s *Server) handleBanipUninstall(w http.ResponseWriter, r *http.Request) {
+	var req banipInstallRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, err := modules.UninstallBanip(req.Confirm)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, probe)
+}
+
+func (s *Server) handleBanipStatus(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeBanipStatus())
 }
 
 func (s *Server) handleBanipSearch(w http.ResponseWriter, r *http.Request) {
