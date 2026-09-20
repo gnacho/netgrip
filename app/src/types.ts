@@ -663,6 +663,9 @@ export interface BanipFeed {
   direction: "" | "in" | "out" | "inout";
   /** true when the feed exists in the local catalog (banip.feeds / custom) */
   in_catalog: boolean;
+  /** catalog defaults, attached by the backend for configured feeds too */
+  chain?: "" | "in" | "out" | "inout";
+  ipv6?: boolean;
 }
 
 /** One feed available in the local catalog, not yet configured in UCI. */

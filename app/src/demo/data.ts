@@ -733,12 +733,12 @@ export const demoBanip: T.BanipProbe = {
   version: "1.5.6-r7",
   mem_available_mb: 412,
   feeds: [
-    { name: "cinsscore", enabled: true, direction: "", in_catalog: true },
-    { name: "debl", enabled: true, direction: "", in_catalog: true },
-    { name: "turris", enabled: true, direction: "", in_catalog: true },
-    { name: "doh", enabled: true, direction: "out", in_catalog: true },
-    { name: "hagezi", enabled: false, direction: "out", in_catalog: true },
-    { name: "country", enabled: false, direction: "inout", in_catalog: true },
+    { name: "cinsscore", enabled: true, direction: "", in_catalog: true, chain: "in", ipv6: true },
+    { name: "debl", enabled: true, direction: "", in_catalog: true, chain: "in", ipv6: true },
+    { name: "turris", enabled: true, direction: "", in_catalog: true, chain: "in", ipv6: true },
+    { name: "doh", enabled: true, direction: "out", in_catalog: true, chain: "out", ipv6: true },
+    { name: "hagezi", enabled: false, direction: "out", in_catalog: true, chain: "out", ipv6: true },
+    { name: "country", enabled: false, direction: "inout", in_catalog: true, chain: "in", ipv6: true },
   ],
   catalog: [
     { name: "firehol1", descr: "firehol level 1 compilation", chain: "in", ipv6: true, custom: false },

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, Info, Play, Plus, RefreshCw, Search, ShieldBan, ShieldCheck, Square, Trash2 } from "lucide-react";
+import { ArrowDownToLine, ArrowUpDown, ArrowUpFromLine, Ban, Info, Play, Plus, RefreshCw, Search, ShieldBan, ShieldCheck, Square, Trash2 } from "lucide-react";
 import { api } from "../api";
 import type { BanipCatalogFeed, BanipFeed, BanipProbe, BanipSearchResult, BanipStatus } from "../types";
 import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Pill, SegmentedControl, SkeletonRows, useToast } from "../components/ui";
@@ -65,9 +65,13 @@ function FeedInfoButton({ name, descr, chain, ipv6 }: { name: string; descr?: st
           <span className="block text-small font-semibold mb-1">{name}</span>
           <span className="block text-small text-muted">{body}</span>
           {chain !== undefined && (
-            <span className="mt-2 block text-caption text-faint">
-              {t("banip.feedInfoDirection")}: {chain ? t(chain === "inout" ? "banip.dirBoth" : chain === "in" ? "banip.dirIn" : "banip.dirOut") : t("banip.dirDefault")}
-              {" · "}{ipv6 ? t("banip.feedInfoIpv6") : t("banip.feedInfoIpv4Only")}
+            <span className="mt-2 flex items-center gap-1.5 text-caption text-faint">
+              {chain === "in" && <ArrowDownToLine size={12} aria-hidden="true" />}
+              {chain === "out" && <ArrowUpFromLine size={12} aria-hidden="true" />}
+              {chain === "inout" && <ArrowUpDown size={12} aria-hidden="true" />}
+              <span>{chain === "" ? t("banip.dirDefault") : t(chain === "inout" ? "banip.dirBoth" : chain === "in" ? "banip.dirIn" : "banip.dirOut")}</span>
+              <span aria-hidden="true">·</span>
+              <span>{ipv6 ? t("banip.feedInfoIpv6") : t("banip.feedInfoIpv4Only")}</span>
             </span>
           )}
           <span className="sr-only">{t("common.escToClose")}</span>
@@ -422,7 +426,7 @@ function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: 
                     <span className="inline-flex items-center">
                       <span className="font-mono text-small">{f.name}</span>
                       {recommended(f.name) && <RecommendedTag />}
-                      <span className="ml-1.5"><FeedInfoButton name={f.name} /></span>
+                      <span className="ml-1.5"><FeedInfoButton name={f.name} chain={f.chain} ipv6={f.ipv6} /></span>
                       {!f.in_catalog && <span className="ml-1 text-caption text-faint" title={t("banip.notInCatalog")}>·</span>}
                     </span>
                   </td>
