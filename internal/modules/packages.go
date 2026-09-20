@@ -85,6 +85,9 @@ func ListOptionalPackages() []OptionalPkg {
 // ResolveOptionalPackageIDs validates ids against the catalog and returns the
 // flat package list for those entries, skipping already-installed ones.
 func ResolveOptionalPackageIDs(ids []string) ([]string, error) {
+	if len(ids) == 0 {
+		return nil, fmt.Errorf("no package ids provided")
+	}
 	pkgs := []string{}
 	for _, id := range ids {
 		var entry *OptionalPkg

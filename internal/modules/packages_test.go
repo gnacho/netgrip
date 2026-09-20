@@ -69,3 +69,12 @@ func TestInstallOptionalPackagesRejectsUnknownID(t *testing.T) {
 		t.Fatal("expected error for unknown id")
 	}
 }
+
+func TestResolveOptionalPackageIDsEmpty(t *testing.T) {
+	if _, err := ResolveOptionalPackageIDs(nil); err == nil {
+		t.Errorf("empty ids must fail instead of returning a silent empty job")
+	}
+	if _, err := ResolveOptionalPackageIDs([]string{}); err == nil {
+		t.Errorf("empty ids must fail instead of returning a silent empty job")
+	}
+}
