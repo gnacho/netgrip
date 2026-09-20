@@ -40,6 +40,7 @@ func ensureVpnSection() error {
 // SetVPNPublicHost persists (or clears, when empty) the hostname used as
 // the remote endpoint of generated client configs.
 func SetVPNPublicHost(host string) error {
+	InvalidateKey("openvpn")
 	host = strings.TrimSpace(host)
 	if host != "" && !validPublicHostRe.MatchString(host) {
 		return fmt.Errorf("invalid host")

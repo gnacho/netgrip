@@ -65,6 +65,7 @@ func ProbeIPv6() *IPv6Probe {
 // SetIPv6 applies the desired state with snapshot + healthcheck + rollback.
 // Returns the resulting probe, whether a rollback happened, and any error.
 func SetIPv6(enable bool) (*IPv6Probe, bool, error) {
+	InvalidateKey("ipv6")
 	snapNetwork, err := executor.Snapshot("network")
 	if err != nil {
 		return nil, false, fmt.Errorf("snapshot network: %w", err)

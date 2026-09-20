@@ -44,6 +44,7 @@ func ProbeMDNS() *MDNSProbe {
 // SetMDNS applies the mDNS reflector enable/disable with snapshot, reload and
 // rollback.
 func SetMDNS(enabled bool) (*MDNSProbe, bool, error) {
+	InvalidateKey("mdns")
 	probe := ProbeMDNS()
 	if !probe.Installed && !enabled {
 		return probe, false, nil

@@ -102,6 +102,7 @@ func ProbeIoT() *IoTProbe {
 // SetIoT applies the IoT SSID configuration with snapshot, per-radio reload
 // and rollback.
 func SetIoT(cfg IoTConfig) (*IoTProbe, bool, error) {
+	InvalidateKey("iotwifi")
 	snapWireless, err := executor.Snapshot("wireless")
 	if err != nil {
 		return nil, false, fmt.Errorf("snapshot wireless: %w", err)

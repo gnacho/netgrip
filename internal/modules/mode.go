@@ -67,6 +67,8 @@ func hasWifiRadios() bool {
 // management path, so it snapshots network/dhcp/firewall, runs a healthcheck
 // and rolls back on failure. The caller must confirm explicitly.
 func SetMode(target string) (*ModeProbe, bool, error) {
+	InvalidateKey("mode")
+	invalidateClients()
 	probe := ProbeMode()
 	if target != "router" && target != "ap" {
 		return probe, false, fmt.Errorf("target must be router or ap")

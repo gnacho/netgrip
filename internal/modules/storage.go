@@ -144,6 +144,7 @@ func probeStorageService(name string) StorageService {
 }
 
 func SetStorageService(name string, action string) error {
+	InvalidateKey("storage")
 	if action != "enable" && action != "disable" {
 		return nil
 	}

@@ -73,6 +73,7 @@ func ProbeGuest() *GuestProbe {
 
 // SetGuest applies the guest WiFi configuration with snapshots and rollback.
 func SetGuest(cfg GuestConfig) (*GuestProbe, bool, error) {
+	InvalidateKey("guestwifi")
 	probe := ProbeGuest()
 	if !probe.Gateway {
 		return probe, false, fmt.Errorf("guest WiFi needs a gateway (WAN + firewall); not possible on a dumb AP")

@@ -109,6 +109,8 @@ func missingWifiSections(seen map[string]bool, configured []string) []string {
 // a reload of every affected radio, a healthcheck per section, and rollback
 // on failure.
 func SetWifi(edit WifiEdit) (*WifiUI, bool, error) {
+	InvalidateKey("wireless")
+	InvalidateKey("ucishow|wireless")
 	if edit.Section == "" {
 		return nil, false, fmt.Errorf("section is required")
 	}
@@ -191,6 +193,8 @@ func wifiTargetSections(edit WifiEdit) []string {
 // device with a snapshot of wireless, a reload of that radio, a healthcheck
 // that the radio stays up on the requested channel, and rollback on failure.
 func SetWifiRadio(edit RadioEdit) (*ubus.WirelessRadio, bool, error) {
+	InvalidateKey("wireless")
+	InvalidateKey("ucishow|wireless")
 	if edit.Radio == "" {
 		return nil, false, fmt.Errorf("radio is required")
 	}

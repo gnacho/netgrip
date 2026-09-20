@@ -84,6 +84,7 @@ func tsLoginURL() string {
 
 // SetTailscale enables or disables Tailscale.
 func SetTailscale(enable bool) (*TSProbe, bool, error) {
+	InvalidateKey("tailscale")
 	if enable {
 		return enableTailscale()
 	}

@@ -77,6 +77,7 @@ func ListSnapshots() []ConfigSnapshot {
 }
 
 func CreateSnapshot() (*ConfigSnapshot, error) {
+	InvalidateKey("drift")
 	id := time.Now().Format("20060102-150405")
 	dir := filepath.Join(snapshotDir, id)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -101,6 +102,7 @@ func CreateSnapshot() (*ConfigSnapshot, error) {
 }
 
 func DeleteSnapshot(id string) error {
+	InvalidateKey("drift")
 	if !isValidSnapshotID(id) {
 		return fmt.Errorf("invalid snapshot id")
 	}
@@ -130,6 +132,7 @@ func DiffSnapshots(from, to string) ([]ConfigDiff, error) {
 }
 
 func RollbackSnapshot(id string) error {
+	InvalidateKey("drift")
 	if !isValidSnapshotID(id) {
 		return fmt.Errorf("invalid snapshot id")
 	}

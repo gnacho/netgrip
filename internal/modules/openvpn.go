@@ -178,6 +178,7 @@ func ensureOVPNPKI() error {
 
 // SetOVPN enables or disables the OpenVPN server.
 func SetOVPN(enable bool) (*OVPNProbe, bool, error) {
+	InvalidateKey("openvpn")
 	snapOvpn := snapshotIfExists("openvpn")
 	snapNetwork, err := executor.Snapshot("network")
 	if err != nil {
@@ -402,6 +403,7 @@ func lanRouteFromUbus(out string) string {
 
 // AddOVPNClient issues a client certificate and returns the ready .ovpn.
 func AddOVPNClient(name, remote string) (string, *OVPNProbe, error) {
+	InvalidateKey("openvpn")
 	probe := ProbeOVPN()
 	if !probe.Active {
 		return "", probe, fmt.Errorf("openvpn is not enabled")
@@ -428,6 +430,7 @@ func AddOVPNClient(name, remote string) (string, *OVPNProbe, error) {
 
 // RemoveOVPNClient revokes a client certificate and regenerates the CRL.
 func RemoveOVPNClient(name string) (*OVPNProbe, error) {
+	InvalidateKey("openvpn")
 	probe := ProbeOVPN()
 	if !validNameRe.MatchString(name) {
 		return probe, fmt.Errorf("invalid client name")
