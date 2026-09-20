@@ -296,6 +296,8 @@ export const demoDns: T.DNSConfig = {
   override_dns: false,
   dns_vpn: false,
   adguard_active: true,
+  adguard_installed: true,
+  adguard_running: true,
   hosts: [{ ip: "192.168.8.10", hostname: "nas" }],
 };
 

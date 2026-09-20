@@ -361,6 +361,8 @@ export interface DNSConfig {
   override_dns: boolean;
   dns_vpn: boolean;
   adguard_active: boolean;
+  adguard_installed: boolean;
+  adguard_running: boolean;
   hosts: HostEntry[];
 }
 

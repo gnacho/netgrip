@@ -249,7 +249,14 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
     }),
-  dns: () => request<import("./types").DNSConfig>("/api/dns"),
+  dns: () =>
+    request<import("./types").DNSConfig>("/api/dns"),
+  adguardAction: (action: "start" | "stop") =>
+    request<import("./types").ModuleResult<import("./types").DNSConfig>>("/api/dns/adguard/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    }),
   setDns: (opts: { rebind_protection?: boolean; override_dns?: boolean; dns_vpn?: boolean }) =>
     request<import("./types").ModuleResult<import("./types").DNSConfig>>("/api/dns", {
       method: "POST",

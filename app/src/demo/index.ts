@@ -462,6 +462,12 @@ export const demoApi: typeof api = {
     return write(state.lan);
   },
   dns: () => get(state.dns),
+  adguardAction: async (action: "start" | "stop") => {
+    await wait(800, 1500);
+    state.dns.adguard_running = action === "start";
+    state.dns.adguard_installed = true;
+    return { status: "applied" as const, rolled_back: false, state: { ...state.dns } };
+  },
   setDns: async (opts) => { Object.assign(state.dns, opts); return write(state.dns); },
   setDnsHost: async (ip, hostname, remove) => {
     state.dns.hosts = remove
