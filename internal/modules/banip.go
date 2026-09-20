@@ -122,33 +122,70 @@ type BanipProbe struct {
 // path invalidates the cache.
 var banipCache = struct {
 	sync.Mutex
-	probe    *BanipProbe
-	at       time.Time
-	status   *BanipStatus
-	statusAt time.Time
+	probe        *BanipProbe
+	at           time.Time
+	status       *BanipStatus
+	statusAt     time.Time
+	revalidating bool
+	gen          uint64
 }{}
 
 const banipCacheTTL = 3 * time.Second
+
+// banipRevalidateAfter bounds the age of a stale probe served while a
+// background refresh runs: the report alone takes seconds on a router and
+// its numbers move slowly, so up to a minute of staleness is invisible in
+// the UI while every menu entry stays instant.
+const banipRevalidateAfter = 60 * time.Second
 
 // banipStatusTTL is shorter than the probe TTL: the status feeds the
 // Services card and the progressive page paint, where 2s of staleness is
 // invisible but every saved fork is felt.
 const banipStatusTTL = 2 * time.Second
 
-// ProbeBanIPCached returns the cached probe while it is fresh; mutations
-// invalidate via banipInvalidate.
+// ProbeBanIPCached returns the cached probe. Fresh entries (3s) are served
+// as is; stale-but-recent entries (up to banipRevalidateAfter) are served
+// instantly AND refreshed in a background goroutine, so entering the menu
+// never blocks on the slow report. Older or missing entries compute
+// synchronously. Mutations invalidate via banipInvalidate.
 func ProbeBanIPCached() *BanipProbe {
 	banipCache.Lock()
-	p, at := banipCache.probe, banipCache.at
-	banipCache.Unlock()
-	if p != nil && time.Since(at) < banipCacheTTL {
+	p, at, gen := banipCache.probe, banipCache.at, banipCache.gen
+	age := time.Since(at)
+	switch {
+	case p != nil && age < banipCacheTTL:
+		banipCache.Unlock()
 		return p
+	case p != nil && age < banipRevalidateAfter:
+		if !banipCache.revalidating {
+			banipCache.revalidating = true
+			go banipRevalidate(gen)
+		}
+		banipCache.Unlock()
+		return p
+	default:
+		banipCache.Unlock()
+		np := ProbeBanIP()
+		banipCache.Lock()
+		if gen == banipCache.gen {
+			banipCache.probe, banipCache.at = np, time.Now()
+		}
+		banipCache.Unlock()
+		return np
 	}
-	p = ProbeBanIP()
+}
+
+// banipRevalidate recomputes the probe in the background after a stale
+// entry was served. A mutation bumping the generation (banipInvalidate)
+// discards the result: the next read recomputes from live state.
+func banipRevalidate(gen uint64) {
+	np := ProbeBanIP()
 	banipCache.Lock()
-	banipCache.probe, banipCache.at = p, time.Now()
-	banipCache.Unlock()
-	return p
+	defer banipCache.Unlock()
+	banipCache.revalidating = false
+	if gen == banipCache.gen {
+		banipCache.probe, banipCache.at = np, time.Now()
+	}
 }
 
 // banipInvalidate drops the cached probe and status. Write paths call this
@@ -157,6 +194,8 @@ func banipInvalidate() {
 	banipCache.Lock()
 	banipCache.probe = nil
 	banipCache.status = nil
+	banipCache.revalidating = false
+	banipCache.gen++
 	banipCache.Unlock()
 }
 
