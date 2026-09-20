@@ -1,6 +1,9 @@
 package modules
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // `uci show network` shape from a board with 802.1Q VLAN filtering:
 // bridge-vlan sections render their type as the VALUE of the bare section
@@ -73,6 +76,27 @@ network.@bridge-vlan[0].ports='lan3:t'
 	ports := parseUCIShow(show, "network")["@bridge-vlan[0]"].Options["ports"]
 	if len(ports) != 3 {
 		t.Fatalf("ports = %v, want 3 values", ports)
+	}
+}
+
+// uci show renders a whole list on ONE line as space-separated quoted
+// tokens ('a' 'b' 'c'); each token is its own element.
+func TestParseUCIShowSplitsSingleLineLists(t *testing.T) {
+	show := `banip.global=banip
+banip.global.ban_feed='cinsscore' 'debl' 'turris' 'doh'
+banip.global.ban_feedin='cinsscore' 'debl'
+banip.global.ban_descr=a plain scalar
+`
+	opts := parseUCIShow(show, "banip")["global"].Options
+	want := map[string][]string{
+		"ban_feed":   {"cinsscore", "debl", "turris", "doh"},
+		"ban_feedin": {"cinsscore", "debl"},
+		"ban_descr":  {"a plain scalar"},
+	}
+	for k, w := range want {
+		if got := opts[k]; len(got) != len(w) || strings.Join(got, ",") != strings.Join(w, ",") {
+			t.Fatalf("%s = %v, want %v", k, got, w)
+		}
 	}
 }
 

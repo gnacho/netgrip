@@ -41,11 +41,10 @@ func parseUCIShow(show, pkg string) map[string]uciSection {
 		if !ok {
 			continue
 		}
-		val = strings.Trim(val, "'")
 		name, attr, isAttr := strings.Cut(key, ".")
 		if !isAttr {
 			s := sections[name]
-			s.Type = val
+			s.Type = strings.Trim(val, "'")
 			if s.Options == nil {
 				s.Options = map[string][]string{}
 			}
@@ -56,10 +55,40 @@ func parseUCIShow(show, pkg string) map[string]uciSection {
 		if !ok {
 			continue // attribute of a section we never saw declared
 		}
-		s.Options[attr] = append(s.Options[attr], val)
+		s.Options[attr] = append(s.Options[attr], parseUCIValues(val)...)
 		sections[name] = s
 	}
 	return sections
+}
+
+// parseUCIValues splits a `uci show` value into its list elements. uci show
+// renders a list option as space-separated quoted tokens
+// ('a' 'b' 'c'); a scalar is a single quoted token ('a'). Anything that does
+// not match that shape exactly (no quotes, embedded spaces in values) is
+// returned as one raw element, matching the previous behavior.
+func parseUCIValues(val string) []string {
+	val = strings.TrimSpace(val)
+	if !strings.HasPrefix(val, "'") || !strings.HasSuffix(val, "'") {
+		return []string{val}
+	}
+	var out []string
+	rest := val
+	for rest != "" {
+		rest = strings.TrimPrefix(rest, "'")
+		v, _, ok := strings.Cut(rest, "'")
+		if !ok {
+			return []string{val} // unbalanced quotes: raw fallback
+		}
+		out = append(out, v)
+		rest = strings.TrimSpace(strings.TrimPrefix(rest, v+"'"))
+		if rest != "" && !strings.HasPrefix(rest, "'") {
+			return []string{val} // not a clean quoted list: raw fallback
+		}
+	}
+	if len(out) == 0 {
+		return []string{val}
+	}
+	return out
 }
 
 func uciShowNetwork() (string, error) {
