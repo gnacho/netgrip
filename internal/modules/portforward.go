@@ -3,7 +3,6 @@ package modules
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"sort"
 	"strconv"
@@ -48,14 +47,25 @@ var (
 )
 
 // firewallSections lists the UCI section names of a firewall type
-// ("redirect", "rule", "zone").
+// ("redirect", "rule", "zone"). The show is memoized 2s (#356): it is
+// read on every polling burst and the block list reads the same package.
 func firewallSections(kind string) []string {
-	out, err := exec.Command("sh", "-c",
-		"uci show firewall | grep '="+kind+"$' | cut -d. -f2 | cut -d= -f1").Output()
-	if err != nil {
+	out, ok := uciShowCached("firewall")
+	if !ok {
 		return nil
 	}
-	return strings.Fields(string(out))
+	var sections []string
+	for _, line := range strings.Split(out, "\n") {
+		// firewall.<section>=<kind>
+		parts := strings.SplitN(strings.TrimSpace(line), "=", 2)
+		if len(parts) != 2 || parts[1] != kind {
+			continue
+		}
+		if dot := strings.LastIndex(parts[0], "."); dot >= 0 {
+			sections = append(sections, parts[0][dot+1:])
+		}
+	}
+	return sections
 }
 
 // internetZones names the firewall zones that face the Internet: the ones
@@ -258,6 +268,8 @@ func validProto(p string) bool {
 
 // AddFwdRule creates a redirect rule with snapshot, reload and rollback.
 func AddFwdRule(srcDport, destIP, destPort, proto string) (*FwdProbe, bool, error) {
+	InvalidateKey("ucishow|firewall")
+	InvalidateKey("portforward")
 	if err := fwdApplicable(); err != nil {
 		return ProbeFwd(), false, err
 	}
@@ -308,6 +320,8 @@ func AddFwdRule(srcDport, destIP, destPort, proto string) (*FwdProbe, bool, erro
 
 // RemoveFwdRule deletes a redirect rule by section.
 func RemoveFwdRule(section string) (*FwdProbe, bool, error) {
+	InvalidateKey("ucishow|firewall")
+	InvalidateKey("portforward")
 	if err := fwdApplicable(); err != nil {
 		return ProbeFwd(), false, err
 	}

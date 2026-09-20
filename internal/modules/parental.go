@@ -212,6 +212,7 @@ func ProbeParental() ParentalProbe {
 
 // SetParentalRule upserts one schedule and applies its block state immediately.
 func SetParentalRule(req ParentalRule) (ParentalProbe, error) {
+	invalidateClients()
 	if err := validParentalRule(&req); err != nil {
 		return ProbeParental(), err
 	}
@@ -227,6 +228,7 @@ func SetParentalRule(req ParentalRule) (ParentalProbe, error) {
 
 // RemoveParentalRule deletes a schedule and clears any applied block.
 func RemoveParentalRule(mac string) (ParentalProbe, error) {
+	invalidateClients()
 	mac = normalizeMac(mac)
 	if mac == "" {
 		return ProbeParental(), fmt.Errorf("invalid mac")

@@ -199,6 +199,17 @@ func ListClients(requesterIP string) []Client {
 	return clients
 }
 
+// invalidateClients drops every cached read the clients views depend on.
+// All clients write paths (reserve, block, meta, parental, quota) call it
+// so a change is never served stale: the listing is polled every 3s and
+// cached for 2s (#356).
+func invalidateClients() {
+	InvalidatePrefix("clients")
+	InvalidateKey("ucishow|dhcp")
+	InvalidateKey("ucishow|wireless")
+	InvalidateKey("ucishow|firewall")
+}
+
 // gatewayAddr resolves the default gateway address (the DHCP server for
 // the LAN on dumb APs).
 func gatewayAddr() string {
@@ -352,9 +363,10 @@ func dhcpReservations() map[string]dhcpReservation {
 	// then asking `uci get` for each name, address and MAC meant three
 	// forks per reservation — a quarter of a second on a router with a
 	// couple of dozen of them, on a listing that is polled every few
-	// seconds.
-	if out, err := exec.Command("uci", "show", "dhcp").Output(); err == nil {
-		for section, sec := range parseUCIShow(string(out), "dhcp") {
+	// seconds. Memoized 2s so the wireless probe polling the same burst
+	// does not fork the same show again (#356).
+	if out, ok := uciShowCached("dhcp"); ok {
+		for section, sec := range parseUCIShow(out, "dhcp") {
 			if sec.Type != "host" {
 				continue
 			}
@@ -430,11 +442,13 @@ func blockedBands() (denied map[string]map[string]bool, avail map[string]bool) {
 	// One read of the whole config: asking `uci get` for the radio, the
 	// band, the filter mode and the list of each wireless interface meant
 	// four forks per interface, on a listing polled every few seconds.
-	out, err := exec.Command("uci", "show", "wireless").Output()
-	if err != nil {
+	// Memoized 2s (#356): the wireless probe asks for the same show within
+	// the same polling burst.
+	out, ok := uciShowCached("wireless")
+	if !ok {
 		return denied, avail
 	}
-	sections := parseUCIShow(string(out), "wireless")
+	sections := parseUCIShow(out, "wireless")
 	for _, sec := range sections {
 		if sec.Type != "wifi-iface" {
 			continue
@@ -521,6 +535,7 @@ func gatewaySSHExec(command string) error {
 // On the gateway itself it uses local dnsmasq/UCI. On APs it delegates the
 // same UCI operations to the gateway over SSH (#192).
 func SetClientReservation(mac, ip string, reserved bool) (*[]Client, bool, error) {
+	invalidateClients()
 	mac = strings.ToLower(mac)
 	if !reMac.MatchString(mac) || (reserved && !reIPv4.MatchString(ip)) {
 		return nil, false, fmt.Errorf("invalid mac/ip")
@@ -566,6 +581,7 @@ func SetClientReservation(mac, ip string, reserved bool) (*[]Client, bool, error
 // setGatewayClientReservation applies a DHCP reservation on the gateway via SSH.
 // It intentionally does not snapshot/rollback over SSH; failures are surfaced to the UI.
 func setGatewayClientReservation(mac, ip string, reserved bool) (*[]Client, bool, error) {
+	invalidateClients()
 	if err := gatewaySSHExec("/etc/init.d/dnsmasq running"); err != nil {
 		return nil, false, fmt.Errorf("DHCP reservations on the gateway need a running dnsmasq")
 	}
@@ -596,6 +612,7 @@ func setGatewayClientReservation(mac, ip string, reserved bool) (*[]Client, bool
 // band selects the scope for WiFi: "" (all bands), "2g", "5g" or "6g";
 // unblocking with band "" removes every deny entry (#163).
 func SetClientBlocked(mac, typ, band string, blocked bool) (*[]Client, bool, error) {
+	invalidateClients()
 	mac = strings.ToLower(mac)
 	if !reMac.MatchString(mac) {
 		return nil, false, fmt.Errorf("invalid mac")
@@ -660,6 +677,7 @@ func SetClientBlocked(mac, typ, band string, blocked bool) (*[]Client, bool, err
 }
 
 func setCableBlocked(mac string, blocked bool) (*[]Client, bool, error) {
+	invalidateClients()
 	if !executor.ServiceEnabled("firewall") {
 		return nil, false, fmt.Errorf("blocking wired clients needs the firewall (gateway)")
 	}

@@ -433,6 +433,7 @@ func QuotaUsageForClients() map[string]QuotaUsage {
 
 // SetQuota upserts one quota and rebuilds the accounting/throttle ruleset.
 func SetQuota(q Quota) (*QuotaProbe, error) {
+	invalidateClients()
 	if err := validQuota(&q); err != nil {
 		return ProbeQuota(), err
 	}
@@ -456,6 +457,7 @@ func SetQuota(q Quota) (*QuotaProbe, error) {
 
 // RemoveQuota deletes one quota and rebuilds the ruleset.
 func RemoveQuota(mac string) (*QuotaProbe, error) {
+	invalidateClients()
 	mac = normalizeMac(mac)
 	if mac == "" {
 		return ProbeQuota(), fmt.Errorf("invalid mac")

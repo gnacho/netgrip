@@ -69,6 +69,7 @@ func GetClientMeta() clientMetaPayload {
 // MAC and persists it. If both fields are empty the entry is removed
 // entirely (#165). Returns the updated metadata map.
 func SetClientMeta(mac, name, deviceType string) (clientMetaPayload, error) {
+	invalidateClients()
 	mac = normalizeMac(mac)
 	if mac == "" {
 		return clientMetaPayload{}, os.ErrInvalid
