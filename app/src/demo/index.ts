@@ -381,6 +381,8 @@ export const demoApi: typeof api = {
   banipInstall: async () => {
     await wait(1500, 3000);
     state.banip.installed = true;
+    state.banip.enabled = true;
+    state.banip.running = true;
     return state.banip;
   },
   banipUninstall: async () => {
