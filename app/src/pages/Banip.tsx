@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, Play, Plus, RefreshCw, Search, ShieldBan, ShieldCheck, Square, Trash2 } from "lucide-react";
+import { Ban, Info, Play, Plus, RefreshCw, Search, ShieldBan, ShieldCheck, Square, Trash2 } from "lucide-react";
 import { api } from "../api";
 import type { BanipCatalogFeed, BanipFeed, BanipProbe, BanipSearchResult, BanipStatus } from "../types";
 import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Pill, SegmentedControl, SkeletonRows, useToast } from "../components/ui";
@@ -8,6 +8,74 @@ import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Pill, Se
 type Tab = "feeds" | "search" | "lists" | "dos";
 
 const fmtInt = new Intl.NumberFormat();
+
+// Preset recomendado (#350): base sensata (~20K IPs) mantenida por la
+// comunidad; doh va en cadena de salida porque bloquea DNS-over-HTTPS.
+const RECOMMENDED_FEEDS: { name: string; direction: BanipFeed["direction"] }[] = [
+  { name: "cinsscore", direction: "" },
+  { name: "debl", direction: "" },
+  { name: "turris", direction: "" },
+  { name: "doh", direction: "out" },
+];
+
+/** Pill "Recomendada" para las feeds del preset. */
+function RecommendedTag() {
+  const { t } = useTranslation();
+  return <Pill tone="accent" className="ml-2">{t("banip.feedRecommended")}</Pill>;
+}
+
+/**
+ * Botón (i) por feed: explica en lenguaje sencillo qué lista es. Usa el
+ * diccionario curado (banip.feedInfo.<name>) y cae al descr del catálogo
+ * de banIP cuando no hay entrada. Solo las entradas del catálogo añaden
+ * dirección por defecto e IPv6 (son los únicos datos que tenemos).
+ */
+function FeedInfoButton({ name, descr, chain, ipv6 }: { name: string; descr?: string; chain?: BanipFeed["direction"] | ""; ipv6?: boolean }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const body = t(`banip.feedInfo.${name}`, { defaultValue: descr || t("banip.feedInfoFallback") });
+  return (
+    <span ref={ref} className="relative inline-flex shrink-0 align-middle">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-label={t("banip.feedInfoLabel", { name })}
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full text-faint hover:text-accent ring-focus transition-colors"
+      >
+        <Info size={14} />
+      </button>
+      {open && (
+        <span role="tooltip" className="absolute left-1/2 -translate-x-1/2 top-6 z-40 block w-[min(280px,calc(100vw-48px))] rounded-md border border-border bg-surface p-3 text-left shadow-elevated animate-banner-in">
+          <span className="block text-small font-semibold mb-1">{name}</span>
+          <span className="block text-small text-muted">{body}</span>
+          {chain !== undefined && (
+            <span className="mt-2 block text-caption text-faint">
+              {t("banip.feedInfoDirection")}: {chain ? t(chain === "inout" ? "banip.dirBoth" : chain === "in" ? "banip.dirIn" : "banip.dirOut") : t("banip.dirDefault")}
+              {" · "}{ipv6 ? t("banip.feedInfoIpv6") : t("banip.feedInfoIpv4Only")}
+            </span>
+          )}
+          <span className="sr-only">{t("common.escToClose")}</span>
+        </span>
+      )}
+    </span>
+  );
+}
 
 /** Tarjeta de cifra clave del resumen. */
 function StatCard({ index, label, value, hint }: { index: number; label: string; value: string; hint?: string }) {
@@ -30,6 +98,7 @@ export function BanipPage() {
   const [tab, setTab] = useState<Tab>("feeds");
   const [confirmInstall, setConfirmInstall] = useState(false);
   const [confirmUninstall, setConfirmUninstall] = useState(false);
+  const [confirmReload, setConfirmReload] = useState(false);
 
   // Carga progresiva (#354): el status ligero pinta la página al instante
   // (mipsle tarda ~9s en el probe completo, dominado por `banip report`);
@@ -114,13 +183,22 @@ export function BanipPage() {
             {stActive ? t("banip.stateActive") : st?.enabled ? t("banip.stateStopped") : t("banip.stateDisabled")}
           </Pill>
           <span className="flex-1" />
-          <Button variant="primary" size="sm" disabled={busy !== null} onClick={() => run("reload", () => api.banipAction("reload"))}>
+          <Button variant="primary" size="sm" disabled={busy !== null} onClick={() => setConfirmReload(true)}>
             <RefreshCw size={14} aria-hidden="true" /> {t("banip.reload")}
           </Button>
+          <ConfirmDialog
+            open={confirmReload}
+            onClose={() => setConfirmReload(false)}
+            onConfirm={() => { setConfirmReload(false); run("reload", () => api.banipAction("reload")); }}
+            title={t("banip.reloadConfirmTitle")}
+            consequence={t("banip.reloadNote")}
+            confirmLabel={t("banip.reload")}
+            busy={busy === "reload"}
+          />
         </div>
-        <Banner tone="info">{t("banip.reloadNote")}</Banner>
+        <p className="text-small text-muted -mt-1">{t("banip.introDesc")}</p>
         <div className="grid grid-cols-2 md:grid-cols-12 gap-[var(--card-gap)]">
-          <div className="md:col-span-3"><SkeletonRows rows={2} /></div>
+        <div className="md:col-span-3"><SkeletonRows rows={2} /></div>
           <div className="md:col-span-3"><SkeletonRows rows={2} /></div>
           <div className="md:col-span-3"><SkeletonRows rows={2} /></div>
         </div>
@@ -167,9 +245,18 @@ export function BanipPage() {
         )}
         <Button variant="primary" size="sm" disabled={busy !== null}
           title={t("banip.reloadHint")}
-          onClick={() => run("reload", () => api.banipAction("reload"))}>
+          onClick={() => setConfirmReload(true)}>
           <RefreshCw size={14} aria-hidden="true" /> {t("banip.reload")}
         </Button>
+        <ConfirmDialog
+          open={confirmReload}
+          onClose={() => setConfirmReload(false)}
+          onConfirm={() => { setConfirmReload(false); run("reload", () => api.banipAction("reload")); }}
+          title={t("banip.reloadConfirmTitle")}
+          consequence={t("banip.reloadNote")}
+          confirmLabel={t("banip.reload")}
+          busy={busy === "reload"}
+        />
         {active && (
           <Button variant="secondary" size="sm" disabled={busy !== null}
             onClick={() => run("stop", () => api.banipAction("stop"))}>
@@ -198,8 +285,8 @@ export function BanipPage() {
         />
       </div>
 
-      {/* Footgun: reload re-descarga feeds; start/stop solo restauran backups */}
-      <Banner tone="info">{t("banip.reloadNote")}</Banner>
+      {/* Explicación sencilla + avisos */}
+      <p className="text-small text-muted -mt-1">{t("banip.introDesc")}</p>
       {lowMem && <Banner tone="warn">{t("banip.lowMem", { mb: fmtInt.format(probe.mem_available_mb) })}</Banner>}
 
       {/* Resumen */}
@@ -284,12 +371,34 @@ function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: 
   // Catalog feeds not in the draft yet: these are the ones that can be added.
   const draftNames = new Set(draft.map((f) => f.name));
   const available = (probe.catalog ?? []).filter((c) => !draftNames.has(c.name));
+  const recommended = (name: string) => RECOMMENDED_FEEDS.some((r) => r.name === name);
 
   const addFromCatalog = (c: BanipCatalogFeed) =>
     setDraft((d) => [...d, { name: c.name, enabled: true, direction: c.chain, in_catalog: true }]);
 
+  const addRecommended = () =>
+    setDraft((d) => {
+      const names = new Set(d.map((f) => f.name));
+      const extra = RECOMMENDED_FEEDS.filter((r) => !names.has(r.name)).map((r) => ({
+        name: r.name,
+        enabled: true,
+        direction: r.direction,
+        in_catalog: true,
+      }));
+      return [...d, ...extra];
+    });
+
+  // Sin feeds configurados y servicio activo: sugerir el preset (#350).
+  const suggestRecommended = draft.length === 0 && probe.enabled && probe.running;
+
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
+      {suggestRecommended && (
+        <Banner tone="info"
+          action={<Button variant="secondary" size="sm" disabled={busy || saving} onClick={addRecommended}>{t("banip.addRecommended")}</Button>}>
+          {t("banip.recommendedBanner")}
+        </Banner>
+      )}
       <Card icon={ShieldCheck} iconTone="success" title={t("banip.feedsTitle")}
         action={<Button variant="primary" size="sm" disabled={!dirty || busy || saving} onClick={save}>{t("common.save")}</Button>}>
         {draft.length === 0 ? (
@@ -308,11 +417,15 @@ function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: 
               {draft.map((f) => {
                 const count = countFor(f.name);
                 return (
-                  <tr key={f.name} className="border-b border-border/40 last:border-0">
-                    <td className="py-2 pr-4">
+                <tr key={f.name} className="border-b border-border/40 last:border-0">
+                  <td className="py-2 pr-4">
+                    <span className="inline-flex items-center">
                       <span className="font-mono text-small">{f.name}</span>
-                      {!f.in_catalog && <span className="ml-2 text-caption text-faint" title={t("banip.notInCatalog")}>·</span>}
-                    </td>
+                      {recommended(f.name) && <RecommendedTag />}
+                      <span className="ml-1.5"><FeedInfoButton name={f.name} /></span>
+                      {!f.in_catalog && <span className="ml-1 text-caption text-faint" title={t("banip.notInCatalog")}>·</span>}
+                    </span>
+                  </td>
                     <td className="py-2 pr-4 text-right text-small tabular-nums">{count !== undefined && count > 0 ? fmtInt.format(count) : "—"}</td>
                     <td className="py-2 pr-4">
                       <input type="checkbox" aria-label={t("banip.feedEnabled")} className="accent-accent"
@@ -347,9 +460,13 @@ function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: 
               {available.map((c) => (
                 <tr key={c.name} className="border-b border-border/40 last:border-0">
                   <td className="py-2 pr-4">
-                    <span className="font-mono text-small">{c.name}</span>
-                    {c.custom && <Pill tone="muted" className="ml-2">{t("banip.feedCustom")}</Pill>}
-                    {c.ipv6 && <Pill tone="ok" className="ml-2">{t("banip.feedIpv6")}</Pill>}
+                    <span className="inline-flex items-center">
+                      <span className="font-mono text-small">{c.name}</span>
+                      {recommended(c.name) && <RecommendedTag />}
+                      <span className="ml-1.5"><FeedInfoButton name={c.name} descr={c.descr} chain={c.chain} ipv6={c.ipv6} /></span>
+                      {c.custom && <Pill tone="muted" className="ml-2">{t("banip.feedCustom")}</Pill>}
+                      {c.ipv6 && <Pill tone="ok" className="ml-2">{t("banip.feedIpv6")}</Pill>}
+                    </span>
                   </td>
                   <td className="py-2 pr-4 text-small text-muted max-w-[280px]">
                     <span className="line-clamp-1" title={c.descr}>{c.descr || "—"}</span>
