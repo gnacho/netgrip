@@ -639,6 +639,7 @@ export default {
     installConfirmBody: "El paquete se descarga del repositorio oficial de OpenWrt y los sets usan RAM mientras el servicio corre. En equipos con poca RAM, activa pocos feeds.",
     installOk: "banIP instalado",
     actionOk: "Hecho",
+    loadingDetails: "Cargando sets y contadores…",
     actionFailed: "Falló la acción de banIP",
     feedsTitle: "Feeds de bloqueo",
     feedsEmpty: "Aún no hay feeds configurados",

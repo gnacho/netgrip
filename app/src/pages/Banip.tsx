@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, Play, Plus, RefreshCw, Search, ShieldBan, ShieldCheck, Square, Trash2 } from "lucide-react";
 import { api } from "../api";
-import type { BanipCatalogFeed, BanipFeed, BanipProbe, BanipSearchResult } from "../types";
+import type { BanipCatalogFeed, BanipFeed, BanipProbe, BanipSearchResult, BanipStatus } from "../types";
 import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Pill, SegmentedControl, SkeletonRows, useToast } from "../components/ui";
 
 type Tab = "feeds" | "search" | "lists" | "dos";
@@ -24,16 +24,21 @@ export function BanipPage() {
   const { t } = useTranslation();
   const { push } = useToast();
   const [probe, setProbe] = useState<BanipProbe>();
+  const [st, setSt] = useState<BanipStatus>();
   const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("feeds");
   const [confirmInstall, setConfirmInstall] = useState(false);
   const [confirmUninstall, setConfirmUninstall] = useState(false);
 
+  // Carga progresiva (#354): el status ligero pinta la página al instante
+  // (mipsle tarda ~9s en el probe completo, dominado por `banip report`);
+  // el probe completo llega detrás y rellena stats y tabs.
   const load = useCallback(async () => {
+    setLoadError(false);
+    api.banipStatus().then(setSt).catch(() => {});
     try {
       setProbe(await api.banip());
-      setLoadError(false);
     } catch {
       setLoadError(true);
     }
@@ -63,11 +68,67 @@ export function BanipPage() {
   const dosAvailable = !!report?.parsed;
   const enabledFeeds = useMemo(() => probe?.feeds.filter((f) => f.enabled) ?? [], [probe?.feeds]);
 
-  if (loadError) {
+  const installDialog = (
+    <ConfirmDialog
+      open={confirmInstall}
+      onClose={() => setConfirmInstall(false)}
+      onConfirm={() => { setConfirmInstall(false); setBusy("install"); api.banipInstall().then((p) => { setProbe(p); setSt({ installed: true, enabled: p.enabled, running: p.running, applicable: p.applicable }); push({ tone: "ok", text: t("banip.installOk") }); }).catch((e) => push({ tone: "danger", text: t("banip.actionFailed"), detail: e instanceof Error ? e.message : String(e) })).finally(() => setBusy(null)); }}
+      title={t("banip.installConfirmTitle")}
+      consequence={t("banip.installConfirmBody")}
+      confirmLabel={t("banip.install")}
+      busy={busy === "install"}
+    />
+  );
+
+  const notInstalledView = (
+    <>
+      <EmptyState
+        illustration={<ShieldBan size={120} />}
+        title={t("banip.notInstalledTitle")}
+        body={t("banip.notInstalledBody")}
+        action={<Button variant="primary" onClick={() => setConfirmInstall(true)}>{t("banip.install")}</Button>}
+      />
+      {installDialog}
+    </>
+  );
+
+  if (loadError && !probe && !st) {
     return <EmptyState title={t("common.loadError")} action={<Button variant="secondary" size="sm" onClick={load}>{t("common.retry")}</Button>} />;
   }
+
+  // Estados decidibles desde el status ligero sin esperar al probe completo.
   if (!probe) {
-    return <div className="grid grid-cols-2 md:grid-cols-12 gap-[var(--card-gap)]"><SkeletonRows rows={4} /></div>;
+    if (st && !st.applicable) {
+      return <EmptyState illustration={<ShieldBan size={120} />} title={t("banip.notGatewayTitle")} body={t("banip.notGatewayBody")} />;
+    }
+    if (st && !st.installed) {
+      return notInstalledView;
+    }
+    // Status conocido (instalado) y probe completo en camino: header real +
+    // skeletons en las zonas lentas.
+    const stActive = !!st && st.enabled && st.running;
+    return (
+      <div className="flex flex-col gap-[var(--card-gap)]">
+        <div className="flex flex-wrap items-center gap-2">
+          <Pill tone={stActive ? "ok" : st?.enabled ? "warn" : "muted"} live={stActive}>
+            {stActive ? t("banip.stateActive") : st?.enabled ? t("banip.stateStopped") : t("banip.stateDisabled")}
+          </Pill>
+          <span className="flex-1" />
+          <Button variant="primary" size="sm" disabled={busy !== null} onClick={() => run("reload", () => api.banipAction("reload"))}>
+            <RefreshCw size={14} aria-hidden="true" /> {t("banip.reload")}
+          </Button>
+        </div>
+        <Banner tone="info">{t("banip.reloadNote")}</Banner>
+        <div className="grid grid-cols-2 md:grid-cols-12 gap-[var(--card-gap)]">
+          <div className="md:col-span-3"><SkeletonRows rows={2} /></div>
+          <div className="md:col-span-3"><SkeletonRows rows={2} /></div>
+          <div className="md:col-span-3"><SkeletonRows rows={2} /></div>
+        </div>
+        <Card><SkeletonRows rows={5} /></Card>
+        <p className="text-caption text-faint">{t("banip.loadingDetails")}</p>
+        {installDialog}
+      </div>
+    );
   }
 
   // Gateway-only: banIP only makes sense on the router that faces the internet.
@@ -76,25 +137,7 @@ export function BanipPage() {
   }
 
   if (!probe.installed) {
-    return (
-      <>
-        <EmptyState
-          illustration={<ShieldBan size={120} />}
-          title={t("banip.notInstalledTitle")}
-          body={t("banip.notInstalledBody")}
-          action={<Button variant="primary" onClick={() => setConfirmInstall(true)}>{t("banip.install")}</Button>}
-        />
-        <ConfirmDialog
-          open={confirmInstall}
-          onClose={() => setConfirmInstall(false)}
-          onConfirm={() => { setConfirmInstall(false); setBusy("install"); api.banipInstall().then((p) => { setProbe(p); push({ tone: "ok", text: t("banip.installOk") }); }).catch((e) => push({ tone: "danger", text: t("banip.actionFailed"), detail: e instanceof Error ? e.message : String(e) })).finally(() => setBusy(null)); }}
-          title={t("banip.installConfirmTitle")}
-          consequence={t("banip.installConfirmBody")}
-          confirmLabel={t("banip.install")}
-          busy={busy === "install"}
-        />
-      </>
-    );
+    return notInstalledView;
   }
 
   const active = probe.enabled && probe.running;
