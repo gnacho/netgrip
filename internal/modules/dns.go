@@ -5,6 +5,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/gnacho/netgrip/internal/executor"
 )
@@ -16,9 +17,14 @@ type DNSConfig struct {
 	Applicable    bool        `json:"applicable"`
 	RebindProtect bool        `json:"rebind_protection"`
 	OverrideDNS   bool        `json:"override_dns"`
-	DnsVpn        bool        `json:"dns_vpn"`
+	DnsVpn        bool        `json:"dns_vpn_local"`
 	AdGuardActive bool        `json:"adguard_active"`
-	Hosts         []HostEntry `json:"hosts"`
+	// AdGuardInstalled/AdGuardRunning describe the adguardhome package and
+	// its init.d service (lowercase "adguardhome", verified on OpenWrt
+	// 24.10); AdGuardActive is the dnsmasq side of the integration.
+	AdGuardInstalled bool `json:"adguard_installed"`
+	AdGuardRunning   bool `json:"adguard_running"`
+	Hosts            []HostEntry `json:"hosts"`
 }
 
 // HostEntry is one line of the custom hosts mapping.
@@ -41,7 +47,51 @@ func ProbeDNS() *DNSConfig {
 		AdGuardActive: dnsmasqBool("adguard_active") || uciGet("dhcp.lan.dhcp_option") != "",
 		Hosts:         parseHostsFile(hostsPath()),
 	}
+	c.AdGuardInstalled = pkgInstalled("adguardhome")
+	if c.AdGuardInstalled {
+		c.AdGuardRunning = executor.ServiceRunning("adguardhome")
+	}
 	return c
+}
+
+// validAdGuardActions are the service actions the card exposes.
+var validAdGuardActions = map[string]bool{"start": true, "stop": true}
+
+// AdGuardAction starts or stops the AdGuardHome service, also toggling its
+// rc.d autostart so the choice survives a reboot. Only available when the
+// package is installed; the healthcheck polls the running state and rolls
+// back by reversing the action.
+func AdGuardAction(action string) (*DNSConfig, bool, error) {
+	if !validAdGuardActions[action] {
+		return ProbeDNS(), false, fmt.Errorf("unsupported action %q", action)
+	}
+	if !pkgInstalled("adguardhome") {
+		return ProbeDNS(), false, fmt.Errorf("adguardhome is not installed")
+	}
+	rcAction := "enable"
+	if action == "stop" {
+		rcAction = "disable"
+	}
+	ops := []executor.Op{
+		{Kind: "initd", Args: []string{"adguardhome", action}},
+		{Kind: "initd", Args: []string{"adguardhome", rcAction}},
+	}
+	if err := executor.Apply(ops, nil); err != nil {
+		return ProbeDNS(), false, err
+	}
+	want := action == "start"
+	for i := 0; i < 10; i++ {
+		if executor.ServiceRunning("adguardhome") == want {
+			return ProbeDNS(), false, nil
+		}
+		time.Sleep(time.Second)
+	}
+	reverse := "start"
+	if action == "start" {
+		reverse = "stop"
+	}
+	_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"adguardhome", reverse}})
+	return ProbeDNS(), true, fmt.Errorf("healthcheck failed after %q, rolled back", action)
 }
 
 func dnsmasqBool(opt string) bool {
