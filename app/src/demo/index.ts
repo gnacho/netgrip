@@ -383,6 +383,22 @@ export const demoApi: typeof api = {
     state.banip.installed = true;
     return state.banip;
   },
+  banipUninstall: async () => {
+    await wait(1500, 3000);
+    state.banip.installed = false;
+    state.banip.running = false;
+    state.banip.enabled = false;
+    return state.banip;
+  },
+  banipStatus: async () => {
+    await wait(100, 250);
+    return {
+      installed: state.banip.installed,
+      enabled: state.banip.enabled,
+      running: state.banip.running,
+      applicable: state.banip.applicable,
+    };
+  },
   banipSearch: async (ip: string) => {
     await wait(400, 900);
     const blocked = ["91.198.174.192", "45.135.193.12"];

@@ -12,6 +12,7 @@ import { NlbwmonCard } from "../components/services/NlbwmonCard";
 import { FirewallCard } from "../components/services/FirewallCard";
 import { AdguardCard } from "../components/services/AdguardCard";
 import { LanServicesCard } from "../components/services/LanServicesCard";
+import { BanipCard } from "../components/services/BanipCard";
 
 /** Cabecera de grupo: eyebrow + una frase llana small muted (services.md §1). */
 function GroupHeader({ title, desc, index }: { title: string; desc: string; index: number }) {
@@ -27,7 +28,7 @@ function GroupHeader({ title, desc, index }: { title: string; desc: string; inde
  * Servicios (services.md): toggles con superpoderes agrupados por tarea.
  * Entrada escalonada por grupo (VPN inmediato, siguientes +80ms).
  */
-export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChange, mdns, onMdnsChange, sqm, onSqmChange, ovpn, onOvpnChange, ts, onTsChange, apMode = false }: {
+export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChange, mdns, onMdnsChange, sqm, onSqmChange, ovpn, onOvpnChange, ts, onTsChange, apMode = false, onNavigate }: {
   wg: WGProbe | undefined;
   onWgChange: (p: WGProbe) => void;
   ipv6: IPv6Probe | undefined;
@@ -43,6 +44,7 @@ export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChang
   ts: TSProbe | undefined;
   onTsChange: (p: TSProbe) => void;
   apMode?: boolean;
+  onNavigate?: (p: string) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -53,6 +55,7 @@ export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChang
         <AdguardCard index={0} />
         <NlbwmonCard index={0} />
         {!apMode && <FirewallCard index={0} />}
+        {!apMode && <BanipCard index={0} onNavigate={onNavigate} />}
       </section>
 
       {/* Tu conexión — cómo sale tu casa a Internet */}

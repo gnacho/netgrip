@@ -804,6 +804,14 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ confirm: true }),
     }),
+  banipUninstall: () =>
+    request<import("./types").BanipProbe>("/api/banip/uninstall", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirm: true }),
+    }),
+  banipStatus: () =>
+    request<import("./types").BanipStatus>("/api/banip/status"),
   banipSearch: (ip: string) =>
     request<import("./types").BanipSearchResult>(`/api/banip/search?ip=${encodeURIComponent(ip)}`),
   banipList: (list: "allowlist" | "blocklist") =>

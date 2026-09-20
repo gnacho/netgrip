@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, Play, Plus, RefreshCw, Search, ShieldBan, ShieldCheck, Square } from "lucide-react";
+import { Ban, Play, Plus, RefreshCw, Search, ShieldBan, ShieldCheck, Square, Trash2 } from "lucide-react";
 import { api } from "../api";
 import type { BanipCatalogFeed, BanipFeed, BanipProbe, BanipSearchResult } from "../types";
 import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Pill, SegmentedControl, SkeletonRows, useToast } from "../components/ui";
@@ -28,6 +28,7 @@ export function BanipPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("feeds");
   const [confirmInstall, setConfirmInstall] = useState(false);
+  const [confirmUninstall, setConfirmUninstall] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -132,6 +133,26 @@ export function BanipPage() {
             <Square size={14} aria-hidden="true" /> {t("banip.stop")}
           </Button>
         )}
+        <Button variant="ghost" size="sm" className="text-danger hover:text-danger" disabled={busy !== null}
+          onClick={() => setConfirmUninstall(true)}>
+          <Trash2 size={14} aria-hidden="true" /> {t("banip.uninstall")}
+        </Button>
+        <ConfirmDialog
+          open={confirmUninstall}
+          onClose={() => setConfirmUninstall(false)}
+          onConfirm={() => {
+            setConfirmUninstall(false);
+            setBusy("uninstall");
+            api.banipUninstall()
+              .then((p) => { setProbe(p); push({ tone: "ok", text: t("banip.uninstallOk") }); })
+              .catch((e) => push({ tone: "danger", text: t("banip.actionFailed"), detail: e instanceof Error ? e.message : String(e) }))
+              .finally(() => setBusy(null));
+          }}
+          title={t("banip.uninstallConfirmTitle")}
+          consequence={t("banip.uninstallConfirmBody")}
+          confirmLabel={t("banip.uninstall")}
+          busy={busy === "uninstall"}
+        />
       </div>
 
       {/* Footgun: reload re-descarga feeds; start/stop solo restauran backups */}

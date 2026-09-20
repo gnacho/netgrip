@@ -733,6 +733,14 @@ export interface BanipSearchResult {
   sets: string[];
 }
 
+/** Lightweight banIP status for the Services overview card (no report/lists). */
+export interface BanipStatus {
+  installed: boolean;
+  enabled: boolean;
+  running: boolean;
+  applicable: boolean;
+}
+
 export interface FWZone {
   name: string;
   input: string;
