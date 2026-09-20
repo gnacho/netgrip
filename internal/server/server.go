@@ -406,7 +406,9 @@ func (s *Server) handleWanConfigPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleWireless(w http.ResponseWriter, _ *http.Request) {
-	radios, err := ubus.GetWirelessStatus()
+	radios, err := modules.CachedRead("wireless", probeCacheTTL, func() ([]ubus.WirelessRadio, error) {
+		return ubus.GetWirelessStatus()
+	})
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
@@ -424,7 +426,10 @@ func (s *Server) handleLeases(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) handleIPv6Get(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, modules.ProbeIPv6())
+	probe, _ := modules.CachedRead("ipv6", probeCacheTTL, func() (*modules.IPv6Probe, error) {
+		return modules.ProbeIPv6(), nil
+	})
+	writeJSON(w, probe)
 }
 
 type ipv6SetRequest struct {
@@ -786,7 +791,10 @@ func (s *Server) handleBufferbloatHistory(w http.ResponseWriter, _ *http.Request
 }
 
 func (s *Server) handleOVPNGet(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, modules.ProbeOVPN())
+	probe, _ := modules.CachedRead("openvpn", probeCacheTTL, func() (*modules.OVPNProbe, error) {
+		return modules.ProbeOVPN(), nil
+	})
+	writeJSON(w, probe)
 }
 
 type ovpnSetRequest struct {
@@ -977,7 +985,10 @@ func (s *Server) handlePackageUpgrade(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleIoTGet(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, modules.ProbeIoT())
+	probe, _ := modules.CachedRead("iotwifi", probeCacheTTL, func() (*modules.IoTProbe, error) {
+		return modules.ProbeIoT(), nil
+	})
+	writeJSON(w, probe)
 }
 
 func (s *Server) handleIoTSet(w http.ResponseWriter, r *http.Request) {
@@ -991,7 +1002,10 @@ func (s *Server) handleIoTSet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleFwdGet(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, modules.ProbeFwd())
+	probe, _ := modules.CachedRead("portforward", probeCacheTTL, func() (*modules.FwdProbe, error) {
+		return modules.ProbeFwd(), nil
+	})
+	writeJSON(w, probe)
 }
 
 type fwdAddRequest struct {
@@ -1026,7 +1040,10 @@ func (s *Server) handleFwdDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTSGet(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, modules.ProbeTailscale())
+	probe, _ := modules.CachedRead("tailscale", probeCacheTTL, func() (*modules.TSProbe, error) {
+		return modules.ProbeTailscale(), nil
+	})
+	writeJSON(w, probe)
 }
 
 type tsSetRequest struct {
@@ -1044,7 +1061,10 @@ func (s *Server) handleTSSet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGuestGet(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, modules.ProbeGuest())
+	probe, _ := modules.CachedRead("guestwifi", probeCacheTTL, func() (*modules.GuestProbe, error) {
+		return modules.ProbeGuest(), nil
+	})
+	writeJSON(w, probe)
 }
 
 func (s *Server) handleGuestSet(w http.ResponseWriter, r *http.Request) {
@@ -1082,7 +1102,10 @@ func (s *Server) handleCaptivePortalImage(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) handleMode(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, modules.ProbeMode())
+	probe, _ := modules.CachedRead("mode", probeCacheTTL, func() (*modules.ModeProbe, error) {
+		return modules.ProbeMode(), nil
+	})
+	writeJSON(w, probe)
 }
 
 type modeSetRequest struct {
@@ -1183,7 +1206,10 @@ func (s *Server) handleOffloadSet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMDNSGet(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, modules.ProbeMDNS())
+	probe, _ := modules.CachedRead("mdns", probeCacheTTL, func() (*modules.MDNSProbe, error) {
+		return modules.ProbeMDNS(), nil
+	})
+	writeJSON(w, probe)
 }
 
 type mdnsSetRequest struct {
@@ -1348,11 +1374,16 @@ func (s *Server) handleNetDev(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) handleEthPorts(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, map[string]any{"ports": modules.EthPorts()})
+	ports, _ := modules.CachedRead("ethports", probeCacheTTL, func() ([]modules.EthPort, error) {
+		return modules.EthPorts(), nil
+	})
+	writeJSON(w, map[string]any{"ports": ports})
 }
 
 func (s *Server) handleUsteer(w http.ResponseWriter, _ *http.Request) {
-	aps, err := modules.UsteerNetwork()
+	aps, err := modules.CachedRead("usteer", probeCacheTTL, func() ([]modules.UsteerAP, error) {
+		return modules.UsteerNetwork()
+	})
 	if err != nil {
 		// usteer isn't installed on most routers; that's not a gateway
 		// failure, just an empty mesh view.
@@ -1364,11 +1395,20 @@ func (s *Server) handleUsteer(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleClients(w http.ResponseWriter, r *http.Request) {
 	requesterIP, _, _ := strings.Cut(r.RemoteAddr, ":")
-	writeJSON(w, map[string]any{"clients": modules.ListClients(requesterIP), "bands": modules.AvailableBands(), "ts": time.Now().UnixMilli()})
+	// Keyed by requesterIP: the Self flag depends on who asks. ts is
+	// computed inside the cache so it stays consistent with the cached
+	// byte counters; writes invalidate via invalidateClients (#356).
+	payload, _ := modules.CachedRead("clients|"+requesterIP, probeCacheTTL, func() (map[string]any, error) {
+		return map[string]any{"clients": modules.ListClients(requesterIP), "bands": modules.AvailableBands(), "ts": time.Now().UnixMilli()}, nil
+	})
+	writeJSON(w, payload)
 }
 
 func (s *Server) handleClientsBlocked(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, map[string]any{"blocked": modules.BlockedClients(), "ts": time.Now().UnixMilli()})
+	payload, _ := modules.CachedRead("clients.blocked", probeCacheTTL, func() (map[string]any, error) {
+		return map[string]any{"blocked": modules.BlockedClients(), "ts": time.Now().UnixMilli()}, nil
+	})
+	writeJSON(w, payload)
 }
 
 func (s *Server) handleClientMeta(w http.ResponseWriter, _ *http.Request) {
@@ -1633,6 +1673,12 @@ func (s *Server) handleLoops(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, modules.DetectLoops())
 }
 
+// probeCacheTTL is the read cache lifetime for the Overview probes.
+// Short enough that live state (rates, tunnel status) stays fresh, long
+// enough that the parallel burst of the page load forks each probe once
+// instead of once per card (#356).
+const probeCacheTTL = 2 * time.Second
+
 // selfUpdateCheckTTL caches the GitHub release check: it is the only
 // probe with network latency (hundreds of ms to api.github.com) and the
 // Overview polls it like any other card (#356). ?refresh=1 bypasses the
@@ -1729,7 +1775,10 @@ func (s *Server) handleWizardComplete(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) handleDriftGet(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, modules.ProbeDrift())
+	probe, _ := modules.CachedRead("drift", probeCacheTTL, func() (*modules.DriftProbe, error) {
+		return modules.ProbeDrift(), nil
+	})
+	writeJSON(w, probe)
 }
 
 func (s *Server) handleVLANsGet(w http.ResponseWriter, _ *http.Request) {
@@ -2234,7 +2283,10 @@ func (s *Server) handleStormSet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleStorageGet(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, modules.ProbeStorage())
+	probe, _ := modules.CachedRead("storage", probeCacheTTL, func() (modules.StorageProbe, error) {
+		return modules.ProbeStorage(), nil
+	})
+	writeJSON(w, probe)
 }
 
 func (s *Server) handleStorageSet(w http.ResponseWriter, r *http.Request) {
