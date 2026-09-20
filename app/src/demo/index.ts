@@ -43,6 +43,7 @@ const state = {
   lag: structuredClone(D.demoLag),
   firewall: structuredClone(D.demoFirewall),
   nlbwmon: { ...D.demoNlbwmon },
+  banip: structuredClone(D.demoBanip),
   offload: { ...D.demoOffload },
   mode: { ...D.demoMode },
   igmp: { ...D.demoIgmp },
@@ -355,6 +356,59 @@ export const demoApi: typeof api = {
   nlbwmon: () => get(state.nlbwmon),
   nlbwmonTop: () => get(D.demoNlbwmonTop),
   setNlbwmon: async (cfg) => write({ ...state.nlbwmon, ...cfg, running: cfg.enabled ?? state.nlbwmon.running }),
+  banip: () => get(state.banip),
+  banipAction: async (action: string) => {
+    await wait(800, 1500);
+    if (action === "start" || action === "reload" || action === "restart" || action === "enable") {
+      state.banip.enabled = true;
+      state.banip.running = true;
+    } else {
+      state.banip.running = false;
+      if (action === "disable") state.banip.enabled = false;
+    }
+    return { status: "applied" as const, rolled_back: false, state: state.banip };
+  },
+  banipSetFeeds: async (cfg: T.BanipFeedsConfig) => {
+    await wait(800, 1500);
+    state.banip.feeds = structuredClone(cfg.feeds);
+    if (cfg.enabled !== undefined) {
+      state.banip.enabled = cfg.enabled;
+      state.banip.running = cfg.enabled;
+    }
+    if (cfg.nft_count !== undefined) state.banip.nft_count = cfg.nft_count;
+    return { status: "applied" as const, rolled_back: false, state: state.banip };
+  },
+  banipInstall: async () => {
+    await wait(1500, 3000);
+    state.banip.installed = true;
+    return state.banip;
+  },
+  banipSearch: async (ip: string) => {
+    await wait(400, 900);
+    const blocked = ["91.198.174.192", "45.135.193.12"];
+    return {
+      ip,
+      found: blocked.includes(ip),
+      sets: blocked.includes(ip) ? ["cinsscore.v4", "debl.v4"] : [],
+    };
+  },
+  banipList: async (list: "allowlist" | "blocklist") => {
+    await wait(100, 250);
+    return { entries: list === "allowlist" ? state.banip.allowlist : state.banip.blocklist };
+  },
+  banipListAdd: async (list: "allowlist" | "blocklist", entry: string) => {
+    await wait(800, 1500);
+    const target = list === "allowlist" ? state.banip.allowlist : state.banip.blocklist;
+    if (!target.includes(entry)) target.push(entry);
+    return { status: "applied" as const, rolled_back: false, state: state.banip };
+  },
+  banipListRemove: async (list: "allowlist" | "blocklist", entry: string) => {
+    await wait(800, 1500);
+    const target = list === "allowlist" ? state.banip.allowlist : state.banip.blocklist;
+    const i = target.indexOf(entry);
+    if (i >= 0) target.splice(i, 1);
+    return { status: "applied" as const, rolled_back: false, state: state.banip };
+  },
   firewall: () => get(state.firewall),
   addFirewallRule: async (rule) => {
     state.firewall.rules.push({ section: `rule_${state.firewall.rules.length}`, ...rule });

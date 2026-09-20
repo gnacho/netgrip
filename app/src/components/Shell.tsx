@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { Activity, ArrowLeftRight, Blocks, ChartColumn, Download, Globe, HardDrive, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, Smartphone, Wifi, Wrench } from "lucide-react";
+import { Activity, ArrowLeftRight, Blocks, ChartColumn, Download, Globe, HardDrive, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldBan, Smartphone, Wifi, Wrench } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
 import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MDNSProbe, ModeProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
@@ -13,6 +13,7 @@ import { ClientsPage } from "../pages/Clients";
 import { WifiPage } from "../pages/Wifi";
 import { WanPage } from "../pages/Wan";
 import { Services } from "../pages/Services";
+import { BanipPage } from "../pages/Banip";
 import { Ports } from "../pages/Ports";
 import { System } from "../pages/System";
 import { LanPage } from "../pages/Lan";
@@ -23,7 +24,7 @@ import { StoragePage } from "../pages/Storage";
 import { DpiPage } from "../pages/Dpi";
 import { SelfUpdateDialog } from "../components/system/SelfUpdateDialog";
 
-export type Page = "overview" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "ports" | "tools" | "diagnostics" | "fleet" | "storage" | "system" | "dpi";
+export type Page = "overview" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "banip" | "ports" | "tools" | "diagnostics" | "fleet" | "storage" | "system" | "dpi";
 
 const NAV_ICONS: Record<Page, LucideIcon> = {
   overview: LayoutDashboard,
@@ -33,6 +34,7 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
   wifi: Wifi,
   lan: Network,
   services: Blocks,
+  banip: ShieldBan,
   ports: ArrowLeftRight,
   tools: Wrench,
   diagnostics: Activity,
@@ -46,7 +48,7 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
 const NAV_GROUPS: { group: string | null; items: Page[] }[] = [
   { group: null, items: ["overview"] },
   { group: "nav.group.network", items: ["wan", "clients", "coverage", "wifi", "lan", "ports", "dpi"] },
-  { group: "nav.group.services", items: ["services"] },
+  { group: "nav.group.services", items: ["services", "banip"] },
   { group: "nav.group.router", items: ["tools", "diagnostics", "storage", "fleet", "system"] },
 ];
 
@@ -146,8 +148,8 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     return hosts.size > 1;
   }, [usteerAps]);
   const visible = (id: Page) => {
-    if (isSwitch && (id === "wifi" || id === "services")) return false;
-    if (apMode && (id === "lan" || id === "ports" || id === "wan")) return false;
+    if (isSwitch && (id === "wifi" || id === "services" || id === "banip")) return false;
+    if (apMode && (id === "lan" || id === "ports" || id === "wan" || id === "banip")) return false;
     if (id === "storage" && !storage?.applicable) return false;
     if (id === "coverage" && !usteerMultiRouter) return false;
     return true;
@@ -304,6 +306,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
       {activePage === "services" && (
         <Services wg={wg} onWgChange={setWg} ipv6={ipv6} onIpv6Change={setIpv6} ddns={ddns} onDdnsChange={setDdns} mdns={mdns} onMdnsChange={setMdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} ts={ts} onTsChange={setTs} apMode={apMode} />
       )}
+      {activePage === "banip" && <BanipPage />}
       {activePage === "ports" && (
         <Ports />
       )}

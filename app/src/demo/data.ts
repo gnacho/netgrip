@@ -719,3 +719,54 @@ export function buildDemoHistory(): T.HistoryEntry[] {
   }
   return entries;
 }
+
+// banIP (#351): instalado, contadores nft activos y feeds variados (una
+// dirección override, dos desactivados) para mostrar todos los estados.
+export const demoBanip: T.BanipProbe = {
+  installed: true,
+  enabled: true,
+  running: true,
+  nft_count: true,
+  applicable: true,
+  version: "1.5.6-r7",
+  mem_available_mb: 412,
+  feeds: [
+    { name: "cinsscore", enabled: true, direction: "" },
+    { name: "debl", enabled: true, direction: "" },
+    { name: "turris", enabled: true, direction: "" },
+    { name: "doh", enabled: true, direction: "out" },
+    { name: "hagezi", enabled: false, direction: "out" },
+    { name: "country", enabled: false, direction: "inout" },
+  ],
+  report: {
+    parsed: true,
+    timestamp: "2026-09-20 10:15:03",
+    sets: [
+      { name: "allowlist.v4", elements: 2, packets_in: 0, packets_out: 0, local_allow: true, local_block: false },
+      { name: "blocklist.v4", elements: 1, packets_in: 12, packets_out: 0, local_allow: false, local_block: true },
+      { name: "cinsscore.v4", elements: 11498, packets_in: 444, packets_out: 0, local_allow: false, local_block: false },
+      { name: "cinsscore.v6", elements: 136, packets_in: 0, packets_out: 0, local_allow: false, local_block: false },
+      { name: "debl.v4", elements: 13147, packets_in: 19, packets_out: 0, local_allow: false, local_block: false },
+      { name: "turris.v4", elements: 4553, packets_in: 131, packets_out: 0, local_allow: false, local_block: false },
+      { name: "doh.v4", elements: 1727, packets_in: 0, packets_out: 2233, local_allow: false, local_block: false },
+      { name: "doh.v6", elements: 1217, packets_in: 0, packets_out: 0, local_allow: false, local_block: false },
+    ],
+    total_ips: 32279,
+    packets_in: 606,
+    packets_out: 2233,
+    auto_allow: 2,
+    auto_block: 13,
+    dos: {
+      syn_packets: 42,
+      udp_packets: 7,
+      icmp_packets: 0,
+      invalid_ct_packets: 133,
+      invalid_tcp_packets: 5,
+      syn_limit: 10,
+      udp_limit: 100,
+      icmp_limit: 25,
+    },
+  },
+  allowlist: ["192.168.1.0/24", "vpn.casa.example"],
+  blocklist: ["203.0.113.66"],
+};

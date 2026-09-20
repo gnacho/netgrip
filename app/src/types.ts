@@ -653,6 +653,72 @@ export interface NlbwmonConfig {
   prealloc_days?: number;
 }
 
+// banIP (#351). banIP owns its nft table; NetGrip reads UCI + init.d only.
+export interface BanipFeed {
+  name: string;
+  enabled: boolean;
+  /** "in" | "out" | "inout" override; "" = feed default */
+  direction: "" | "in" | "out" | "inout";
+}
+
+export interface BanipSetStat {
+  name: string;
+  elements: number;
+  packets_in: number;
+  packets_out: number;
+  local_allow: boolean;
+  local_block: boolean;
+}
+
+export interface BanipDos {
+  syn_packets: number;
+  udp_packets: number;
+  icmp_packets: number;
+  invalid_ct_packets: number;
+  invalid_tcp_packets: number;
+  syn_limit: number;
+  udp_limit: number;
+  icmp_limit: number;
+}
+
+export interface BanipReport {
+  parsed: boolean;
+  timestamp: string;
+  sets: BanipSetStat[];
+  total_ips: number;
+  packets_in: number;
+  packets_out: number;
+  auto_allow: number;
+  auto_block: number;
+  dos: BanipDos;
+}
+
+export interface BanipProbe {
+  installed: boolean;
+  enabled: boolean;
+  running: boolean;
+  nft_count: boolean;
+  applicable: boolean;
+  version: string;
+  mem_available_mb: number;
+  feeds: BanipFeed[];
+  report?: BanipReport;
+  allowlist: string[];
+  blocklist: string[];
+}
+
+export interface BanipFeedsConfig {
+  feeds: BanipFeed[];
+  enabled?: boolean;
+  nft_count?: boolean;
+}
+
+export interface BanipSearchResult {
+  ip: string;
+  found: boolean;
+  sets: string[];
+}
+
 export interface FWZone {
   name: string;
   input: string;

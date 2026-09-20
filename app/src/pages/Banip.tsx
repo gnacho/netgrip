@@ -1,0 +1,416 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Ban, Play, RefreshCw, Search, ShieldBan, ShieldCheck, Square } from "lucide-react";
+import { api } from "../api";
+import type { BanipFeed, BanipProbe, BanipSearchResult } from "../types";
+import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Pill, SegmentedControl, SkeletonRows, useToast } from "../components/ui";
+
+type Tab = "feeds" | "search" | "lists" | "dos";
+
+const fmtInt = new Intl.NumberFormat();
+
+/** Tarjeta de cifra clave del resumen. */
+function StatCard({ index, label, value, hint }: { index: number; label: string; value: string; hint?: string }) {
+  return (
+    <Card index={index} className="md:col-span-3">
+      <p className="text-small text-muted">{label}</p>
+      <p className="text-h2 mt-1 tabular-nums">{value}</p>
+      {hint && <p className="text-caption text-faint mt-0.5">{hint}</p>}
+    </Card>
+  );
+}
+
+export function BanipPage() {
+  const { t } = useTranslation();
+  const { push } = useToast();
+  const [probe, setProbe] = useState<BanipProbe>();
+  const [loadError, setLoadError] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("feeds");
+  const [confirmInstall, setConfirmInstall] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setProbe(await api.banip());
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const run = useCallback(async (key: string, fn: () => Promise<{ state?: BanipProbe; error?: string }>) => {
+    setBusy(key);
+    try {
+      const res = await fn();
+      if (res.state) setProbe(res.state);
+      if (res.error) {
+        push({ tone: "danger", text: t("banip.actionFailed"), detail: res.error });
+      } else {
+        push({ tone: "ok", text: t("banip.actionOk") });
+      }
+    } catch (e) {
+      push({ tone: "danger", text: t("banip.actionFailed"), detail: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setBusy(null);
+      load();
+    }
+  }, [load, push, t]);
+
+  const report = probe?.report;
+  const dosAvailable = !!report?.parsed;
+  const enabledFeeds = useMemo(() => probe?.feeds.filter((f) => f.enabled) ?? [], [probe?.feeds]);
+
+  if (loadError) {
+    return <EmptyState title={t("common.loadError")} action={<Button variant="secondary" size="sm" onClick={load}>{t("common.retry")}</Button>} />;
+  }
+  if (!probe) {
+    return <div className="grid grid-cols-2 md:grid-cols-12 gap-[var(--card-gap)]"><SkeletonRows rows={4} /></div>;
+  }
+
+  // Gateway-only: banIP only makes sense on the router that faces the internet.
+  if (!probe.applicable) {
+    return <EmptyState illustration={<ShieldBan size={120} />} title={t("banip.notGatewayTitle")} body={t("banip.notGatewayBody")} />;
+  }
+
+  if (!probe.installed) {
+    return (
+      <>
+        <EmptyState
+          illustration={<ShieldBan size={120} />}
+          title={t("banip.notInstalledTitle")}
+          body={t("banip.notInstalledBody")}
+          action={<Button variant="primary" onClick={() => setConfirmInstall(true)}>{t("banip.install")}</Button>}
+        />
+        <ConfirmDialog
+          open={confirmInstall}
+          onClose={() => setConfirmInstall(false)}
+          onConfirm={() => { setConfirmInstall(false); setBusy("install"); api.banipInstall().then((p) => { setProbe(p); push({ tone: "ok", text: t("banip.installOk") }); }).catch((e) => push({ tone: "danger", text: t("banip.actionFailed"), detail: e instanceof Error ? e.message : String(e) })).finally(() => setBusy(null)); }}
+          title={t("banip.installConfirmTitle")}
+          consequence={t("banip.installConfirmBody")}
+          confirmLabel={t("banip.install")}
+          busy={busy === "install"}
+        />
+      </>
+    );
+  }
+
+  const active = probe.enabled && probe.running;
+  const lowMem = probe.mem_available_mb > 0 && probe.mem_available_mb < 256;
+
+  const tabs: { value: Tab; label: string }[] = [
+    { value: "feeds", label: t("banip.tabFeeds") },
+    { value: "search", label: t("banip.tabSearch") },
+    { value: "lists", label: t("banip.tabLists") },
+    ...(dosAvailable ? [{ value: "dos" as Tab, label: t("banip.tabDos") }] : []),
+  ];
+
+  return (
+    <div className="flex flex-col gap-[var(--card-gap)]">
+      {/* Estado + acciones */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Pill tone={active ? "ok" : probe.enabled ? "warn" : "muted"} live={active}>
+          {active ? t("banip.stateActive") : probe.enabled ? t("banip.stateStopped") : t("banip.stateDisabled")}
+        </Pill>
+        {probe.version && <span className="text-caption text-faint font-mono">banIP {probe.version}</span>}
+        <span className="flex-1" />
+        {!active && (
+          <Button variant="secondary" size="sm" disabled={busy !== null}
+            onClick={() => run(probe.enabled ? "start" : "enable", () => api.banipAction(probe.enabled ? "start" : "enable"))}>
+            <Play size={14} aria-hidden="true" /> {probe.enabled ? t("banip.start") : t("banip.enable")}
+          </Button>
+        )}
+        <Button variant="primary" size="sm" disabled={busy !== null}
+          title={t("banip.reloadHint")}
+          onClick={() => run("reload", () => api.banipAction("reload"))}>
+          <RefreshCw size={14} aria-hidden="true" /> {t("banip.reload")}
+        </Button>
+        {active && (
+          <Button variant="secondary" size="sm" disabled={busy !== null}
+            onClick={() => run("stop", () => api.banipAction("stop"))}>
+            <Square size={14} aria-hidden="true" /> {t("banip.stop")}
+          </Button>
+        )}
+      </div>
+
+      {/* Footgun: reload re-descarga feeds; start/stop solo restauran backups */}
+      <Banner tone="info">{t("banip.reloadNote")}</Banner>
+      {lowMem && <Banner tone="warn">{t("banip.lowMem", { mb: fmtInt.format(probe.mem_available_mb) })}</Banner>}
+
+      {/* Resumen */}
+      <div className="grid grid-cols-2 md:grid-cols-12 gap-[var(--card-gap)]">
+        <StatCard index={0} label={t("banip.statIps")} value={report?.parsed ? fmtInt.format(report.total_ips) : "—"}
+          hint={report?.parsed ? t("banip.statIpsHint") : undefined} />
+        {probe.nft_count && (
+          <StatCard index={1} label={t("banip.statPackets")} value={report?.parsed ? fmtInt.format(report.packets_in + report.packets_out) : "—"}
+            hint={t("banip.statPacketsHint")} />
+        )}
+        <StatCard index={2} label={t("banip.statFeeds")} value={`${enabledFeeds.length}`}
+          hint={t("banip.statFeedsHint", { total: probe.feeds.length })} />
+        {dosAvailable && (
+          <StatCard index={3} label={t("banip.statAutobans")} value={fmtInt.format(report.auto_block)}
+            hint={t("banip.statAutobansHint", { allow: fmtInt.format(report.auto_allow) })} />
+        )}
+      </div>
+
+      <SegmentedControl<Tab>
+        ariaLabel={t("banip.tabs")}
+        value={tab}
+        onChange={setTab}
+        options={tabs}
+      />
+
+      {tab === "feeds" && (
+        <FeedsTab probe={probe} busy={busy !== null} onSaved={(p) => { setProbe(p); push({ tone: "ok", text: t("banip.feedsSaved") }); load(); }} onError={(msg) => push({ tone: "danger", text: t("banip.actionFailed"), detail: msg })} />
+      )}
+      {tab === "search" && <SearchTab onError={(msg) => push({ tone: "danger", text: t("banip.actionFailed"), detail: msg })} />}
+      {tab === "lists" && <ListsTab probe={probe} busy={busy !== null} onChanged={(p) => { setProbe(p); load(); }} onError={(msg) => push({ tone: "danger", text: t("banip.actionFailed"), detail: msg })} />}
+      {tab === "dos" && dosAvailable && <DosTab probe={probe} />}
+    </div>
+  );
+}
+
+// ── Feeds ──────────────────────────────────────────────────────────────────
+
+function FeedDirectionControl({ feed, onChange }: { feed: BanipFeed; onChange: (d: BanipFeed["direction"]) => void }) {
+  const { t } = useTranslation();
+  return (
+    <SegmentedControl<"" | "in" | "out" | "inout">
+      size="sm"
+      ariaLabel={t("banip.feedDirection")}
+      value={feed.direction}
+      onChange={onChange}
+      options={[
+        { value: "", label: t("banip.dirDefault") },
+        { value: "in", label: t("banip.dirIn") },
+        { value: "out", label: t("banip.dirOut") },
+        { value: "inout", label: t("banip.dirBoth") },
+      ]}
+    />
+  );
+}
+
+function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: boolean; onSaved: (p: BanipProbe) => void; onError: (msg: string) => void }) {
+  const { t } = useTranslation();
+  const [draft, setDraft] = useState<BanipFeed[]>(probe.feeds);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setDraft(probe.feeds), [probe.feeds]);
+
+  const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(probe.feeds), [draft, probe.feeds]);
+  const setFeed = (name: string, patch: Partial<BanipFeed>) =>
+    setDraft((d) => d.map((f) => (f.name === name ? { ...f, ...patch } : f)));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const res = await api.banipSetFeeds({ feeds: draft });
+      if (res.error) onError(res.error);
+      else onSaved(res.state);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const countFor = (name: string) =>
+    probe.report?.sets.filter((s) => s.name === `${name}.v4` || s.name === `${name}.v6`).reduce((a, s) => a + s.elements, 0);
+
+  return (
+    <Card icon={ShieldCheck} iconTone="success" title={t("banip.feedsTitle")}
+      action={<Button variant="primary" size="sm" disabled={!dirty || busy || saving} onClick={save}>{t("common.save")}</Button>}>
+      {draft.length === 0 ? (
+        <EmptyState small title={t("banip.feedsEmpty")} />
+      ) : (
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b border-border/60 text-left">
+              <th className="pb-2 pr-4">{t("banip.feedName")}</th>
+              <th className="pb-2 pr-4 text-right">{t("banip.feedElements")}</th>
+              <th className="pb-2 pr-4">{t("banip.feedEnabled")}</th>
+              <th className="pb-2 text-right">{t("banip.feedDirection")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {draft.map((f) => {
+              const count = countFor(f.name);
+              return (
+                <tr key={f.name} className="border-b border-border/40 last:border-0">
+                  <td className="py-2 pr-4 font-mono text-small">{f.name}</td>
+                  <td className="py-2 pr-4 text-right text-small tabular-nums">{count !== undefined && count > 0 ? fmtInt.format(count) : "—"}</td>
+                  <td className="py-2 pr-4">
+                    <input type="checkbox" aria-label={t("banip.feedEnabled")} className="accent-accent"
+                      checked={f.enabled} onChange={(e) => setFeed(f.name, { enabled: e.target.checked })} />
+                  </td>
+                  <td className="py-2 text-right">
+                    <div className="inline-flex">
+                      <FeedDirectionControl feed={f} onChange={(d) => setFeed(f.name, { direction: d })} />
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      <p className="text-caption text-faint mt-3">{t("banip.feedsNote")}</p>
+    </Card>
+  );
+}
+
+// ── Buscar IP ──────────────────────────────────────────────────────────────
+
+function SearchTab({ onError }: { onError: (msg: string) => void }) {
+  const { t } = useTranslation();
+  const [ip, setIp] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<BanipSearchResult>();
+
+  const search = async () => {
+    setBusy(true);
+    setResult(undefined);
+    try {
+      setResult(await api.banipSearch(ip.trim()));
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card icon={Search} iconTone="accent" title={t("banip.searchTitle")}>
+      <form className="flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); if (ip.trim()) search(); }}>
+        <div className="flex-1">
+          <Field label={t("banip.searchLabel")}>
+            <Input value={ip} onChange={(e) => setIp(e.target.value)} placeholder="203.0.113.66" />
+          </Field>
+        </div>
+        <Button variant="primary" type="submit" disabled={busy || !ip.trim()}>
+          {busy ? t("banip.searching") : t("banip.search")}
+        </Button>
+      </form>
+      {result && (
+        <div className="mt-4">
+          {result.found ? (
+            <div className="flex flex-col gap-1">
+              <Pill tone="danger">{t("banip.searchFound")}</Pill>
+              <ul className="mt-2">
+                {result.sets.map((s) => (
+                  <li key={s} className="font-mono text-small py-1">{s}</li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <Pill tone="ok">{t("banip.searchNotFound")}</Pill>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ── Listas locales ─────────────────────────────────────────────────────────
+
+function ListCard({ list, entries, busy, onChanged, onError }: {
+  list: "allowlist" | "blocklist";
+  entries: string[];
+  busy: boolean;
+  onChanged: (p: BanipProbe) => void;
+  onError: (msg: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [entry, setEntry] = useState("");
+  const [saving, setSaving] = useState(false);
+  const isAllow = list === "allowlist";
+
+  const mutate = async (fn: () => Promise<{ state?: BanipProbe; error?: string }>) => {
+    setSaving(true);
+    try {
+      const res = await fn();
+      if (res.error) onError(res.error);
+      else if (res.state) onChanged(res.state);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card icon={isAllow ? ShieldCheck : Ban} iconTone={isAllow ? "success" : "danger"} title={t(isAllow ? "banip.allowlist" : "banip.blocklist")}>
+      <form className="flex items-end gap-2" onSubmit={(e) => {
+        e.preventDefault();
+        const value = entry.trim();
+        if (!value) return;
+        setEntry("");
+        mutate(() => api.banipListAdd(list, value));
+      }}>
+        <div className="flex-1">
+          <Field label={t("banip.listAddLabel")}>
+            <Input value={entry} onChange={(e) => setEntry(e.target.value)} placeholder={t("banip.listPlaceholder")} />
+          </Field>
+        </div>
+        <Button variant="primary" type="submit" disabled={saving || busy || !entry.trim()}>{t("banip.listAdd")}</Button>
+      </form>
+      <ul className="mt-3 divide-y divide-border/60">
+        {entries.length === 0 && <li className="py-2 text-small text-muted">{t("banip.listEmpty")}</li>}
+        {entries.map((e) => (
+          <li key={e} className="flex items-center gap-2 py-2">
+            <span className="flex-1 min-w-0 font-mono text-small truncate">{e}</span>
+            <Button variant="ghost" size="sm" disabled={saving || busy} onClick={() => mutate(() => api.banipListRemove(list, e))}>
+              {t("banip.listRemove")}
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function ListsTab({ probe, busy, onChanged, onError }: { probe: BanipProbe; busy: boolean; onChanged: (p: BanipProbe) => void; onError: (msg: string) => void }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-[var(--card-gap)]">
+      <ListCard list="allowlist" entries={probe.allowlist} busy={busy} onChanged={onChanged} onError={onError} />
+      <ListCard list="blocklist" entries={probe.blocklist} busy={busy} onChanged={onChanged} onError={onError} />
+    </div>
+  );
+}
+
+// ── DoS ────────────────────────────────────────────────────────────────────
+
+function DosTab({ probe }: { probe: BanipProbe }) {
+  const { t } = useTranslation();
+  const dos = probe.report!.dos;
+  const rows: { label: string; value: number; limit?: number }[] = [
+    { label: t("banip.dosSyn"), value: dos.syn_packets, limit: dos.syn_limit },
+    { label: t("banip.dosUdp"), value: dos.udp_packets, limit: dos.udp_limit },
+    { label: t("banip.dosIcmp"), value: dos.icmp_packets, limit: dos.icmp_limit },
+    { label: t("banip.dosInvalidCt"), value: dos.invalid_ct_packets },
+    { label: t("banip.dosInvalidTcp"), value: dos.invalid_tcp_packets },
+  ];
+  return (
+    <Card icon={ShieldBan} iconTone="warn" title={t("banip.dosTitle")}>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="border-b border-border/60 text-left">
+            <th className="pb-2 pr-4">{t("banip.dosCounter")}</th>
+            <th className="pb-2 pr-4 text-right">{t("banip.dosBlocked")}</th>
+            <th className="pb-2 text-right">{t("banip.dosLimit")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.label} className="border-b border-border/40 last:border-0">
+              <td className="py-2 pr-4 text-small">{r.label}</td>
+              <td className="py-2 pr-4 text-right text-small tabular-nums">{fmtInt.format(r.value)}</td>
+              <td className="py-2 text-right text-small tabular-nums text-muted">{r.limit ?? "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="text-caption text-faint mt-3">{t("banip.dosNote")}</p>
+    </Card>
+  );
+}
