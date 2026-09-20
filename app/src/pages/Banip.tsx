@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, Play, RefreshCw, Search, ShieldBan, ShieldCheck, Square } from "lucide-react";
+import { Ban, Play, Plus, RefreshCw, Search, ShieldBan, ShieldCheck, Square } from "lucide-react";
 import { api } from "../api";
-import type { BanipFeed, BanipProbe, BanipSearchResult } from "../types";
+import type { BanipCatalogFeed, BanipFeed, BanipProbe, BanipSearchResult } from "../types";
 import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Pill, SegmentedControl, SkeletonRows, useToast } from "../components/ui";
 
 type Tab = "feeds" | "search" | "lists" | "dos";
@@ -217,45 +217,94 @@ function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: 
   const countFor = (name: string) =>
     probe.report?.sets.filter((s) => s.name === `${name}.v4` || s.name === `${name}.v6`).reduce((a, s) => a + s.elements, 0);
 
+  // Catalog feeds not in the draft yet: these are the ones that can be added.
+  const draftNames = new Set(draft.map((f) => f.name));
+  const available = (probe.catalog ?? []).filter((c) => !draftNames.has(c.name));
+
+  const addFromCatalog = (c: BanipCatalogFeed) =>
+    setDraft((d) => [...d, { name: c.name, enabled: true, direction: c.chain, in_catalog: true }]);
+
   return (
-    <Card icon={ShieldCheck} iconTone="success" title={t("banip.feedsTitle")}
-      action={<Button variant="primary" size="sm" disabled={!dirty || busy || saving} onClick={save}>{t("common.save")}</Button>}>
-      {draft.length === 0 ? (
-        <EmptyState small title={t("banip.feedsEmpty")} />
-      ) : (
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b border-border/60 text-left">
-              <th className="pb-2 pr-4">{t("banip.feedName")}</th>
-              <th className="pb-2 pr-4 text-right">{t("banip.feedElements")}</th>
-              <th className="pb-2 pr-4">{t("banip.feedEnabled")}</th>
-              <th className="pb-2 text-right">{t("banip.feedDirection")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {draft.map((f) => {
-              const count = countFor(f.name);
-              return (
-                <tr key={f.name} className="border-b border-border/40 last:border-0">
-                  <td className="py-2 pr-4 font-mono text-small">{f.name}</td>
-                  <td className="py-2 pr-4 text-right text-small tabular-nums">{count !== undefined && count > 0 ? fmtInt.format(count) : "—"}</td>
+    <div className="flex flex-col gap-[var(--card-gap)]">
+      <Card icon={ShieldCheck} iconTone="success" title={t("banip.feedsTitle")}
+        action={<Button variant="primary" size="sm" disabled={!dirty || busy || saving} onClick={save}>{t("common.save")}</Button>}>
+        {draft.length === 0 ? (
+          <EmptyState small title={t("banip.feedsEmpty")} />
+        ) : (
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b border-border/60 text-left">
+                <th className="pb-2 pr-4">{t("banip.feedName")}</th>
+                <th className="pb-2 pr-4 text-right">{t("banip.feedElements")}</th>
+                <th className="pb-2 pr-4">{t("banip.feedEnabled")}</th>
+                <th className="pb-2 text-right">{t("banip.feedDirection")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {draft.map((f) => {
+                const count = countFor(f.name);
+                return (
+                  <tr key={f.name} className="border-b border-border/40 last:border-0">
+                    <td className="py-2 pr-4">
+                      <span className="font-mono text-small">{f.name}</span>
+                      {!f.in_catalog && <span className="ml-2 text-caption text-faint" title={t("banip.notInCatalog")}>·</span>}
+                    </td>
+                    <td className="py-2 pr-4 text-right text-small tabular-nums">{count !== undefined && count > 0 ? fmtInt.format(count) : "—"}</td>
+                    <td className="py-2 pr-4">
+                      <input type="checkbox" aria-label={t("banip.feedEnabled")} className="accent-accent"
+                        checked={f.enabled} onChange={(e) => setFeed(f.name, { enabled: e.target.checked })} />
+                    </td>
+                    <td className="py-2 text-right">
+                      <div className="inline-flex">
+                        <FeedDirectionControl feed={f} onChange={(d) => setFeed(f.name, { direction: d })} />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+        <p className="text-caption text-faint mt-3">{t("banip.feedsNote")}</p>
+      </Card>
+
+      {available.length > 0 && (
+        <Card icon={Plus} iconTone="accent" title={t("banip.catalogTitle")}>
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b border-border/60 text-left">
+                <th className="pb-2 pr-4">{t("banip.feedName")}</th>
+                <th className="pb-2 pr-4">{t("banip.feedDescr")}</th>
+                <th className="pb-2 pr-4 text-right">{t("banip.feedDirection")}</th>
+                <th className="pb-2 text-right">{t("banip.catalogAdd")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {available.map((c) => (
+                <tr key={c.name} className="border-b border-border/40 last:border-0">
                   <td className="py-2 pr-4">
-                    <input type="checkbox" aria-label={t("banip.feedEnabled")} className="accent-accent"
-                      checked={f.enabled} onChange={(e) => setFeed(f.name, { enabled: e.target.checked })} />
+                    <span className="font-mono text-small">{c.name}</span>
+                    {c.custom && <Pill tone="muted" className="ml-2">{t("banip.feedCustom")}</Pill>}
+                    {c.ipv6 && <Pill tone="ok" className="ml-2">{t("banip.feedIpv6")}</Pill>}
+                  </td>
+                  <td className="py-2 pr-4 text-small text-muted max-w-[280px]">
+                    <span className="line-clamp-1" title={c.descr}>{c.descr || "—"}</span>
+                  </td>
+                  <td className="py-2 pr-4 text-right text-small text-muted">
+                    {c.chain ? t(c.chain === "inout" ? "banip.dirBoth" : c.chain === "in" ? "banip.dirIn" : "banip.dirOut") : t("banip.dirDefault")}
                   </td>
                   <td className="py-2 text-right">
-                    <div className="inline-flex">
-                      <FeedDirectionControl feed={f} onChange={(d) => setFeed(f.name, { direction: d })} />
-                    </div>
+                    <Button variant="secondary" size="sm" disabled={busy || saving} onClick={() => addFromCatalog(c)}>
+                      <Plus size={14} aria-hidden="true" /> {t("banip.catalogAdd")}
+                    </Button>
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </Card>
       )}
-      <p className="text-caption text-faint mt-3">{t("banip.feedsNote")}</p>
-    </Card>
+    </div>
   );
 }
 

@@ -659,6 +659,18 @@ export interface BanipFeed {
   enabled: boolean;
   /** "in" | "out" | "inout" override; "" = feed default */
   direction: "" | "in" | "out" | "inout";
+  /** true when the feed exists in the local catalog (banip.feeds / custom) */
+  in_catalog: boolean;
+}
+
+/** One feed available in the local catalog, not yet configured in UCI. */
+export interface BanipCatalogFeed {
+  name: string;
+  descr: string;
+  /** default direction from the catalog: "in" | "out" | "inout"; "" = unspecified */
+  chain: "" | "in" | "out" | "inout";
+  ipv6: boolean;
+  custom: boolean;
 }
 
 export interface BanipSetStat {
@@ -702,6 +714,8 @@ export interface BanipProbe {
   version: string;
   mem_available_mb: number;
   feeds: BanipFeed[];
+  /** available feeds not configured in UCI (from banip.feeds / custom.feeds) */
+  catalog: BanipCatalogFeed[];
   report?: BanipReport;
   allowlist: string[];
   blocklist: string[];
