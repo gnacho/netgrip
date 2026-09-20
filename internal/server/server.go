@@ -1633,8 +1633,21 @@ func (s *Server) handleLoops(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, modules.DetectLoops())
 }
 
-func (s *Server) handleSelfUpdateCheck(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, modules.CheckSelfUpdate(s.version))
+// selfUpdateCheckTTL caches the GitHub release check: it is the only
+// probe with network latency (hundreds of ms to api.github.com) and the
+// Overview polls it like any other card (#356). ?refresh=1 bypasses the
+// cache for a manual check. The scheduler and the apply path call
+// CheckSelfUpdate directly, so they always check fresh.
+const selfUpdateCheckTTL = 5 * time.Minute
+
+func (s *Server) handleSelfUpdateCheck(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("refresh") == "1" {
+		modules.InvalidateKey("selfupdate.check")
+	}
+	check, _ := modules.CachedRead("selfupdate.check", selfUpdateCheckTTL, func() (*modules.SelfUpdateCheck, error) {
+		return modules.CheckSelfUpdate(s.version), nil
+	})
+	writeJSON(w, check)
 }
 
 func (s *Server) handleSelfUpdateStatus(w http.ResponseWriter, _ *http.Request) {
@@ -1655,6 +1668,8 @@ func (s *Server) handleSelfUpdateApply(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
+	// The version is about to change; never serve the pre-update check again.
+	modules.InvalidateKey("selfupdate.check")
 	writeJSON(w, map[string]string{"status": "started"})
 }
 
