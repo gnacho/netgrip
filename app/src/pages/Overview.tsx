@@ -282,9 +282,10 @@ function LiveTrafficCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Muestreo rápido al montar (600ms) hasta tener la primera tasa de subida y
-  // bajada; después el ritmo tranquilo de 2s. Así la gráfica arranca en menos
-  // de un segundo en vez de esperar dos intervalos completos.
+  // Muestreo rápido al montar (600ms) hasta tener tres muestras; después el
+  // ritmo tranquilo de 2s. Así la gráfica arranca enseguida en vez de
+  // esperar dos intervalos completos. Se usa un timeout encadenado (no un
+  // intervalo fijo) para no solapar polls si el router tarda en responder.
   const samplesRef = useRef<Sample[]>(undefined);
   useEffect(() => { samplesRef.current = samples; }, [samples]);
   useEffect(() => {
