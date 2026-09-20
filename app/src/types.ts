@@ -363,6 +363,9 @@ export interface DNSConfig {
   adguard_active: boolean;
   adguard_installed: boolean;
   adguard_running: boolean;
+  adguard_protection: boolean;
+  adguard_has_backup: boolean;
+  adguard_dns_port?: number;
   hosts: HostEntry[];
 }
 

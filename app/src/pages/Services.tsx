@@ -52,7 +52,7 @@ export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChang
       {/* Bloqueo y reglas — el bloqueador de anuncios arriba */}
       <section className="flex flex-col gap-[var(--card-gap)]">
         <GroupHeader index={0} title={t("services.groupRules")} desc={t("services.groupRulesDesc")} />
-        <AdguardCard index={0} onNavigate={onNavigate} />
+        <AdguardCard index={0} />
         <NlbwmonCard index={0} />
         {!apMode && <FirewallCard index={0} />}
         {!apMode && <BanipCard index={0} onNavigate={onNavigate} />}

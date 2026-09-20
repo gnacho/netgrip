@@ -298,6 +298,9 @@ export const demoDns: T.DNSConfig = {
   adguard_active: true,
   adguard_installed: true,
   adguard_running: true,
+  adguard_protection: true,
+  adguard_has_backup: true,
+  adguard_dns_port: 5353,
   hosts: [{ ip: "192.168.8.10", hostname: "nas" }],
 };
 
