@@ -440,15 +440,17 @@ func parseBanipDownloadFailures(out string) map[string]bool {
 	return failed
 }
 
-// banipDownloadLog reads the recent syslog lines mentioning banIP. It tries
-// `logread -e banip` (the busybox grep filter) first and falls back to the
+// banipDownloadLog reads the recent syslog lines mentioning banIP. ubox
+// logread's -e regex is case-sensitive against the message text, so the
+// filter must be the exact tag "banIP" (a lowercase "banip" matches nothing
+// and would silently suppress every failure marker). It falls back to the
 // full `logread` output; the parser re-greps either way. Missing logread or
 // an empty log is an empty result, never an error: the marker is a hint,
 // not a verdict.
 func banipDownloadLog() string {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	if out, err := exec.CommandContext(ctx, "logread", "-e", "banip").Output(); err == nil {
+	if out, err := exec.CommandContext(ctx, "logread", "-e", "banIP").Output(); err == nil && len(out) > 0 {
 		return string(out)
 	}
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 3*time.Second)
