@@ -272,3 +272,95 @@ func TestBanipListContentPlanners(t *testing.T) {
 		t.Errorf("remove last = %q", got)
 	}
 }
+
+const catalogFixture = `{
+	"cinsscore": {
+		"url_4": "https://cinsscore.com/list/ci-badguys.txt",
+		"url_6": "https://cinsscore.com/list/ci-badguys-v6.txt",
+		"rule_4": "/^127\\./{next}/ {printf \"%s\\n\",$1}",
+		"chain": "in",
+		"descr": "CINS Score malicious IPs"
+	},
+	"doh": {
+		"url_4": "https://raw.githubusercontent.com/dibdot/DoH-IP-blocklists/master/doh-ipv4.txt",
+		"url_6": "https://raw.githubusercontent.com/dibdot/DoH-IP-blocklists/master/doh-ipv6.txt",
+		"rule_4": "{printf \"%s\\n\",$1}",
+		"chain": "out",
+		"descr": "Public DoH-Provider"
+	},
+	"nocat": {
+		"url_4": "https://example.com/list.txt",
+		"descr": "feed without an explicit chain"
+	},
+	"broken": {
+		"descr": "no url_4, must be skipped"
+	}
+}`
+
+func TestParseBanipCatalog(t *testing.T) {
+	feeds := parseBanipCatalog([]byte(catalogFixture), false, banipCatalogCap)
+	if len(feeds) != 3 {
+		t.Fatalf("feeds = %d, want 3 (broken skipped): %+v", len(feeds), feeds)
+	}
+	byName := map[string]BanipCatalogFeed{}
+	for _, f := range feeds {
+		byName[f.Name] = f
+		if f.Descr == "" {
+			t.Errorf("feed %s lost its description", f.Name)
+		}
+	}
+	c := byName["cinsscore"]
+	if c.Chain != "in" || !c.IPv6 || c.Custom {
+		t.Errorf("cinsscore = %+v", c)
+	}
+	d := byName["doh"]
+	if d.Chain != "out" || !d.IPv6 {
+		t.Errorf("doh = %+v", d)
+	}
+	n := byName["nocat"]
+	if n.Chain != "" || n.IPv6 {
+		t.Errorf("nocat = %+v", n)
+	}
+	// custom flag propagation
+	custom := parseBanipCatalog([]byte(catalogFixture), true, banipCatalogCap)
+	if len(custom) == 0 || !custom[0].Custom {
+		t.Errorf("custom flag not set: %+v", custom)
+	}
+	// empty and broken input are empty states, not errors
+	for _, bad := range []string{"", "not json", "[]", "{}", "null"} {
+		if got := parseBanipCatalog([]byte(bad), false, banipCatalogCap); len(got) != 0 {
+			t.Errorf("input %q yielded %d feeds", bad, len(got))
+		}
+	}
+	// cap is honored
+	if got := parseBanipCatalog([]byte(catalogFixture), false, 2); len(got) != 2 {
+		t.Errorf("cap not honored: %d", len(got))
+	}
+}
+
+func TestBanipMergeCatalog(t *testing.T) {
+	configured := []BanipFeed{
+		{Name: "cinsscore", Enabled: true},
+		{Name: "manual", Enabled: true}, // not in catalog (hand-added in UCI)
+	}
+	catalog := []BanipCatalogFeed{
+		{Name: "cinsscore", Descr: "CINS", Chain: "in"},
+		{Name: "doh", Descr: "DoH", Chain: "out"},
+	}
+	feeds, available := banipMergeCatalog(configured, catalog)
+	if len(available) != 1 || available[0].Name != "doh" {
+		t.Errorf("available = %+v", available)
+	}
+	if !feeds[0].InCatalog {
+		t.Errorf("configured catalog feed not marked: %+v", feeds[0])
+	}
+	if feeds[1].InCatalog {
+		t.Errorf("manual feed wrongly marked: %+v", feeds[1])
+	}
+	// no duplicates: cinsscore must not appear in available
+	for _, a := range available {
+		if a.Name == "cinsscore" {
+			t.Errorf("duplicate of configured feed in catalog list")
+		}
+	}
+}

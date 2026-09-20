@@ -2,12 +2,14 @@ package modules
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -27,8 +29,12 @@ import (
 // /etc/banip/banip.allowlist and /etc/banip/banip.blocklist.
 
 const (
-	banipAllowlistPath = "/etc/banip/banip.allowlist"
-	banipBlocklistPath = "/etc/banip/banip.blocklist"
+	banipAllowlistPath   = "/etc/banip/banip.allowlist"
+	banipBlocklistPath   = "/etc/banip/banip.blocklist"
+	banipFeedsPath       = "/etc/banip/banip.feeds"
+	banipCustomFeedsPath = "/etc/banip/banip.custom.feeds"
+	// banipCatalogCap bounds the catalog in case the feeds file is huge.
+	banipCatalogCap = 200
 )
 
 // BanipFeed is one configured blocklist feed. Direction is "in", "out" or
@@ -38,6 +44,20 @@ type BanipFeed struct {
 	Name      string `json:"name"`
 	Enabled   bool   `json:"enabled"`
 	Direction string `json:"direction"`
+	// InCatalog is true when the feed exists in the local catalog
+	// (/etc/banip/banip.feeds or banip.custom.feeds).
+	InCatalog bool `json:"in_catalog"`
+}
+
+// BanipCatalogFeed is one feed available in the local catalog. The url_*
+// and rule_* fields are never exposed: they are download internals of
+// banIP, not something the panel edits.
+type BanipCatalogFeed struct {
+	Name   string `json:"name"`
+	Descr  string `json:"descr"`
+	Chain  string `json:"chain"` // default direction: "in", "out" or "inout"; "" = unspecified
+	IPv6   bool   `json:"ipv6"`  // has a url_6 source
+	Custom bool   `json:"custom"`
 }
 
 // BanipSetStat is one row of the banIP Set report.
@@ -80,17 +100,18 @@ type BanipReport struct {
 
 // BanipProbe is the API view of the banIP page.
 type BanipProbe struct {
-	Installed      bool         `json:"installed"`
-	Enabled        bool         `json:"enabled"` // ban_enabled
-	Running        bool         `json:"running"`
-	NftCount       bool         `json:"nft_count"`
-	Applicable     bool         `json:"applicable"` // gateway with an uplink
-	Version        string       `json:"version"`
-	MemAvailableMB int64        `json:"mem_available_mb"` // from last_run; 0 = unknown
-	Feeds          []BanipFeed  `json:"feeds"`
-	Report         *BanipReport `json:"report,omitempty"`
-	Allowlist      []string     `json:"allowlist"`
-	Blocklist      []string     `json:"blocklist"`
+	Installed      bool               `json:"installed"`
+	Enabled        bool               `json:"enabled"` // ban_enabled
+	Running        bool               `json:"running"`
+	NftCount       bool               `json:"nft_count"`
+	Applicable     bool               `json:"applicable"` // gateway with an uplink
+	Version        string             `json:"version"`
+	MemAvailableMB int64              `json:"mem_available_mb"` // from last_run; 0 = unknown
+	Feeds          []BanipFeed        `json:"feeds"`
+	Catalog        []BanipCatalogFeed `json:"catalog"` // available feeds not configured in UCI
+	Report         *BanipReport       `json:"report,omitempty"`
+	Allowlist      []string           `json:"allowlist"`
+	Blocklist      []string           `json:"blocklist"`
 }
 
 // banipInstalled reports whether the banIP init script is present.
@@ -168,6 +189,77 @@ func banipFeeds(opts map[string][]string) []BanipFeed {
 		}
 	}
 	return feeds
+}
+
+// parseBanipCatalog parses a /etc/banip/banip.feeds document (flat JSON
+// object keyed by feed name). Only the display fields are kept; url_* and
+// rule_* are download internals and are dropped. A feed without url_4 is
+// not usable and is skipped. Broken or empty input yields an empty list
+// (the catalog is a nice-to-have, never an error).
+func parseBanipCatalog(data []byte, custom bool, max int) []BanipCatalogFeed {
+	var raw map[string]struct {
+		URL4  string `json:"url_4"`
+		URL6  string `json:"url_6"`
+		Chain string `json:"chain"`
+		Descr string `json:"descr"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil || len(raw) == 0 {
+		return []BanipCatalogFeed{}
+	}
+	names := make([]string, 0, len(raw))
+	for name := range raw {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	out := []BanipCatalogFeed{}
+	for _, name := range names {
+		if len(out) >= max {
+			break
+		}
+		f := raw[name]
+		if f.URL4 == "" {
+			continue
+		}
+		chain := f.Chain
+		if chain != "in" && chain != "out" && chain != "inout" {
+			chain = ""
+		}
+		out = append(out, BanipCatalogFeed{
+			Name:   name,
+			Descr:  f.Descr,
+			Chain:  chain,
+			IPv6:   f.URL6 != "",
+			Custom: custom,
+		})
+	}
+	return out
+}
+
+// banipCatalog reads the stock and custom feed catalogs. Custom feeds win
+// on name collisions (they are the user's own definitions).
+func banipCatalog() []BanipCatalogFeed {
+	out := []BanipCatalogFeed{}
+	seen := map[string]bool{}
+	for _, src := range []struct {
+		path   string
+		custom bool
+	}{
+		{banipFeedsPath, false},
+		{banipCustomFeedsPath, true},
+	} {
+		data, err := os.ReadFile(src.path)
+		if err != nil {
+			continue
+		}
+		for _, f := range parseBanipCatalog(data, src.custom, banipCatalogCap-len(out)) {
+			if seen[f.Name] {
+				continue
+			}
+			seen[f.Name] = true
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // banipReadList reads a local allow/blocklist, one entry per line, skipping
@@ -302,6 +394,29 @@ func parseBanipStatusText(out string) (version string, elements int64, memMB int
 	return version, elements, memMB, icmpLimit, synLimit, udpLimit
 }
 
+// banipMergeCatalog splits the catalog into configured (marks in_catalog
+// on the matching feed) and available entries. Pure so tests can cover the
+// no-duplicates rule.
+func banipMergeCatalog(feeds []BanipFeed, catalog []BanipCatalogFeed) ([]BanipFeed, []BanipCatalogFeed) {
+	configured := map[string]bool{}
+	for _, f := range feeds {
+		configured[f.Name] = true
+	}
+	available := []BanipCatalogFeed{}
+	for _, cf := range catalog {
+		if configured[cf.Name] {
+			for i := range feeds {
+				if feeds[i].Name == cf.Name {
+					feeds[i].InCatalog = true
+				}
+			}
+			continue
+		}
+		available = append(available, cf)
+	}
+	return feeds, available
+}
+
 // ProbeBanIP reads the full banIP state. Every read is fail-soft: a missing
 // report or status is an omitted field, never an error.
 func ProbeBanIP() *BanipProbe {
@@ -309,6 +424,7 @@ func ProbeBanIP() *BanipProbe {
 		Installed:  banipInstalled(),
 		Applicable: hasUplink(),
 		Feeds:      []BanipFeed{},
+		Catalog:    []BanipCatalogFeed{},
 		Allowlist:  []string{},
 		Blocklist:  []string{},
 	}
@@ -319,6 +435,11 @@ func ProbeBanIP() *BanipProbe {
 	p.Enabled = len(opts["ban_enabled"]) > 0 && opts["ban_enabled"][0] == "1"
 	p.NftCount = len(opts["ban_nftcount"]) > 0 && opts["ban_nftcount"][0] == "1"
 	p.Feeds = banipFeeds(opts)
+
+	// Catalog: available feeds that are not configured in UCI. Configured
+	// feeds get in_catalog so the UI can show which ones come from the
+	// stock/custom catalogs.
+	p.Feeds, p.Catalog = banipMergeCatalog(p.Feeds, banipCatalog())
 	p.Running = executor.ServiceRunning("banip")
 
 	if out, err := exec.Command("/etc/init.d/banip", "status").Output(); err == nil {
@@ -582,10 +703,24 @@ func banipFeedsMatch(opts map[string][]string, cfg BanipFeedsConfig) bool {
 }
 
 // SetBanipFeeds applies the desired feed configuration with snapshot,
-// healthcheck (live UCI must match) and rollback.
+// healthcheck (live UCI must match) and rollback. Feed names are validated
+// against the local catalog plus whatever is already configured in UCI, so
+// typos are rejected before any write.
 func SetBanipFeeds(cfg BanipFeedsConfig) (*BanipProbe, bool, error) {
 	if !banipInstalled() {
 		return ProbeBanIP(), false, fmt.Errorf("banip is not installed")
+	}
+	known := map[string]bool{}
+	for _, cf := range banipCatalog() {
+		known[cf.Name] = true
+	}
+	for _, f := range banipFeeds(banipGlobal()) {
+		known[f.Name] = true
+	}
+	for _, f := range cfg.Feeds {
+		if !known[f.Name] {
+			return ProbeBanIP(), false, fmt.Errorf("unknown feed %q: it is not in the banIP catalog or the current config", f.Name)
+		}
 	}
 	ops, err := banipFeedOps(cfg)
 	if err != nil {
