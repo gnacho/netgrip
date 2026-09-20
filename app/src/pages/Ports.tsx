@@ -9,10 +9,10 @@ import { RoleProfilesCard } from "../components/ports/RoleProfilesCard";
 import { VLANTable } from "../components/ports/VLANTable";
 
 /**
- * Puertos (ports.md): plantillas rápidas, PoE y bocas del switch; lo de
- * ingeniería (plantillas de puerto, perfiles, modos, VLANs, estadísticas)
- * bajo "Opciones avanzadas". El port-forwarding (abrir puertos a Internet)
- * vive ahora en la página WAN.
+ * Puertos ethernet (#353, antes "Puertos"): plantillas rápidas, PoE y bocas
+ * del switch; lo de ingeniería (plantillas de puerto, perfiles, modos, VLANs,
+ * estadísticas) bajo "Opciones avanzadas". El port-forwarding (abrir puertos
+ * a Internet) vive en la página "Puertos" (Forwards.tsx).
  */
 export function Ports() {
   return (

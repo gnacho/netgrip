@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { Activity, ArrowLeftRight, Blocks, ChartColumn, Download, Globe, HardDrive, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldBan, Smartphone, Wifi, Wrench } from "lucide-react";
+import { Activity, ArrowLeftRight, Blocks, ChartColumn, Download, Forward, Globe, HardDrive, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldBan, Smartphone, Wifi, Wrench } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
 import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MDNSProbe, ModeProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
@@ -15,6 +15,7 @@ import { WanPage } from "../pages/Wan";
 import { Services } from "../pages/Services";
 import { BanipPage } from "../pages/Banip";
 import { Ports } from "../pages/Ports";
+import { ForwardsPage } from "../pages/Forwards";
 import { System } from "../pages/System";
 import { LanPage } from "../pages/Lan";
 import { ToolsPage } from "../pages/Tools";
@@ -24,7 +25,7 @@ import { StoragePage } from "../pages/Storage";
 import { DpiPage } from "../pages/Dpi";
 import { SelfUpdateDialog } from "../components/system/SelfUpdateDialog";
 
-export type Page = "overview" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "banip" | "ports" | "tools" | "diagnostics" | "fleet" | "storage" | "system" | "dpi";
+export type Page = "overview" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "banip" | "ports" | "forwards" | "tools" | "diagnostics" | "fleet" | "storage" | "system" | "dpi";
 
 const NAV_ICONS: Record<Page, LucideIcon> = {
   overview: LayoutDashboard,
@@ -36,6 +37,7 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
   services: Blocks,
   banip: ShieldBan,
   ports: ArrowLeftRight,
+  forwards: Forward,
   tools: Wrench,
   diagnostics: Activity,
   storage: HardDrive,
@@ -47,7 +49,7 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
 /** Nav agrupada §7.1 (tareas, nombres llanos §7.2). */
 const NAV_GROUPS: { group: string | null; items: Page[] }[] = [
   { group: null, items: ["overview"] },
-  { group: "nav.group.network", items: ["wan", "clients", "coverage", "wifi", "lan", "ports", "dpi"] },
+  { group: "nav.group.network", items: ["wan", "clients", "coverage", "wifi", "lan", "ports", "forwards", "dpi"] },
   { group: "nav.group.services", items: ["services", "banip"] },
   { group: "nav.group.router", items: ["tools", "diagnostics", "storage", "fleet", "system"] },
 ];
@@ -149,7 +151,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   }, [usteerAps]);
   const visible = (id: Page) => {
     if (isSwitch && (id === "wifi" || id === "services" || id === "banip")) return false;
-    if (apMode && (id === "lan" || id === "ports" || id === "wan" || id === "banip")) return false;
+    if (apMode && (id === "lan" || id === "ports" || id === "forwards" || id === "wan" || id === "banip")) return false;
     if (id === "storage" && !storage?.applicable) return false;
     if (id === "coverage" && !usteerMultiRouter) return false;
     return true;
@@ -295,7 +297,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         />
       )}
       {activePage === "clients" && <ClientsPage />}
-      {activePage === "wan" && <WanPage fwd={fwd} onFwdChange={setFwd} />}
+      {activePage === "wan" && <WanPage />}
       {activePage === "coverage" && <CoveragePage aps={usteerAps} error={usteerError} />}
       {activePage === "wifi" && (
         <WifiPage iot={iot} onIotChange={setIot} guest={guest} onGuestChange={setGuest} />
@@ -309,6 +311,9 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
       {activePage === "banip" && <BanipPage />}
       {activePage === "ports" && (
         <Ports />
+      )}
+      {activePage === "forwards" && (
+        <ForwardsPage fwd={fwd} onFwdChange={setFwd} />
       )}
       {activePage === "tools" && (
         <ToolsPage ethports={ethports ?? []} />
