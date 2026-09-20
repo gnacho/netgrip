@@ -282,12 +282,24 @@ function LiveTrafficCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Muestreo rápido al montar (600ms) hasta tener la primera tasa de subida y
+  // bajada; después el ritmo tranquilo de 2s. Así la gráfica arranca en menos
+  // de un segundo en vez de esperar dos intervalos completos.
+  const samplesRef = useRef<Sample[]>(undefined);
+  useEffect(() => { samplesRef.current = samples; }, [samples]);
   useEffect(() => {
-    poll();
-    const id = setInterval(poll, 2000);
-    return () => clearInterval(id);
+    let cancelled = false;
+    let timer: number | undefined;
+    const tick = async () => {
+      await poll();
+      if (cancelled) return;
+      const n = samplesRef.current?.length ?? 0;
+      timer = window.setTimeout(tick, n >= 3 ? 2000 : 600);
+    };
+    void tick();
+    return () => { cancelled = true; clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [poll]);
 
   const loadHistory = useCallback(() => {
     api.history()
@@ -381,8 +393,6 @@ function LiveTrafficCard() {
         <EmptyState small title={t("common.loadError")}
           illustration={<CloudOff size={24} />}
           action={<Button variant="secondary" size="sm" onClick={poll}>{t("common.retry")}</Button>} />
-      ) : !samples || samples.length < 2 ? (
-        <SkeletonChart height={200} />
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-3 mb-2">
@@ -393,26 +403,39 @@ function LiveTrafficCard() {
                 { value: "24h" as const, label: t("history.range24h") },
               ]}
               value={mode} onChange={setMode} />
-            <SegmentedControl
-              ariaLabel={t("traffic.title")}
-              options={ifaces.slice(0, 4).map((name) => ({ value: name, label: ifaceLabel(t, name) }))}
-              value={active}
-              onChange={setSelected}
-            />
-            <div className="ml-auto flex items-center gap-4">
-              <span className="stat-md inline-flex items-center gap-1 text-ok">
-                <ArrowDown size={16} aria-hidden="true" /> {fmtRate(rxNow)}
-              </span>
-              <span className="stat-md inline-flex items-center gap-1 text-accent">
-                <ArrowUp size={16} aria-hidden="true" /> {fmtRate(txNow)}
-              </span>
-            </div>
+            {samples && samples.length >= 2 && (
+              <>
+                <SegmentedControl
+                  ariaLabel={t("traffic.title")}
+                  options={ifaces.slice(0, 4).map((name) => ({ value: name, label: ifaceLabel(t, name) }))}
+                  value={active}
+                  onChange={setSelected}
+                />
+                <div className="ml-auto flex items-center gap-4">
+                  <span className="stat-md inline-flex items-center gap-1 text-ok">
+                    <ArrowDown size={16} aria-hidden="true" /> {fmtRate(rxNow)}
+                  </span>
+                  <span className="stat-md inline-flex items-center gap-1 text-accent">
+                    <ArrowUp size={16} aria-hidden="true" /> {fmtRate(txNow)}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
-          <AreaChart rx={rxSeries} tx={txSeries} height={200} live
-            ariaLabel={`${t("overview.trafficLive")}: ${fmtRate(rxNow)} ↓, ${t("traffic.peak")} ${fmtRate(peak)}`} />
-          <p className="text-caption text-muted mt-2">
-            {t("traffic.peak")} {fmtRate(peak)} · {t("traffic.avg")} {fmtRate(avg)} · {t("traffic.total")} {fmtBytes(total)}
-          </p>
+          {!samples || samples.length < 2 ? (
+            <div className="flex items-center justify-center gap-2 text-muted" style={{ height: 200 }}>
+              <Activity size={14} aria-hidden="true" />
+              <span className="text-caption">{t("overview.liveCollecting")}</span>
+            </div>
+          ) : (
+            <>
+              <AreaChart rx={rxSeries} tx={txSeries} height={200} live
+                ariaLabel={`${t("overview.trafficLive")}: ${fmtRate(rxNow)} ↓, ${t("traffic.peak")} ${fmtRate(peak)}`} />
+              <p className="text-caption text-muted mt-2">
+                {t("traffic.peak")} {fmtRate(peak)} · {t("traffic.avg")} {fmtRate(avg)} · {t("traffic.total")} {fmtBytes(total)}
+              </p>
+            </>
+          )}
         </>
       )}
     </Card>

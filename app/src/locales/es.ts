@@ -1134,6 +1134,7 @@ export default {
     trafficLive: "Tráfico en directo",
     live: "EN VIVO",
     trafficRange: "Rango de tráfico",
+    liveCollecting: "Recopilando la primera muestra…",
     trafficModeLive: "En vivo",
     topConsumers: "Qué dispositivos y apps gastan más",
     cpu: "Procesador",

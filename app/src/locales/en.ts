@@ -1134,6 +1134,7 @@ export default {
     trafficLive: "Live traffic",
     live: "LIVE",
     trafficRange: "Traffic range",
+    liveCollecting: "Collecting the first sample…",
     trafficModeLive: "Live",
     topConsumers: "Which devices and apps use the most",
     cpu: "Processor",
