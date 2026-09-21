@@ -278,7 +278,7 @@ const realApi = {
   ethports: () => request<{ ports: import("./types").EthPort[] }>("/api/ethports"),
   usteer: () => request<{ aps: import("./types").UsteerAP[] }>("/api/usteer"),
   guestwifi: () => request<import("./types").GuestProbe>("/api/guestwifi"),
-  setGuestwifi: (cfg: { enabled: boolean; ssid?: string; key?: string; band?: string }) =>
+  setGuestwifi: (cfg: { enabled: boolean; ssid?: string; key?: string; band?: string; subnet?: string; isolate?: boolean }) =>
     request<import("./types").ModuleResult<import("./types").GuestProbe>>("/api/guestwifi", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

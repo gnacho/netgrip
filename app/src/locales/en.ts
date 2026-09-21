@@ -1093,6 +1093,13 @@ export default {
     doneOn: "Done. The guest Wi-Fi is on.",
     doneOff: "Done. The guest Wi-Fi is off.",
     keySaved: "Done. The guest password has been changed.",
+    subnetLabel: "Subnet",
+    subnetHint: "A fixed /24 mask. If it collides with your LAN or WAN, another one is picked automatically.",
+    subnetInvalid: "That doesn't look like a valid IPv4 address.",
+    apIsolation: "Access Point isolation",
+    apIsolationHint: "Stops guests from seeing each other.",
+    ipRange: "IP range",
+    ipRangeValue: "{{network}} · router {{router}} · DHCP {{dhcp}}",
   },
   captiveportal: {
     cardTitle: "Guest welcome page",

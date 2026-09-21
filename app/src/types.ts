@@ -244,6 +244,7 @@ export interface GuestProbe {
   active: boolean;
   ssid: string;
   subnet: string;
+  isolate: boolean;
   ifaces: string[];
   clients: number;
   gl_conflict: boolean;

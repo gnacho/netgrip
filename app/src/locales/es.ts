@@ -1093,6 +1093,13 @@ export default {
     doneOn: "Listo. El WiFi de invitados ya está activo.",
     doneOff: "Listo. El WiFi de visitas está apagado.",
     keySaved: "Listo. La clave de visitas se ha cambiado.",
+    subnetLabel: "Subred",
+    subnetHint: "Máscara /24 fija. Si choca con tu LAN o WAN, se elige otra automáticamente.",
+    subnetInvalid: "Eso no parece una dirección IPv4 válida.",
+    apIsolation: "Aislamiento de Punto de Acceso",
+    apIsolationHint: "Impide que los invitados se vean entre sí.",
+    ipRange: "Rango IP",
+    ipRangeValue: "{{network}} · router {{router}} · DHCP {{dhcp}}",
   },
   captiveportal: {
     cardTitle: "Página de bienvenida de invitados",
