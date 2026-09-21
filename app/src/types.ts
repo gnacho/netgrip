@@ -551,6 +551,17 @@ export interface LoopResult {
   has_hub: boolean;
 }
 
+export interface Announcement {
+  id: string;
+  urgency: "info" | "warn";
+  title: Record<string, string>;
+  body?: Record<string, string>;
+  url?: string;
+  urlLabel?: Record<string, string>;
+  starts?: string;
+  expires?: string;
+}
+
 export interface SelfUpdateCheck {
   current: string;
   latest: string;

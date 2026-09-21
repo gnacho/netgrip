@@ -659,6 +659,18 @@ export const demoSelfUpdate: T.SelfUpdateCheck = {
   notes: "",
 };
 
+export const demoAnnouncement: T.Announcement = {
+  id: "demo-welcome",
+  urgency: "info",
+  title: { es: "Esto es un aviso de ejemplo", en: "This is a sample announcement" },
+  body: {
+    es: "En producción la franja se alimenta de announcements.json del repo y se descarta por usuario.",
+    en: "In production the ribbon is fed from the repo announcements.json and dismisses per user.",
+  },
+  url: "https://github.com/gnacho/netgrip",
+  urlLabel: { es: "Ver el repo", en: "See the repo" },
+};
+
 export const demoWizard: T.WizardState = { completed: true, mode: "router" };
 
 export const demoWizardSetup: T.WizardSetupProbe = {

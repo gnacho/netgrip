@@ -47,6 +47,7 @@ func main() {
 	modules.StartFleetDiscovery(version, *port)
 	modules.StartPoEWatchdog()
 	modules.StartBanipWarmup()
+	modules.StartAnnouncements()
 	log.Printf("netgrip %s listening on %s (rpcd: %s)", version, addr, resolvedRPCd)
 	if err := http.ListenAndServe(addr, server.New(resolvedRPCd, version)); err != nil {
 		// One-shot actionable hint instead of a respawn loop of bare

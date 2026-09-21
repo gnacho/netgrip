@@ -673,6 +673,7 @@ export const demoApi: typeof api = {
     return { upgradable: state.packages };
   },
   selfUpdateCheck: () => get(D.demoSelfUpdate),
+  announcement: () => get({ active: true, announcement: D.demoAnnouncement }),
   selfUpdateSchedule: () => get({ config: { enabled: true, intervalHours: 168, windowStart: 3, windowEnd: 5 }, state: { lastCheck: Math.floor(Date.now() / 1000) - 3600, lastResult: "up-to-date", lastApply: 0, lastVersion: "" }, status: { phase: "idle", progress: 0, message: "" } }),
   selfUpdateScheduleSave: async (cfg: { enabled?: boolean; intervalHours?: number; windowStart?: number; windowEnd?: number }) => { await wait(300, 600); return { enabled: cfg.enabled ?? true, intervalHours: cfg.intervalHours ?? 168, windowStart: cfg.windowStart ?? 3, windowEnd: cfg.windowEnd ?? 5 }; },
   selfUpdateApply: async () => { await wait(800, 1500); return { status: "ok", restarting: false } },

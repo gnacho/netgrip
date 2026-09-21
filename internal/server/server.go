@@ -195,6 +195,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
 	s.mux.HandleFunc("GET /api/loops", s.requireAuth(s.handleLoops))
 	s.mux.HandleFunc("GET /api/selfupdate", s.requireAuth(s.handleSelfUpdateCheck))
+	s.mux.HandleFunc("GET /api/announcement", s.requireAuth(s.handleAnnouncement))
 	s.mux.HandleFunc("GET /api/selfupdate/status", s.requireAuth(s.handleSelfUpdateStatus))
 	s.mux.HandleFunc("POST /api/selfupdate", s.requireAuth(s.handleSelfUpdateApply))
 	s.mux.HandleFunc("GET /api/selfupdate/schedule", s.requireAuth(s.handleSelfUpdateSchedule))
@@ -1788,6 +1789,17 @@ func (s *Server) handleSelfUpdateCheck(w http.ResponseWriter, r *http.Request) {
 		return modules.CheckSelfUpdate(s.version), nil
 	})
 	writeJSON(w, check)
+}
+
+// handleAnnouncement expone el aviso vigente (announcements.json del repo,
+// refrescado por modules.StartAnnouncements). Sin aviso: {active:false}.
+func (s *Server) handleAnnouncement(w http.ResponseWriter, _ *http.Request) {
+	a := modules.GetActiveAnnouncement()
+	if a == nil {
+		writeJSON(w, map[string]any{"active": false})
+		return
+	}
+	writeJSON(w, map[string]any{"active": true, "announcement": a})
 }
 
 func (s *Server) handleSelfUpdateStatus(w http.ResponseWriter, _ *http.Request) {
