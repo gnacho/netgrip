@@ -5,7 +5,7 @@ import { Activity, ArrowLeftRight, Blocks, ChartColumn, Download, Forward, Globe
 import { api, disableDemo, isDemo } from "../api";
 import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MDNSProbe, ModeProbe, MultiWanProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
-import { Badge, Banner, Button, Drawer, Pill, StatusDot, ThemeToggle, ToastProvider } from "./ui";
+import { Banner, Button, Drawer, Pill, StatusDot, ThemeToggle, ToastProvider } from "./ui";
 import { Logo } from "./ui/illustrations";
 import { Overview } from "../pages/Overview";
 import { CoveragePage } from "../pages/Coverage";
@@ -163,15 +163,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   };
   const activePage = NAV_GROUPS.some((g) => g.items.includes(page)) && visible(page) ? page : "overview";
 
-  // Badges §7.1. Sistema (#157): solo cuenta una versión de firmware
-  // realmente nueva; los paquetes actualizables y las reconstrucciones
-  // same_version NO son alertas (la paquetería vive en LuCI/CLI).
-  const firmwarePending = update?.available && !update.same_version ? 1 : 0;
-  const badgeFor = (id: Page): { n: number; tone: "accent" | "warn" } | undefined => {
-    if (id === "system" && firmwarePending > 0) return { n: firmwarePending, tone: "warn" };
-    return undefined;
-  };
-
   const navigate = useCallback((p: string) => {
     setPage(p as Page);
     setMenuOpen(false);
@@ -188,7 +179,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
           {g.items.filter(visible).map((id) => {
             const Icon = NAV_ICONS[id];
             const active = activePage === id;
-            const badge = badgeFor(id);
             return (
               <button
                 key={id}
@@ -206,16 +196,9 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
                 )}
                 <span className="relative shrink-0">
                   <Icon size={18} />
-                  {compact && badge && (
-                    <span className={`absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[9px] font-semibold flex items-center justify-center
-                      ${badge.tone === "warn" ? "bg-warn text-white" : "bg-accent text-on-accent"}`}>
-                      {badge.n}
-                    </span>
-                  )}
                 </span>
                 {!compact && <span className="flex-1 truncate">{t(`nav.${id}`)}</span>}
                 {!compact && id === "overview" && <StatusDot tone={health.tone} label={t(health.labelKey)} />}
-                {!compact && badge && <Badge tone={badge.tone}>{badge.n}</Badge>}
               </button>
             );
           })}
@@ -228,7 +211,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   const bottomItems: Page[] = (
     isSwitch
       ? (["overview", "ports", "tools"] as Page[])
-      : (["overview", "wifi", "services", firmwarePending > 0 ? "system" : "tools"] as Page[])
+      : (["overview", "wifi", "services", "tools"] as Page[])
   ).filter(visible);
 
   const demo = isDemo();
@@ -372,7 +355,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         {bottomItems.map((id) => {
           const Icon = NAV_ICONS[id];
           const active = activePage === id;
-          const badge = badgeFor(id);
           return (
             <button
               key={id}
@@ -384,12 +366,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
             >
               <span className="relative">
                 <Icon size={22} />
-                {badge && (
-                  <span className={`absolute -top-1.5 -right-2 min-w-[15px] h-[15px] px-1 rounded-full text-[9px] font-semibold flex items-center justify-center
-                    ${badge.tone === "warn" ? "bg-warn text-white" : "bg-accent text-on-accent"}`}>
-                    {badge.n}
-                  </span>
-                )}
               </span>
               {t(`nav.${id}`)}
             </button>
