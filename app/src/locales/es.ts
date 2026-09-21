@@ -28,7 +28,7 @@ export default {
     wifi: "Inalámbrica",
     lan: "Red local",
     ports: "Puertos ethernet",
-    forwards: "Puertos",
+    forwards: "Reenvío de puertos",
     fleet: "Flota",
     storage: "Almacenamiento",
     system: "Sistema",
