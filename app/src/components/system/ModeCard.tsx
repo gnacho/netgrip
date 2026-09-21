@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Radio, Router } from "lucide-react";
 import { api } from "../../api";
-import type { ModeProbe } from "../../types";
+import type { ModeProbe, UsteerAP } from "../../types";
 import { ActionBanner, Card, ConfirmDialog, Pill, SegmentedControl, SkeletonRows, useToast } from "../ui";
 import { useActionCycle } from "../wifi/action";
 
@@ -13,10 +13,16 @@ export function ModeCard({ index = 0 }: { index?: number }) {
   const { push } = useToast();
   const [mode, setMode] = useState<ModeProbe>();
   const [confirmTarget, setConfirmTarget] = useState<Mode>();
+  const [usteerAps, setUsteerAps] = useState<UsteerAP[]>();
+  const [usteerError, setUsteerError] = useState(false);
   const { phase, detail, busy, run, clear } = useActionCycle();
 
   useEffect(() => {
     api.mode().then(setMode).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    api.usteer().then((r) => { setUsteerAps(r.aps); setUsteerError(false); }).catch(() => setUsteerError(true));
   }, []);
 
   const switchMode = (target: Mode) => {
@@ -30,6 +36,11 @@ export function ModeCard({ index = 0 }: { index?: number }) {
   };
 
   const isSwitch = mode?.hardware_class === "switch";
+
+  // Repeater: usteer neighbors detected (peers only, not the local router).
+  const neighborHosts = new Set<string>();
+  for (const a of usteerAps ?? []) if (!a.local) neighborHosts.add(a.hostname || a.bssid);
+  const neighborCount = neighborHosts.size;
 
   return (
     <Card index={index} title={t("mode.title")} icon={Router}>
@@ -54,13 +65,21 @@ export function ModeCard({ index = 0 }: { index?: number }) {
           />
           <p className="text-small text-muted">
             {mode.mode === "router" ? t("mode.descRouter") : t("mode.descAp")}
-            {mode.mode === "ap" && <> {t("mode.wanBridge")}</>}
           </p>
           {/* pills técnicas faint: el admin las entiende, el familiar las ignora */}
           <div className="flex flex-wrap gap-1.5">
             <Pill tone="muted">dnsmasq · {mode.dnsmasq_on ? t("mode.on") : t("mode.off")}</Pill>
             <Pill tone="muted">firewall · {mode.firewall_on ? t("mode.on") : t("mode.off")}</Pill>
           </div>
+          {mode.mode === "ap" && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {!usteerError && neighborCount > 0 ? (
+                <Pill tone="ok">{t("mode.usteerActive", { count: neighborCount })}</Pill>
+              ) : (
+                <p className="text-small text-faint">{t("mode.usteerHint")}</p>
+              )}
+            </div>
+          )}
           {phase && (
             <ActionBanner
               phase={phase}

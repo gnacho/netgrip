@@ -7,6 +7,7 @@ import type { WanStatus } from "../types";
 import {
   Banner, Button, Card, Field, Pill, SegmentedControl, SkeletonRows, useToast,
 } from "../components/ui";
+import { ModeCard } from "../components/system/ModeCard";
 
 const PROTO = ["dhcp", "static", "pppoe"] as const;
 const PROTO_KEY: Record<string, string> = {
@@ -106,7 +107,8 @@ export function WanPage() {
 
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
-      <Card index={0} icon={Globe} title={t("wan.title")}>
+      <ModeCard index={0} />
+      <Card index={1} icon={Globe} title={t("wan.title")}>
         {error ? (
           <Banner tone="danger">{t("common.loadError")}</Banner>
         ) : !status ? (
@@ -132,7 +134,7 @@ export function WanPage() {
         )}
       </Card>
 
-      <Card index={1} icon={Save} title={t("wan.configTitle")}
+      <Card index={2} icon={Save} title={t("wan.configTitle")}
         action={
           !editing && cfg !== undefined ? (
             <Button variant="secondary" size="sm" icon={Pencil} onClick={() => setEditing(true)}>{t("wan.edit")}</Button>
