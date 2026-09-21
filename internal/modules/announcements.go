@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	defaultAnnouncementsURL = "https://raw.githubusercontent.com/gnacho/netgrip/main/announcements.json"
+	defaultAnnouncementsURL = "https://netgrip.cloudless.club/announcements.json"
 	announcementsRefresh    = 6 * time.Hour
 	announcementsTimeout    = 5 * time.Second
 	announcementsMaxBytes   = 64 << 10
