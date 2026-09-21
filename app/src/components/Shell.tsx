@@ -5,6 +5,7 @@ import { Activity, ArrowLeftRight, Blocks, ChartColumn, Download, Forward, Globe
 import { api, disableDemo, isDemo } from "../api";
 import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MDNSProbe, ModeProbe, MultiWanProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
+import { AnnouncementBanner } from "./AnnouncementBanner";
 import { Banner, Button, Drawer, Pill, StatusDot, ThemeToggle, ToastProvider } from "./ui";
 import { Logo } from "./ui/illustrations";
 import { Overview } from "../pages/Overview";
@@ -346,6 +347,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
           {header}
           {demoBanner}
           {updateBanner}
+          <AnnouncementBanner />
           {pageContent}
         </main>
       </div>

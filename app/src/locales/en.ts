@@ -97,6 +97,10 @@ export default {
     exit: "Exit demo",
     realLogin: "Sign in to a real router",
   },
+  announcement: {
+    link: "Learn more",
+    dismiss: "Dismiss announcement",
+  },
   common: {
     cancel: "Cancel",
     close: "Close",

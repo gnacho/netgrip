@@ -100,6 +100,8 @@ const realApi = {
     }),
   logout: () => request<void>("/api/logout", { method: "POST" }),
   me: () => request<void>("/api/me"),
+  announcement: () =>
+    request<{ active: boolean; announcement?: import("./types").Announcement }>("/api/announcement"),
   board: () => request<import("./types").Board>("/api/board"),
   system: () => request<import("./types").SystemInfo>("/api/system"),
   wan: () => request<import("./types").WanStatus>("/api/wan"),

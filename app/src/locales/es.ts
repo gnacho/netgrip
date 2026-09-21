@@ -97,6 +97,10 @@ export default {
     exit: "Salir del demo",
     realLogin: "Entrar a un router real",
   },
+  announcement: {
+    link: "Saber más",
+    dismiss: "Descartar aviso",
+  },
   common: {
     cancel: "Cancelar",
     close: "Cerrar",
