@@ -227,6 +227,22 @@ func dnsLookupWorks() bool {
 	return false
 }
 
+// adGuardReady polls the healthcheck until AdGuard answers through dnsmasq.
+// A cold AdGuardHome start takes ~17s on a mipsle router to reach the first
+// DNS answer (auth module, filters, listeners), far beyond the single
+// healthcheck window; without this wait the enable rolled back exactly when
+// the service was about to come up. Bounded at ~60s, then the caller rolls
+// back.
+func adGuardReady() bool {
+	for i := 0; i < 25; i++ {
+		if dnsLookupWorks() {
+			return true
+		}
+		time.Sleep(2 * time.Second)
+	}
+	return false
+}
+
 // adGuardApplyDNS commits a dnsmasq state and restarts the service; used for
 // both the change itself and its rollback.
 func adGuardApplyDNS(st dnsmasqState) error {
@@ -300,7 +316,7 @@ func adGuardEnable(st dnsmasqState) (*DNSConfig, bool, error) {
 		adGuardEnableRollback(st, wroteYAML)
 		return ProbeDNS(), true, err
 	}
-	if !dnsLookupWorks() {
+	if !adGuardReady() {
 		adGuardEnableRollback(st, wroteYAML)
 		return ProbeDNS(), true, fmt.Errorf("dns healthcheck failed, restored the previous DNS config")
 	}
