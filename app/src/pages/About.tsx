@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ExternalLink, Github, Star } from "lucide-react";
 import { api } from "../api";
-import type { SelfUpdateCheck } from "../types";
+import type { SelfUpdateCheck, UpdateCheck } from "../types";
 import { Card, KeyValue } from "../components/ui";
 import { Logo } from "../components/ui/illustrations";
 import { DEVELOPER, LICENSE, LICENSE_URL, REPO_URL, STARGAZERS_URL, WEBSITE_URL } from "../about";
@@ -21,15 +21,19 @@ function External({ href, children }: { href: string; children: ReactNode }) {
 
 /**
  * Acerca de (#372): identidad de la app, enlaces del proyecto y el CTA de
- * GitHub. La versión viene de /api/selfupdate (igual que la tarjeta de
- * identidad de Sistema), nunca hardcodeada; en demo se muestra la simulada.
+ * GitHub. La versión de NetGrip viene de /api/selfupdate (igual que la
+ * tarjeta de identidad de Sistema) y la de OpenWrt del mismo /api/update
+ * que usa la tarjeta de actualización; nada hardcodeado, en demo se
+ * muestran las simuladas.
  */
 export function AboutPage() {
   const { t } = useTranslation();
   const [check, setCheck] = useState<SelfUpdateCheck>();
+  const [owrt, setOwrt] = useState<UpdateCheck>();
 
   useEffect(() => {
     api.selfUpdateCheck().then(setCheck).catch(() => {});
+    api.updateCheck().then(setOwrt).catch(() => {});
   }, []);
 
   return (
@@ -59,6 +63,9 @@ export function AboutPage() {
             v{check?.current ?? "…"}
           </span>
         </div>
+        {owrt?.version_from && (
+          <p className="mt-2 text-caption text-faint font-mono">OpenWrt {owrt.version_from}</p>
+        )}
       </Card>
 
       {/* Enlaces del proyecto. */}
