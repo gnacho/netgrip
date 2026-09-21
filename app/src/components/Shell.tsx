@@ -303,10 +303,10 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         <WifiPage iot={iot} onIotChange={setIot} guest={guest} onGuestChange={setGuest} />
       )}
       {activePage === "lan" && (
-        <LanPage />
+        <LanPage ipv6={ipv6} onIpv6Change={setIpv6} />
       )}
       {activePage === "services" && (
-        <Services wg={wg} onWgChange={setWg} ipv6={ipv6} onIpv6Change={setIpv6} ddns={ddns} onDdnsChange={setDdns} mdns={mdns} onMdnsChange={setMdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} ts={ts} onTsChange={setTs} apMode={apMode} onNavigate={navigate} />
+        <Services wg={wg} onWgChange={setWg} ddns={ddns} onDdnsChange={setDdns} mdns={mdns} onMdnsChange={setMdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} ts={ts} onTsChange={setTs} apMode={apMode} onNavigate={navigate} />
       )}
       {activePage === "banip" && <BanipPage />}
       {activePage === "ports" && (

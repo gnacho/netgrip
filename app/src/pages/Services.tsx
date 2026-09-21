@@ -1,12 +1,11 @@
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
-import type { DDNSProbe, IPv6Probe, MDNSProbe, OVPNProbe, SQMProbe, TSProbe, WGProbe } from "../types";
+import type { DDNSProbe, MDNSProbe, OVPNProbe, SQMProbe, TSProbe, WGProbe } from "../types";
 import { WireguardCard } from "../components/services/WireguardCard";
 import { OpenvpnCard } from "../components/services/OpenvpnCard";
 import { TailscaleCard } from "../components/services/TailscaleCard";
 import { DdnsCard } from "../components/services/DdnsCard";
 import { MdnsCard } from "../components/services/MdnsCard";
-import { Ipv6Card } from "../components/services/Ipv6Card";
 import { SqmCard } from "../components/services/SqmCard";
 import { NlbwmonCard } from "../components/services/NlbwmonCard";
 import { FirewallCard } from "../components/services/FirewallCard";
@@ -28,11 +27,9 @@ function GroupHeader({ title, desc, index }: { title: string; desc: string; inde
  * Servicios (services.md): toggles con superpoderes agrupados por tarea.
  * Entrada escalonada por grupo (VPN inmediato, siguientes +80ms).
  */
-export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChange, mdns, onMdnsChange, sqm, onSqmChange, ovpn, onOvpnChange, ts, onTsChange, apMode = false, onNavigate }: {
+export function Services({ wg, onWgChange, ddns, onDdnsChange, mdns, onMdnsChange, sqm, onSqmChange, ovpn, onOvpnChange, ts, onTsChange, apMode = false, onNavigate }: {
   wg: WGProbe | undefined;
   onWgChange: (p: WGProbe) => void;
-  ipv6: IPv6Probe | undefined;
-  onIpv6Change: (p: IPv6Probe) => void;
   ddns: DDNSProbe | undefined;
   onDdnsChange: (p: DDNSProbe) => void;
   mdns: MDNSProbe | undefined;
@@ -63,7 +60,6 @@ export function Services({ wg, onWgChange, ipv6, onIpv6Change, ddns, onDdnsChang
         <GroupHeader index={2} title={t("services.groupConn")} desc={t("services.groupConnDesc")} />
         {!apMode && <DdnsCard probe={ddns} onChange={onDdnsChange} index={2} />}
         <MdnsCard probe={mdns} onChange={onMdnsChange} index={2} />
-        {!apMode && <Ipv6Card probe={ipv6} onChange={onIpv6Change} index={2} />}
         {!apMode && <SqmCard probe={sqm} onChange={onSqmChange} index={2} />}
       </section>
 
