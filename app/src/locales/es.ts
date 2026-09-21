@@ -25,7 +25,7 @@ export default {
     coverage: "Cobertura",
     services: "Servicios",
     banip: "BanIP",
-    wifi: "WiFi",
+    wifi: "Inalámbrica",
     lan: "Red local",
     ports: "Puertos ethernet",
     forwards: "Puertos",
@@ -364,7 +364,7 @@ export default {
     passwordHidden: "La contraseña no se muestra por seguridad.",
   },
   wifi: {
-    title: "WiFi",
+    title: "Inalámbrica",
     band24: "2,4 GHz",
     band5: "5 GHz",
     channel: "Canal",
