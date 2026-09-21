@@ -1,5 +1,13 @@
 export class UnauthorizedError extends Error {}
 
+/** Callback instalado por App: cualquier 401 autenticado manda la app al
+ *  login (sesión muerta en caliente tras un reinicio/sysupgrade). */
+let onUnauthorized: (() => void) | null = null;
+
+export function setUnauthorizedHandler(fn: (() => void) | null) {
+  onUnauthorized = fn;
+}
+
 export interface WANConfig {
   /** Which interface these settings belong to. Read-only: with several
    *  uplinks it follows the one in use, and the card says so. */
@@ -67,7 +75,14 @@ export function disableDemo() {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init);
-  if (res.status === 401) throw new UnauthorizedError();
+  if (res.status === 401) {
+    // Sesión muerta en caliente (p.ej. el router reinició tras un
+    // sysupgrade y las sesiones viven en memoria): avisar para volver al
+    // login en vez de quedarse cargando. El boot check (/api/me) y el
+    // propio login ya gestionan su 401; no se redirige desde aquí.
+    if (onUnauthorized && path !== "/api/me" && path !== "/api/login") onUnauthorized();
+    throw new UnauthorizedError();
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { error?: string }).error || `HTTP ${res.status}`);
