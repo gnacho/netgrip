@@ -5,6 +5,7 @@ import { api } from "../../api";
 import type { Board, UpdateCheck } from "../../types";
 import { Banner, Button, Card, ConfirmDialog, IconTile, SkeletonRows, useToast } from "../ui";
 import { WaitOverlay, useMeBack } from "./WaitOverlay";
+import { InstallProgress, useInstallJob } from "../wizard/common";
 
 const STEP_KEYS = ["update.stepDownload", "update.stepInstall", "update.stepReboot", "update.stepCheck"] as const;
 /** Ms cosméticos por paso; la verdad la da el sondeo a /api/me. */
@@ -24,6 +25,7 @@ export function UpdateCard({ board, update, onChange }: {
 }) {
   const { t } = useTranslation();
   const { push } = useToast();
+  const { begin, running: installing, job } = useInstallJob();
   const [checking, setChecking] = useState(false);
   const [confirm, setConfirm] = useState(false);
   /** fase del flujo de actualización con overlay a pantalla completa */
@@ -37,6 +39,20 @@ export function UpdateCard({ board, update, onChange }: {
     setChecking(true);
     try { onChange(await api.updateCheck()); } catch { /* se conserva el estado anterior */ }
     setChecking(false);
+  };
+
+  const installOwut = async () => {
+    try {
+      const j = await begin(() => api.wizardPackages(["owut"]));
+      if (j.phase === "done") {
+        push({ tone: "ok", text: t("update.owutInstalled") });
+        recheck();
+      } else {
+        push({ tone: "danger", text: j.error || t("update.failed") });
+      }
+    } catch (e) {
+      push({ tone: "danger", text: e instanceof Error ? e.message : t("update.failed") });
+    }
   };
 
   const finish = () => {
@@ -78,7 +94,16 @@ export function UpdateCard({ board, update, onChange }: {
       {update === undefined ? (
         <SkeletonRows rows={3} />
       ) : update.owut_present === false ? (
-        <Banner tone="warn">{t("update.noOwut")}</Banner>
+        <div className="flex flex-col gap-3">
+          <Banner tone="warn">{t("update.noOwut")}</Banner>
+          <div>
+            <Button variant="secondary" size="sm" loading={installing} onClick={installOwut}>
+              <Download size={14} aria-hidden="true" /> {t("update.installOwut")}
+            </Button>
+          </div>
+          {installing && <p className="text-small text-muted">{t("update.installingOwut")}</p>}
+          <InstallProgress job={installing ? job : null} />
+        </div>
       ) : !showUpgrade ? (
         /* al día (firmware-wise) */
         <div className="flex flex-col items-start gap-2.5">

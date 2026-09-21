@@ -38,6 +38,7 @@ var optionalCatalog = []OptionalPkg{
 	{ID: "tailscale", Packages: []string{"tailscale"}, I18nKey: "wizard.packages.tailscale", Module: "tailscale"},
 	{ID: "adguard", Packages: []string{"adguardhome"}, I18nKey: "wizard.packages.adguard", Module: "adguard"},
 	{ID: "netifyd", Packages: []string{"netifyd"}, I18nKey: "wizard.packages.netifyd", Module: "netifyd"},
+	{ID: "owut", Packages: []string{"owut"}, I18nKey: "wizard.packages.owut", Module: "owut"},
 }
 
 // optionalServices maps catalog modules to their init.d service, stopped and

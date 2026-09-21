@@ -1362,7 +1362,10 @@ export default {
     confirmNo: "Cancel",
     started: "Update in progress. The router will reboot; come back in a few minutes.",
     failed: "Could not start the update",
-    noOwut: "This router can't update itself (owut is missing). Use the engineering panel instead.",
+    noOwut: "This router can't update itself (owut is missing).",
+    installOwut: "Install owut",
+    installingOwut: "Installing owut…",
+    owutInstalled: "owut installed. The router can now update itself.",
     unsafe: "It is not safe to update now",
     missingPkgs: "Missing pieces needed to update: {{list}}",
     warnReinstall: "NetGrip will reinstall itself after the update.",
@@ -1646,6 +1649,7 @@ export default {
       tailscale: "Tailscale",
       adguard: "AdGuard Home",
       netifyd: "Traffic analysis",
+      owut: "owut (OpenWrt Upgrade Tool)",
     },
     installed: "Installed",
     installedCount_one: "{{count}} installed",
@@ -2127,6 +2131,10 @@ export default {
       netifyd: {
         title: "Traffic analysis",
         desc: "Identifies which applications your devices use and how much they consume.",
+      },
+      owut: {
+        title: "owut (OpenWrt Upgrade Tool)",
+        desc: "The tool that lets the router update itself.",
       },
     },
     done: {
