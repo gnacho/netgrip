@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { Activity, ArrowLeftRight, Blocks, ChartColumn, Download, Forward, Globe, HardDrive, Info, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldBan, Smartphone, Wifi, Wrench } from "lucide-react";
+import { Activity, ArrowLeftRight, Blocks, ChartColumn, ChartPie, Download, Forward, Globe, HardDrive, Info, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldBan, Smartphone, Wifi, Wrench } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
 import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MDNSProbe, ModeProbe, MultiWanProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
@@ -9,6 +9,7 @@ import { AnnouncementBanner } from "./AnnouncementBanner";
 import { Banner, Button, Drawer, Pill, StatusDot, ThemeToggle, ToastProvider } from "./ui";
 import { Logo } from "./ui/illustrations";
 import { Overview } from "../pages/Overview";
+import { UsagePage } from "../pages/Usage";
 import { CoveragePage } from "../pages/Coverage";
 import { ClientsPage } from "../pages/Clients";
 import { WifiPage } from "../pages/Wifi";
@@ -27,7 +28,7 @@ import { DpiPage } from "../pages/Dpi";
 import { AboutPage } from "../pages/About";
 import { SelfUpdateDialog } from "../components/system/SelfUpdateDialog";
 
-export type Page = "overview" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "banip" | "ports" | "forwards" | "tools" | "diagnostics" | "fleet" | "storage" | "system" | "dpi" | "about";
+export type Page = "overview" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "usage" | "banip" | "ports" | "forwards" | "tools" | "diagnostics" | "fleet" | "storage" | "system" | "dpi" | "about";
 
 const NAV_ICONS: Record<Page, LucideIcon> = {
   overview: LayoutDashboard,
@@ -37,6 +38,7 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
   wifi: Wifi,
   lan: Network,
   services: Blocks,
+  usage: ChartPie,
   banip: ShieldBan,
   ports: ArrowLeftRight,
   forwards: Forward,
@@ -53,7 +55,7 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
 const NAV_GROUPS: { group: string | null; items: Page[] }[] = [
   { group: null, items: ["overview"] },
   { group: "nav.group.network", items: ["wan", "clients", "coverage", "wifi", "lan", "ports", "forwards", "dpi"] },
-  { group: "nav.group.services", items: ["services", "banip"] },
+  { group: "nav.group.services", items: ["services", "usage", "banip"] },
   { group: "nav.group.router", items: ["tools", "diagnostics", "storage", "fleet", "system"] },
   { group: "nav.group.about", items: ["about"] },
 ];
@@ -156,7 +158,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     return hosts.size > 1;
   }, [usteerAps]);
   const visible = (id: Page) => {
-    if (isSwitch && (id === "wifi" || id === "services" || id === "banip")) return false;
+    if (isSwitch && (id === "wifi" || id === "services" || id === "usage" || id === "banip")) return false;
     if (apMode && (id === "lan" || id === "ports" || id === "forwards" || id === "wan" || id === "banip")) return false;
     if (id === "storage" && !storage?.applicable) return false;
     if (id === "coverage" && !usteerMultiRouter) return false;
@@ -280,11 +282,12 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
       )}
       {activePage === "overview" && (
         <Overview
-          board={board} system={system} wan={wan} ethports={ethports}
+          board={board} system={system} wan={wan}
           drift={drift} onDriftChange={setDrift}
           isSwitch={isSwitch} health={health} mode={mode} onNavigate={navigate}
         />
       )}
+      {activePage === "usage" && <UsagePage onNavigate={navigate} />}
       {activePage === "clients" && <ClientsPage />}
       {activePage === "wan" && <WanPage mwan={mwan} onMwanChange={setMwan} />}
       {activePage === "coverage" && <CoveragePage aps={usteerAps} error={usteerError} />}
@@ -299,7 +302,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
       )}
       {activePage === "banip" && <BanipPage />}
       {activePage === "ports" && (
-        <Ports />
+        <Ports ethports={ethports ?? []} />
       )}
       {activePage === "forwards" && (
         <ForwardsPage fwd={fwd} onFwdChange={setFwd} />
