@@ -1763,6 +1763,8 @@ export default {
     protectionSwitch: "Protección DNS",
     protectionOnDesc: "Toda la red resuelve a través de AdGuard Home. La configuración DNS anterior queda guardada y se restaura al desactivar.",
     protectionOffDesc: "Activa el filtrado: el servicio arranca y dnsmasq entrega todas las consultas a AdGuard Home.",
+    protectionEnabling: "Activando la protección DNS. La primera vez AdGuard Home tarda unos 20 s en arrancar; no cierres la ventana.",
+    protectionDisabling: "Desactivando la protección DNS y restaurando tu configuración anterior...",
     protectionOffBackupDesc: "Hay una configuración DNS guardada de una activación anterior; se restaurará al activar de nuevo.",
     enableTitle: "¿Activar la protección DNS?",
     enableBody: "AdGuard Home filtrará las consultas de toda la red. El router guarda la configuración DNS actual y la restaura si algo falla.",

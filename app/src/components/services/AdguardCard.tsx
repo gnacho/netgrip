@@ -19,7 +19,8 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
   const { push } = useToast();
   const { begin, running: installing, job } = useInstallJob();
   const [cfg, setCfg] = useState<DNSConfig>();
-  const [busy, setBusy] = useState(false);
+  const [busyWith, setBusyWith] = useState<"enable" | "disable" | null>(null);
+  const busy = busyWith !== null;
   const [confirmEnable, setConfirmEnable] = useState(false);
   const [confirmDisable, setConfirmDisable] = useState(false);
 
@@ -34,7 +35,7 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
 
   const doEnable = async () => {
     setConfirmEnable(false);
-    setBusy(true);
+    setBusyWith("enable");
     try {
       if (!cfg.adguard_installed) {
         const j = await begin(() => api.wizardPackages(["adguard"]));
@@ -52,14 +53,14 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
     } catch (e) {
       push({ tone: "danger", text: t("adguard.protectionFailed"), detail: e instanceof Error ? e.message : String(e) });
     } finally {
-      setBusy(false);
+      setBusyWith(null);
       load();
     }
   };
 
   const doDisable = async () => {
     setConfirmDisable(false);
-    setBusy(true);
+    setBusyWith("disable");
     try {
       const res = await api.adguardProtection(false);
       if (res.error) push({ tone: "danger", text: t("adguard.protectionFailed"), detail: res.error });
@@ -70,13 +71,13 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
     } catch (e) {
       push({ tone: "danger", text: t("adguard.protectionFailed"), detail: e instanceof Error ? e.message : String(e) });
     } finally {
-      setBusy(false);
+      setBusyWith(null);
       load();
     }
   };
 
   const stopService = async () => {
-    setBusy(true);
+    setBusyWith("disable");
     try {
       const res = await api.adguardAction("stop");
       if (res.error) push({ tone: "danger", text: t("adguard.actionFailed"), detail: res.error });
@@ -85,7 +86,7 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
         load();
       }
     } finally {
-      setBusy(false);
+      setBusyWith(null);
     }
   };
 
@@ -147,6 +148,14 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
                 ? t("adguard.protectionOffBackupDesc")
                 : t("adguard.protectionOffDesc")}
           </p>
+          {busyWith && (
+            <div className="mt-3 flex flex-col gap-1.5" role="status">
+              <span className="text-small text-muted">
+                {busyWith === "enable" ? t("adguard.protectionEnabling") : t("adguard.protectionDisabling")}
+              </span>
+              <div aria-hidden="true" className="skeleton h-1 w-full rounded-full" />
+            </div>
+          )}
         </>
       )}
 
