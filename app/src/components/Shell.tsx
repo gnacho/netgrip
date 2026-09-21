@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import { Activity, ArrowLeftRight, Blocks, ChartColumn, Download, Forward, Globe, HardDrive, Info, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldBan, Smartphone, Wifi, Wrench } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
-import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MDNSProbe, ModeProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
+import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MDNSProbe, ModeProbe, MultiWanProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
 import { Badge, Banner, Button, Drawer, Pill, StatusDot, ThemeToggle, ToastProvider } from "./ui";
 import { Logo } from "./ui/illustrations";
@@ -74,6 +74,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   const [ovpn, setOvpn] = useState<OVPNProbe>();
   const [iot, setIot] = useState<IoTProbe>();
   const [fwd, setFwd] = useState<FwdProbe>();
+  const [mwan, setMwan] = useState<MultiWanProbe>();
   const [ts, setTs] = useState<TSProbe>();
   const [guest, setGuest] = useState<GuestProbe>();
   const [ethports, setEthports] = useState<EthPort[]>();
@@ -129,6 +130,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     api.openvpn().then(setOvpn).catch(() => {});
     api.iotwifi().then(setIot).catch(() => {});
     api.portforward().then(setFwd).catch(() => {});
+    api.multiwan().then(setMwan).catch(() => {});
     api.tailscale().then(setTs).catch(() => {});
     api.guestwifi().then(setGuest).catch(() => {});
     api.ethports().then((r) => setEthports(r.ports)).catch(() => {});
@@ -300,7 +302,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         />
       )}
       {activePage === "clients" && <ClientsPage />}
-      {activePage === "wan" && <WanPage />}
+      {activePage === "wan" && <WanPage mwan={mwan} onMwanChange={setMwan} />}
       {activePage === "coverage" && <CoveragePage aps={usteerAps} error={usteerError} />}
       {activePage === "wifi" && (
         <WifiPage iot={iot} onIotChange={setIot} guest={guest} onGuestChange={setGuest} />

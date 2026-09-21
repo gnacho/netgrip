@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gnacho/netgrip/internal/executor"
+	"github.com/gnacho/netgrip/internal/ubus"
 )
 
 const sqmSection = "netgrip"
@@ -112,12 +113,12 @@ func sqmInstalled() bool {
 }
 
 // wanDevice resolves the L3 device of the wan interface ("" on dumb APs).
+// wanDevice is the device shaping attaches to: the egress device of the
+// uplink actually carrying traffic. Asking for the interface named "wan"
+// shaped a standby modem on a router whose real uplink is named otherwise,
+// and shapes the wrong link entirely once a failover moves the traffic.
 func wanDevice() string {
-	out, err := exec.Command("sh", "-c", "ubus call network.interface.wan status 2>/dev/null | grep l3_device | cut -d'\"' -f4").Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
+	return ubus.ActiveWANL3Device()
 }
 
 func sqmCakePresent(dev string) bool {

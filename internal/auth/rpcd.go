@@ -26,9 +26,14 @@ const DefaultRPCdURL = "http://127.0.0.1/ubus"
 
 // CandidateRPCdURLs lists the endpoints probed when no explicit override is
 // set. GL.iNet firmware fronts port 80 with nginx (its own portal) and serves
-// uhttpd on 8080/8443, redirecting /ubus to the HTTPS listener.
+// uhttpd on 8080/8443, redirecting /ubus to the HTTPS listener. Stock OpenWrt
+// with uhttpd.main.redirect_https='1' instead redirects port 80 straight to
+// its own HTTPS listener on 443, so probe that directly too (302, always
+// redirected — see the CheckRedirect note on rpcClient below for why we
+// don't just follow it).
 var CandidateRPCdURLs = []string{
 	DefaultRPCdURL,
+	"https://127.0.0.1/ubus",
 	"https://127.0.0.1:8443/ubus",
 	"http://127.0.0.1:8080/ubus",
 }

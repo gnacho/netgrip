@@ -1,11 +1,12 @@
-import { Languages, Monitor, Moon, Rows3, Settings2, Sun } from "lucide-react";
+import { FlaskConical, Languages, Monitor, Moon, Rows3, Settings2, Sun } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { useTheme, type ThemeChoice } from "../../hooks/useTheme";
-import { Card, SegmentedControl } from "../ui";
+import { useLabs } from "../../hooks/useLabs";
+import { Card, HelpTip, SegmentedControl, Toggle } from "../ui";
 import { useDensity, useLang } from "../ui/controls";
 
-function Row({ icon, label, control }: { icon: ReactNode; label: string; control: ReactNode }) {
+function Row({ icon, label, control }: { icon: ReactNode; label: ReactNode; control: ReactNode }) {
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <span className="flex items-center gap-2 text-body font-medium text-text">
@@ -27,6 +28,7 @@ export function OptionsCard({ index = 0 }: { index?: number }) {
   const { lang, setLang } = useLang();
   const { density, setDensity } = useDensity();
   const { theme, setTheme } = useTheme();
+  const { labs, setLabs } = useLabs();
 
   return (
     <Card index={index} title={t("options.title")} icon={Settings2}>
@@ -80,6 +82,16 @@ export function OptionsCard({ index = 0 }: { index?: number }) {
               ]}
             />
           }
+        />
+        <Row
+          icon={<FlaskConical size={16} aria-hidden="true" />}
+          label={
+            <span className="flex items-center gap-1.5">
+              {t("options.labs")}
+              <HelpTip title={t("options.labs")} body={t("options.labsHint")} />
+            </span>
+          }
+          control={<Toggle checked={labs} onChange={setLabs} label={t("options.labs")} />}
         />
       </div>
     </Card>

@@ -231,6 +231,71 @@ export interface FwdProbe {
   rules: FwdRule[];
 }
 
+/** One internet connection. `name` is the UCI network section, which is also
+ *  the name mwan3 addresses it by. */
+export interface WanCandidate {
+  name: string;
+  proto: string;
+  device?: string;
+  l3_device?: string;
+  /** Physical socket, when the uplink has one (a modem does not). */
+  port?: string;
+  up: boolean;
+  /** Carrying traffic right now. */
+  active: boolean;
+  /** The preferred uplink, in failover mode. */
+  primary: boolean;
+  /** mwan3's own verdict on the link; absent when it is not running. */
+  online?: string;
+  tracking?: string;
+  share_pct: number;
+  ipv4: string[];
+  gateway?: string;
+  metric: number;
+  uptime: number;
+  weight: number;
+  balance: boolean;
+  /** Mobile broadband: traffic over it usually costs money. */
+  metered: boolean;
+  managed: boolean;
+  track: string[];
+  /** Which signal qualified it: zone | route | marker. */
+  reason: string;
+}
+
+/** What the panel asks for. Weights and balance only mean anything while
+ *  balancing; primary only in failover. */
+export interface MultiWanRequest {
+  mode: string;
+  primary?: string;
+  weights?: Record<string, number>;
+  balance?: Record<string, boolean>;
+  track?: Record<string, string[]>;
+  sticky?: boolean;
+  confirm_foreign?: boolean;
+}
+
+export interface MultiWanProbe {
+  applicable: boolean;
+  candidates: WanCandidate[];
+  multi_wan_possible: boolean;
+  installed: boolean;
+  enabled: boolean;
+  running: boolean;
+  /** off | failover | balance | custom ("custom" = configured outside NetGrip). */
+  mode: string;
+  managed: boolean;
+  foreign: boolean;
+  foreign_sections: string[];
+  primary_iface?: string;
+  active_policy?: string;
+  /** Each device stays on one connection while balancing. */
+  sticky: boolean;
+  default_track: string[];
+  package_id: string;
+  config_present: boolean;
+}
+
 export interface TSProbe {
   installed: boolean;
   running: boolean;

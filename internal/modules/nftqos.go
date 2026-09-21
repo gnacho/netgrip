@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/gnacho/netgrip/internal/ubus"
 )
 
 var (
@@ -42,11 +44,12 @@ type NftQoSSetRequest struct {
 	Upload   int    `json:"upload"`
 }
 
-// hasWan reports whether the router has a WAN interface (i.e. is the gateway).
+// hasWan reports whether the router has an uplink at all (i.e. is the
+// gateway). Resolved rather than assumed: the uplink is not always the
+// interface named "wan", and on some routers that name belongs to an idle
+// standby link.
 func hasWan() bool {
-	out, err := exec.Command("sh", "-c", "ubus call network.interface.wan status 2>/dev/null | grep -q l3_device").CombinedOutput()
-	_ = out
-	return err == nil
+	return ubus.ActiveWANL3Device() != ""
 }
 
 // ProbeNftQoS returns the current per-device QoS state.

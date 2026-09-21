@@ -48,6 +48,10 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/wan", s.requireAuth(s.handleWan))
 	s.mux.HandleFunc("GET /api/wan/config", s.requireAuth(s.handleWanConfigGet))
 	s.mux.HandleFunc("POST /api/wan/config", s.requireAuth(s.handleWanConfigPost))
+	s.mux.HandleFunc("POST /api/wan/public-ip", s.requireAuth(s.handleWanPublicIP))
+	s.mux.HandleFunc("GET /api/multiwan", s.requireAuth(s.handleMultiWanGet))
+	s.mux.HandleFunc("POST /api/multiwan", s.requireAuth(s.handleMultiWanSet))
+	s.mux.HandleFunc("POST /api/multiwan/primary", s.requireAuth(s.handleMultiWanPrimary))
 	s.mux.HandleFunc("GET /api/wireless", s.requireAuth(s.handleWireless))
 	s.mux.HandleFunc("GET /api/leases", s.requireAuth(s.handleLeases))
 	s.mux.HandleFunc("GET /api/ipv6", s.requireAuth(s.handleIPv6Get))
@@ -392,6 +396,50 @@ func (s *Server) handleWan(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleWanConfigGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, modules.ReadWANConfig())
+}
+
+// handleWanPublicIP asks an outside service what address this router comes
+// from. A POST, not a GET: it leaves the network, and that should not
+// happen on a refresh.
+func (s *Server) handleWanPublicIP(w http.ResponseWriter, _ *http.Request) {
+	res, err := modules.CheckPublicIP()
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, res)
+}
+
+type multiWanPrimaryRequest struct {
+	Iface string `json:"iface"`
+}
+
+// handleMultiWanSet applies a mode. The module answers with the new state
+// and whether it had to roll back, like every other write.
+func (s *Server) handleMultiWanSet(w http.ResponseWriter, r *http.Request) {
+	var req modules.MultiWanRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.ApplyMultiWAN(req)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleMultiWanPrimary(w http.ResponseWriter, r *http.Request) {
+	var req multiWanPrimaryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetMultiWANPrimary(req.Iface)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+// handleMultiWanGet lists the internet uplinks and, when mwan3 is
+// installed, what it is doing with them. Read-only.
+func (s *Server) handleMultiWanGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeMultiWAN())
 }
 
 func (s *Server) handleWanConfigPost(w http.ResponseWriter, r *http.Request) {

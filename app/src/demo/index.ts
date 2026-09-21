@@ -32,6 +32,7 @@ const state = {
   captive: { ...D.demoCaptivePortal },
   iot: { ...D.demoIot },
   fwd: structuredClone(D.demoFwd),
+  mwan: structuredClone(D.demoMultiWan),
   ts: { ...D.demoTailscale },
   lan: structuredClone(D.demoLan),
   dns: structuredClone(D.demoDns),
@@ -159,7 +160,11 @@ export const demoApi: typeof api = {
   board: () => get(D.demoBoard),
   system: () => get(D.demoSystem),
   wan: () => get(D.demoWan),
-  wanConfig: async () => ({ proto: "dhcp", device: "wan", mtu: "1500" }),
+  wanConfig: async () => ({ iface: "wan", proto: "dhcp", device: "wan", mtu: "1500" }),
+  checkPublicIp: async () => {
+    await wait(600, 1200);
+    return { ip: "203.0.113.45", iface: "wan", source: "api.ipify.org", checked_at: Math.floor(Date.now() / 1000) };
+  },
   setWanConfig: async (cfg) => { await wait(300, 600); return cfg; },
   wireless: () => get(state.wireless),
   leases: () => get(D.demoLeases),
@@ -533,6 +538,35 @@ export const demoApi: typeof api = {
 
   // puertos
   ethports: () => get({ ports: D.demoEthPorts }),
+  multiwan: () => get(state.mwan),
+  setMultiwan: async (req) => {
+    const m = state.mwan;
+    m.installed = true;
+    m.mode = req.mode;
+    m.managed = req.mode !== "off";
+    m.running = req.mode !== "off";
+    m.enabled = m.running;
+    m.primary_iface = req.mode === "failover" ? req.primary : undefined;
+    m.sticky = req.mode === "balance" ? req.sticky !== false : false;
+    m.candidates = m.candidates.map((c) => {
+      const pooled = req.mode === "balance" && (req.balance?.[c.name] ?? !c.metered);
+      return {
+        ...c,
+        primary: req.mode === "failover" && c.name === req.primary,
+        balance: pooled,
+        weight: req.weights?.[c.name] ?? 1,
+        track: req.track?.[c.name] ?? c.track,
+        active: req.mode === "failover" ? c.name === req.primary : pooled || c.active,
+      };
+    });
+    return write(state.mwan);
+  },
+  setMultiwanPrimary: async (iface) => {
+    const m = state.mwan;
+    m.primary_iface = iface;
+    m.candidates = m.candidates.map((c) => ({ ...c, primary: c.name === iface, active: c.name === iface }));
+    return write(state.mwan);
+  },
   portforward: () => get(state.fwd),
   addFwdRule: async (src_dport, dest_ip, dest_port, proto) => {
     state.fwd.rules.push({ section: `fwd_${state.fwd.rules.length}`, name: "", src_dport, dest_ip, dest_port, proto });

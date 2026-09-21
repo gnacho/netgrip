@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gnacho/netgrip/internal/ubus"
 )
 
 const (
@@ -120,6 +122,11 @@ func gradeFor(delta float64) string {
 }
 
 func defaultGateway() (string, error) {
+	// The uplink in use, which under a multi-WAN policy is not necessarily
+	// the one holding the cheapest default route.
+	if st, err := ubus.GetWanStatus(); err == nil && st.Up && st.Gateway != "" {
+		return st.Gateway, nil
+	}
 	out, err := exec.Command("sh", "-c", "ip route show default 2>/dev/null | awk '{print $3}' | head -1").Output()
 	if err != nil {
 		return "", fmt.Errorf("cannot resolve default gateway: %w", err)

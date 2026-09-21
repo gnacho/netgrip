@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CloudOff, Globe, KeyRound, Pencil, Save } from "lucide-react";
 import { api } from "../api";
-import type { WANConfig } from "../api";
-import type { WanStatus } from "../types";
+import type { PublicIP, WANConfig } from "../api";
+import type { MultiWanProbe, WanStatus } from "../types";
 import {
   Banner, Button, Card, Field, Pill, SegmentedControl, SkeletonRows, useToast,
 } from "../components/ui";
+import { MultiWanCard } from "../components/wan/MultiWanCard";
 import { ModeCard } from "../components/system/ModeCard";
+import { useLabs } from "../hooks/useLabs";
 
 const PROTO = ["dhcp", "static", "pppoe"] as const;
 const PROTO_KEY: Record<string, string> = {
@@ -37,6 +39,20 @@ function ConnRing({ up }: { up: boolean }) {
   );
 }
 
+/** True for the address ranges a provider hands out behind its own NAT.
+ *  Seeing one of these on an uplink is why a website reports a different
+ *  address than the panel does. */
+function providerAddress(ip: string): boolean {
+  const p = ip.split(".").map(Number);
+  if (p.length !== 4 || p.some((n) => Number.isNaN(n))) return false;
+  if (p[0] === 10) return true;
+  if (p[0] === 192 && p[1] === 168) return true;
+  if (p[0] === 172 && p[1] >= 16 && p[1] <= 31) return true;
+  // 100.64.0.0/10, the range reserved for exactly this arrangement.
+  if (p[0] === 100 && p[1] >= 64 && p[1] <= 127) return true;
+  return false;
+}
+
 function fmtDur(s: number): string {
   if (!s || s <= 0) return "—";
   const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
@@ -47,16 +63,22 @@ function fmtDur(s: number): string {
 
 /** Página WAN (#243): estado de salida a Internet + configuración (lectura con
  *  Editar; el form no abre por defecto). El port-forwarding vive en su propia
- *  página "Puertos" (#353). */
-export function WanPage() {
+ *  página "Puertos" (#353); esta página añade el multi-WAN. */
+export function WanPage({ mwan, onMwanChange }: {
+  mwan?: MultiWanProbe;
+  onMwanChange?: (p: MultiWanProbe) => void;
+}) {
   const { t } = useTranslation();
   const { push } = useToast();
+  const { labs } = useLabs();
   const [status, setStatus] = useState<WanStatus>();
   const [cfg, setCfg] = useState<WANConfig>();
   const [form, setForm] = useState<WANConfig>({ proto: "dhcp" });
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
+  const [publicIp, setPublicIp] = useState<PublicIP>();
+  const [checking, setChecking] = useState(false);
 
   const load = () => {
     api.wan().then(setStatus).catch(() => setError(true));
@@ -65,6 +87,19 @@ export function WanPage() {
   useEffect(load, []);
 
   const set = (patch: Partial<WANConfig>) => setForm((f) => ({ ...f, ...patch }));
+
+  // Asking the outside world what address we come from is the one thing
+  // that leaves the network, so it happens on a click and never on a poll.
+  const checkPublic = async () => {
+    setChecking(true);
+    try {
+      setPublicIp(await api.checkPublicIp());
+    } catch (e) {
+      push({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setChecking(false);
+    }
+  };
   const protoLabel = (p: string) => t(PROTO_KEY[p] ?? p);
 
   const save = async () => {
@@ -129,6 +164,37 @@ export function WanPage() {
                 <div className="flex gap-3"><dt className="text-muted">{t("wan.dns")}</dt><dd className="font-mono text-right break-all">{stats.dns}</dd></div>
                 <div className="flex gap-3"><dt className="text-muted">{t("wan.uptimeLabel")}</dt><dd className="font-mono">{stats.uptime}</dd></div>
               </dl>
+
+              {/* The address on the connection and the address the world
+                  sees are not always the same number, and that difference
+                  is what makes people think something is broken. */}
+              {status.up && (
+                <div className="mt-2.5">
+                  {publicIp ? (
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-small text-muted">{t("wan.publicSeen")}</span>
+                      <span className="font-mono text-body">{publicIp.ip}</span>
+                      <span className="text-caption text-muted">
+                        {publicIp.ip === stats.ip
+                          ? t("wan.publicSame")
+                          : t("wan.publicVia", { source: publicIp.source })}
+                      </span>
+                      <Button variant="ghost" size="sm" onClick={checkPublic} loading={checking}>
+                        {t("wan.publicAgain")}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      {stats.ip !== "—" && providerAddress(stats.ip) && (
+                        <span className="text-caption text-muted">{t("wan.publicShared")}</span>
+                      )}
+                      <Button variant="secondary" size="sm" onClick={checkPublic} loading={checking}>
+                        {t("wan.publicCheck")}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -195,6 +261,10 @@ export function WanPage() {
           </>
         )}
       </Card>
+
+      {/* MultiWAN es funcionalidad labs: solo se dibuja con Labs activado
+          (Sistema > Opciones). */}
+      {labs && <MultiWanCard probe={mwan} onChange={onMwanChange} index={3} />}
     </div>
   );
 }

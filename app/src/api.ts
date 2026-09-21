@@ -1,6 +1,9 @@
 export class UnauthorizedError extends Error {}
 
 export interface WANConfig {
+  /** Which interface these settings belong to. Read-only: with several
+   *  uplinks it follows the one in use, and the card says so. */
+  iface?: string;
   proto: "dhcp" | "static" | "pppoe";
   device?: string;
   ipaddr?: string;
@@ -11,6 +14,14 @@ export interface WANConfig {
   username?: string;
   password?: string;
   vlanid?: string;
+}
+
+/** The address the internet sees, fetched only when asked for. */
+export interface PublicIP {
+  ip: string;
+  iface: string;
+  source: string;
+  checked_at: number;
 }
 
 export type InstallPhase = "idle" | "updating" | "installing" | "done" | "error";
@@ -78,6 +89,7 @@ const realApi = {
   system: () => request<import("./types").SystemInfo>("/api/system"),
   wan: () => request<import("./types").WanStatus>("/api/wan"),
   wanConfig: () => request<WANConfig>("/api/wan/config"),
+  checkPublicIp: () => request<PublicIP>("/api/wan/public-ip", { method: "POST" }),
   setWanConfig: (cfg: WANConfig) =>
     request<WANConfig>("/api/wan/config", {
       method: "POST",
@@ -316,6 +328,19 @@ const realApi = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled }),
+    }),
+  multiwan: () => request<import("./types").MultiWanProbe>("/api/multiwan"),
+  setMultiwan: (req: import("./types").MultiWanRequest) =>
+    request<import("./types").ModuleResult<import("./types").MultiWanProbe>>("/api/multiwan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    }),
+  setMultiwanPrimary: (iface: string) =>
+    request<import("./types").ModuleResult<import("./types").MultiWanProbe>>("/api/multiwan/primary", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ iface }),
     }),
   portforward: () => request<import("./types").FwdProbe>("/api/portforward"),
   addFwdRule: (src_dport: string, dest_ip: string, dest_port: string, proto: string) =>

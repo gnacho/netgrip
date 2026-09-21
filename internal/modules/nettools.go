@@ -16,7 +16,7 @@ import (
 
 var uciConfigs = []string{
 	"network", "dhcp", "firewall", "wireless",
-	"system", "dropbear", "uhttpd", "sqm", "ddns",
+	"system", "dropbear", "uhttpd", "sqm", "ddns", "mwan3",
 }
 
 const snapshotDir = "/etc/netgrip/snapshots"

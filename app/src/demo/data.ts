@@ -203,6 +203,38 @@ export const demoFwd: T.FwdProbe = {
   ],
 };
 
+export const demoMultiWan: T.MultiWanProbe = {
+  applicable: true,
+  multi_wan_possible: true,
+  installed: false,
+  enabled: false,
+  running: false,
+  mode: "off",
+  managed: false,
+  foreign: false,
+  foreign_sections: [],
+  sticky: true,
+  default_track: ["1.1.1.1", "9.9.9.9"],
+  package_id: "mwan3",
+  config_present: false,
+  candidates: [
+    {
+      name: "fibra", proto: "pppoe", device: "lan4", l3_device: "pppoe-fibra", port: "lan4",
+      up: true, active: true, primary: false, share_pct: 0,
+      ipv4: ["203.0.113.24"], gateway: "203.0.113.1", metric: 10, uptime: 412300,
+      weight: 1, balance: false, metered: false, managed: false,
+      track: ["1.1.1.1", "9.9.9.9"], reason: "zone",
+    },
+    {
+      name: "movil", proto: "qmi", l3_device: "wwan0",
+      up: true, active: false, primary: false, share_pct: 0,
+      ipv4: ["192.0.2.77"], gateway: "192.0.2.78", metric: 20, uptime: 5400,
+      weight: 1, balance: false, metered: true, managed: false,
+      track: ["1.1.1.1", "9.9.9.9"], reason: "zone",
+    },
+  ],
+};
+
 export const demoTailscale: T.TSProbe = {
   installed: true,
   running: false,
