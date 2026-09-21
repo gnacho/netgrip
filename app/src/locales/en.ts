@@ -626,6 +626,7 @@ export default {
     stateActive: "Active",
     stateStopped: "Stopped",
     stateDisabled: "Disabled",
+    stateChecking: "Checking…",
     start: "Start",
     enable: "Enable",
     stop: "Stop",

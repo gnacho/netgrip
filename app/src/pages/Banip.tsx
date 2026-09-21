@@ -193,13 +193,15 @@ export function BanipPage() {
       return notInstalledView;
     }
     // Status conocido (instalado) y probe completo en camino: header real +
-    // skeletons en las zonas lentas.
+    // skeletons en las zonas lentas. Hasta el primer status la pill queda
+    // neutra: el fallback "Desactivado" era un estado falso bajo carga inicial.
     const stActive = !!st && st.enabled && st.running;
+    const statusPending = !st;
     return (
       <div className="flex flex-col gap-[var(--card-gap)]">
         <div className="flex flex-wrap items-center gap-2">
-          <Pill tone={stActive ? "ok" : st?.enabled ? "warn" : "muted"} live={stActive}>
-            {stActive ? t("banip.stateActive") : st?.enabled ? t("banip.stateStopped") : t("banip.stateDisabled")}
+          <Pill tone={statusPending ? "muted" : stActive ? "ok" : st?.enabled ? "warn" : "muted"} live={stActive}>
+            {statusPending ? t("banip.stateChecking") : stActive ? t("banip.stateActive") : st?.enabled ? t("banip.stateStopped") : t("banip.stateDisabled")}
           </Pill>
           <span className="flex-1" />
           <Button variant="primary" size="sm" disabled={busy !== null} onClick={() => setConfirmReload(true)}>

@@ -626,6 +626,7 @@ export default {
     stateActive: "Activo",
     stateStopped: "Parado",
     stateDisabled: "Desactivado",
+    stateChecking: "Comprobando…",
     start: "Arrancar",
     enable: "Activar",
     stop: "Parar",
