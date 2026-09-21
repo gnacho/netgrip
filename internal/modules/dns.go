@@ -32,7 +32,13 @@ type DNSConfig struct {
 	AdGuardProtection bool        `json:"adguard_protection"`
 	AdGuardHasBackup  bool        `json:"adguard_has_backup"`
 	AdGuardDnsPort    int         `json:"adguard_dns_port,omitempty"`
-	Hosts             []HostEntry `json:"hosts"`
+	// DoH (#364): whether AdGuard resolves through DNS-over-HTTPS upstreams,
+	// the current upstream list (capped at 8) and the provider presets the UI
+	// offers. Providers are a backend constant (single source of truth).
+	DohEnabled   bool          `json:"doh_enabled"`
+	DohUpstreams []string      `json:"doh_upstreams"`
+	DohProviders []DohProvider `json:"doh_providers"`
+	Hosts        []HostEntry   `json:"hosts"`
 }
 
 // HostEntry is one line of the custom hosts mapping.
@@ -61,9 +67,11 @@ func ProbeDNS() *DNSConfig {
 		Hosts:             parseHostsFile(hostsPath()),
 	}
 	c.AdGuardInstalled = pkgInstalled("adguardhome")
+	c.DohProviders = adGuardDohPresets
 	if c.AdGuardInstalled {
 		c.AdGuardRunning = executor.ServiceRunning("adguardhome")
 		c.AdGuardDnsPort = adGuardResolvedPort()
+		c.DohEnabled, c.DohUpstreams = probeDoHState()
 	}
 	return c
 }

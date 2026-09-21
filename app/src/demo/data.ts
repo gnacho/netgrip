@@ -303,6 +303,14 @@ export const demoDns: T.DNSConfig = {
   adguard_protection: true,
   adguard_has_backup: true,
   adguard_dns_port: 5353,
+  doh_enabled: false,
+  doh_upstreams: [],
+  doh_providers: [
+    { id: "cloudflare", url: "https://dns.cloudflare.com/dns-query" },
+    { id: "quad9", url: "https://dns.quad9.net/dns-query" },
+    { id: "google", url: "https://dns.google/dns-query" },
+    { id: "adguard", url: "https://dns.adguard-dns.com/dns-query" },
+  ],
   hosts: [{ ip: "192.168.8.10", hostname: "nas" }],
 };
 

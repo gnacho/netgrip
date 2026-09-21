@@ -263,6 +263,12 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enable, confirm: true }),
     }),
+  adguardDoh: (action: "enable" | "disable", upstreams: string[]) =>
+    request<import("./types").ModuleResult<import("./types").DNSConfig>>("/api/dns/doh/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, upstreams }),
+    }),
   setDns: (opts: { rebind_protection?: boolean; override_dns?: boolean; dns_vpn?: boolean; force_dns?: boolean }) =>
     request<import("./types").ModuleResult<import("./types").DNSConfig>>("/api/dns", {
       method: "POST",

@@ -368,6 +368,11 @@ export interface DNSConfig {
   adguard_protection: boolean;
   adguard_has_backup: boolean;
   adguard_dns_port?: number;
+  /** DoH (#364): active upstreams, current list (capped at 8) and the
+   *  provider presets the UI offers (backend single source of truth). */
+  doh_enabled: boolean;
+  doh_upstreams: string[];
+  doh_providers: { id: string; url: string }[];
   hosts: HostEntry[];
 }
 

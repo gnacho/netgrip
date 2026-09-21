@@ -485,6 +485,17 @@ export const demoApi: typeof api = {
     state.dns.adguard_dns_port = 5353;
     return { status: "applied" as const, rolled_back: false, state: { ...state.dns } };
   },
+  adguardDoh: async (action: "enable" | "disable", upstreams: string[]) => {
+    await wait(1200, 2000);
+    if (action === "enable") {
+      state.dns.doh_enabled = true;
+      state.dns.doh_upstreams = [...upstreams];
+    } else {
+      state.dns.doh_enabled = false;
+      state.dns.doh_upstreams = [];
+    }
+    return { status: "applied" as const, rolled_back: false, state: { ...state.dns } };
+  },
   setDns: async (opts) => { Object.assign(state.dns, opts); return write(state.dns); },
   setDnsHost: async (ip, hostname, remove) => {
     state.dns.hosts = remove
