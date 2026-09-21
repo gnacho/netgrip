@@ -3,6 +3,7 @@ package modules
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ type DNSConfig struct {
 	RebindProtect bool `json:"rebind_protection"`
 	OverrideDNS   bool `json:"override_dns"`
 	DnsVpn        bool `json:"dns_vpn_local"`
+	ForceDNS      bool `json:"force_dns"`
 	AdGuardActive bool `json:"adguard_active"`
 	// AdGuardInstalled/AdGuardRunning describe the adguardhome package and
 	// its init.d service (lowercase "adguardhome", verified on OpenWrt
@@ -52,6 +54,7 @@ func ProbeDNS() *DNSConfig {
 		RebindProtect:     dnsmasqBool("rebind_protection"),
 		OverrideDNS:       !dnsmasqBool("localservice"),
 		DnsVpn:            dnsmasqBool("dns_vpn_local"),
+		ForceDNS:          dhcpHasForceDNS(dhcpOptionValues(), uciGet("network.lan.ipaddr")),
 		AdGuardActive:     dnsmasqBool("adguard_active") || uciGet("dhcp.lan.dhcp_option") != "" || protection,
 		AdGuardProtection: protection,
 		AdGuardHasBackup:  loadAdGuardBackup() != nil,
@@ -142,8 +145,59 @@ func parseHostsFile(path string) []HostEntry {
 	return entries
 }
 
-// SetDNS toggles DNS options (rebind protection, override client DNS).
-func SetDNS(rebindProtect, overrideDNS, dnsVpn *bool) (*DNSConfig, bool, error) {
+// dhcpOptionValues returns the dhcp.lan.dhcp_option list values (e.g.
+// "3,192.168.1.1", "6,192.168.1.1").
+func dhcpOptionValues() []string {
+	out, err := exec.Command("uci", "show", "dhcp.lan.dhcp_option").Output()
+	if err != nil {
+		return nil
+	}
+	return parseDHCPOptionShow(string(out))
+}
+
+// parseDHCPOptionShow parses the raw output of `uci show dhcp.lan.dhcp_option`
+// into its list values. Pure for testability.
+func parseDHCPOptionShow(line string) []string {
+	line = strings.TrimSpace(line)
+	_, val, ok := strings.Cut(line, "=")
+	if !ok {
+		return nil
+	}
+	return parseUCIValues(val)
+}
+
+// dhcpHasForceDNS reports whether the dhcp.lan.dhcp_option list already
+// contains the "6,<routerIP>" entry that forces clients to use the router.
+func dhcpHasForceDNS(values []string, routerIP string) bool {
+	want := "6," + routerIP
+	for _, v := range values {
+		if v == want {
+			return true
+		}
+	}
+	return false
+}
+
+// planForceDNSOps builds the UCI ops that toggle DHCP option 6 on dhcp.lan,
+// forcing every client to use the router as its DNS server. Enable removes
+// any existing 6, entries first, then announces the router; disable only
+// removes them.
+func planForceDNSOps(current []string, routerIP string, enable bool) []executor.Op {
+	var ops []executor.Op
+	for _, v := range current {
+		if strings.HasPrefix(v, "6,") {
+			ops = append(ops, executor.Op{Kind: "uci_del_list", Args: []string{"dhcp.lan.dhcp_option", v}})
+		}
+	}
+	if enable {
+		ops = append(ops, executor.Op{Kind: "uci_add_list", Args: []string{"dhcp.lan.dhcp_option", "6," + routerIP}})
+	}
+	return ops
+}
+
+// SetDNS toggles DNS options (rebind protection, override client DNS, VPN
+// DNS, force router DNS).
+func SetDNS(rebindProtect, overrideDNS, dnsVpn, forceDNS *bool) (*DNSConfig, bool, error) {
 	if !dnsApplicable() {
 		return ProbeDNS(), false, fmt.Errorf("DNS settings only apply on the gateway (dnsmasq)")
 	}
@@ -164,6 +218,13 @@ func SetDNS(rebindProtect, overrideDNS, dnsVpn *bool) (*DNSConfig, bool, error) 
 	}
 	if dnsVpn != nil {
 		ops = append(ops, dnsmasqSet("dns_vpn_local", boolVal(*dnsVpn))...)
+	}
+	if forceDNS != nil {
+		ip := uciGet("network.lan.ipaddr")
+		if ip == "" || !reIPv4.MatchString(ip) {
+			return ProbeDNS(), false, fmt.Errorf("cannot resolve the LAN router IP (network.lan.ipaddr)")
+		}
+		ops = append(ops, planForceDNSOps(dhcpOptionValues(), ip, *forceDNS)...)
 	}
 	if len(ops) == 0 {
 		return ProbeDNS(), false, fmt.Errorf("nothing to change")

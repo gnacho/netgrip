@@ -296,6 +296,7 @@ export const demoDns: T.DNSConfig = {
   rebind_protection: true,
   override_dns: false,
   dns_vpn: false,
+  force_dns: false,
   adguard_active: true,
   adguard_installed: true,
   adguard_running: true,

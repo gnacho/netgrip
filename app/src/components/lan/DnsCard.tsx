@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BookText, CloudOff, Lock, Server, ShieldCheck, Trash2 } from "lucide-react";
+import { BookText, CloudOff, Lock, Router, Server, ShieldCheck, Trash2 } from "lucide-react";
 import { api } from "../../api";
 import type { DNSConfig } from "../../types";
 import {
@@ -9,7 +9,7 @@ import {
 import { useActionCycle } from "../wifi/action";
 import { isValidIp } from "./LanConfigCard";
 
-type DnsKey = "rebind_protection" | "override_dns" | "dns_vpn";
+type DnsKey = "rebind_protection" | "override_dns" | "dns_vpn" | "force_dns";
 
 /** Card "DNS: la agenda de nombres" (lan.md §3). */
 export function DnsCard({ index = 1 }: { index?: number }) {
@@ -80,6 +80,10 @@ export function DnsCard({ index = 1 }: { index?: number }) {
     {
       key: "dns_vpn", icon: Lock, title: t("dns.dnsVpnShort"), desc: t("dns.dnsVpnDesc"),
       disabled: vpnActive === false, reason: t("dns.vpnInactive"),
+    },
+    {
+      key: "force_dns", icon: Router, title: t("dns.forceShort"),
+      desc: cfg?.adguard_protection ? `${t("dns.forceDesc")} ${t("dns.forceAdGuardHint")}` : t("dns.forceDesc"),
     },
   ];
 

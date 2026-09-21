@@ -1343,6 +1343,7 @@ type dnsSetRequest struct {
 	RebindProtect *bool `json:"rebind_protection,omitempty"`
 	OverrideDNS   *bool `json:"override_dns,omitempty"`
 	DnsVpn        *bool `json:"dns_vpn,omitempty"`
+	ForceDNS      *bool `json:"force_dns,omitempty"`
 }
 
 func (s *Server) handleAdGuardAction(w http.ResponseWriter, r *http.Request) {
@@ -1380,7 +1381,7 @@ func (s *Server) handleDNSSet(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	probe, rolledBack, err := modules.SetDNS(req.RebindProtect, req.OverrideDNS, req.DnsVpn)
+	probe, rolledBack, err := modules.SetDNS(req.RebindProtect, req.OverrideDNS, req.DnsVpn, req.ForceDNS)
 	writeModuleResult(w, probe, rolledBack, err)
 }
 

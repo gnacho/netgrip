@@ -361,6 +361,7 @@ export interface DNSConfig {
   rebind_protection: boolean;
   override_dns: boolean;
   dns_vpn: boolean;
+  force_dns: boolean;
   adguard_active: boolean;
   adguard_installed: boolean;
   adguard_running: boolean;
