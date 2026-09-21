@@ -1,5 +1,16 @@
 export default {
   app: { name: "NetGrip" },
+  about: {
+    description: "An open-source companion panel for your OpenWrt router.",
+    project: "Project",
+    repository: "Repository",
+    website: "Website",
+    developer: "Developer",
+    license: "License",
+    starTitle: "Star us on GitHub",
+    starDesc: "If NetGrip is useful to you, a star on GitHub helps more people find it.",
+    starButton: "Star on GitHub",
+  },
   login: {
     title: "Sign in",
     subtitle: "Router root password (same as LuCI)",
@@ -34,12 +45,14 @@ export default {
     tools: "Tools",
     diagnostics: "Diagnostics",
     dpi: "Traffic",
+    about: "About",
     menu: "Menu",
     group: {
       network: "Your network",
     services: "Services",
     banip: "BanIP",
       router: "Router",
+      about: "About",
     },
     desc: {
       overview: "How your router is doing",
@@ -55,6 +68,7 @@ export default {
       fleet: "Other NetGrip devices on your network",
       system: "Updates, security and router mode",
       dpi: "What's using bandwidth right now, by app and category",
+      about: "About the NetGrip panel",
     },
   },
   theme: {

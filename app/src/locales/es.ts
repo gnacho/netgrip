@@ -1,5 +1,16 @@
 export default {
   app: { name: "NetGrip" },
+  about: {
+    description: "El panel complementario de código abierto para tu router OpenWrt.",
+    project: "Proyecto",
+    repository: "Repositorio",
+    website: "Web del proyecto",
+    developer: "Desarrollador",
+    license: "Licencia",
+    starTitle: "Danos una estrella en GitHub",
+    starDesc: "Si NetGrip te resulta útil, una estrella en GitHub ayuda a que más gente lo descubra.",
+    starButton: "Dar estrella en GitHub",
+  },
   login: {
     title: "Entrar",
     subtitle: "Contraseña root del router (la misma de LuCI)",
@@ -35,11 +46,13 @@ export default {
     tools: "Herramientas",
     diagnostics: "Diagnóstico",
     dpi: "Tráfico",
+    about: "Acerca de",
     menu: "Menú",
     group: {
       network: "Tu red",
       services: "Servicios",
       router: "Router",
+      about: "Acerca de",
     },
     desc: {
       overview: "Cómo está tu router ahora",
@@ -55,6 +68,7 @@ export default {
       fleet: "Otros equipos NetGrip de tu red",
       dpi: "Que gasta trafico ahora mismo, por aplicacion y categoria",
       system: "Actualizaciones, seguridad y modo del router",
+      about: "Sobre el panel NetGrip",
     },
   },
   theme: {
