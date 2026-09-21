@@ -462,6 +462,28 @@ func TestBanipCacheInvalidate(t *testing.T) {
 	}
 }
 
+func TestBanipWarmupPopulatesCaches(t *testing.T) {
+	banipInvalidate()
+	defer banipInvalidate()
+	old := banipWarmupDelay
+	banipWarmupDelay = 0
+	defer func() { banipWarmupDelay = old }()
+	StartBanipWarmup()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		banipCache.Lock()
+		hasStatus, hasProbe := banipCache.status != nil, banipCache.probe != nil
+		banipCache.Unlock()
+		if hasStatus && hasProbe {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("warmup did not populate the caches (status=%v probe=%v)", hasStatus, hasProbe)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 func TestRunningFromPidfile(t *testing.T) {
 	dir := t.TempDir()
 	// Fake /proc so the test is hermetic: the pid dir existing means the

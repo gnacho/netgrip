@@ -335,6 +335,25 @@ func ProbeBanipStatusCached() *BanipStatus {
 	return s
 }
 
+// banipWarmupDelay keeps the warmup forks out of the boot-time fork storm.
+var banipWarmupDelay = 2 * time.Second
+
+// StartBanipWarmup pre-fills the banIP caches shortly after process start so
+// the first page visit after a (re)start does not pay the cold probe: on a
+// mipsle router the full probe takes ~9s, dominated by `banip report`. The
+// warmup runs in the background through the same cached entry points writes
+// invalidate, so a mutation during warmup still wins via the generation
+// counter. Skipped silently when banIP is not installed (the probes return
+// early). Paired with Start*Scheduler in main.
+func StartBanipWarmup() {
+	go func() {
+		// Let the boot-time fork storm settle before adding our own forks.
+		time.Sleep(banipWarmupDelay)
+		ProbeBanipStatusCached()
+		ProbeBanIPCached()
+	}()
+}
+
 // runningFromPidfile reports whether the pid recorded in pidfile names a
 // live process under procDir whose comm mentions banip (guards against pid
 // reuse). Missing or malformed pidfiles answer false so the caller falls
