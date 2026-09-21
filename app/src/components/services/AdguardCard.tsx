@@ -153,7 +153,9 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
               <span className="text-small text-muted">
                 {busyWith === "enable" ? t("adguard.protectionEnabling") : t("adguard.protectionDisabling")}
               </span>
-              <div aria-hidden="true" className="skeleton h-1 w-full rounded-full" />
+              <div aria-hidden="true" className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+                <div className="h-full w-1/3 rounded-full bg-accent" style={{ animation: "progress-slide 1.1s ease-in-out infinite" }} />
+              </div>
             </div>
           )}
         </>
