@@ -110,7 +110,7 @@ func TestParseBanipStatus(t *testing.T) {
   + last_run          : mode: restart, 2025-06-08 21:11:21, duration: 0m 22s, memory: 1310.16 MB available
   + system_info       : cores: 4
 `
-	version, elements, mem, il, sl, ul := parseBanipStatusText(out)
+	version, elements, mem, lastRun, il, sl, ul := parseBanipStatusText(out)
 	if version != "1.5.6-r7" {
 		t.Errorf("version = %q", version)
 	}
@@ -119,6 +119,9 @@ func TestParseBanipStatus(t *testing.T) {
 	}
 	if mem != 1310 {
 		t.Errorf("mem = %d", mem)
+	}
+	if lastRun != "2025-06-08 21:11:21" {
+		t.Errorf("lastRun = %q", lastRun)
 	}
 	if il != 25 || sl != 10 || ul != 100 {
 		t.Errorf("limits = %d/%d/%d", il, sl, ul)
@@ -512,5 +515,68 @@ func TestRunningFromPidfile(t *testing.T) {
 	}
 	if !runningFromPidfile(writePidfile("nocomm.pid", "300"), proc) {
 		t.Errorf("live pid without comm not reported running")
+	}
+}
+
+func TestBanipRamWarning(t *testing.T) {
+	none := map[string]bool{}
+	dismissed := map[string]bool{"2025-06-08 21:11:21": true}
+
+	// Low free RAM with a known run -> warning, visible.
+	w := banipRamWarning(130, "2025-06-08 21:11:21", none)
+	if w == nil || w.FreeMB != 130 || w.LastRun != "2025-06-08 21:11:21" || w.Dismissed {
+		t.Fatalf("warning = %+v", w)
+	}
+	// Same run dismissed -> still reported, flagged dismissed (the UI hides
+	// it but the state stays honest for a later new run).
+	w = banipRamWarning(130, "2025-06-08 21:11:21", dismissed)
+	if w == nil || !w.Dismissed {
+		t.Fatalf("dismissed warning = %+v", w)
+	}
+	// A new run (new timestamp) shows again even after a dismiss.
+	w = banipRamWarning(130, "2025-06-09 08:00:00", dismissed)
+	if w == nil || w.Dismissed {
+		t.Fatalf("new-run warning = %+v", w)
+	}
+	// Enough RAM, unknown RAM and missing timestamp -> no warning at all.
+	if w := banipRamWarning(512, "2025-06-08 21:11:21", none); w != nil {
+		t.Errorf("warning with enough RAM = %+v", w)
+	}
+	if w := banipRamWarning(0, "2025-06-08 21:11:21", none); w != nil {
+		t.Errorf("warning with unknown RAM = %+v", w)
+	}
+	if w := banipRamWarning(130, "", none); w != nil {
+		t.Errorf("warning without run timestamp = %+v", w)
+	}
+}
+
+func TestBanipDismissedFileRoundTrip(t *testing.T) {
+	old := banipDismissedPath
+	banipDismissedPath = filepath.Join(t.TempDir(), "banip_dismissed.json")
+	defer func() { banipDismissedPath = old }()
+
+	if got := loadBanipDismissed(); len(got) != 0 {
+		t.Fatalf("missing file = %v", got)
+	}
+	if err := saveBanipDismissed(map[string]bool{"b-run": true, "a-run": true}); err != nil {
+		t.Fatal(err)
+	}
+	got := loadBanipDismissed()
+	if !got["a-run"] || !got["b-run"] || len(got) != 2 {
+		t.Fatalf("round trip = %v", got)
+	}
+	// Malformed file reads as empty (fail-soft).
+	if err := os.WriteFile(banipDismissedPath, []byte("{oops"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := loadBanipDismissed(); len(got) != 0 {
+		t.Fatalf("malformed file = %v", got)
+	}
+	// Empty list removes the file, like saveQuotaConfig.
+	if err := saveBanipDismissed(map[string]bool{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(banipDismissedPath); !os.IsNotExist(err) {
+		t.Fatalf("file not removed: %v", err)
 	}
 }

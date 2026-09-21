@@ -711,6 +711,14 @@ export interface BanipReport {
   dos: BanipDos;
 }
 
+/** Low-RAM-after-last-run warning. Dismissible per run: `last_run` is the
+ * dismiss identifier, so a new banIP run shows the warning again. */
+export interface BanipRamWarning {
+  free_mb: number;
+  last_run: string;
+  dismissed: boolean;
+}
+
 export interface BanipProbe {
   installed: boolean;
   enabled: boolean;
@@ -719,6 +727,8 @@ export interface BanipProbe {
   applicable: boolean;
   version: string;
   mem_available_mb: number;
+  /** set when the last run left little free RAM (server-side threshold) */
+  ram_warning?: BanipRamWarning;
   feeds: BanipFeed[];
   /** available feeds not configured in UCI (from banip.feeds / custom.feeds) */
   catalog: BanipCatalogFeed[];

@@ -147,6 +147,15 @@ export function BanipPage() {
   const dosAvailable = !!report?.parsed;
   const enabledFeeds = useMemo(() => probe?.feeds.filter((f) => f.enabled) ?? [], [probe?.feeds]);
 
+  // Descartar el aviso de baja RAM: persiste el dismiss en el router (por
+  // timestamp de la ejecución) y actualiza el probe sin recargar la página.
+  // Una ejecución nueva de banIP cambia el timestamp y el aviso vuelve.
+  const dismissRamWarning = () => {
+    api.banipDismissRamWarning()
+      .then((p) => { setProbe(p); push({ tone: "ok", text: t("banip.ramWarningDismissed") }); })
+      .catch((e) => push({ tone: "danger", text: t("banip.actionFailed"), detail: e instanceof Error ? e.message : String(e) }));
+  };
+
   const installDialog = (
     <ConfirmDialog
       open={confirmInstall}
@@ -229,7 +238,6 @@ export function BanipPage() {
   }
 
   const active = probe.enabled && probe.running;
-  const lowMem = probe.mem_available_mb > 0 && probe.mem_available_mb < 256;
 
   const tabs: { value: Tab; label: string }[] = [
     { value: "feeds", label: t("banip.tabFeeds") },
@@ -297,7 +305,11 @@ export function BanipPage() {
 
       {/* Explicación sencilla + avisos */}
       <p className="text-small text-muted -mt-1">{t("banip.introDesc")}</p>
-      {lowMem && <Banner tone="warn">{t("banip.lowMem", { mb: fmtInt.format(probe.mem_available_mb) })}</Banner>}
+      {probe.ram_warning && !probe.ram_warning.dismissed && (
+        <Banner tone="warn" onDismiss={dismissRamWarning}>
+          {t("banip.lowMem", { mb: fmtInt.format(probe.ram_warning.free_mb) })}
+        </Banner>
+      )}
 
       {/* Resumen */}
       <div className="grid grid-cols-2 md:grid-cols-12 gap-[var(--card-gap)]">

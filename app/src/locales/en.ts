@@ -628,6 +628,7 @@ export default {
     statAutobans: "Auto-bans",
     statAutobansHint: "{{allow}} auto-allowed",
     lowMem: "Only {{mb}} MB of RAM were free after the last run. Too many feeds can exhaust the router's memory.",
+    ramWarningDismissed: "Warning dismissed. It will show again after the next run if RAM is still low.",
     tabs: "banIP sections",
     introDesc: "banIP automatically blocks IP addresses known for attacking other routers: bots, brute force and spam. The lists update themselves and are maintained by the community.",
     tabFeeds: "Feeds",

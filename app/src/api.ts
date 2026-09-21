@@ -819,6 +819,8 @@ const realApi = {
     }),
   banipStatus: () =>
     request<import("./types").BanipStatus>("/api/banip/status"),
+  banipDismissRamWarning: () =>
+    request<import("./types").BanipProbe>("/api/banip/dismiss-ram-warning", { method: "POST" }),
   banipSearch: (ip: string) =>
     request<import("./types").BanipSearchResult>(`/api/banip/search?ip=${encodeURIComponent(ip)}`),
   banipList: (list: "allowlist" | "blocklist") =>

@@ -109,6 +109,17 @@ type BanipReport struct {
 	Dos        BanipDos       `json:"dos"`
 }
 
+// BanipRamWarning is the low-RAM-after-last-run notice. It is dismissible:
+// dismissing persists the last_run timestamp to /etc/netgrip/banip_dismissed.json
+// (same plain-file pattern as quotas.json) and the probe reports the warning
+// as dismissed until a new banIP run changes the timestamp, which makes the
+// warning visible again (the dismiss is per run, not global).
+type BanipRamWarning struct {
+	FreeMB    int64  `json:"free_mb"`
+	LastRun   string `json:"last_run"` // dismiss identifier (timestamp of the run)
+	Dismissed bool   `json:"dismissed"`
+}
+
 // BanipProbe is the API view of the banIP page.
 type BanipProbe struct {
 	Installed      bool               `json:"installed"`
@@ -117,7 +128,8 @@ type BanipProbe struct {
 	NftCount       bool               `json:"nft_count"`
 	Applicable     bool               `json:"applicable"` // gateway with an uplink
 	Version        string             `json:"version"`
-	MemAvailableMB int64              `json:"mem_available_mb"` // from last_run; 0 = unknown
+	MemAvailableMB int64              `json:"mem_available_mb"`      // from last_run; 0 = unknown
+	RamWarning     *BanipRamWarning   `json:"ram_warning,omitempty"` // set when the last run left little free RAM
 	Feeds          []BanipFeed        `json:"feeds"`
 	Catalog        []BanipCatalogFeed `json:"catalog"` // available feeds not configured in UCI
 	Report         *BanipReport       `json:"report,omitempty"`
@@ -153,6 +165,100 @@ const banipRevalidateAfter = 60 * time.Second
 // Services card and the progressive page paint, where 2s of staleness is
 // invisible but every saved fork is felt.
 const banipStatusTTL = 2 * time.Second
+
+// banipRamWarnMin is the free-RAM threshold (MB) below which the probe
+// reports the low-RAM warning. The frontend used to own this constant; it
+// moved here together with the visibility logic so the dismiss state is
+// decided server-side, next to the persisted dismiss.
+const banipRamWarnMin int64 = 256
+
+// banipDismissedCap bounds the persisted dismiss list so it cannot grow
+// without limit on routers that run and get dismissed daily.
+const banipDismissedCap = 100
+
+// banipDismissedPath holds the last_run timestamps whose low-RAM warning the
+// user dismissed. It is a var so tests can redirect it to a temp dir.
+var banipDismissedPath = "/etc/netgrip/banip_dismissed.json"
+
+type banipDismissedFile struct {
+	Dismissed []string `json:"dismissed"`
+}
+
+// loadBanipDismissed reads the dismissed warning identifiers. Missing or
+// malformed files mean "nothing dismissed" (fail-soft, like the rest of the
+// banIP reads).
+func loadBanipDismissed() map[string]bool {
+	out := map[string]bool{}
+	data, err := os.ReadFile(banipDismissedPath)
+	if err != nil {
+		return out
+	}
+	var f banipDismissedFile
+	if json.Unmarshal(data, &f) == nil {
+		for _, id := range f.Dismissed {
+			out[id] = true
+		}
+	}
+	return out
+}
+
+// saveBanipDismissed persists the dismiss list, keeping at most
+// banipDismissedCap entries (the most recent timestamps sort last). An empty
+// list removes the file, same pattern as saveQuotaConfig.
+func saveBanipDismissed(dismissed map[string]bool) error {
+	if err := os.MkdirAll(filepath.Dir(banipDismissedPath), 0o750); err != nil {
+		return err
+	}
+	if len(dismissed) == 0 {
+		_ = os.Remove(banipDismissedPath)
+		return nil
+	}
+	f := banipDismissedFile{Dismissed: make([]string, 0, len(dismissed))}
+	for id := range dismissed {
+		f.Dismissed = append(f.Dismissed, id)
+	}
+	sort.Strings(f.Dismissed)
+	if len(f.Dismissed) > banipDismissedCap {
+		f.Dismissed = f.Dismissed[len(f.Dismissed)-banipDismissedCap:]
+	}
+	data, err := json.MarshalIndent(f, "", "  ")
+	if err != nil {
+		return err
+	}
+	return writeFileAtomic(banipDismissedPath, data)
+}
+
+// banipRamWarning builds the low-RAM notice for the probe: only below
+// banipRamWarnMin MB and only when the status reported a last_run timestamp
+// (the dismiss identifier). Pure so tests cover the visibility rules.
+func banipRamWarning(memMB int64, lastRun string, dismissed map[string]bool) *BanipRamWarning {
+	if memMB <= 0 || memMB >= banipRamWarnMin || lastRun == "" {
+		return nil
+	}
+	return &BanipRamWarning{
+		FreeMB:    memMB,
+		LastRun:   lastRun,
+		Dismissed: dismissed[lastRun],
+	}
+}
+
+// BanipDismissRamWarning persists the dismiss of the current low-RAM warning
+// and returns the updated probe. With no current warning it is a no-op
+// success (idempotent). A later banIP run changes the last_run timestamp, so
+// its warning shows again even after a dismiss.
+func BanipDismissRamWarning() (*BanipProbe, error) {
+	defer banipInvalidate()
+	p := ProbeBanIPCached()
+	if p.RamWarning == nil || p.RamWarning.Dismissed {
+		return p, nil
+	}
+	dismissed := loadBanipDismissed()
+	dismissed[p.RamWarning.LastRun] = true
+	if err := saveBanipDismissed(dismissed); err != nil {
+		return p, err
+	}
+	return ProbeBanIP(), nil
+}
 
 // ProbeBanIPCached returns the cached probe. Fresh entries (3s) are served
 // as is; older entries are ALSO served instantly - the probe takes seconds
@@ -518,6 +624,10 @@ var (
 	reBanipVersionValue = regexp.MustCompile(`^[0-9][0-9a-zA-Z.-]*$`)
 	reStatusMem         = regexp.MustCompile(`memory:\s*([0-9.]+)\s*MB`)
 	reStatusElement     = regexp.MustCompile(`^([0-9 ]+)`)
+	// reStatusRunTime matches the last_run timestamp inside the status line
+	// ("mode: restart, 2025-06-08 21:11:21, duration: ..."). It identifies
+	// one banIP run and is the dismiss key of the low-RAM warning.
+	reStatusRunTime = regexp.MustCompile(`\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}`)
 	// reBanipDownloadFail matches the banIP syslog failure lines, e.g.
 	// user.info banIP-1.5.6-r7[28527]: download for feed 'debl.v4' failed, rc: 4
 	reBanipDownloadFail = regexp.MustCompile(`download for feed '([a-z0-9_-]+)\.(?:v4|v6|v4MAC|v6MAC)' failed`)
@@ -590,9 +700,10 @@ func parseBanipReportText(out string) *BanipReport {
 	return r
 }
 
-// parseBanipStatusText extracts version, element count, DoS thresholds and
-// the memory available after the last run from `/etc/init.d/banip status`.
-func parseBanipStatusText(out string) (version string, elements int64, memMB int64, icmpLimit, synLimit, udpLimit int) {
+// parseBanipStatusText extracts version, element count, DoS thresholds, the
+// memory available after the last run and the last_run timestamp from
+// `/etc/init.d/banip status`.
+func parseBanipStatusText(out string) (version string, elements int64, memMB int64, lastRun string, icmpLimit, synLimit, udpLimit int) {
 	for _, line := range strings.Split(out, "\n") {
 		m := reStatusKV.FindStringSubmatch(line)
 		if m == nil {
@@ -619,9 +730,12 @@ func parseBanipStatusText(out string) (version string, elements int64, memMB int
 				f, _ := strconv.ParseFloat(v[1], 64)
 				memMB = int64(f)
 			}
+			if v := reStatusRunTime.FindString(m[2]); v != "" {
+				lastRun = v
+			}
 		}
 	}
-	return version, elements, memMB, icmpLimit, synLimit, udpLimit
+	return version, elements, memMB, lastRun, icmpLimit, synLimit, udpLimit
 }
 
 // banipMergeCatalog splits the catalog into configured (marks in_catalog
@@ -715,9 +829,10 @@ func ProbeBanIP() *BanipProbe {
 	p.Feeds, p.Catalog = banipMergeCatalog(p.Feeds, banipCatalog())
 
 	if statusOK {
-		v, _, mem, il, sl, ul := parseBanipStatusText(statusOut)
+		v, _, mem, lastRun, il, sl, ul := parseBanipStatusText(statusOut)
 		p.Version = v
 		p.MemAvailableMB = mem
+		p.RamWarning = banipRamWarning(mem, lastRun, loadBanipDismissed())
 		if reportOK {
 			rep := parseBanipReportText(reportOut)
 			rep.Dos.IcmpLimit = il

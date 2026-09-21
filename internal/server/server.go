@@ -70,6 +70,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/banip/install", s.requireAuth(s.handleBanipInstall))
 	s.mux.HandleFunc("POST /api/banip/uninstall", s.requireAuth(s.handleBanipUninstall))
 	s.mux.HandleFunc("GET /api/banip/status", s.requireAuth(s.handleBanipStatus))
+	s.mux.HandleFunc("POST /api/banip/dismiss-ram-warning", s.requireAuth(s.handleBanipDismissRamWarning))
 	s.mux.HandleFunc("GET /api/banip/search", s.requireAuth(s.handleBanipSearch))
 	s.mux.HandleFunc("GET /api/banip/allowlist", s.requireAuth(s.handleBanipListGet))
 	s.mux.HandleFunc("POST /api/banip/allowlist", s.requireAuth(s.handleBanipListAdd))
@@ -710,6 +711,18 @@ func (s *Server) handleBanipStatus(w http.ResponseWriter, _ *http.Request) {
 	// Cached (TTL 2s, shared invalidation with the full probe): the status
 	// feeds the Services card and the progressive page paint.
 	writeJSON(w, modules.ProbeBanipStatusCached())
+}
+
+// handleBanipDismissRamWarning persists the dismiss of the current low-RAM
+// warning and answers with the updated probe, so the UI can drop the banner
+// without a reload.
+func (s *Server) handleBanipDismissRamWarning(w http.ResponseWriter, _ *http.Request) {
+	probe, err := modules.BanipDismissRamWarning()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, probe)
 }
 
 func (s *Server) handleBanipSearch(w http.ResponseWriter, r *http.Request) {

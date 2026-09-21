@@ -401,6 +401,11 @@ export const demoApi: typeof api = {
       applicable: state.banip.applicable,
     };
   },
+  banipDismissRamWarning: async () => {
+    await wait(100, 250);
+    if (state.banip.ram_warning) state.banip.ram_warning.dismissed = true;
+    return state.banip;
+  },
   banipSearch: async (ip: string) => {
     await wait(400, 900);
     const blocked = ["91.198.174.192", "45.135.193.12"];
