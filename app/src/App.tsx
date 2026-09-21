@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, isDemo } from "./api";
+import { api, isDemo, setUnauthorizedHandler } from "./api";
 import { Login } from "./pages/Login";
 import { Shell } from "./components/Shell";
 import { Wizard } from "./pages/Wizard";
@@ -36,6 +36,14 @@ export default function App() {
   }, []);
 
   useEffect(() => { checkSession(); }, [checkSession]);
+
+  // Sesión muerta en caliente (#380): un 401 en cualquier llamada
+  // autenticada devuelve la app al login en vez de dejar la página
+  // cargando para siempre.
+  useEffect(() => {
+    setUnauthorizedHandler(() => setAuthed(false));
+    return () => setUnauthorizedHandler(null);
+  }, []);
 
   if (checking) {
     return <main className="min-h-screen" />;
