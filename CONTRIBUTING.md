@@ -51,6 +51,9 @@ npm run build
 - PRs target `main` and merge as squash.
 - Reproducible before/after beats a long description: if you measured
   something (CPU, latency, a failing check), include the number.
+- No AI co-author trailers. History is attributable to people: CI rejects
+  any commit carrying a `Co-Authored-By:` trailer from an AI assistant, and
+  merge bodies are written clean.
 
 ## Translations
 
