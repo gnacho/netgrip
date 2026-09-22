@@ -4,3 +4,4 @@
 /owpanel
 *.test
 /app/tsconfig.tsbuildinfo
+/netgrip
