@@ -1,0 +1,34 @@
+name: commit-hygiene
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  no-ai-coauthors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: reject AI co-author trailers
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          else
+            RANGE="${{ github.event.before }}..${{ github.event.after }}"
+          fi
+          # Only trailer lines are scanned; commit subjects and bodies are free text.
+          if git log --format="%(trailers)" "$RANGE" \
+            | grep -iE '^co-authored-by:.*(claude|anthropic|openai|chatgpt|gpt-|gemini|copilot|grok|deepseek|qwen|kimi)'; then
+            echo "::error::AI co-author trailers are not allowed in commit history. Amend the commits to remove them."
+            exit 1
+          fi
+          echo "commit messages clean"
