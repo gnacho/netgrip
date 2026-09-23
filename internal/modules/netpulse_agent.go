@@ -220,7 +220,7 @@ func ReadNetPulseConfig(path string) (NetPulseConfig, error) {
 	if err != nil {
 		return NetPulseConfig{}, err
 	}
-	kv := parseNetPulseEnv(string(data))
+	kv := parseEnvFile(string(data))
 	return NetPulseConfig{
 		Server:        kv["NETPULSE_SERVER"],
 		Slug:          kv["NETPULSE_SLUG"],
@@ -235,7 +235,9 @@ func ReadNetPulseConfig(path string) (NetPulseConfig, error) {
 	}, nil
 }
 
-func parseNetPulseEnv(data string) map[string]string {
+// parseEnvFile parses a KEY=VALUE env file (comments and blank lines ignored,
+// surrounding quotes stripped). Shared by the NetPulse agent and MQTT configs.
+func parseEnvFile(data string) map[string]string {
 	out := map[string]string{}
 	for _, line := range strings.Split(data, "\n") {
 		line = strings.TrimSpace(line)

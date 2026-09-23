@@ -41,6 +41,7 @@ func main() {
 	modules.StartHistoryCollector()
 	modules.StartMonitor()
 	modules.StartNetPulseAgent(version)
+	modules.StartMQTT(version)
 	modules.StartSelfUpdateScheduler(version)
 	modules.StartParentalScheduler()
 	modules.StartQuotaScheduler()

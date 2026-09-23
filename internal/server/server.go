@@ -234,6 +234,8 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/mac-acl", s.requireAuth(s.handleMACACLSet))
 	s.mux.HandleFunc("GET /api/netpulse", s.requireAuth(s.handleNetPulseGet))
 	s.mux.HandleFunc("POST /api/netpulse", s.requireAuth(s.handleNetPulseSet))
+	s.mux.HandleFunc("GET /api/mqtt", s.requireAuth(s.handleMQTTGet))
+	s.mux.HandleFunc("PUT /api/mqtt", s.requireAuth(s.handleMQTTSet))
 	s.mux.HandleFunc("GET /api/nftqos", s.requireAuth(s.handleNftQoSGet))
 	s.mux.HandleFunc("POST /api/nftqos", s.requireAuth(s.handleNftQoSSet))
 	s.mux.HandleFunc("DELETE /api/nftqos", s.requireAuth(s.handleNftQoSDelete))
@@ -2516,6 +2518,42 @@ func (s *Server) handleNetPulseSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, netPulseState())
+}
+
+func (s *Server) handleMQTTGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.MQTTInfoNow())
+}
+
+type mqttSetRequest struct {
+	Enabled  bool   `json:"enabled"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	User     string `json:"user"`
+	Pass     string `json:"pass"`
+	NodeID   string `json:"nodeId"`
+	Interval int    `json:"interval"`
+}
+
+func (s *Server) handleMQTTSet(w http.ResponseWriter, r *http.Request) {
+	var req mqttSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	cfg := modules.MQTTConfig{
+		Enabled:  req.Enabled,
+		Host:     req.Host,
+		Port:     req.Port,
+		User:     req.User,
+		Pass:     req.Pass,
+		NodeID:   req.NodeID,
+		Interval: req.Interval,
+	}
+	if err := modules.SetMQTTConfig(cfg); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, modules.MQTTInfoNow())
 }
 
 func (s *Server) handleNftQoSGet(w http.ResponseWriter, _ *http.Request) {
