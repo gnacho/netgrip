@@ -526,6 +526,7 @@ func applyNetPulseAgent(p netpulsePaths) {
 		interval = runtime.DefaultInterval
 	}
 	log.Printf("netpulse: embedded agent starting (slug=%s server=%s interval=%s)", opts.Slug, opts.Server, interval)
+	go registerExecutorToken(cfg.Server, cfg.Slug, cfg.Token)
 	go func() {
 		if err := runtime.Run(ctx, opts); err != nil {
 			log.Printf("netpulse: agent stopped: %v", err)
