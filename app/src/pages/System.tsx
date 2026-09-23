@@ -8,6 +8,7 @@ import { NtfyCard } from "../components/system/NtfyCard";
 import { ModeCard } from "../components/system/ModeCard";
 import { IdentityCard } from "../components/system/IdentityCard";
 import { NetPulseCard } from "../components/system/NetPulseCard";
+import { MQTTCard } from "../components/system/MQTTCard";
 import { ConfigBackupCard } from "../components/ConfigBackupCard";
 import { UpdateCard } from "../components/system/UpdateCard";
 import { SelfUpdateCard } from "../components/system/SelfUpdateCard";
@@ -52,6 +53,7 @@ export function System({ board, update, onUpdateChange, onLogout }: {
         <ModeCard index={0} />
         <IdentityCard index={1} board={board} />
         {!NETPULSE_CARD_HIDDEN && <NetPulseCard index={2} />}
+        <MQTTCard index={2} />
         <SelfUpdateCard index={3} />
         <ConfigBackupCard index={4} />
       </section>

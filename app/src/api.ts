@@ -785,6 +785,14 @@ const realApi = {
       body: JSON.stringify(cfg),
     }),
   restartAgent: () => request<{ ok: boolean }>("/api/netpulse/agent/restart", { method: "POST" }),
+  mqtt: () =>
+    request<import("./types").MQTTInfo>("/api/mqtt"),
+  setMqtt: (cfg: import("./types").MQTTSet) =>
+    request<import("./types").MQTTInfo>("/api/mqtt", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
   nftqos: () =>
     request<import("./types").NftQoSProbe>("/api/nftqos"),
   setNftqos: (limit: Partial<import("./types").NftQoSLimit>) =>

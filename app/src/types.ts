@@ -1300,6 +1300,31 @@ export interface NetPulseSet {
   gwTarget?: string;
 }
 
+export interface MQTTInfo {
+  enabled: boolean;
+  configured: boolean;
+  host: string;
+  port: number;
+  user: string;
+  node_id: string;
+  interval: number;
+  connected: boolean;
+  last_error?: string;
+  last_publish?: string;
+  version?: string;
+}
+
+export interface MQTTSet {
+  enabled: boolean;
+  host: string;
+  port: number;
+  user: string;
+  pass: string;
+  nodeId: string;
+  interval: number;
+}
+
+
 export interface SelfUpdateConfig {
   enabled: boolean;
   intervalHours: number;

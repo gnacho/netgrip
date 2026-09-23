@@ -62,6 +62,14 @@ const state = {
     server: "https://netpulse.example.com",
     slug: "garcia-gw",
   },
+  mqtt: {
+    enabled: true,
+    host: "broker.example.com",
+    port: 1883,
+    user: "netgrip",
+    node_id: "garcia-gw",
+    interval: 60,
+  },
   nftqos: {
     applicable: true,
     limits: {
@@ -749,6 +757,33 @@ export const demoApi: typeof api = {
     };
   },
   restartAgent: async () => { await wait(200, 500); return { ok: true }; },
+
+  // mqtt (integración #398): conexión sana en la demo
+  mqtt: () => get({
+    ...state.mqtt,
+    configured: state.mqtt.host !== "",
+    connected: state.mqtt.enabled,
+    last_publish: state.mqtt.enabled ? new Date(Date.now() - 20_000).toISOString() : undefined,
+    version: "v0.72.18",
+  }),
+  setMqtt: async (cfg) => {
+    await wait(500, 900);
+    state.mqtt = {
+      enabled: cfg.enabled,
+      host: cfg.host || state.mqtt.host,
+      port: cfg.port || state.mqtt.port,
+      user: cfg.user ?? state.mqtt.user,
+      node_id: cfg.nodeId || state.mqtt.node_id,
+      interval: cfg.interval || state.mqtt.interval,
+    };
+    return {
+      ...state.mqtt,
+      configured: state.mqtt.host !== "",
+      connected: state.mqtt.enabled,
+      last_publish: state.mqtt.enabled ? new Date().toISOString() : undefined,
+      version: "v0.72.18",
+    };
+  },
   nftqos: () => get({ ...state.nftqos }),
   setNftqos: async (limit) => {
     await wait(800, 1500);
