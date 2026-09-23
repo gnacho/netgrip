@@ -33,7 +33,16 @@ type mqttState struct {
 	IPv6Enabled  bool      `json:"ipv6_enabled"`
 	SQMEnabled   bool      `json:"sqm_enabled"`
 	Mode         string    `json:"mode"`
-	Ts           int64     `json:"ts"`
+	// Aggregated client telemetry (#401).
+	ClientsTotal int   `json:"clients_total"`
+	ClientsWifi  int   `json:"clients_wifi"`
+	Clients24    int   `json:"clients_24"`
+	Clients5     int   `json:"clients_5"`
+	ClientsCable int   `json:"clients_cable"`
+	ClientsWeak  int   `json:"clients_weak"`
+	RxBytes      int64 `json:"rx_bytes"`
+	TxBytes      int64 `json:"tx_bytes"`
+	Ts           int64 `json:"ts"`
 }
 
 type mqttBoard struct {
@@ -82,6 +91,16 @@ func buildMQTTState(node, version string) mqttState {
 	st.IPv6Enabled = ProbeIPv6().State == "enabled"
 	st.SQMEnabled = ProbeSQM().Active
 	st.Mode = ProbeMode().Mode
+
+	tel := ProbeTelemetry()
+	st.ClientsTotal = tel.Total
+	st.ClientsWifi = tel.Wifi24 + tel.Wifi5
+	st.Clients24 = tel.Wifi24
+	st.Clients5 = tel.Wifi5
+	st.ClientsCable = tel.Cable
+	st.ClientsWeak = tel.Weak
+	st.RxBytes = tel.RxBytes
+	st.TxBytes = tel.TxBytes
 
 	return st
 }
@@ -258,6 +277,51 @@ func mqttDiscoveryEntities(node, version, model string) []mqttEntity {
 			"value_template":  "{{ value_json.version }}",
 			"icon":            "mdi:information-outline",
 			"entity_category": "diagnostic",
+		}),
+		newEntity("sensor", "clients_total", map[string]any{
+			"name":           "Clients",
+			"value_template": "{{ value_json.clients_total }}",
+			"state_class":    "measurement",
+			"icon":           "mdi:account-network",
+		}),
+		newEntity("sensor", "clients_wifi", map[string]any{
+			"name":            "Wi-Fi clients",
+			"value_template":  "{{ value_json.clients_wifi }}",
+			"state_class":     "measurement",
+			"icon":            "mdi:wifi",
+			"entity_category": "diagnostic",
+		}),
+		newEntity("sensor", "clients_cable", map[string]any{
+			"name":            "Wired clients",
+			"value_template":  "{{ value_json.clients_cable }}",
+			"state_class":     "measurement",
+			"icon":            "mdi:ethernet",
+			"entity_category": "diagnostic",
+		}),
+		newEntity("sensor", "clients_weak", map[string]any{
+			"name":            "Weak-signal clients",
+			"value_template":  "{{ value_json.clients_weak }}",
+			"state_class":     "measurement",
+			"icon":            "mdi:wifi-alert",
+			"entity_category": "diagnostic",
+		}),
+		newEntity("sensor", "rx_bytes", map[string]any{
+			"name":                "Clients received",
+			"value_template":      "{{ value_json.rx_bytes }}",
+			"unit_of_measurement": "B",
+			"device_class":        "data_size",
+			"state_class":         "total_increasing",
+			"icon":                "mdi:download-network",
+			"entity_category":     "diagnostic",
+		}),
+		newEntity("sensor", "tx_bytes", map[string]any{
+			"name":                "Clients sent",
+			"value_template":      "{{ value_json.tx_bytes }}",
+			"unit_of_measurement": "B",
+			"device_class":        "data_size",
+			"state_class":         "total_increasing",
+			"icon":                "mdi:upload-network",
+			"entity_category":     "diagnostic",
 		}),
 	}
 }
