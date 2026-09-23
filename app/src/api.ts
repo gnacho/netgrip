@@ -793,6 +793,12 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg),
     }),
+  testMqtt: (cfg: import("./types").MQTTSet) =>
+    request<{ ok: boolean; error?: string }>("/api/mqtt/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
   nftqos: () =>
     request<import("./types").NftQoSProbe>("/api/nftqos"),
   setNftqos: (limit: Partial<import("./types").NftQoSLimit>) =>

@@ -23,6 +23,7 @@ export function MQTTCard({ index = 0 }: { index?: number }) {
   const [intervalSec, setIntervalSec] = useState(60);
   const [enabled, setEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   const refresh = () => {
     api.mqtt().then((s) => {
@@ -54,6 +55,22 @@ export function MQTTCard({ index = 0 }: { index?: number }) {
       push({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
     } finally {
       setSaving(false);
+    }
+  };
+
+  // test comprueba los valores del formulario contra el broker sin
+  // guardarlos (#409).
+  const test = async () => {
+    setTesting(true);
+    try {
+      const r = await api.testMqtt({ enabled, host, port, user, pass, nodeId, interval: intervalSec });
+      push(r.ok
+        ? { tone: "ok", text: t("mqtt.testOk") }
+        : { tone: "danger", text: r.error || t("mqtt.testFail") });
+    } catch (e) {
+      push({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -145,6 +162,9 @@ export function MQTTCard({ index = 0 }: { index?: number }) {
           disabled={!host || (enabled && !state?.configured && !pass)}
         >
           {t("mqtt.save")}
+        </Button>
+        <Button variant="secondary" onClick={test} loading={testing} disabled={!host}>
+          {t("mqtt.test")}
         </Button>
       </div>
     </Card>

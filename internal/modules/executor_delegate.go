@@ -72,6 +72,8 @@ func runExecutorOp(op executor.Op) error {
 		return fmt.Errorf("unsupported service action: %s", action)
 	case "install", "apk_install":
 		return executor.Run(executor.Op{Kind: "pkg_add", Args: op.Args})
+	case "mqtt.configure":
+		return applyMQTTConfigureOp(op)
 	default:
 		return fmt.Errorf("op kind %q not supported by NetGrip executor", op.Kind)
 	}

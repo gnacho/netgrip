@@ -784,6 +784,12 @@ export const demoApi: typeof api = {
       version: "v0.72.18",
     };
   },
+  testMqtt: async (cfg) => {
+    await wait(600, 1200);
+    if (!cfg.host) return { ok: false, error: "host is required" };
+    if (cfg.host.includes("fail")) return { ok: false, error: "connection refused" };
+    return { ok: true };
+  },
   nftqos: () => get({ ...state.nftqos }),
   setNftqos: async (limit) => {
     await wait(800, 1500);

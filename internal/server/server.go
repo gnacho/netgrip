@@ -236,6 +236,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/netpulse", s.requireAuth(s.handleNetPulseSet))
 	s.mux.HandleFunc("GET /api/mqtt", s.requireAuth(s.handleMQTTGet))
 	s.mux.HandleFunc("PUT /api/mqtt", s.requireAuth(s.handleMQTTSet))
+	s.mux.HandleFunc("POST /api/mqtt/test", s.requireAuth(s.handleMQTTTest))
 	s.mux.HandleFunc("POST /api/reboot", s.requireAuth(s.handleReboot))
 	s.mux.HandleFunc("GET /api/nftqos", s.requireAuth(s.handleNftQoSGet))
 	s.mux.HandleFunc("POST /api/nftqos", s.requireAuth(s.handleNftQoSSet))
@@ -2555,6 +2556,22 @@ func (s *Server) handleMQTTSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, modules.MQTTInfoNow())
+}
+
+// handleMQTTTest prueba los valores del formulario contra el broker sin
+// guardarlos (#409).
+func (s *Server) handleMQTTTest(w http.ResponseWriter, r *http.Request) {
+	var req mqttSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	cfg := modules.MQTTConfig{Host: req.Host, Port: req.Port, User: req.User, Pass: req.Pass}
+	if err := modules.MQTTTestConnection(cfg); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
 }
 
 func (s *Server) handleReboot(w http.ResponseWriter, _ *http.Request) {
