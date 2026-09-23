@@ -114,11 +114,18 @@ aparece etiquetado como NetGrip en su flota sin instalar nada más. Es una
 capacidad adicional, no un requisito: si no usas NetPulse, nada cambia.
 
 **MQTT y Home Assistant, si los quieres.** Opcional y desactivado por defecto:
-apúntalo a un broker MQTT y Home Assistant descubre el router solo, con
-sensores (CPU, temperatura, memoria, uptime, modo, versión) e interruptores
-para WiFi de invitados, banIP, IPv6 y SQM, además de botones para recargar los
-feeds de banIP y reiniciar. Se configura desde la tarjeta MQTT de la página
-Sistema y no se publica nada hasta que lo actives.
+apúntalo a un broker MQTT y Home Assistant descubre el router solo. Publica el
+estado en `netgrip/<router>/state` y crea **23 entidades**: 17 sensores (CPU,
+núcleo más cargado, temperatura, memoria, uptime, modo, versión, clientes
+totales/WiFi/cable/débil, señal WiFi mínima y media, y tráfico de entrada y
+salida de la red local), 4 interruptores (WiFi de invitados, banIP, IPv6 y SQM)
+y 2 botones (recargar los feeds de banIP y reiniciar). Los interruptores y
+botones actúan: Home Assistant manda la orden por `netgrip/<router>/command/...`
+y el router contesta en `netgrip/<router>/result`.
+
+Se configura desde la tarjeta MQTT de la página Sistema, o escribiendo
+`/etc/netgrip/mqtt.env` (permisos 600). Sin TLS: pensado para un broker de tu
+red local. No se publica nada hasta que lo actives.
 
 ## Ponlo en tu router
 

@@ -111,11 +111,18 @@ router shows up labeled as NetGrip in its fleet with no extra install. It is
 a capability, not a requirement: if you do not use NetPulse, nothing changes.
 
 **MQTT and Home Assistant, if you want them.** Optional and off by default:
-point it at an MQTT broker and Home Assistant discovers the router on its own,
-with sensors (CPU, temperature, memory, uptime, mode, version) and switches
-for guest Wi-Fi, banIP, IPv6 and SQM, plus buttons to reload the banIP feeds
-and reboot. It is configured from the MQTT card on the System page and nothing
-is published until you enable it.
+point it at an MQTT broker and Home Assistant discovers the router on its own.
+It publishes the state on `netgrip/<router>/state` and creates **23 entities**:
+17 sensors (CPU, busiest core, temperature, memory, uptime, mode, version,
+total/WiFi/wired/weak clients, weakest and average WiFi signal, and local
+network in/out traffic), 4 switches (guest Wi-Fi, banIP, IPv6 and SQM) and
+2 buttons (reload the banIP feeds and reboot). The switches and buttons act:
+Home Assistant sends the command on `netgrip/<router>/command/...` and the
+router replies on `netgrip/<router>/result`.
+
+It is configured from the MQTT card on the System page, or by writing
+`/etc/netgrip/mqtt.env` (mode 600). No TLS: meant for a broker on your local
+network. Nothing is published until you enable it.
 
 ## Get it on your router
 
