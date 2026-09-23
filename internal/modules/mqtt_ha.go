@@ -33,16 +33,20 @@ type mqttState struct {
 	IPv6Enabled  bool      `json:"ipv6_enabled"`
 	SQMEnabled   bool      `json:"sqm_enabled"`
 	Mode         string    `json:"mode"`
-	// Aggregated client telemetry (#401).
-	ClientsTotal int   `json:"clients_total"`
-	ClientsWifi  int   `json:"clients_wifi"`
-	Clients24    int   `json:"clients_24"`
-	Clients5     int   `json:"clients_5"`
-	ClientsCable int   `json:"clients_cable"`
-	ClientsWeak  int   `json:"clients_weak"`
-	RxBytes      int64 `json:"rx_bytes"`
-	TxBytes      int64 `json:"tx_bytes"`
-	Ts           int64 `json:"ts"`
+	// Aggregated client telemetry (#401) and Wi-Fi/LAN traffic telemetry (#403).
+	ClientsTotal  int     `json:"clients_total"`
+	ClientsWifi   int     `json:"clients_wifi"`
+	Clients24     int     `json:"clients_24"`
+	Clients5      int     `json:"clients_5"`
+	ClientsCable  int     `json:"clients_cable"`
+	ClientsWeak   int     `json:"clients_weak"`
+	WifiMinSignal int     `json:"wifi_min_signal"`
+	WifiAvgSignal int     `json:"wifi_avg_signal"`
+	RxBytes       int64   `json:"rx_bytes"`
+	TxBytes       int64   `json:"tx_bytes"`
+	RxMbps        float64 `json:"rx_mbps"`
+	TxMbps        float64 `json:"tx_mbps"`
+	Ts            int64   `json:"ts"`
 }
 
 type mqttBoard struct {
@@ -99,8 +103,12 @@ func buildMQTTState(node, version string) mqttState {
 	st.Clients5 = tel.Wifi5
 	st.ClientsCable = tel.Cable
 	st.ClientsWeak = tel.Weak
+	st.WifiMinSignal = tel.WifiMinSignal
+	st.WifiAvgSignal = tel.WifiAvgSignal
 	st.RxBytes = tel.RxBytes
 	st.TxBytes = tel.TxBytes
+	st.RxMbps = tel.RxMbps
+	st.TxMbps = tel.TxMbps
 
 	return st
 }
@@ -305,8 +313,40 @@ func mqttDiscoveryEntities(node, version, model string) []mqttEntity {
 			"icon":            "mdi:wifi-alert",
 			"entity_category": "diagnostic",
 		}),
+		newEntity("sensor", "wifi_signal_min", map[string]any{
+			"name":                "Weakest client signal",
+			"value_template":      "{{ value_json.wifi_min_signal }}",
+			"unit_of_measurement": "dBm",
+			"device_class":        "signal_strength",
+			"state_class":         "measurement",
+			"icon":                "mdi:wifi-strength-1",
+			"entity_category":     "diagnostic",
+		}),
+		newEntity("sensor", "wifi_signal_avg", map[string]any{
+			"name":                "Average client signal",
+			"value_template":      "{{ value_json.wifi_avg_signal }}",
+			"unit_of_measurement": "dBm",
+			"device_class":        "signal_strength",
+			"state_class":         "measurement",
+			"icon":                "mdi:wifi-strength-3",
+			"entity_category":     "diagnostic",
+		}),
+		newEntity("sensor", "rx_mbps", map[string]any{
+			"name":                "LAN traffic in",
+			"value_template":      "{{ value_json.rx_mbps }}",
+			"unit_of_measurement": "Mbit/s",
+			"state_class":         "measurement",
+			"icon":                "mdi:download-network",
+		}),
+		newEntity("sensor", "tx_mbps", map[string]any{
+			"name":                "LAN traffic out",
+			"value_template":      "{{ value_json.tx_mbps }}",
+			"unit_of_measurement": "Mbit/s",
+			"state_class":         "measurement",
+			"icon":                "mdi:upload-network",
+		}),
 		newEntity("sensor", "rx_bytes", map[string]any{
-			"name":                "Clients received",
+			"name":                "LAN received total",
 			"value_template":      "{{ value_json.rx_bytes }}",
 			"unit_of_measurement": "B",
 			"device_class":        "data_size",
@@ -315,7 +355,7 @@ func mqttDiscoveryEntities(node, version, model string) []mqttEntity {
 			"entity_category":     "diagnostic",
 		}),
 		newEntity("sensor", "tx_bytes", map[string]any{
-			"name":                "Clients sent",
+			"name":                "LAN sent total",
 			"value_template":      "{{ value_json.tx_bytes }}",
 			"unit_of_measurement": "B",
 			"device_class":        "data_size",
