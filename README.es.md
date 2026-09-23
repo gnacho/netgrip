@@ -113,6 +113,13 @@ WiFi y clientes a [NetPulse](https://netpulse.cloudless.club): el router
 aparece etiquetado como NetGrip en su flota sin instalar nada más. Es una
 capacidad adicional, no un requisito: si no usas NetPulse, nada cambia.
 
+**MQTT y Home Assistant, si los quieres.** Opcional y desactivado por defecto:
+apúntalo a un broker MQTT y Home Assistant descubre el router solo, con
+sensores (CPU, temperatura, memoria, uptime, modo, versión) e interruptores
+para WiFi de invitados, banIP, IPv6 y SQM, además de botones para recargar los
+feeds de banIP y reiniciar. Se configura desde la tarjeta MQTT de la página
+Sistema y no se publica nada hasta que lo actives.
+
 ## Ponlo en tu router
 
 Requisitos: un router ARM (`aarch64_cortex-a53`, cubre MediaTek
