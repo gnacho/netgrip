@@ -483,3 +483,33 @@ func TestRecheckCleansReinstalledStandalone(t *testing.T) {
 		t.Fatal("el env de netgrip debe conservarse")
 	}
 }
+
+func TestNetPulseSelfMQTT(t *testing.T) {
+	dir := t.TempDir()
+	old := netPulseMQTTEnvPath
+	defer func() { netPulseMQTTEnvPath = old }()
+	netPulseMQTTEnvPath = filepath.Join(dir, "mqtt.env")
+
+	// Sin fichero: no se expone.
+	if en, node := netPulseSelfMQTT(); en || node != "" {
+		t.Fatalf("sin fichero: got (%v, %q)", en, node)
+	}
+	// Desactivado.
+	if err := os.WriteFile(netPulseMQTTEnvPath, []byte("MQTT_ENABLED=0\nMQTT_HOST=10.0.0.10\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if en, _ := netPulseSelfMQTT(); en {
+		t.Fatal("MQTT_ENABLED=0 debe reportar false")
+	}
+	// Activado: se reporta enabled y el nodo (hostname por defecto).
+	if err := os.WriteFile(netPulseMQTTEnvPath, []byte("MQTT_ENABLED=1\nMQTT_HOST=10.0.0.10\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	en, node := netPulseSelfMQTT()
+	if !en {
+		t.Fatal("MQTT_ENABLED=1 debe reportar true")
+	}
+	if node == "" {
+		t.Fatal("node vacío con MQTT activado")
+	}
+}

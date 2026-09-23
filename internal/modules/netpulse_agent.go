@@ -511,6 +511,7 @@ func applyNetPulseAgent(p netpulsePaths) {
 		EnvFile:      p.env,
 		Version:      version,
 		Kind:         "netgrip",
+		SelfMQTT:     netPulseSelfMQTT,
 		OnStatus:     storeNetPulseStatus,
 		OnUpgrade:    netPulseUpgradeTrigger,
 	}
@@ -570,6 +571,22 @@ func parseNetPulseScanInterval(v string) time.Duration {
 		return d
 	}
 	return 0
+}
+
+// netPulseMQTTEnvPath es la ruta del env MQTT que lee el hook; inyectable en
+// tests.
+var netPulseMQTTEnvPath = mqttEnvFile
+
+// netPulseSelfMQTT informa al agente embebido de si el MQTT propio de NetGrip
+// está activado (#407): así el servidor sabe que este router se expone solo a
+// Home Assistant y no duplica su dispositivo por router. Se lee en caliente en
+// cada push, de modo que el toggle se refleja sin reiniciar el agente.
+func netPulseSelfMQTT() (bool, string) {
+	cfg, err := ReadMQTTConfig(netPulseMQTTEnvPath)
+	if err != nil || !cfg.Enabled {
+		return false, ""
+	}
+	return true, mqttNodeID(cfg)
 }
 
 func storeNetPulseStatus(st runtime.Status) {
