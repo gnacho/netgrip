@@ -81,6 +81,9 @@ func decodeOpArgs(kind string, raw json.RawMessage) ([]string, error) {
 			return []string{p}, nil
 		}
 		return []string{get("name")}, nil
+	case "mqtt.configure":
+		// Orden fijo: enabled host port user pass nodeId interval (#409).
+		return []string{get("enabled"), get("host"), get("port"), get("user"), get("pass"), get("nodeId"), get("interval")}, nil
 	default:
 		// Generic: collect the object values in a stable key order.
 		keys := []string{"config", "section", "option", "value", "service", "action"}

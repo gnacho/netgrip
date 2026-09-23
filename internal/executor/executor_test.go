@@ -104,3 +104,20 @@ func TestUCIDeleteOtherErrorStillFails(t *testing.T) {
 		t.Fatal("a delete failure other than 'Entry not found' must be reported")
 	}
 }
+
+func TestDecodeOpArgsMQTTConfigure(t *testing.T) {
+	raw := json.RawMessage(`{"enabled":"1","host":"10.0.0.10","port":"1883","user":"u","pass":"p","nodeId":"rt3","interval":"60"}`)
+	args, err := decodeOpArgs("mqtt.configure", raw)
+	if err != nil {
+		t.Fatalf("decodeOpArgs: %v", err)
+	}
+	want := []string{"1", "10.0.0.10", "1883", "u", "p", "rt3", "60"}
+	if len(args) != len(want) {
+		t.Fatalf("args = %v, want %v", args, want)
+	}
+	for i := range want {
+		if args[i] != want[i] {
+			t.Fatalf("args[%d] = %q, want %q", i, args[i], want[i])
+		}
+	}
+}
