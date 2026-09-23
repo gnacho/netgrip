@@ -318,6 +318,12 @@ func mqttDial(ctx context.Context, cfg MQTTConfig, node, version string) (*mq.Cl
 			setMQTTError(err)
 			setMQTTDisconnected()
 		}),
+		// Registers the handler locally so the library re-subscribes on every
+		// reconnect (the initial SUBSCRIBE is issued explicitly after Dial,
+		// see the note there).
+		mq.WithSubscription(commandFilter(node), func(c *mq.Client, msg mq.Message) {
+			go handleMQTTCommand(c, node, version, msg)
+		}),
 	}
 	if cfg.User != "" {
 		opts = append(opts, mq.WithCredentials(cfg.User, cfg.Pass))
@@ -378,6 +384,13 @@ func mqttGuestWifi(payload string) error {
 	if err != nil {
 		return err
 	}
+	cur := ProbeGuest()
+	// Idempotent: a switch that is already in the requested state must not
+	// re-apply the config (a guest apply reloads both radios and runs a
+	// healthcheck of up to 75s).
+	if on == cur.Active {
+		return nil
+	}
 	if !on {
 		_, _, err := SetGuest(GuestConfig{Enabled: false})
 		return err
@@ -387,30 +400,39 @@ func mqttGuestWifi(payload string) error {
 	}
 	// Re-enable the existing network: pass the current SSID so the update path
 	// flips disabled=0 without touching the rest of the config.
-	_, _, err = SetGuest(GuestConfig{Enabled: true, SSID: ProbeGuest().SSID})
+	_, _, err = SetGuest(GuestConfig{Enabled: true, SSID: cur.SSID})
 	return err
 }
 
 func mqttBanip(payload string) error {
-	var action string
 	switch payload {
-	case "ON":
-		action = "enable"
-	case "OFF":
-		action = "disable"
 	case "RELOAD":
-		action = "reload"
-	default:
-		return fmt.Errorf("banip expects ON, OFF or RELOAD, got %q", payload)
+		_, _, err := BanipAction("reload")
+		return err
+	case "ON":
+		if ProbeBanipStatusCached().Enabled {
+			return nil
+		}
+		_, _, err := BanipAction("enable")
+		return err
+	case "OFF":
+		if !ProbeBanipStatusCached().Enabled {
+			return nil
+		}
+		_, _, err := BanipAction("disable")
+		return err
 	}
-	_, _, err := BanipAction(action)
-	return err
+	return fmt.Errorf("banip expects ON, OFF or RELOAD, got %q", payload)
 }
 
 func mqttIPv6(payload string) error {
 	on, err := parseOnOff(payload)
 	if err != nil {
 		return err
+	}
+	st := ProbeIPv6()
+	if on && st.State == "enabled" || !on && st.State == "disabled" {
+		return nil
 	}
 	_, _, err = SetIPv6(on)
 	return err
@@ -421,11 +443,14 @@ func mqttSQM(payload string) error {
 	if err != nil {
 		return err
 	}
+	p := ProbeSQM()
+	if on == p.Active {
+		return nil
+	}
 	if !on {
 		_, _, err := SetSQM(SQMConfig{Enabled: false})
 		return err
 	}
-	p := ProbeSQM()
 	if p.Download == "" || p.Upload == "" {
 		return errors.New("sqm is not configured; set it up in the panel first")
 	}
