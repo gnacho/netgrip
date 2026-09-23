@@ -236,6 +236,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/netpulse", s.requireAuth(s.handleNetPulseSet))
 	s.mux.HandleFunc("GET /api/mqtt", s.requireAuth(s.handleMQTTGet))
 	s.mux.HandleFunc("PUT /api/mqtt", s.requireAuth(s.handleMQTTSet))
+	s.mux.HandleFunc("POST /api/reboot", s.requireAuth(s.handleReboot))
 	s.mux.HandleFunc("GET /api/nftqos", s.requireAuth(s.handleNftQoSGet))
 	s.mux.HandleFunc("POST /api/nftqos", s.requireAuth(s.handleNftQoSSet))
 	s.mux.HandleFunc("DELETE /api/nftqos", s.requireAuth(s.handleNftQoSDelete))
@@ -2554,6 +2555,14 @@ func (s *Server) handleMQTTSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, modules.MQTTInfoNow())
+}
+
+func (s *Server) handleReboot(w http.ResponseWriter, _ *http.Request) {
+	if err := modules.RebootRouter(); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"started": true})
 }
 
 func (s *Server) handleNftQoSGet(w http.ResponseWriter, _ *http.Request) {
