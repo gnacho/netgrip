@@ -640,11 +640,27 @@ func ProbeMultiWAN() *MultiWanProbe {
 	}
 	running := installed && executor.ServiceRunning(mwanPkg)
 	if running {
-		if out, err := exec.Command(mwanPkg, "interfaces").Output(); err == nil {
-			live = parseMwanInterfaces(string(out))
-		}
-		if out, err := exec.Command(mwanPkg, "policies").Output(); err == nil {
-			policy, shares = parseMwanPolicies(string(out))
+		// The tracker's verdict and the split come from its state files and
+		// the member weights, not from `mwan3 interfaces` and `mwan3
+		// policies`. Those two shell scripts walk the whole rule set and
+		// cost the best part of a second between them on this class of
+		// hardware, which is a lot to spend every time somebody opens the
+		// page - and they only report what is derived here anyway.
+		if _, online, ok := mwanLiveState(); ok {
+			for name := range cfg.Ifaces {
+				state := "offline"
+				if online[name] {
+					state = "online"
+				}
+				live[name] = mwanLive{Online: state, Tracking: "active"}
+			}
+			if active := pickMwanActive(cfg, online); active != "" {
+				policy = policyOfActiveRule(cfg)
+				shares = mwanShares(cfg, online)
+				if len(shares) == 0 {
+					shares = map[string]int{active: 100}
+				}
+			}
 		}
 	}
 	return buildMultiWanProbe(candidates, installed, installed && executor.ServiceEnabled(mwanPkg),
@@ -1141,29 +1157,40 @@ func MwanActiveUplink() string {
 		return mwanActive.name
 	}
 	mwanActive.at = time.Now()
-	mwanActive.name = ""
-
-	if _, err := os.Stat(mwanStateDir); err != nil {
+	cfg, online, ok := mwanLiveState()
+	if !ok {
+		mwanActive.name = ""
 		return ""
+	}
+	mwanActive.name = pickMwanActive(cfg, online)
+	return mwanActive.name
+}
+
+// mwanLiveState is the cheap half of the picture: the config, which `uci`
+// answers instantly, and the tracker's verdict on each link, which is one
+// word per file under its run directory. Everything else mwan3 can tell us
+// costs a shell script and the best part of a second — measured, on the
+// class of hardware this runs on — so nothing on a polled path uses it.
+func mwanLiveState() (mwanConfig, map[string]bool, bool) {
+	if _, err := os.Stat(mwanStateDir); err != nil {
+		return mwanConfig{}, nil, false
 	}
 	show, err := exec.Command("uci", "show", mwanPkg).Output()
 	if err != nil {
-		return ""
+		return mwanConfig{}, nil, false
 	}
-	cfg := readMwanConfig(string(show))
-	online := map[string]bool{}
 	entries, err := os.ReadDir(mwanStateDir)
 	if err != nil {
-		return ""
+		return mwanConfig{}, nil, false
 	}
+	online := map[string]bool{}
 	for _, e := range entries {
 		b, err := os.ReadFile(mwanStateDir + "/" + e.Name())
 		if err == nil && strings.TrimSpace(string(b)) == "online" {
 			online[e.Name()] = true
 		}
 	}
-	mwanActive.name = pickMwanActive(cfg, online)
-	return mwanActive.name
+	return readMwanConfig(string(show)), online, true
 }
 
 // pickMwanActive works out which member is carrying traffic from the config
@@ -1201,4 +1228,71 @@ func pickMwanActive(cfg mwanConfig, online map[string]bool) string {
 		}
 	}
 	return best
+}
+
+// policyOfActiveRule names the policy a rule actually points at, which is
+// what `mwan3 policies` would print as the one in force.
+func policyOfActiveRule(cfg mwanConfig) string {
+	names := []string{}
+	for rule, policy := range cfg.RulePolicies {
+		if len(rule) > mwanMaxSectionLen || len(policy) > mwanMaxSectionLen {
+			continue
+		}
+		if cfg.All[policy] == "policy" {
+			names = append(names, policy)
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	sort.Strings(names)
+	return names[0]
+}
+
+// mwanShares is how traffic divides between the uplinks, worked out the way
+// mwan3 does it rather than asked for: only the lowest metric group with
+// something online carries anything, and inside it the split follows the
+// weights. Deriving it keeps the number fresh on every push, where asking
+// `mwan3 policies` would cost a third of a second each time.
+func mwanShares(cfg mwanConfig, online map[string]bool) map[string]int {
+	type member struct {
+		iface  string
+		weight int
+	}
+	lowest, group := 0, []member{}
+	for _, m := range cfg.Members {
+		if m.Interface == "" || !online[m.Interface] {
+			continue
+		}
+		switch {
+		case len(group) == 0 || m.Metric < lowest:
+			lowest, group = m.Metric, []member{{m.Interface, m.Weight}}
+		case m.Metric == lowest:
+			group = append(group, member{m.Interface, m.Weight})
+		}
+	}
+	shares := map[string]int{}
+	total := 0
+	for _, m := range group {
+		total += m.weight
+	}
+	if total == 0 {
+		return shares
+	}
+	// Heaviest first, so the rounding remainder lands there rather than
+	// leaving the column short of 100.
+	sort.Slice(group, func(i, j int) bool {
+		if group[i].weight != group[j].weight {
+			return group[i].weight > group[j].weight
+		}
+		return group[i].iface < group[j].iface
+	})
+	assigned := 0
+	for _, m := range group[1:] {
+		pct := m.weight * 100 / total
+		shares[m.iface] = pct
+		assigned += pct
+	}
+	shares[group[0].iface] = 100 - assigned
+	return shares
 }
