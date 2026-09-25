@@ -1,7 +1,5 @@
-github.com/gnacho/netpulse/agent v1.2.1 h1:L9LFF0HzAV3XD16Wx1X9ELEOo3LC/NG+sqj7h+P0SqE=
-github.com/gnacho/netpulse/agent v1.2.1/go.mod h1:jJxa2W2PR3BKIFI/GxnUHC9caOwhYM0wobbsoHitV6I=
-github.com/gnacho/netpulse/agent v1.3.0 h1:fi5CGvXGxiflEf1EPhwPEMm89iMICtvPGpIRVSv1u2k=
-github.com/gnacho/netpulse/agent v1.3.0/go.mod h1:jJxa2W2PR3BKIFI/GxnUHC9caOwhYM0wobbsoHitV6I=
+github.com/gnacho/netpulse/agent v1.4.0 h1:o6xFhZUPCeYJypcL3al9Vl//XRkiXCSxgHkQ7ae8JOw=
+github.com/gnacho/netpulse/agent v1.4.0/go.mod h1:jJxa2W2PR3BKIFI/GxnUHC9caOwhYM0wobbsoHitV6I=
 github.com/gonzalop/mq v0.9.10 h1:7uaSKq/m/n0ElV3SJtXQTZnI5HyHtgoNIL/ufsxFU+8=
 github.com/gonzalop/mq v0.9.10/go.mod h1:chaGtxnueekistsTKhDnLOoNdJPKEI6vadlUBRQS2ok=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
