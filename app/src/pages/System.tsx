@@ -12,6 +12,7 @@ import { MQTTCard } from "../components/system/MQTTCard";
 import { ConfigBackupCard } from "../components/ConfigBackupCard";
 import { UpdateCard } from "../components/system/UpdateCard";
 import { SelfUpdateCard } from "../components/system/SelfUpdateCard";
+import { WizardRelaunchCard } from "../components/system/WizardRelaunchCard";
 import { OptionsCard } from "../components/system/OptionsCard";
 import { NetPulseStandaloneBanner, NetPulseStatusChip } from "../components/system/NetPulseStatus";
 import { useTranslation } from "react-i18next";
@@ -60,7 +61,8 @@ export function System({ board, update, onUpdateChange, onLogout }: {
 
       {/* Mantenimiento (#155): actualización de la imagen OpenWrt. La rama
           de paquetes se oculta por diseño: la paquetería se gestiona desde
-          LuCI o CLI (`apk upgrade`), no desde esta tarjeta. */}
+          LuCI o CLI (`apk upgrade`), no desde esta tarjeta. #415: relanzar
+          el asistente inicial bajo demanda. */}
       <section className="flex flex-col gap-[var(--card-gap)]">
         <GroupLabel>{t("system.groupMaintenance")}</GroupLabel>
         <UpdateCard
@@ -68,6 +70,7 @@ export function System({ board, update, onUpdateChange, onLogout }: {
           update={update}
           onChange={onUpdateChange}
         />
+        <WizardRelaunchCard index={1} />
       </section>
 
       {/* Opciones (#158): preferencias de la interfaz (idioma, densidad,

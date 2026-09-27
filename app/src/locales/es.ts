@@ -361,6 +361,13 @@ export default {
     rebootBanner: "El router se está reiniciando. La página se recargará sola cuando vuelva.",
     rebootFailed: "No se pudo reiniciar",
     waitBackground: "Seguir esperando en segundo plano",
+    wizardTitle: "Asistente de configuración",
+    wizardDesc: "Vuelve a ejecutar el asistente inicial (modo, paquetes, NetPulse, wifi de invitados) partiendo del estado actual del router.",
+    wizardRelaunch: "Ejecutar el asistente",
+    wizardConfirmTitle: "Volver al asistente inicial",
+    wizardConsequence: "El panel se recargará mostrando el asistente. Nada cambia en el router hasta que actúes en cada paso.",
+    wizardConfirmBtn: "Abrir el asistente",
+    wizardFailed: "No se pudo abrir el asistente",
   },
   wan: {
     title: "Conexión a Internet",

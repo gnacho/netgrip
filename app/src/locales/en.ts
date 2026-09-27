@@ -361,6 +361,13 @@ export default {
     rebootBanner: "The router is rebooting. The page will reload when it's back.",
     rebootFailed: "Could not reboot",
     waitBackground: "Keep waiting in the background",
+    wizardTitle: "Setup wizard",
+    wizardDesc: "Run the initial setup again (mode, packages, NetPulse, guest wifi) starting from the router's current state.",
+    wizardRelaunch: "Run the setup wizard",
+    wizardConfirmTitle: "Back to the setup wizard",
+    wizardConsequence: "The panel will reload showing the setup wizard. Nothing changes on the router until you act on each step.",
+    wizardConfirmBtn: "Open the wizard",
+    wizardFailed: "Could not open the wizard",
   },
   wan: {
     title: "Internet connection",

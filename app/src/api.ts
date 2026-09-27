@@ -525,6 +525,8 @@ const realApi = {
   installJob: () => request<{ job: InstallJob }>("/api/wizard/job"),
   wizardComplete: () =>
     request<{ status: string }>("/api/wizard/complete", { method: "POST" }),
+  wizardReset: () =>
+    request<import("./types").WizardState>("/api/wizard/reset", { method: "POST" }),
   drift: () =>
     request<import("./types").DriftProbe>("/api/drift"),
   vlans: () =>

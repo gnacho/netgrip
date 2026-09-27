@@ -211,6 +211,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("POST /api/wizard/packages", s.requireAuth(s.handleWizardPackages))
 	s.mux.HandleFunc("GET /api/wizard/job", s.requireAuth(s.handleInstallJobGet))
 	s.mux.HandleFunc("POST /api/wizard/complete", s.requireAuth(s.handleWizardComplete))
+	s.mux.HandleFunc("POST /api/wizard/reset", s.requireAuth(s.handleWizardReset))
 	s.mux.HandleFunc("GET /api/drift", s.requireAuth(s.handleDriftGet))
 	s.mux.HandleFunc("GET /api/telegram", s.requireAuth(s.handleTelegramGet))
 	s.mux.HandleFunc("POST /api/telegram", s.requireAuth(s.handleTelegramSet))
@@ -1932,6 +1933,14 @@ func (s *Server) handleWizardComplete(w http.ResponseWriter, _ *http.Request) {
 	}
 	modules.CreateSnapshot()
 	writeJSON(w, map[string]string{"status": "completed"})
+}
+
+func (s *Server) handleWizardReset(w http.ResponseWriter, _ *http.Request) {
+	if err := modules.ResetWizard(); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, modules.ProbeWizard())
 }
 
 func (s *Server) handleDriftGet(w http.ResponseWriter, _ *http.Request) {

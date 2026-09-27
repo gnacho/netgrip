@@ -163,6 +163,7 @@ export const demoApi: typeof api = {
   wizardSetup: () => get(D.demoWizardSetup),
   installWizardSetup: async () => { await wait(800, 1500); return { job: { phase: "done", total: 1, done: 1, installed: ["ethtool-full"] } }; },
   wizardComplete: async () => { await wait(400, 800); return { status: "ok" }; },
+  wizardReset: async () => { await wait(400, 800); return { ...D.demoWizard, completed: false }; },
 
   // núcleo
   board: () => get(D.demoBoard),
