@@ -10,6 +10,7 @@
   <a href="https://demo.netgrip.cloudless.club"><img alt="Demo en vivo" src="https://img.shields.io/badge/demo-demo.netgrip.cloudless.club-0D9488"></a>
   <a href="https://github.com/gnacho/netgrip/releases"><img alt="Release" src="https://img.shields.io/github/v/release/gnacho/netgrip"></a>
   <a href="LICENSE"><img alt="Licencia" src="https://img.shields.io/github/license/gnacho/netgrip"></a>
+  <a href="https://codecov.io/gh/gnacho/netgrip"><img alt="Cobertura" src="https://codecov.io/gh/gnacho/netgrip/branch/main/graph/badge.svg"></a>
 </p>
 
 <p align="center">
