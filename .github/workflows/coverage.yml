@@ -8,6 +8,13 @@ on:
 permissions:
   contents: read
 
+# El contexto `secrets` no es válido en el `if` de un step (fallaba el
+# workflow entero al hacer push); se expone como `env` a nivel workflow y
+# el step comprueba esa variable. Sin token (app Codecov aún no conectada)
+# el upload se omite y el resto del job sigue verde.
+env:
+  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
 jobs:
   coverage:
     name: Test coverage
@@ -28,7 +35,7 @@ jobs:
         run: go test -count=1 -coverprofile=coverage.txt -covermode=atomic ./...
 
       - name: Upload coverage to Codecov
-        if: ${{ secrets.CODECOV_TOKEN != '' }}
+        if: ${{ env.CODECOV_TOKEN != '' }}
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
