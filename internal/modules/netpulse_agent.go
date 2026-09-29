@@ -89,6 +89,7 @@ var (
 	npBaseCancel         context.CancelFunc // cancela el ctx de señales (parada del proceso)
 	npCancel             context.CancelFunc // cancela SOLO la goroutine del agente vigente
 	npStatus             runtime.Status
+	npGen                int // se incrementa en cada apply/Stop: invalida callbacks tardíos
 	npVersion            string
 	npStarted            bool
 	npStandaloneReplaced time.Time
@@ -173,6 +174,7 @@ func StopNetPulseAgent() {
 		npBaseCancel()
 		npBaseCancel = nil
 	}
+	npGen++
 	npStatus.Running = false
 }
 
@@ -479,6 +481,7 @@ func applyNetPulseAgent(p netpulsePaths) {
 		npCancel()
 		npCancel = nil
 	}
+	npGen++
 	npStatus = runtime.Status{}
 	base := npBaseCtx
 	version := npVersion
@@ -512,14 +515,16 @@ func applyNetPulseAgent(p netpulsePaths) {
 		Version:      version,
 		Kind:         "netgrip",
 		SelfMQTT:     netPulseSelfMQTT,
-		OnStatus:     storeNetPulseStatus,
 		OnUpgrade:    netPulseUpgradeTrigger,
 	}
 
 	ctx, cancel := context.WithCancel(base)
 	npMu.Lock()
 	npCancel = cancel
+	gen := npGen
 	npMu.Unlock()
+
+	opts.OnStatus = statusCallbackGen(gen)
 
 	interval := opts.Interval
 	if interval <= 0 {
@@ -531,7 +536,9 @@ func applyNetPulseAgent(p netpulsePaths) {
 		if err := runtime.Run(ctx, opts); err != nil {
 			log.Printf("netpulse: agent stopped: %v", err)
 			npMu.Lock()
-			npStatus.Running = false
+			if gen == npGen {
+				npStatus.Running = false
+			}
 			npMu.Unlock()
 		}
 	}()
@@ -594,6 +601,21 @@ func storeNetPulseStatus(st runtime.Status) {
 	npMu.Lock()
 	npStatus = st
 	npMu.Unlock()
+}
+
+// statusCallbackGen devuelve un callback OnStatus que solo escribe el status
+// compartido si la generación vigente no ha cambiado: apply/Stop cancelan el
+// agente anterior e invalidan sus callbacks, y una goroutine moribunda podía
+// entregar un snapshot tardío que resucitaba Running=true stale (race que
+// hacía flaky a TestApplyNetPulseAgentAlwaysOn en CI).
+func statusCallbackGen(gen int) func(runtime.Status) {
+	return func(st runtime.Status) {
+		npMu.Lock()
+		if gen == npGen {
+			npStatus = st
+		}
+		npMu.Unlock()
+	}
 }
 
 // netPulseUpgradeTrigger: evento SSE "upgrade" del servidor NetPulse (#363):
