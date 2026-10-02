@@ -49,6 +49,37 @@ func TestParseAdGuardUsers(t *testing.T) {
 	if got := parseAdGuardUsers([]byte(multi)); len(got) != 2 {
 		t.Errorf("two users: got %v", got)
 	}
+	// The 25.12 package ships an inline empty list; it means no users.
+	if got := parseAdGuardUsers([]byte("users: []\nauth_attempts: 5\n")); len(got) != 0 {
+		t.Errorf("inline empty list: got %v, want none", got)
+	}
+	// Inline content we cannot parse must not read as "no users".
+	if got := parseAdGuardUsers([]byte("users: [{name: ana}]\n")); len(got) == 0 {
+		t.Error("unparseable inline users must be reported, not read as none")
+	}
+}
+
+func TestReplaceAdGuardUsersInlineEmpty(t *testing.T) {
+	in := "http:\n  address: 0.0.0.0:3000\nusers: []\nauth_attempts: 5\n"
+	out := string(replaceAdGuardUsers([]byte(in), adGuardAdminUser, "$2a$10$newhash"))
+	if got := parseAdGuardUsers([]byte(out)); len(got) != 1 || got[0] != adGuardAdminUser {
+		t.Errorf("users = %v, want [%s]", got, adGuardAdminUser)
+	}
+	if strings.Contains(out, "users: []") || !strings.Contains(out, "auth_attempts: 5") {
+		t.Errorf("inline list not replaced or neighbours lost:\n%s", out)
+	}
+	if strings.Count(out, "users:") != 1 {
+		t.Errorf("duplicate users keys:\n%s", out)
+	}
+}
+
+func TestAdGuardConfigPathFallsBackToThePinnedVar(t *testing.T) {
+	// Without uci (development machine) and no 25.12 file, the resolver
+	// returns the 24.10 variable tests pin.
+	pinAdGuardPaths(t)
+	if got := adGuardConfigPathNow(); got != adGuardConfigPath {
+		t.Errorf("resolver = %q, want the pinned %q", got, adGuardConfigPath)
+	}
 }
 
 func TestReplaceAdGuardUsersPreservesTheRest(t *testing.T) {

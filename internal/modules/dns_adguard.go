@@ -40,6 +40,25 @@ const (
 // the on-router locations (verified on OpenWrt 24.10 and 25.12).
 var adGuardConfigPath = "/etc/adguardhome.yaml"
 
+// adGuardConfigPath25 is where OpenWrt 25.12 packages keep the config, in
+// its own directory owned by the adguardhome user.
+const adGuardConfigPath25 = "/etc/adguardhome/adguardhome.yaml"
+
+// adGuardConfigPathNow resolves the config file AdGuard Home actually reads:
+// the UCI config_file option when set (25.12 points it at the file's own
+// directory), the 25.12 location when it exists, and the 24.10 one
+// otherwise. Reads and writes alike go through here: hardcoding the 24.10
+// path had the DoH rewrite editing a file the service never opened.
+func adGuardConfigPathNow() string {
+	if p := uciGet("adguardhome.config.config_file"); p != "" {
+		return p
+	}
+	if _, err := os.Stat(adGuardConfigPath25); err == nil {
+		return adGuardConfigPath25
+	}
+	return adGuardConfigPath
+}
+
 // adGuardDNSBackup is the snapshot of the dnsmasq state we take over.
 type adGuardDNSBackup struct {
 	Version     int      `json:"version"`
@@ -135,7 +154,7 @@ func parseAdGuardDNSPort(data []byte) int {
 // adGuardResolvedPort returns the DNS port AdGuard Home listens on: the one
 // in its yaml config when present, the conventional 5353 otherwise.
 func adGuardResolvedPort() int {
-	if data, err := os.ReadFile(adGuardConfigPath); err == nil {
+	if data, err := os.ReadFile(adGuardConfigPathNow()); err == nil {
 		if p := parseAdGuardDNSPort(data); p > 0 {
 			return p
 		}
@@ -294,10 +313,11 @@ func adGuardEnable(st dnsmasqState) (*DNSConfig, bool, error) {
 	// wizard, which cannot finish because dnsmasq owns :53). Write a minimal
 	// config that moves the DNS listener to the handoff port, with the web
 	// credential provisioned so the dashboard skips its setup wizard (#424).
+	cfgPath := adGuardConfigPathNow()
 	wroteYAML := false
 	removeCred := false
 	var restoreYAML []byte
-	if _, err := os.Stat(adGuardConfigPath); os.IsNotExist(err) {
+	if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
 		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"adguardhome", "stop"}})
 		password, err := randomAdGuardPassword()
 		if err != nil {
@@ -307,16 +327,19 @@ func adGuardEnable(st dnsmasqState) (*DNSConfig, bool, error) {
 		if err != nil {
 			return ProbeDNS(), false, err
 		}
-		if err := os.WriteFile(adGuardConfigPath, []byte(adGuardMinimalYAMLWithUsers(port, adGuardAdminUser, string(hash))), 0o600); err != nil {
-			return ProbeDNS(), false, fmt.Errorf("writing %s: %w", adGuardConfigPath, err)
+		if err := os.MkdirAll(filepath.Dir(cfgPath), 0o700); err != nil {
+			return ProbeDNS(), false, fmt.Errorf("creating %s: %w", filepath.Dir(cfgPath), err)
+		}
+		if err := os.WriteFile(cfgPath, []byte(adGuardMinimalYAMLWithUsers(port, adGuardAdminUser, string(hash))), 0o600); err != nil {
+			return ProbeDNS(), false, fmt.Errorf("writing %s: %w", cfgPath, err)
 		}
 		if err := saveAdGuardCred(&adGuardCredFile{Username: adGuardAdminUser, Password: password}); err != nil {
-			_ = os.Remove(adGuardConfigPath)
+			_ = os.Remove(cfgPath)
 			return ProbeDNS(), false, fmt.Errorf("storing the AdGuard credential: %w", err)
 		}
 		wroteYAML = true
 		removeCred = true
-	} else if data, err := os.ReadFile(adGuardConfigPath); err == nil && len(parseAdGuardUsers(data)) == 0 {
+	} else if data, err := os.ReadFile(cfgPath); err == nil && len(parseAdGuardUsers(data)) == 0 {
 		// Pre-existing config with no credentials: written by an older
 		// NetGrip, or an AdGuard that never finished its setup wizard.
 		// Provision into it, keeping the previous content for the rollback.
@@ -368,10 +391,11 @@ func adGuardEnable(st dnsmasqState) (*DNSConfig, bool, error) {
 // so the router is exactly where it started.
 func adGuardEnableRollback(st dnsmasqState, removeYAML bool, restoreYAML []byte, removeCred bool) {
 	_ = adGuardApplyDNS(st)
+	cfgPath := adGuardConfigPathNow()
 	if removeYAML {
-		_ = os.Remove(adGuardConfigPath)
+		_ = os.Remove(cfgPath)
 	} else if restoreYAML != nil {
-		_ = os.WriteFile(adGuardConfigPath, restoreYAML, 0o600)
+		_ = os.WriteFile(cfgPath, restoreYAML, 0o600)
 	}
 	if removeCred {
 		_ = os.Remove(adGuardCredPath)

@@ -67,7 +67,20 @@ func parseAdGuardUsers(data []byte) []string {
 		}
 		indent := len(line) - len(strings.TrimLeft(line, " "))
 		if indent == 0 {
-			inUsers = trimmed == "users:"
+			inUsers = false
+			if rest, ok := strings.CutPrefix(trimmed, "users:"); ok {
+				switch v := strings.TrimSpace(rest); v {
+				case "":
+					inUsers = true // block form: the names follow indented
+				case "[]":
+					// Inline empty list, how the 25.12 package ships it.
+				default:
+					// Inline content we do not parse: report it as an
+					// unmanageable user so the state reads external and
+					// the config is never touched.
+					users = append(users, "<inline>")
+				}
+			}
 			continue
 		}
 		if !inUsers {
@@ -103,10 +116,19 @@ func replaceAdGuardUsers(data []byte, username, hash string) []byte {
 		}
 		indent := len(line) - len(strings.TrimLeft(line, " "))
 		if start < 0 {
-			if indent == 0 && trimmed == "users:" {
-				start = i
+			if indent == 0 {
+				if rest, ok := strings.CutPrefix(trimmed, "users:"); ok {
+					start = i
+					if strings.TrimSpace(rest) != "" {
+						// Inline form (users: []): the block is this one line.
+						end = i + 1
+					}
+				}
 			}
 			continue
+		}
+		if end > 0 {
+			break // inline form: already bounded
 		}
 		if indent == 0 {
 			end = i
@@ -170,7 +192,7 @@ func loadAdGuardCred() *adGuardCredFile {
 // the cred file going missing, means somebody else is driving and the card
 // says so instead of offering to regenerate what it cannot know.
 func adGuardCredStateNow() string {
-	data, err := os.ReadFile(adGuardConfigPath)
+	data, err := os.ReadFile(adGuardConfigPathNow())
 	if err != nil {
 		return adGuardCredNone
 	}
@@ -216,7 +238,7 @@ func writeAdGuardYAML(path string, data []byte) error {
 // no users yet. Caller must have AdGuard Home stopped, or it may overwrite
 // the file on its way down.
 func adGuardProvisionUsers() (*adGuardCredFile, error) {
-	data, err := os.ReadFile(adGuardConfigPath)
+	data, err := os.ReadFile(adGuardConfigPathNow())
 	if err != nil {
 		return nil, err
 	}
@@ -231,14 +253,14 @@ func adGuardProvisionUsers() (*adGuardCredFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := writeAdGuardYAML(adGuardConfigPath, replaceAdGuardUsers(data, adGuardAdminUser, string(hash))); err != nil {
+	if err := writeAdGuardYAML(adGuardConfigPathNow(), replaceAdGuardUsers(data, adGuardAdminUser, string(hash))); err != nil {
 		return nil, err
 	}
 	cred := &adGuardCredFile{Username: adGuardAdminUser, Password: password}
 	if err := saveAdGuardCred(cred); err != nil {
 		// Leave no users block without its plaintext: that combination reads
 		// as "external" and would lock the panel out of its own credential.
-		_ = os.WriteFile(adGuardConfigPath, data, 0o600)
+		_ = os.WriteFile(adGuardConfigPathNow(), data, 0o600)
 		return nil, err
 	}
 	return cred, nil
@@ -292,11 +314,11 @@ func adGuardRotatePassword() error {
 	if err != nil {
 		return err
 	}
-	data, err := os.ReadFile(adGuardConfigPath)
+	data, err := os.ReadFile(adGuardConfigPathNow())
 	if err != nil {
 		return err
 	}
-	if err := writeAdGuardYAML(adGuardConfigPath, replaceAdGuardUsers(data, adGuardAdminUser, string(hash))); err != nil {
+	if err := writeAdGuardYAML(adGuardConfigPathNow(), replaceAdGuardUsers(data, adGuardAdminUser, string(hash))); err != nil {
 		return err
 	}
 	return saveAdGuardCred(&adGuardCredFile{Username: adGuardAdminUser, Password: password})

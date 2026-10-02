@@ -213,7 +213,7 @@ func dohEnabled(upstreams []string) bool {
 // the (capped) upstream list. Fail-soft: an unreadable or unparseable file
 // reports inactive with no upstreams.
 func probeDoHState() (enabled bool, upstreams []string) {
-	data, err := os.ReadFile(adGuardConfigPath)
+	data, err := os.ReadFile(adGuardConfigPathNow())
 	if err != nil {
 		return false, []string{}
 	}
@@ -270,10 +270,10 @@ func derefPtr(p *[]string) []string {
 func adGuardDoHApply(doc map[string]any) error {
 	out, err := renderAdGuardYAML(doc)
 	if err != nil {
-		return fmt.Errorf("rendering %s: %w", adGuardConfigPath, err)
+		return fmt.Errorf("rendering %s: %w", adGuardConfigPathNow(), err)
 	}
-	if err := os.WriteFile(adGuardConfigPath, out, 0o600); err != nil {
-		return fmt.Errorf("writing %s: %w", adGuardConfigPath, err)
+	if err := os.WriteFile(adGuardConfigPathNow(), out, 0o600); err != nil {
+		return fmt.Errorf("writing %s: %w", adGuardConfigPathNow(), err)
 	}
 	if err := executor.Apply([]executor.Op{{Kind: "initd", Args: []string{"adguardhome", "restart"}}}, nil); err != nil {
 		return err
@@ -288,7 +288,7 @@ func adGuardDoHApply(doc map[string]any) error {
 // restarts AdGuard. It leaves the backup file alone; the caller decides when
 // the backup has served its purpose.
 func adGuardDoHRestore(c dohConfig) {
-	data, err := os.ReadFile(adGuardConfigPath)
+	data, err := os.ReadFile(adGuardConfigPathNow())
 	if err != nil {
 		return
 	}
@@ -298,7 +298,7 @@ func adGuardDoHRestore(c dohConfig) {
 	}
 	applyDoHConfig(doc, c)
 	if out, err := renderAdGuardYAML(doc); err == nil {
-		_ = os.WriteFile(adGuardConfigPath, out, 0o600)
+		_ = os.WriteFile(adGuardConfigPathNow(), out, 0o600)
 	}
 	_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"adguardhome", "restart"}})
 }
@@ -326,13 +326,13 @@ func adGuardDoHEnable(upstreams []string) (*DNSConfig, bool, error) {
 	if err := validateDoHUpstreams(upstreams); err != nil {
 		return ProbeDNS(), false, err
 	}
-	data, err := os.ReadFile(adGuardConfigPath)
+	data, err := os.ReadFile(adGuardConfigPathNow())
 	if err != nil {
-		return ProbeDNS(), false, fmt.Errorf("reading %s: %w", adGuardConfigPath, err)
+		return ProbeDNS(), false, fmt.Errorf("reading %s: %w", adGuardConfigPathNow(), err)
 	}
 	doc, err := parseAdGuardYAML(data)
 	if err != nil {
-		return ProbeDNS(), false, fmt.Errorf("parsing %s: %w", adGuardConfigPath, err)
+		return ProbeDNS(), false, fmt.Errorf("parsing %s: %w", adGuardConfigPathNow(), err)
 	}
 	prev := captureDoHConfig(doc)
 	if err := saveAdGuardDohBackup(&adGuardDohBackup{
@@ -355,13 +355,13 @@ func adGuardDoHEnable(upstreams []string) (*DNSConfig, bool, error) {
 }
 
 func adGuardDoHDisable() (*DNSConfig, bool, error) {
-	data, err := os.ReadFile(adGuardConfigPath)
+	data, err := os.ReadFile(adGuardConfigPathNow())
 	if err != nil {
-		return ProbeDNS(), false, fmt.Errorf("reading %s: %w", adGuardConfigPath, err)
+		return ProbeDNS(), false, fmt.Errorf("reading %s: %w", adGuardConfigPathNow(), err)
 	}
 	doc, err := parseAdGuardYAML(data)
 	if err != nil {
-		return ProbeDNS(), false, fmt.Errorf("parsing %s: %w", adGuardConfigPath, err)
+		return ProbeDNS(), false, fmt.Errorf("parsing %s: %w", adGuardConfigPathNow(), err)
 	}
 	cur := captureDoHConfig(doc)
 	backup := loadAdGuardDohBackup()
