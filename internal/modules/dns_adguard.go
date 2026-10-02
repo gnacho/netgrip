@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/gnacho/netgrip/internal/executor"
 )
 
@@ -30,10 +32,13 @@ import (
 
 const (
 	adGuardBackupPath     = "/etc/netgrip/adguard_dns_backup.json"
-	adGuardConfigPath     = "/etc/adguardhome.yaml"
 	adGuardDefaultDNSPort = 5353
 	adGuardProbeDomain    = "example.com"
 )
+
+// Paths as variables so tests can pin them to a temp dir; production keeps
+// the on-router locations (verified on OpenWrt 24.10 and 25.12).
+var adGuardConfigPath = "/etc/adguardhome.yaml"
 
 // adGuardDNSBackup is the snapshot of the dnsmasq state we take over.
 type adGuardDNSBackup struct {
@@ -146,6 +151,13 @@ dns:
     - 127.0.0.1
   port: %d
 `, port)
+}
+
+// adGuardMinimalYAMLWithUsers is the config NetGrip writes on first enable:
+// the minimal listener setup plus the provisioned web credential (#424), so
+// the dashboard on :3000 never shows the setup wizard.
+func adGuardMinimalYAMLWithUsers(port int, username, hash string) string {
+	return adGuardMinimalYAML(port) + adGuardUsersBlock(username, hash)
 }
 
 // planServerListOps builds the UCI ops that turn the dnsmasq server list
@@ -280,14 +292,40 @@ func adGuardEnable(st dnsmasqState) (*DNSConfig, bool, error) {
 
 	// The AdGuard config may not exist yet (first launch defers to the web
 	// wizard, which cannot finish because dnsmasq owns :53). Write a minimal
-	// config that moves the DNS listener to the handoff port.
+	// config that moves the DNS listener to the handoff port, with the web
+	// credential provisioned so the dashboard skips its setup wizard (#424).
 	wroteYAML := false
+	removeCred := false
+	var restoreYAML []byte
 	if _, err := os.Stat(adGuardConfigPath); os.IsNotExist(err) {
 		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"adguardhome", "stop"}})
-		if err := os.WriteFile(adGuardConfigPath, []byte(adGuardMinimalYAML(port)), 0o600); err != nil {
+		password, err := randomAdGuardPassword()
+		if err != nil {
+			return ProbeDNS(), false, err
+		}
+		hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err != nil {
+			return ProbeDNS(), false, err
+		}
+		if err := os.WriteFile(adGuardConfigPath, []byte(adGuardMinimalYAMLWithUsers(port, adGuardAdminUser, string(hash))), 0o600); err != nil {
 			return ProbeDNS(), false, fmt.Errorf("writing %s: %w", adGuardConfigPath, err)
 		}
+		if err := saveAdGuardCred(&adGuardCredFile{Username: adGuardAdminUser, Password: password}); err != nil {
+			_ = os.Remove(adGuardConfigPath)
+			return ProbeDNS(), false, fmt.Errorf("storing the AdGuard credential: %w", err)
+		}
 		wroteYAML = true
+		removeCred = true
+	} else if data, err := os.ReadFile(adGuardConfigPath); err == nil && len(parseAdGuardUsers(data)) == 0 {
+		// Pre-existing config with no credentials: written by an older
+		// NetGrip, or an AdGuard that never finished its setup wizard.
+		// Provision into it, keeping the previous content for the rollback.
+		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"adguardhome", "stop"}})
+		if _, err := adGuardProvisionUsers(); err != nil {
+			return ProbeDNS(), false, fmt.Errorf("provisioning AdGuard credentials: %w", err)
+		}
+		restoreYAML = data
+		removeCred = true
 	}
 
 	backup := &adGuardDNSBackup{
@@ -313,23 +351,30 @@ func adGuardEnable(st dnsmasqState) (*DNSConfig, bool, error) {
 		executor.Op{Kind: "initd", Args: []string{"dnsmasq", "restart"}},
 	)
 	if err := executor.Apply(ops, nil); err != nil {
-		adGuardEnableRollback(st, wroteYAML)
+		adGuardEnableRollback(st, wroteYAML, restoreYAML, removeCred)
 		return ProbeDNS(), true, err
 	}
 	if !adGuardReady() {
-		adGuardEnableRollback(st, wroteYAML)
+		adGuardEnableRollback(st, wroteYAML, restoreYAML, removeCred)
 		return ProbeDNS(), true, fmt.Errorf("dns healthcheck failed, restored the previous DNS config")
 	}
 	return ProbeDNS(), false, nil
 }
 
-// adGuardEnableRollback puts dnsmasq back to the state captured in st and,
-// when NetGrip created the AdGuard config itself, removes it again so the
-// router is exactly where it started.
-func adGuardEnableRollback(st dnsmasqState, removeYAML bool) {
+// adGuardEnableRollback puts dnsmasq back to the state captured in st and
+// undoes whatever the enable did to the AdGuard side: the config NetGrip
+// created is removed again, users provisioned into a pre-existing config are
+// reverted from the saved content, and the stored credential goes with them,
+// so the router is exactly where it started.
+func adGuardEnableRollback(st dnsmasqState, removeYAML bool, restoreYAML []byte, removeCred bool) {
 	_ = adGuardApplyDNS(st)
 	if removeYAML {
 		_ = os.Remove(adGuardConfigPath)
+	} else if restoreYAML != nil {
+		_ = os.WriteFile(adGuardConfigPath, restoreYAML, 0o600)
+	}
+	if removeCred {
+		_ = os.Remove(adGuardCredPath)
 	}
 	_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"adguardhome", "stop"}})
 	_ = os.Remove(adGuardBackupPath)

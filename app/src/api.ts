@@ -286,6 +286,14 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action }),
     }),
+  adguardCredentials: () =>
+    request<import("./types").AdGuardCredentials>("/api/dns/adguard/credentials"),
+  adguardRegeneratePassword: () =>
+    request<import("./types").AdGuardCredentials>("/api/dns/adguard/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "regenerate-password" }),
+    }),
   adguardProtection: (enable: boolean) =>
     request<import("./types").ModuleResult<import("./types").DNSConfig>>("/api/dns/adguard/protection", {
       method: "POST",

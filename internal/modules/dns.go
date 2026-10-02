@@ -32,6 +32,10 @@ type DNSConfig struct {
 	AdGuardProtection bool        `json:"adguard_protection"`
 	AdGuardHasBackup  bool        `json:"adguard_has_backup"`
 	AdGuardDnsPort    int         `json:"adguard_dns_port,omitempty"`
+	// AdGuardCredentials reports who owns the web credential (#424):
+	// "managed" (NetGrip provisioned it, the card can show and rotate it),
+	// "external" (users NetGrip did not write, never touched) or "none".
+	AdGuardCredentials string      `json:"adguard_credentials,omitempty"`
 	// DoH (#364): whether AdGuard resolves through DNS-over-HTTPS upstreams,
 	// the current upstream list (capped at 8) and the provider presets the UI
 	// offers. Providers are a backend constant (single source of truth).
@@ -71,6 +75,7 @@ func ProbeDNS() *DNSConfig {
 	if c.AdGuardInstalled {
 		c.AdGuardRunning = executor.ServiceRunning("adguardhome")
 		c.AdGuardDnsPort = adGuardResolvedPort()
+		c.AdGuardCredentials = adGuardCredStateNow()
 		c.DohEnabled, c.DohUpstreams = probeDoHState()
 	}
 	return c

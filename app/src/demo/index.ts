@@ -497,7 +497,17 @@ export const demoApi: typeof api = {
     state.dns.adguard_has_backup = enable;
     state.dns.adguard_active = enable;
     state.dns.adguard_dns_port = 5353;
+    state.dns.adguard_credentials = enable ? "managed" : state.dns.adguard_credentials;
     return { status: "applied" as const, rolled_back: false, state: { ...state.dns } };
+  },
+  adguardCredentials: async () => {
+    await wait(200, 400);
+    return { state: "managed", username: "admin", password: "demo-adguard-pass-42" };
+  },
+  adguardRegeneratePassword: async () => {
+    await wait(600, 1000);
+    state.dns.adguard_credentials = "managed";
+    return { state: "managed", username: "admin", password: "demo-adguard-pass-" + Math.floor(Math.random() * 900 + 100) };
   },
   adguardDoh: async (action: "enable" | "disable", upstreams: string[]) => {
     await wait(1200, 2000);

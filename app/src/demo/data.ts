@@ -335,6 +335,7 @@ export const demoDns: T.DNSConfig = {
   adguard_protection: true,
   adguard_has_backup: true,
   adguard_dns_port: 5353,
+  adguard_credentials: "managed",
   doh_enabled: false,
   doh_upstreams: [],
   doh_providers: [

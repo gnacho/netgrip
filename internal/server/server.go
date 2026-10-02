@@ -134,6 +134,7 @@ func New(rpcdURL, version string) *Server {
 	s.mux.HandleFunc("GET /api/dns", s.requireAuth(s.handleDNSGet))
 	s.mux.HandleFunc("POST /api/dns", s.requireAuth(s.handleDNSSet))
 	s.mux.HandleFunc("POST /api/dns/adguard/action", s.requireAuth(s.handleAdGuardAction))
+	s.mux.HandleFunc("GET /api/dns/adguard/credentials", s.requireAuth(s.handleAdGuardCredentials))
 	s.mux.HandleFunc("POST /api/dns/adguard/protection", s.requireAuth(s.handleAdGuardProtection))
 	s.mux.HandleFunc("POST /api/dns/doh/action", s.requireAuth(s.handleAdGuardDoH))
 	s.mux.HandleFunc("POST /api/dns/hosts", s.requireAuth(s.handleDNSHostsSet))
@@ -1459,8 +1460,26 @@ func (s *Server) handleAdGuardAction(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
+	// Credential rotation (#424) returns the fresh credentials instead of
+	// the DNS probe the service actions answer with.
+	if req.Action == "regenerate-password" {
+		cred, err := modules.RegenerateAdGuardPassword()
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, cred)
+		return
+	}
 	probe, rolledBack, err := modules.AdGuardAction(req.Action)
 	writeModuleResult(w, probe, rolledBack, err)
+}
+
+// handleAdGuardCredentials answers the on-demand credential view: the only
+// response that carries the AdGuard password, and only when NetGrip manages
+// it (#424).
+func (s *Server) handleAdGuardCredentials(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.AdGuardCredentialsNow())
 }
 
 func (s *Server) handleAdGuardProtection(w http.ResponseWriter, r *http.Request) {

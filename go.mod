@@ -8,3 +8,5 @@ require (
 )
 
 require github.com/gonzalop/mq v0.9.10
+
+require golang.org/x/crypto v0.43.0

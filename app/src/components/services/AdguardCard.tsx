@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, ExternalLink, Shield, Square } from "lucide-react";
+import { Download, ExternalLink, Eye, EyeOff, RefreshCw, Shield, Square } from "lucide-react";
 import { api } from "../../api";
-import type { DNSConfig } from "../../types";
+import type { AdGuardCredentials, DNSConfig } from "../../types";
 import { Button, Card, ConfirmDialog, Field, Input, Pill, SkeletonRows, Toggle, useToast } from "../ui";
 import { InstallProgress, useInstallJob } from "../wizard/common";
-import { TechName } from "./shared";
+import { CopyButton, TechName } from "./shared";
 
 /** Select con el mismo estilo "filled" del Input de foundations (§4). */
 const SELECT_CLS = `h-[var(--input-h)] rounded-[10px] border border-transparent bg-fill px-2 text-small
@@ -32,9 +32,20 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
   const [provider, setProvider] = useState<string>("");
   const [customUrl, setCustomUrl] = useState("");
   const [dohBusy, setDohBusy] = useState(false);
+  // Credenciales web provisionadas por NetGrip (#424)
+  const [cred, setCred] = useState<AdGuardCredentials>();
+  const [showPass, setShowPass] = useState(false);
+  const [credBusy, setCredBusy] = useState(false);
+  const [confirmRegen, setConfirmRegen] = useState(false);
 
   const load = () => api.dns().then(setCfg).catch(() => {});
   useEffect(() => { load(); }, []);
+
+  const credState = cfg?.adguard_credentials;
+  useEffect(() => {
+    if (credState === "managed") api.adguardCredentials().then(setCred).catch(() => {});
+    else setCred(undefined);
+  }, [credState]);
 
   if (!cfg) return <Card index={index} icon={Shield} iconTone="success" title={t("adguard.title")}><SkeletonRows rows={2} /></Card>;
   if (!cfg.applicable && !cfg.adguard_active) return null;
@@ -143,6 +154,24 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
     }
   };
 
+  // Regenerar (o crear, en instalaciones antiguas sin ella) la contraseña
+  // provisionada (#424). El endpoint devuelve las credenciales nuevas.
+  const doRegenerate = async () => {
+    setConfirmRegen(false);
+    setCredBusy(true);
+    try {
+      const fresh = await api.adguardRegeneratePassword();
+      setCred(fresh);
+      setShowPass(true);
+      push({ tone: "ok", text: t("adguard.credRegenerated") });
+    } catch (e) {
+      push({ tone: "danger", text: t("adguard.credFailed"), detail: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setCredBusy(false);
+      load();
+    }
+  };
+
   return (
     <Card index={index} icon={Shield} iconTone="success" title={t("adguard.title")}>
       <TechName>AdGuard Home</TechName>
@@ -212,6 +241,49 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
             </div>
           )}
 
+          {credState && credState !== "" && (
+            <div className="mt-4 border-t border-border pt-3">
+              <span className="text-small font-medium text-secondary">{t("adguard.credTitle")}</span>
+              {credState === "managed" && (
+                <>
+                  <p className="mt-1.5 text-caption text-muted">{t("adguard.credHint")}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <code className="rounded-sm bg-fill px-1.5 py-0.5 font-mono text-small">{cred?.username ?? "admin"}</code>
+                    <code className="rounded-sm bg-fill px-1.5 py-0.5 font-mono text-small">
+                      {showPass ? cred?.password ?? "…" : "••••••••••••"}
+                    </code>
+                    <button
+                      type="button"
+                      aria-label={showPass ? t("adguard.credHide") : t("adguard.credShow")}
+                      title={showPass ? t("adguard.credHide") : t("adguard.credShow")}
+                      onClick={() => setShowPass((v) => !v)}
+                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-muted hover:text-text hover:bg-surface-2 ring-focus transition-colors duration-[var(--dur-fast)]"
+                    >
+                      {showPass ? <EyeOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
+                    </button>
+                    {cred?.password && <CopyButton text={cred.password} label={t("adguard.credCopy")} />}
+                    <Button variant="ghost" size="sm" disabled={busy || credBusy} loading={credBusy} onClick={() => setConfirmRegen(true)}>
+                      <RefreshCw size={14} aria-hidden="true" /> {t("adguard.credRegenerate")}
+                    </Button>
+                  </div>
+                </>
+              )}
+              {credState === "external" && (
+                <p className="mt-1.5 text-caption text-muted">{t("adguard.credExternal")}</p>
+              )}
+              {credState === "none" && (
+                <>
+                  <p className="mt-1.5 text-caption text-muted">{t("adguard.credNoneHint")}</p>
+                  <div className="mt-2">
+                    <Button variant="secondary" size="sm" loading={credBusy} disabled={busy} onClick={doRegenerate}>
+                      {t("adguard.credCreate")}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           <div className="mt-4 border-t border-border pt-3">
             <div className="flex items-center gap-2">
               <span className="text-small font-medium text-secondary">{t("adguard.dohTitle")}</span>
@@ -271,6 +343,15 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
         </>
       )}
 
+      <ConfirmDialog
+        open={confirmRegen}
+        onClose={() => setConfirmRegen(false)}
+        onConfirm={doRegenerate}
+        title={t("adguard.credRegenerateTitle")}
+        consequence={t("adguard.credRegenerateBody")}
+        confirmLabel={t("adguard.credRegenerate")}
+        busy={credBusy}
+      />
       <ConfirmDialog
         open={confirmEnable}
         onClose={() => setConfirmEnable(false)}
