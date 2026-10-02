@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ExternalLink, Github, Star } from "lucide-react";
+import { ExternalLink, Star } from "lucide-react";
 import { api } from "../api";
 import type { SelfUpdateCheck, UpdateCheck } from "../types";
 import { Card, KeyValue } from "../components/ui";
@@ -69,7 +69,7 @@ export function AboutPage() {
       </Card>
 
       {/* Enlaces del proyecto. */}
-      <Card index={2} icon={Github} iconTone="muted" title={t("about.project")}>
+      <Card index={2} icon={ExternalLink} iconTone="muted" title={t("about.project")}>
         <KeyValue items={[
           { label: t("about.repository"), value: <External href={REPO_URL}>{REPO_URL}</External> },
           { label: t("about.website"), value: <External href={WEBSITE_URL}>{WEBSITE_URL}</External> },
