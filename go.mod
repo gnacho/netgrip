@@ -3,7 +3,7 @@ module github.com/gnacho/netgrip
 go 1.26
 
 require (
-	github.com/gnacho/netpulse/agent v1.4.0
+	github.com/gnacho/netpulse/agent v1.5.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
