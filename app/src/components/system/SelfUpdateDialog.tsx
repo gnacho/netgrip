@@ -98,8 +98,8 @@ export function SelfUpdateDialog({ open, onClose, initialCheck }: {
   const stepIndex = STEP_ORDER.indexOf(status.phase as typeof STEP_ORDER[number]);
 
   return (
-    <Modal open={open} onClose={() => { if (!active) onClose(); }} wide>
-      <div className="flex flex-col gap-4">
+    <Modal open={open} onClose={() => { if (!active) onClose(); }} xlarge>
+      <div className="flex flex-col gap-4 md:h-full">
         <div className="flex items-center gap-2">
           <DownloadCloud size={22} className="text-accent" />
           <h2 className="text-h2 flex-1">{t("selfupdate.dialogTitle")}</h2>
@@ -116,22 +116,28 @@ export function SelfUpdateDialog({ open, onClose, initialCheck }: {
             </div>
 
             {changelogLines.length > 0 && (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 md:flex-1 md:min-h-0">
                 <p className="text-eyebrow text-faint">{t("selfupdate.changelogTitle")}</p>
-                <div className="max-h-44 overflow-y-auto rounded-lg border border-border bg-surface-2 px-3.5 py-2.5">
+                <div className="max-h-44 md:max-h-none md:flex-1 md:overflow-y-auto rounded-lg border border-border bg-surface-2 px-3.5 py-2.5">
                   <ul className="flex flex-col gap-1.5">
-                    {changelogLines.map((line, i) => (
-                      <li key={i} className="flex items-start gap-2 text-small text-muted">
-                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-text-muted/60" />
-                        {line.replace(/^[-*]\s+/, "")}
-                      </li>
-                    ))}
+                    {changelogLines.map((line, i) =>
+                      /^#{1,3}\s/.test(line) ? (
+                        <li key={i} className="pt-1 text-small font-semibold text-text first:pt-0">
+                          {line.replace(/^#{1,3}\s+/, "")}
+                        </li>
+                      ) : (
+                        <li key={i} className="flex items-start gap-2 text-small text-muted">
+                          <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-text-muted/60" />
+                          {line.replace(/^[-*]\s+/, "")}
+                        </li>
+                      ),
+                    )}
                   </ul>
                 </div>
               </div>
             )}
 
-            <label className="flex cursor-pointer items-start gap-2.5 rounded-lg bg-warn-soft px-3.5 py-2.5 text-small leading-snug text-warn">
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-lg bg-warn-soft px-3.5 py-2.5 text-small leading-snug text-warn md:mt-auto">
               <input
                 type="checkbox"
                 checked={ack}
@@ -188,7 +194,7 @@ export function SelfUpdateDialog({ open, onClose, initialCheck }: {
           </div>
         )}
 
-        <div className="flex justify-end gap-2 mt-2">
+        <div className="flex justify-end gap-2 mt-2 md:mt-auto">
           {!active && !error && (
             <>
               <Button variant="ghost" onClick={onClose}>{t("selfupdate.cancel")}</Button>

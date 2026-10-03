@@ -37,13 +37,16 @@ function useOverlayA11y(open: boolean, onClose: () => void, ref: React.RefObject
  * Modal §6.16: centrado en desktop (max-w 480, r-lg, sombra elevada,
  * fondo bg/70 + blur). En móvil se comporta como hoja inferior (Drawer).
  */
-export function Modal({ open, onClose, title, children, footer, wide = false }: {
+export function Modal({ open, onClose, title, children, footer, wide = false, xlarge = false }: {
   open: boolean;
   onClose: () => void;
   title?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
   wide?: boolean;
+  /** #435: diálogo a casi-viewport (patrón #994 de NetPulse). El contenido
+   *  hace scroll interno en desktop; en móvil sigue siendo hoja inferior. */
+  xlarge?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useOverlayA11y(open, onClose, ref);
@@ -54,8 +57,11 @@ export function Modal({ open, onClose, title, children, footer, wide = false }: 
       <div className="absolute inset-0 bg-bg/70 backdrop-blur-[4px]" onClick={onClose} />
       <div
         ref={ref}
-        className={`relative w-full ${wide ? "md:max-w-2xl" : "md:max-w-[480px]"} max-h-[92vh] overflow-y-auto
-          rounded-t-lg md:rounded-lg bg-surface border border-border shadow-elevated
+        className={`relative w-full ${
+          xlarge
+            ? "md:w-[calc(100vw-2rem)] md:max-w-none md:h-[calc(100vh-2rem)] md:flex md:flex-col md:overflow-hidden"
+            : wide ? "md:max-w-2xl" : "md:max-w-[480px]"
+        } max-h-[92vh] overflow-y-auto rounded-t-lg md:rounded-lg bg-surface border border-border shadow-elevated
           p-4 md:p-5 animate-fade-up`}
       >
         <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-border-strong md:hidden" aria-hidden="true" />
@@ -68,7 +74,7 @@ export function Modal({ open, onClose, title, children, footer, wide = false }: 
             </button>
           </div>
         )}
-        {children}
+        <div className={xlarge ? "md:flex-1 md:min-h-0 md:overflow-y-auto" : undefined}>{children}</div>
         {footer && <div className="mt-4 flex justify-end gap-2">{footer}</div>}
       </div>
     </div>,
