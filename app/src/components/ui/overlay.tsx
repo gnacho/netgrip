@@ -44,7 +44,7 @@ export function Modal({ open, onClose, title, children, footer, wide = false, xl
   children: ReactNode;
   footer?: ReactNode;
   wide?: boolean;
-  /** #435: diálogo a casi-viewport (patrón #994 de NetPulse). El contenido
+  /** #435/#437: diálogo estilo Pulse (800x600, caps a viewport). El contenido
    *  hace scroll interno en desktop; en móvil sigue siendo hoja inferior. */
   xlarge?: boolean;
 }) {
@@ -54,12 +54,12 @@ export function Modal({ open, onClose, title, children, footer, wide = false, xl
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4"
       role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-bg/70 backdrop-blur-[4px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-bg/60 backdrop-blur-[14px]" onClick={onClose} />
       <div
         ref={ref}
         className={`relative w-full ${
           xlarge
-            ? "md:w-[calc(100vw-2rem)] md:max-w-none md:h-[calc(100vh-2rem)] md:flex md:flex-col md:overflow-hidden"
+            ? "md:w-[800px] md:max-w-[calc(100vw-2rem)] md:h-[600px] md:max-h-[calc(100vh-2rem)] md:flex md:flex-col md:overflow-hidden"
             : wide ? "md:max-w-2xl" : "md:max-w-[480px]"
         } max-h-[92vh] overflow-y-auto rounded-t-lg md:rounded-lg bg-surface border border-border shadow-elevated
           p-4 md:p-5 animate-fade-up`}
