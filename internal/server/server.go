@@ -20,6 +20,7 @@ import (
 
 	"github.com/gnacho/netgrip/internal/auth"
 	"github.com/gnacho/netgrip/internal/executor"
+	"github.com/gnacho/netgrip/internal/mcp"
 	"github.com/gnacho/netgrip/internal/modules"
 	"github.com/gnacho/netgrip/internal/ubus"
 )
@@ -80,6 +81,8 @@ type Server struct {
 	mux     *http.ServeMux
 	mu      sync.Mutex
 	revoked map[string]bool
+	// started feeds the MCP server_status uptime. Set once at construction.
+	started time.Time
 	// logins slows password guessing. The panel's login takes the
 	// router's root password and had no rate limit at all.
 	logins *loginThrottle
@@ -96,7 +99,10 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 		secure:      secure,
 		mux:         http.NewServeMux(),
 		revoked:     make(map[string]bool),
+		started:     time.Now(),
 	}
+	mcpServer := mcp.New(mcp.Deps{Version: version, Started: s.started})
+	s.mux.Handle("/mcp", mcpServer.Handler())
 	s.mux.HandleFunc("/", s.handleSPA)
 	s.mux.HandleFunc("POST /api/login", s.handleLogin)
 	s.mux.HandleFunc("GET /api/me", s.requireAuth(s.handleMe))

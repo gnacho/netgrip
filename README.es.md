@@ -131,6 +131,26 @@ broker al router (aplicada con el mismo snapshot-y-rollback que cualquier
 otro cambio). Sin TLS: pensado para un broker de tu red local. No se
 publica nada hasta que lo actives.
 
+**Asistentes de IA (MCP), si los quieres.** NetGrip puede exponer un
+endpoint local de [MCP](https://modelcontextprotocol.io/) para que un
+asistente de IA consulte el estado del router en su propio vocabulario.
+Está desactivado por defecto y la primera tanda de tools es de solo
+lectura:
+
+1. Actívalo y pon un token:
+   `uci set netgrip.mcp='mcp'; uci set netgrip.mcp.enabled=1; uci set netgrip.mcp.token=<aleatorio largo>; uci commit netgrip`
+   (el primer comando crea la sección; un `uci set netgrip.mcp.enabled=1`
+   directo en una instalación nueva falla con "Invalid argument").
+2. Apunta tu cliente MCP a `http://<router>:8080/mcp` (o el puerto que use
+   el panel) y envía el token como `Authorization: Bearer <token>`.
+
+El endpoint nunca acepta la cookie de sesión del navegador, responde 404
+mientras está desactivado y tiene rate limit por IP (60 peticiones/minuto
+por defecto, ajustable con `uci set netgrip.mcp.rate_per_min=<n>`). Los
+tools (`server_status`, `list_clients`, `wireless_status`, `wan_status`,
+`multiwan_status`, `list_leases`, `list_devices`) leen las mismas sondas y
+cachés que el panel, y cada llamada queda en el log.
+
 ## Ponlo en tu router
 
 Requisitos: un target amd64, ARM64, ARMv5/6/7, MIPS little-endian o MIPS

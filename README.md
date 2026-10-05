@@ -128,6 +128,25 @@ saving, and a NetPulse server can push the broker settings to the router
 meant for a broker on your local network. Nothing is published until you
 enable it.
 
+**AI assistants (MCP), if you want them.** NetGrip can expose a local
+[MCP](https://modelcontextprotocol.io/) endpoint so an AI assistant can query
+the router's state in its own vocabulary. It is disabled by default, and the
+first tool set is read-only:
+
+1. Enable it and set a token:
+   `uci set netgrip.mcp='mcp'; uci set netgrip.mcp.enabled=1; uci set netgrip.mcp.token=<long random>; uci commit netgrip`
+   (the first command creates the section; a plain `uci set netgrip.mcp.enabled=1`
+   on a fresh install fails with "Invalid argument").
+2. Point your MCP client at `http://<router>:8080/mcp` (or whatever port the
+   panel uses) and send the token as `Authorization: Bearer <token>`.
+
+The endpoint never accepts the browser session cookie, answers 404 while
+disabled, and is rate-limited per IP (60 requests/minute by default, tunable
+with `uci set netgrip.mcp.rate_per_min=<n>`). The tools
+(`server_status`, `list_clients`, `wireless_status`, `wan_status`,
+`multiwan_status`, `list_leases`, `list_devices`) read the same probes and
+caches as the panel, and every call is logged.
+
 ## Get it on your router
 
 Requirements: a supported amd64, ARM64, ARMv5/6/7, little-endian MIPS or
