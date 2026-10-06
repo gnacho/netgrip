@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -207,7 +208,10 @@ func SetWifiRadio(edit RadioEdit) (*ubus.WirelessRadio, bool, error) {
 	}
 	rollback := func() {
 		_ = executor.Restore("wireless", snap)
-		_ = executor.Run(executor.Op{Kind: "wifi_reload", Args: []string{edit.Radio}})
+		// A full bounce, not a reload: reload asks the running hostapd to
+		// reconfigure, and a hostapd that died (unsupported channel) has
+		// nobody to answer, leaving the radio dark (#452).
+		_ = executor.Run(executor.Op{Kind: "wifi_bounce", Args: []string{edit.Radio}})
 	}
 
 	var ops []executor.Op
@@ -237,6 +241,56 @@ func SetWifiRadio(edit RadioEdit) (*ubus.WirelessRadio, bool, error) {
 		return &ubus.WirelessRadio{}, true, fmt.Errorf("radio healthcheck failed, rolled back")
 	}
 	return radio, false, nil
+}
+
+// hostapdServing verifies every interface of the radio reports a real
+// channel through iwinfo. It returns verified=false when there is nothing to
+// check (no interfaces), so unusual setups never trigger a false rollback.
+func hostapdServing(radio *ubus.WirelessRadio) (serving bool, verified bool) {
+	if radio == nil {
+		return true, false
+	}
+	if len(radio.Interfaces) == 0 {
+		// The radio reports up but netifd created no interfaces: hostapd
+		// is either still starting or dead (#452). Count it as verified-
+		// not-serving so the polling window keeps waiting; a genuinely
+		// dead hostapd exhausts it and rolls back.
+		return false, true
+	}
+	for _, iface := range radio.Interfaces {
+		if iface.Ifname == "" {
+			continue
+		}
+		out, err := exec.Command("iwinfo", iface.Ifname, "info").Output()
+		if err != nil {
+			// The interface exists per ubus but iwinfo cannot see it:
+			// hostapd never created it.
+			return false, true
+		}
+		if ch, ok := iwinfoChannel(string(out)); !ok || ch <= 0 {
+			return false, true
+		}
+	}
+	return true, true
+}
+
+// iwinfoChannel extracts the channel number from `iwinfo <if> info` output.
+// The channel appears as a field anywhere ("Channel: 36 (5.180 GHz)" on its
+// own line or after "Mode: Master", depending on the iwinfo version). ok is
+// false when no channel field is present.
+func iwinfoChannel(info string) (int, bool) {
+	fields := strings.Fields(info)
+	for i, f := range fields {
+		if f != "Channel:" || i+1 >= len(fields) {
+			continue
+		}
+		ch, err := strconv.Atoi(fields[i+1])
+		if err != nil {
+			return 0, false
+		}
+		return ch, true
+	}
+	return 0, false
 }
 
 // validateRadioEdit checks the radio is set, something is changed, the
@@ -291,13 +345,22 @@ func radioFromStatus(name string) (*ubus.WirelessRadio, error) {
 // waitRadioHealthy polls the radio up to ~16s after a reload: the interface
 // needs a moment to come back up, so an immediate read could wrongly report a
 // change as a failure (false rollback). Only after the window is it fatal.
+//
+// #452: ubus can report the radio up with the requested channel while
+// hostapd actually failed to start (a channel the board lists but cannot
+// serve); iwinfo then shows "Channel: 0 unknown" and the SSID never comes
+// up. So each iteration also waits for hostapd to serve: a transient
+// mid-restart read is given more window, a genuinely dead hostapd exhausts
+// it and fails.
 func waitRadioHealthy(edit RadioEdit) (*ubus.WirelessRadio, error) {
 	var last *ubus.WirelessRadio
 	for i := 0; i < 8; i++ {
 		if r, err := radioFromStatus(edit.Radio); err == nil {
 			last = r
 			if radioHealthy(edit, r) {
-				return r, nil
+				if serving, verified := hostapdServing(r); !verified || serving {
+					return r, nil
+				}
 			}
 		}
 		time.Sleep(2 * time.Second)

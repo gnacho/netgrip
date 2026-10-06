@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"time"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -182,6 +183,12 @@ func Validate(op Op) error {
 		if len(op.Args) > 1 || (len(op.Args) == 1 && !reService.MatchString(op.Args[0])) {
 			return fmt.Errorf("invalid %s args: %v", op.Kind, op.Args)
 		}
+	case "wifi_bounce":
+		// Args: radio name. Full down+up: a reload cannot resurrect a
+		// hostapd that died (e.g. an unsupported channel), a bounce can.
+		if len(op.Args) != 1 || !reService.MatchString(op.Args[0]) {
+			return fmt.Errorf("invalid wifi_bounce args: %v", op.Args)
+		}
 	case "ifup", "ifdown":
 		if len(op.Args) != 1 || !reService.MatchString(op.Args[0]) {
 			return fmt.Errorf("invalid %s args: %v", op.Kind, op.Args)
@@ -244,6 +251,15 @@ func Run(op Op) error {
 		cmd = exec.Command("wifi", append([]string{"reload"}, op.Args...)...)
 	case "wifi_reconf":
 		cmd = exec.Command("wifi", append([]string{"reconf"}, op.Args...)...)
+	case "wifi_bounce":
+		if out, err := exec.Command("wifi", "down", op.Args[0]).CombinedOutput(); err != nil {
+			return fmt.Errorf("wifi down %s: %w (%s)", op.Args[0], err, strings.TrimSpace(string(out)))
+		}
+		// Give netifd a moment to actually tear the radio down: an
+		// immediate 'wifi up' after 'wifi down' races the teardown and
+		// leaves the radio dark (verified on 25.12, #452).
+		time.Sleep(2 * time.Second)
+		cmd = exec.Command("wifi", "up", op.Args[0])
 	case "ifup", "ifdown":
 		cmd = exec.Command(op.Kind, op.Args[0])
 	case "ip_link":
