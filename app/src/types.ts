@@ -1407,3 +1407,7 @@ export interface LanDiscoveryResult {
   skipped_hosts?: number;
   ts: number;
 }
+
+export interface AdvancedProbe {
+  advanced: boolean;
+}

@@ -13,6 +13,7 @@ import { ConfigBackupCard } from "../components/ConfigBackupCard";
 import { UpdateCard } from "../components/system/UpdateCard";
 import { SelfUpdateCard } from "../components/system/SelfUpdateCard";
 import { WizardRelaunchCard } from "../components/system/WizardRelaunchCard";
+import { AdvancedCard } from "../components/system/AdvancedCard";
 import { OptionsCard } from "../components/system/OptionsCard";
 import { NetPulseStandaloneBanner, NetPulseStatusChip } from "../components/system/NetPulseStatus";
 import { useTranslation } from "react-i18next";
@@ -78,6 +79,7 @@ export function System({ board, update, onUpdateChange, onLogout }: {
       <section className="flex flex-col gap-[var(--card-gap)]">
         <GroupLabel>{t("system.groupOptions")}</GroupLabel>
         <OptionsCard index={0} />
+        <AdvancedCard index={1} />
       </section>
     </div>
   );

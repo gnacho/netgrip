@@ -23,7 +23,10 @@ import (
 // epoch:  /etc/netgrip.epoch (integer; bumped on password change so all
 //
 //	previously issued tokens die at once)
-const (
+//
+// Both are variables (not constants) so tests can point them at a temp dir:
+// the panel always runs as root, but the test suite does not.
+var (
 	secretPath = "/etc/netgrip.secret"
 	epochPath  = "/etc/netgrip.epoch"
 )

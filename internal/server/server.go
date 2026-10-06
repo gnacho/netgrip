@@ -171,6 +171,8 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("GET /api/captiveportal", s.requireAuth(s.handleCaptivePortalGet))
 	s.mux.HandleFunc("POST /api/captiveportal", s.requireAuth(s.handleCaptivePortalSet))
 	s.mux.HandleFunc("POST /api/captiveportal/image", s.requireAuth(s.handleCaptivePortalImage))
+	s.mux.HandleFunc("GET /api/advanced", s.requireAuth(s.handleAdvancedGet))
+	s.mux.HandleFunc("POST /api/advanced", s.requireAuth(s.handleAdvancedSet))
 	s.mux.HandleFunc("GET /api/mode", s.requireAuth(s.handleMode))
 	s.mux.HandleFunc("POST /api/mode", s.requireAuth(s.handleModeSet))
 	s.mux.HandleFunc("GET /api/access", s.requireAuth(s.handleAccessGet))
@@ -217,9 +219,9 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("GET /api/config/snapshot/export", s.requireAuth(s.handleSnapshotExport))
 	s.mux.HandleFunc("POST /api/ports/bounce", s.requireAuth(s.handlePortBounce))
 	s.mux.HandleFunc("POST /api/ports/block", s.requireAuth(s.handlePortBlock))
-	s.mux.HandleFunc("GET /api/vlans", s.requireAuth(s.handleVLANsGet))
-	s.mux.HandleFunc("POST /api/vlans", s.requireAuth(s.handleVLANsSet))
-	s.mux.HandleFunc("DELETE /api/vlans", s.requireAuth(s.handleVLANsDelete))
+	s.mux.HandleFunc("GET /api/vlans", s.requireAdvanced(s.handleVLANsGet))
+	s.mux.HandleFunc("POST /api/vlans", s.requireAdvanced(s.handleVLANsSet))
+	s.mux.HandleFunc("DELETE /api/vlans", s.requireAdvanced(s.handleVLANsDelete))
 	s.mux.HandleFunc("GET /api/lag", s.requireAuth(s.handleLAGGet))
 	s.mux.HandleFunc("POST /api/lag", s.requireAuth(s.handleLAGSet))
 	s.mux.HandleFunc("DELETE /api/lag", s.requireAuth(s.handleLAGDelete))
@@ -256,8 +258,8 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("GET /api/netifyd", s.requireAuth(s.handleNetifydGet))
 	s.mux.HandleFunc("POST /api/netifyd", s.requireAuth(s.handleNetifydSet))
 	s.mux.HandleFunc("GET /api/history", s.requireAuth(s.handleHistoryGet))
-	s.mux.HandleFunc("GET /api/igmp", s.requireAuth(s.handleIGMPGet))
-	s.mux.HandleFunc("POST /api/igmp", s.requireAuth(s.handleIGMPSet))
+	s.mux.HandleFunc("GET /api/igmp", s.requireAdvanced(s.handleIGMPGet))
+	s.mux.HandleFunc("POST /api/igmp", s.requireAdvanced(s.handleIGMPSet))
 	s.mux.HandleFunc("GET /api/loops", s.requireAuth(s.handleLoops))
 	s.mux.HandleFunc("GET /api/selfupdate", s.requireAuth(s.handleSelfUpdateCheck))
 	s.mux.HandleFunc("GET /api/announcement", s.requireAuth(s.handleAnnouncement))
@@ -292,12 +294,12 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("GET /api/cable-test", s.requireAuth(s.handleCableTestGet))
 	s.mux.HandleFunc("GET /api/diagnostics/selftest", s.requireAuth(s.handleDiagnosticsSelfTest))
 	s.mux.HandleFunc("POST /api/diagnostics", s.requireAuth(s.handleDiagnosticsRun))
-	s.mux.HandleFunc("GET /api/storm", s.requireAuth(s.handleStormGet))
-	s.mux.HandleFunc("POST /api/storm", s.requireAuth(s.handleStormSet))
+	s.mux.HandleFunc("GET /api/storm", s.requireAdvanced(s.handleStormGet))
+	s.mux.HandleFunc("POST /api/storm", s.requireAdvanced(s.handleStormSet))
 	s.mux.HandleFunc("GET /api/storage", s.requireAuth(s.handleStorageGet))
 	s.mux.HandleFunc("POST /api/storage", s.requireAuth(s.handleStorageSet))
-	s.mux.HandleFunc("GET /api/mac-acl", s.requireAuth(s.handleMACACLGet))
-	s.mux.HandleFunc("POST /api/mac-acl", s.requireAuth(s.handleMACACLSet))
+	s.mux.HandleFunc("GET /api/mac-acl", s.requireAdvanced(s.handleMACACLGet))
+	s.mux.HandleFunc("POST /api/mac-acl", s.requireAdvanced(s.handleMACACLSet))
 	s.mux.HandleFunc("GET /api/netpulse", s.requireAuth(s.handleNetPulseGet))
 	s.mux.HandleFunc("POST /api/netpulse", s.requireAuth(s.handleNetPulseSet))
 	s.mux.HandleFunc("GET /api/mqtt", s.requireAuth(s.handleMQTTGet))
@@ -603,6 +605,21 @@ func (s *Server) isRevoked(token string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.revoked[token]
+}
+
+// requireAdvanced gates the Advanced-section endpoints (#441): they answer
+// 404 while advanced mode is off, so a disabled install behaves as if the
+// feature did not exist - hidden nav is not the only wall. The flag probe
+// forks uci once per call; these endpoints are not hot enough for that to
+// matter.
+func (s *Server) requireAdvanced(next http.HandlerFunc) http.HandlerFunc {
+	return s.requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		if !modules.ProbeAdvanced().Advanced {
+			writeError(w, http.StatusNotFound, "not found")
+			return
+		}
+		next(w, r)
+	})
 }
 
 func (s *Server) handleBoard(w http.ResponseWriter, _ *http.Request) {
@@ -1401,6 +1418,38 @@ func (s *Server) handleCaptivePortalImage(w http.ResponseWriter, r *http.Request
 	}
 	probe, err := modules.SetCaptivePortalImage(img)
 	writeModuleResult(w, probe, false, err)
+}
+
+type advancedSetRequest struct {
+	Enabled bool `json:"enabled"`
+	// Confirm acknowledges the risk warning in the UI; the endpoint refuses
+	// to enable without it, like the mode change does.
+	Confirm bool `json:"confirm"`
+}
+
+func (s *Server) handleAdvancedGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeAdvanced())
+}
+
+// handleAdvancedSet flips the advanced-mode flag. Deliberately NOT gated by
+// requireAdvanced: the Settings toggle must stay reachable while the flag
+// is off, or there would be no way to turn the section on from the panel.
+func (s *Server) handleAdvancedSet(w http.ResponseWriter, r *http.Request) {
+	var req advancedSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if req.Enabled && !req.Confirm {
+		writeError(w, http.StatusBadRequest, "explicit confirmation required")
+		return
+	}
+	probe, err := modules.SetAdvanced(req.Enabled)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"state": probe})
 }
 
 func (s *Server) handleMode(w http.ResponseWriter, _ *http.Request) {

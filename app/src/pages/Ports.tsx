@@ -8,7 +8,6 @@ import { PortStatsCard } from "../components/ports/PortStatsCard";
 import { SwitchModesCard } from "../components/ports/SwitchModesCard";
 import { PortTemplatesCard } from "../components/ports/PortTemplatesCard";
 import { RoleProfilesCard } from "../components/ports/RoleProfilesCard";
-import { VLANTable } from "../components/ports/VLANTable";
 
 /**
  * Puertos ethernet (#353, antes "Puertos"): plantillas rápidas, PoE y bocas
@@ -32,9 +31,6 @@ export function Ports({ ethports }: { ethports?: EthPort[] }) {
             <SwitchModesCard />
             <PortTemplatesCard />
             <PortStatsCard />
-            <div className="lg:col-span-2">
-              <VLANTable />
-            </div>
           </div>
         </AdvancedDisclosure>
       </Card>

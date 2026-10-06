@@ -1,10 +1,8 @@
 import { useTranslation } from "react-i18next";
 import type { EthPort } from "../types";
-import { AdvancedDisclosure } from "../components/ui";
 import { SnapshotsCard } from "../components/tools/snapshots";
 import { PackagesCard } from "../components/tools/PackagesCard";
 import { BounceCard, CableTestCard, LoopsCard } from "../components/tools/diagnostics";
-import { IgmpCard, MacAclCard, StormControlCard } from "../components/tools/advanced";
 import { TemplatesCard } from "../components/tools/TemplatesCard";
 
 /**
@@ -20,6 +18,7 @@ export function ToolsPage({ ethports }: { ethports: EthPort[] }) {
         <div className="flex flex-col gap-[var(--card-gap)]">
           <SnapshotsCard />
           <PackagesCard index={1} />
+          <TemplatesCard />
         </div>
       </section>
 
@@ -32,14 +31,6 @@ export function ToolsPage({ ethports }: { ethports: EthPort[] }) {
         </div>
       </section>
 
-      <AdvancedDisclosure label={t("tools.advancedLabel")}>
-        <div className="grid grid-cols-1 gap-[var(--card-gap)] md:grid-cols-2">
-          <IgmpCard />
-          <StormControlCard />
-          <MacAclCard />
-          <TemplatesCard />
-        </div>
-      </AdvancedDisclosure>
     </div>
   );
 }

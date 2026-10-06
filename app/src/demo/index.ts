@@ -39,6 +39,7 @@ const state = {
   packages: [...D.demoPackages],
   optionalPkgs: structuredClone(D.demoOptionalPackages),
   drift: structuredClone(D.demoDriftClean),
+  advanced: async () => ({ advanced: true }),
   snapshots: [...D.demoSnapshots],
   vlans: structuredClone(D.demoVlans),
   lag: structuredClone(D.demoLag),
@@ -161,11 +162,13 @@ export const demoApi: typeof api = {
   login: async () => { await wait(400, 800); },
   logout: async () => { await wait(100, 200); },
   me: () => get(undefined as void),
+  advanced: () => get({ advanced: true }),
   wizardState: () => get(D.demoWizard),
   wizardSetup: () => get(D.demoWizardSetup),
   installWizardSetup: async () => { await wait(800, 1500); return { job: { phase: "done", total: 1, done: 1, installed: ["ethtool-full"] } }; },
   wizardComplete: async () => { await wait(400, 800); return { status: "ok" }; },
   wizardReset: async () => { await wait(400, 800); return { ...D.demoWizard, completed: false }; },
+  setAdvanced: async () => { await wait(300, 600); return { state: { advanced: true } }; },
 
   // núcleo
   board: () => get(D.demoBoard),
