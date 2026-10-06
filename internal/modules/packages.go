@@ -40,6 +40,7 @@ var optionalCatalog = []OptionalPkg{
 	{ID: "netifyd", Packages: []string{"netifyd"}, I18nKey: "wizard.packages.netifyd", Module: "netifyd"},
 	{ID: "mwan3", Packages: []string{"mwan3"}, I18nKey: "wizard.packages.mwan3", Module: "multiwan"},
 	{ID: "owut", Packages: []string{"owut"}, I18nKey: "wizard.packages.owut", Module: "owut"},
+	{ID: "snmp", Packages: []string{"snmpd"}, I18nKey: "wizard.packages.snmp", Module: "snmp"},
 }
 
 // optionalServices maps catalog modules to their init.d service, stopped and
@@ -54,6 +55,7 @@ var optionalServices = map[string]string{
 	"adguard":   "AdGuardHome",
 	"netifyd":   "netifyd",
 	"multiwan":  "mwan3",
+	"snmp":      "snmpd",
 }
 
 // pkgInstalled reports whether one package is installed (apk on 25.12+,

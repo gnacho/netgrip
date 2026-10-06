@@ -1411,3 +1411,15 @@ export interface LanDiscoveryResult {
 export interface AdvancedProbe {
   advanced: boolean;
 }
+
+export interface SNMPProbe {
+  installed: boolean;
+  running: boolean;
+  enabled: boolean;
+  managed: boolean;
+  location: string;
+  contact: string;
+  listen: string;
+  community_ro?: string;
+  community_rw?: string;
+}

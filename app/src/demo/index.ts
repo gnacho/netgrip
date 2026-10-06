@@ -163,12 +163,14 @@ export const demoApi: typeof api = {
   logout: async () => { await wait(100, 200); },
   me: () => get(undefined as void),
   advanced: () => get({ advanced: true }),
+  snmp: () => get({ installed: true, running: true, enabled: true, managed: true, location: "Rack 1", contact: "admin@example.com", listen: "UDP:161", community_ro: "monitors" }),
   wizardState: () => get(D.demoWizard),
   wizardSetup: () => get(D.demoWizardSetup),
   installWizardSetup: async () => { await wait(800, 1500); return { job: { phase: "done", total: 1, done: 1, installed: ["ethtool-full"] } }; },
   wizardComplete: async () => { await wait(400, 800); return { status: "ok" }; },
   wizardReset: async () => { await wait(400, 800); return { ...D.demoWizard, completed: false }; },
   setAdvanced: async () => { await wait(300, 600); return { state: { advanced: true } }; },
+  setSnmp: async () => { await wait(400, 800); return { status: "applied", rolled_back: false, state: { installed: true, running: true, enabled: true, managed: true, location: "Rack 1", contact: "admin@example.com", listen: "UDP:161", community_ro: "monitors" } }; },
 
   // núcleo
   board: () => get(D.demoBoard),

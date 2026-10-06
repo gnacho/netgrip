@@ -547,6 +547,14 @@ const realApi = {
     request<{ status: string }>("/api/wizard/complete", { method: "POST" }),
   wizardReset: () =>
     request<import("./types").WizardState>("/api/wizard/reset", { method: "POST" }),
+  snmp: () =>
+    request<import("./types").SNMPProbe>("/api/snmp"),
+  setSnmp: (cfg: Omit<import("./types").SNMPProbe, "installed" | "running" | "enabled" | "managed"> & { enabled: boolean }) =>
+    request<import("./types").ModuleResult<import("./types").SNMPProbe>>("/api/snmp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
   advanced: () =>
     request<import("./types").AdvancedProbe>("/api/advanced"),
   setAdvanced: (enabled: boolean) =>

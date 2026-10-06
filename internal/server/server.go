@@ -171,6 +171,8 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("GET /api/captiveportal", s.requireAuth(s.handleCaptivePortalGet))
 	s.mux.HandleFunc("POST /api/captiveportal", s.requireAuth(s.handleCaptivePortalSet))
 	s.mux.HandleFunc("POST /api/captiveportal/image", s.requireAuth(s.handleCaptivePortalImage))
+	s.mux.HandleFunc("GET /api/snmp", s.requireAdvanced(s.handleSNMPGet))
+	s.mux.HandleFunc("POST /api/snmp", s.requireAdvanced(s.handleSNMPSet))
 	s.mux.HandleFunc("GET /api/advanced", s.requireAuth(s.handleAdvancedGet))
 	s.mux.HandleFunc("POST /api/advanced", s.requireAuth(s.handleAdvancedSet))
 	s.mux.HandleFunc("GET /api/mode", s.requireAuth(s.handleMode))
@@ -1450,6 +1452,29 @@ func (s *Server) handleAdvancedSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"state": probe})
+}
+
+type snmpSetRequest struct {
+	Enabled     bool   `json:"enabled"`
+	Location    string `json:"location"`
+	Contact     string `json:"contact"`
+	Listen      string `json:"listen"`
+	CommunityRO string `json:"community_ro"`
+	CommunityRW string `json:"community_rw"`
+}
+
+func (s *Server) handleSNMPGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeSNMP())
+}
+
+func (s *Server) handleSNMPSet(w http.ResponseWriter, r *http.Request) {
+	var req snmpSetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetSNMP(modules.SNMPRequest(req))
+	writeModuleResult(w, probe, rolledBack, err)
 }
 
 func (s *Server) handleMode(w http.ResponseWriter, _ *http.Request) {
