@@ -23,6 +23,7 @@ const state = {
   wireless: D.demoWireless,
   wifi: D.demoWifi,
   wifischedule: structuredClone(D.demoWifiSchedules),
+  wifichan: structuredClone(D.demoWifiChan),
   wg: structuredClone(D.demoWg),
   ddns: { ...D.demoDdns },
   mdns: { ...D.demoMdns },
@@ -885,6 +886,19 @@ export const demoApi: typeof api = {
     return write({ schedules: state.wifischedule });
   },
   wifiKey: async () => { await wait(80, 200); return { key: "demo-passkey-1234" }; },
+  wifiChan: () => get({ radios: state.wifichan }),
+  setWifiChan: async (edit) => {
+    const r = state.wifichan.find((x) => x.radio === edit.radio);
+    if (r && r.suggestion) {
+      r.channel = edit.channel;
+      r.width = edit.width;
+      r.htmode = `HE${edit.width}`;
+      r.suggestion.channel = edit.channel;
+      r.suggestion.reason = "current_ok";
+    }
+    const w = state.wireless.find((x) => x.name === edit.radio);
+    return write(w ?? state.wireless[0]);
+  },
   setWifi: async (edit) => {
     const w = state.wifi.find((x) => x.section === edit.section);
     if (w) {

@@ -328,6 +328,27 @@ export const demoWifiSchedules: T.WifiScheduleState[] = [
   },
 ];
 
+export const demoWifiChan: T.WifiChanRadio[] = [
+  {
+    radio: "radio0", band: "2g", ifname: "phy0-ap0", channel: 6, width: 40, htmode: "HE40",
+    utilization: 64, noise: -88, scan_complete: true,
+    neighbors: [
+      { bssid: "32:4E:8E:AC:C6:16", ssid: "Vecinos", freq: 2412, channel: 1, signal: -56, width: 20 },
+      { bssid: "AA:BB:CC:DD:EE:FF", ssid: "Orange-2G", freq: 2437, channel: 6, signal: -70, width: 20 },
+      { bssid: "11:22:33:44:55:66", ssid: "Movistar-Plus", freq: 2437, channel: 6, signal: -80, width: 20 },
+    ],
+    suggestion: { channel: 11, width: 40, htmode: "HE40", reason: "less_congested", confidence: "high" },
+  },
+  {
+    radio: "radio1", band: "5g", ifname: "phy1-ap0", channel: 44, width: 80, htmode: "HE80",
+    utilization: 12, noise: -92, scan_complete: true,
+    neighbors: [
+      { bssid: "77:88:99:AA:BB:CC", ssid: "Vecinos-5G", freq: 5180, channel: 36, signal: -75, width: 80 },
+    ],
+    suggestion: { channel: 44, width: 80, htmode: "HE80", reason: "current_ok", confidence: "high" },
+  },
+];
+
 export const demoLan: T.LANConfig = {
   applicable: true,
   ipaddr: "192.168.8.1",

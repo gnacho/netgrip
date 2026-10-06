@@ -273,6 +273,14 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(sched),
     }),
+  wifiChan: () =>
+    request<{ radios: import("./types").WifiChanRadio[] }>("/api/wifichan"),
+  setWifiChan: (edit: { radio: string; channel: number; width: number }) =>
+    request<import("./types").ModuleResult<import("./types").WirelessRadio>>("/api/wifichan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(edit),
+    }),
   lan: () => request<import("./types").LANConfig>("/api/lan"),
   setLan: (opts: { ipaddr?: string; netmask?: string; ap_isolation?: boolean }) =>
     request<import("./types").ModuleResult<import("./types").LANConfig>>("/api/lan", {
