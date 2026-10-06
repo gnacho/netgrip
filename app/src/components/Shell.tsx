@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { Activity, ArrowLeftRight, Blocks, ChartColumn, ChartPie, Download, Forward, Globe, HardDrive, Info, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldBan, SlidersHorizontal, Smartphone, Wifi, Wrench } from "lucide-react";
+import { Activity, ArrowLeftRight, Blocks, ChartColumn, ChartPie, CircuitBoard, Download, Forward, Globe, HardDrive, Info, Layers, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldBan, Smartphone, Wifi, Wrench } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
 import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MDNSProbe, ModeProbe, MultiWanProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
@@ -22,14 +22,15 @@ import { System } from "../pages/System";
 import { LanPage } from "../pages/Lan";
 import { ToolsPage } from "../pages/Tools";
 import { DiagnosticsPage } from "../pages/Diagnostics";
-import { AdvancedPage } from "../pages/Advanced";
+import { AdvancedNetworkPage } from "../pages/AdvancedNetwork";
+import { AdvancedSwitchPage } from "../pages/AdvancedSwitch";
 import { FleetPage } from "../pages/Fleet";
 import { StoragePage } from "../pages/Storage";
 import { DpiPage } from "../pages/Dpi";
 import { AboutPage } from "../pages/About";
 import { SelfUpdateDialog } from "../components/system/SelfUpdateDialog";
 
-export type Page = "overview" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "usage" | "banip" | "ports" | "forwards" | "tools" | "diagnostics" | "advanced" | "fleet" | "storage" | "system" | "dpi" | "about";
+export type Page = "overview" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "usage" | "banip" | "ports" | "forwards" | "tools" | "diagnostics" | "adv-network" | "adv-switch" | "fleet" | "storage" | "system" | "dpi" | "about";
 
 const NAV_ICONS: Record<Page, LucideIcon> = {
   overview: LayoutDashboard,
@@ -45,7 +46,8 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
   forwards: Forward,
   tools: Wrench,
   diagnostics: Activity,
-  advanced: SlidersHorizontal,
+  "adv-network": Layers,
+  "adv-switch": CircuitBoard,
   storage: HardDrive,
   fleet: Server,
   system: Settings,
@@ -58,7 +60,8 @@ const NAV_GROUPS: { group: string | null; items: Page[] }[] = [
   { group: null, items: ["overview"] },
   { group: "nav.group.network", items: ["wan", "clients", "coverage", "wifi", "lan", "ports", "forwards", "dpi"] },
   { group: "nav.group.services", items: ["services", "usage", "banip"] },
-  { group: "nav.group.router", items: ["tools", "diagnostics", "advanced", "storage", "fleet", "system"] },
+  { group: "nav.group.router", items: ["tools", "diagnostics", "storage", "fleet", "system"] },
+  { group: "nav.group.advanced", items: ["adv-network", "adv-switch"] },
   { group: "nav.group.about", items: ["about"] },
 ];
 
@@ -166,7 +169,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     if (apMode && (id === "lan" || id === "ports" || id === "forwards" || id === "wan" || id === "banip")) return false;
     if (id === "storage" && !storage?.applicable) return false;
     if (id === "coverage" && !usteerMultiRouter) return false;
-    if (id === "advanced" && !advanced) return false;
+    if ((id === "adv-network" || id === "adv-switch") && !advanced) return false;
     return true;
   };
   const activePage = NAV_GROUPS.some((g) => g.items.includes(page)) && visible(page) ? page : "overview";
@@ -316,7 +319,8 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         <ToolsPage ethports={ethports ?? []} />
       )}
       {activePage === "diagnostics" && <DiagnosticsPage />}
-      {activePage === "advanced" && <AdvancedPage />}
+      {activePage === "adv-network" && <AdvancedNetworkPage />}
+      {activePage === "adv-switch" && <AdvancedSwitchPage />}
       {activePage === "fleet" && (
         <FleetPage />
       )}
