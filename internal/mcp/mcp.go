@@ -125,6 +125,30 @@ func (s *Server) addTools(mcpServer *server.MCPServer) {
 	mcpServer.AddTool(tool("list_devices",
 		"Network devices and their traffic counters (netdev view), plus the Ethernet switch ports with link state and speed when the switch exposes them. Read-only.",
 	), s.run("list_devices", s.toolListDevices))
+
+	mcpServer.AddTool(tool("channel_recommendation",
+		"Wi-Fi channel recommendation per radio from live RF data (survey utilization and neighboring BSSs): current channel, utilization, neighbor count, and a deterministic suggestion with reason and confidence. Read-only; it never applies anything.",
+	), s.run("channel_recommendation", s.toolChannelRecommendation))
+
+	mcpServer.AddTool(tool("wifi_schedule_status",
+		"Per-SSID weekly off-schedule state: configured windows, whether each SSID is off by schedule right now, and manual pause state. Read-only.",
+	), s.run("wifi_schedule_status", s.toolWifiScheduleStatus))
+
+	mcpServer.AddTool(tool("snmp_status",
+		"SNMP agent state: package installed, daemon running/enabled, managed-vs-external config, location/contact/listen and the configured communities. Never returns community values unless they are configured in UCI; read-only.",
+	), s.run("snmp_status", s.toolSNMPStatus))
+}
+
+func (s *Server) toolChannelRecommendation(_ context.Context, _ mcp.CallToolRequest) (any, error) {
+	return map[string]any{"radios": modules.ProbeWifiChan()}, nil
+}
+
+func (s *Server) toolWifiScheduleStatus(_ context.Context, _ mcp.CallToolRequest) (any, error) {
+	return map[string]any{"schedules": modules.ProbeWifiSchedule()}, nil
+}
+
+func (s *Server) toolSNMPStatus(_ context.Context, _ mcp.CallToolRequest) (any, error) {
+	return modules.ProbeSNMP(), nil
 }
 
 // toolFunc produces a tool result from the current probes and the request

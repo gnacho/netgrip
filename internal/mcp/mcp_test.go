@@ -183,13 +183,14 @@ func TestToolsListAllReadOnly(t *testing.T) {
 		t.Fatalf("no result: %v", out)
 	}
 	tools, ok := res["tools"].([]any)
-	if !ok || len(tools) != 7 {
+	if !ok || len(tools) != 10 {
 		t.Fatalf("tools = %v", res["tools"])
 	}
 	want := map[string]bool{
 		"server_status": true, "list_clients": true, "wireless_status": true,
 		"wan_status": true, "multiwan_status": true, "list_leases": true,
-		"list_devices": true,
+		"list_devices": true, "channel_recommendation": true,
+		"wifi_schedule_status": true, "snmp_status": true,
 	}
 	for _, raw := range tools {
 		tool := raw.(map[string]any)
