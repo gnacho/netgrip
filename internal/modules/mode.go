@@ -12,15 +12,35 @@ import (
 // point, using the real state: a WAN interface inside the LAN bridge
 // (dnsmasq and firewall off) is an AP reconverting the WAN into a LAN
 // port. Hardware class detects switches (no WiFi, many ports).
+//
+// Role is the first-class answer to "what is this device" (#447) and drives
+// feature visibility: a working WAN uplink makes it a router; without one
+// but with Wi-Fi radios it is an access point; with only LAN switch ports
+// it is a managed switch. Mode and HardwareClass stay for compatibility.
 type ModeProbe struct {
 	Mode          string `json:"mode"`           // router | ap
 	HardwareClass string `json:"hardware_class"` // router | ap | switch
+	Role          string `json:"role"`           // router | ap | switch
 	WanInBridge   bool   `json:"wan_in_bridge"`
 	WanConfigured bool   `json:"wan_configured"`
 	DnsmasqOn     bool   `json:"dnsmasq_on"`
 	FirewallOn    bool   `json:"firewall_on"`
 	HasWifi       bool   `json:"has_wifi"`
 	PortCount     int    `json:"port_count"`
+}
+
+// computeRole derives the device role from the probe facts (#447):
+// WAN uplink -> router; no WAN but radios -> access point; only switch
+// ports -> managed switch. Pure so the rules are unit-testable.
+func computeRole(p *ModeProbe) string {
+	switch {
+	case p.WanConfigured && !p.WanInBridge:
+		return "router"
+	case p.HasWifi:
+		return "ap"
+	default:
+		return "switch"
+	}
 }
 
 // ProbeMode detects the router mode and hardware class.
@@ -51,6 +71,7 @@ func ProbeMode() *ModeProbe {
 	default:
 		p.HardwareClass = p.Mode
 	}
+	p.Role = computeRole(p)
 	return p
 }
 

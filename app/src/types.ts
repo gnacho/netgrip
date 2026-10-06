@@ -349,6 +349,7 @@ export interface EthPort {
 }
 
 export interface ModeProbe {
+  role?: "router" | "ap" | "switch";
   mode: "router" | "ap";
   hardware_class: "router" | "ap" | "switch";
   wan_in_bridge: boolean;

@@ -156,7 +156,10 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   // In AP mode the router is not the gateway: hide pages that only apply to
   // the gateway (LAN config with dnsmasq, port forwarding).
   // On switches (no WiFi, many ports): hide WiFi and services pages.
-  const isSwitch = mode?.hardware_class === "switch";
+  // Role is first-class (#447): a device with only LAN ports is a managed
+  // switch whatever its port count; hardware_class stays as fallback for
+  // older probes.
+  const isSwitch = (mode?.role ?? mode?.hardware_class) === "switch";
   const apMode = mode?.mode === "ap" && !isSwitch;
   // Cobertura inalámbrica: solo si usteer reporta varios routers activos.
   const usteerMultiRouter = useMemo(() => {
