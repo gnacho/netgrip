@@ -1581,6 +1581,7 @@ export default {
   advanced: {
     sectionNetworks: "Redes y VLAN",
     sectionSwitch: "Switch y tráfico fino",
+    sectionPortEngineering: "Puertos e ingeniería del switch",
     toggleTitle: "Modo avanzado",
     toggleLabel: "Mostrar la sección Avanzadas",
     toggleHint: "Desbloquea VLAN, IGMP snooping, control de tormentas y listas MAC desde una sección dedicada, y más adelante SNMP y funciones avanzadas de switch. Estas herramientas pueden dejarte fuera de la red si se usan mal.",

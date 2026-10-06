@@ -1581,6 +1581,7 @@ export default {
   advanced: {
     sectionNetworks: "Networks and VLANs",
     sectionSwitch: "Switch and fine-grained traffic",
+    sectionPortEngineering: "Ports and switch engineering",
     toggleTitle: "Advanced mode",
     toggleLabel: "Show the Advanced section",
     toggleHint: "Unlocks VLANs, IGMP snooping, storm control and MAC ACLs in a dedicated section, and later SNMP and advanced switch features. These tools can lock you out of the network if misused.",

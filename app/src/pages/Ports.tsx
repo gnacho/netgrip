@@ -1,20 +1,15 @@
-import { AdvancedDisclosure, Card } from "../components/ui";
 import type { EthPort } from "../types";
 import { EthPortsCard } from "../components/ports/EthPortsCard";
 import { PoECard } from "../components/ports/PoECard";
 import { SwitchCard } from "../components/ports/SwitchCard";
-import { LagCard } from "../components/ports/LagCard";
-import { PortStatsCard } from "../components/ports/PortStatsCard";
-import { SwitchModesCard } from "../components/ports/SwitchModesCard";
-import { PortTemplatesCard } from "../components/ports/PortTemplatesCard";
-import { RoleProfilesCard } from "../components/ports/RoleProfilesCard";
 
 /**
- * Puertos ethernet (#353, antes "Puertos"): plantillas rápidas, PoE y bocas
- * del switch; lo de ingeniería (plantillas de puerto, perfiles, modos, VLANs,
- * estadísticas) bajo "Opciones avanzadas". El port-forwarding (abrir puertos
- * a Internet) vive en la página "Puertos" (Forwards.tsx). El chasis RJ45 de
- * la instalación llega del resumen (#384).
+ * Puertos ethernet (#353, antes "Puertos"): PoE y bocas del switch; lo de
+ * ingeniería (LAG, plantillas de puerto, perfiles, modos, VLANs,
+ * estadísticas, IGMP, storm control, MAC ACL) vive en la página "Avanzadas"
+ * (#441). El port-forwarding (abrir puertos a Internet) vive en la página
+ * "Puertos" (Forwards.tsx). El chasis RJ45 de la instalación llega del
+ * resumen (#384).
  */
 export function Ports({ ethports }: { ethports?: EthPort[] }) {
   return (
@@ -22,18 +17,6 @@ export function Ports({ ethports }: { ethports?: EthPort[] }) {
       <EthPortsCard ports={ethports} index={0} />
       <PoECard index={1} />
       <SwitchCard index={2} />
-      <LagCard index={2} />
-
-      <Card index={3} className="md:col-span-2">
-        <AdvancedDisclosure>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <RoleProfilesCard />
-            <SwitchModesCard />
-            <PortTemplatesCard />
-            <PortStatsCard />
-          </div>
-        </AdvancedDisclosure>
-      </Card>
     </div>
   );
 }
