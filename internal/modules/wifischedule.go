@@ -132,14 +132,17 @@ func wifiScheduleOps(sections []string, disabled bool) []executor.Op {
 	return ops
 }
 
+// wifiSchedUCIKey addresses one schedule section. UCI named sections live
+// flat in the package (netgrip.<name>), so the iface name is prefixed to
+// avoid colliding with other netgrip sections (main, selfupdate, poe ports).
 func wifiSchedUCIKey(section string) string {
-	return "netgrip.wifischedule." + sanitizeUCIKey(section)
+	return "netgrip.wifisec_" + sanitizeUCIKey(section)
 }
 
 func ensureWifiSchedSection(section string) {
 	_ = EnsureNetgripSection("wifischedule", "wifischedule")
-	secName := sanitizeUCIKey(section)
-	if !uciSectionExists("netgrip.wifischedule." + secName) {
+	secName := "wifisec_" + sanitizeUCIKey(section)
+	if !uciSectionExists("netgrip." + secName) {
 		cmd := exec.Command("uci", "-m", "import", "netgrip")
 		cmd.Stdin = strings.NewReader("config wifisched '" + secName + "'\n")
 		_ = cmd.Run()
@@ -375,5 +378,14 @@ func wifiSchedTick() {
 			continue
 		}
 		reconcileWifiSchedule(sec, wifiScheduleOffAt(now, sched))
+	}
+	// Self-heal: a schedule deleted from UCI while its window was active
+	// (manual cleanup, factory edit) leaves the interface off with no rule
+	// to ever bring it back. The ledger proves we are the ones who disabled
+	// it, so re-enable once and drop the entry.
+	for sec := range loadWifiSchedLedger() {
+		if _, ok := loadWifiSchedule(sec); !ok {
+			reconcileWifiSchedule(sec, false)
+		}
 	}
 }
