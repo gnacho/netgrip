@@ -483,6 +483,37 @@ export interface WifiScheduleState {
   schedule?: WifiSchedule;
 }
 
+export interface WifiChanNeighbor {
+  bssid: string;
+  ssid: string;
+  freq: number;
+  channel: number;
+  signal: number;
+  width: number;
+}
+
+export interface WifiChanSuggestion {
+  channel: number;
+  width: number;
+  htmode: string;
+  reason: string;
+  confidence: "high" | "medium" | "low";
+}
+
+export interface WifiChanRadio {
+  radio: string;
+  band: string;
+  ifname: string;
+  channel: number;
+  width: number;
+  htmode: string;
+  utilization: number;
+  noise: number;
+  neighbors: WifiChanNeighbor[];
+  scan_complete: boolean;
+  suggestion?: WifiChanSuggestion;
+}
+
 export interface OffloadProbe {
   applicable: boolean;
   software: boolean;
