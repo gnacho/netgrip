@@ -22,6 +22,7 @@ const state = {
   clients: structuredClone(D.demoClients),
   wireless: D.demoWireless,
   wifi: D.demoWifi,
+  wifischedule: structuredClone(D.demoWifiSchedules),
   wg: structuredClone(D.demoWg),
   ddns: { ...D.demoDdns },
   mdns: { ...D.demoMdns },
@@ -868,6 +869,19 @@ export const demoApi: typeof api = {
 
   // wifi
   wifi: () => get({ interfaces: state.wifi }),
+  wifiSchedule: () => get({ schedules: state.wifischedule }),
+  setWifiSchedule: async (sched) => {
+    const st = state.wifischedule.find((x) => x.section === sched.section);
+    const off = sched.paused || (sched.enabled && sched.days.length > 0);
+    if (st) {
+      st.schedule = sched;
+      st.disabled = off;
+      st.off_by_schedule = off;
+      const w = state.wifi.find((x) => x.section === sched.section);
+      if (w) w.disabled = off;
+    }
+    return write({ schedules: state.wifischedule });
+  },
   wifiKey: async () => { await wait(80, 200); return { key: "demo-passkey-1234" }; },
   setWifi: async (edit) => {
     const w = state.wifi.find((x) => x.section === edit.section);

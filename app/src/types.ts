@@ -465,6 +465,24 @@ export interface WifiUI {
   clients: { mac: string; signal?: number }[];
 }
 
+export interface WifiSchedule {
+  section: string;
+  enabled: boolean;
+  days: number[];
+  start: string;
+  end: string;
+  paused: boolean;
+}
+
+export interface WifiScheduleState {
+  section: string;
+  ifname: string;
+  ssid: string;
+  disabled: boolean;
+  off_by_schedule: boolean;
+  schedule?: WifiSchedule;
+}
+
 export interface OffloadProbe {
   applicable: boolean;
   software: boolean;

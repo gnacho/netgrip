@@ -187,6 +187,8 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("GET /api/wifi/key", s.requireAuth(s.handleWifiKey))
 	s.mux.HandleFunc("POST /api/wifi", s.requireAuth(s.handleWifiSet))
 	s.mux.HandleFunc("POST /api/wifi/radio", s.requireAuth(s.handleWifiRadioSet))
+	s.mux.HandleFunc("GET /api/wifischedule", s.requireAuth(s.handleWifiScheduleGet))
+	s.mux.HandleFunc("POST /api/wifischedule", s.requireAuth(s.handleWifiScheduleSet))
 	s.mux.HandleFunc("GET /api/lan", s.requireAuth(s.handleLANGet))
 	s.mux.HandleFunc("POST /api/lan", s.requireAuth(s.handleLANSet))
 	s.mux.HandleFunc("POST /api/lan/dhcp", s.requireAuth(s.handleDHCPSet))
@@ -1613,6 +1615,26 @@ func (s *Server) handleWifiRadioSet(w http.ResponseWriter, r *http.Request) {
 	}
 	probe, rolledBack, err := modules.SetWifiRadio(edit)
 	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleWifiScheduleGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"schedules": modules.ProbeWifiSchedule()})
+}
+
+func (s *Server) handleWifiScheduleSet(w http.ResponseWriter, r *http.Request) {
+	var sched modules.WifiSchedule
+	if err := json.NewDecoder(r.Body).Decode(&sched); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetWifiSchedule(sched)
+	if err != nil && !rolledBack {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]any{"status": "failed", "error": err.Error()})
+		return
+	}
+	writeModuleResult(w, map[string]any{"schedules": probe}, rolledBack, err)
 }
 
 func (s *Server) handleLANGet(w http.ResponseWriter, _ *http.Request) {

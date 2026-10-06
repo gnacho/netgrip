@@ -265,6 +265,14 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(edit),
     }),
+  wifiSchedule: () =>
+    request<{ schedules: import("./types").WifiScheduleState[] }>("/api/wifischedule"),
+  setWifiSchedule: (sched: import("./types").WifiSchedule) =>
+    request<import("./types").ModuleResult<{ schedules: import("./types").WifiScheduleState[] }>>("/api/wifischedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(sched),
+    }),
   lan: () => request<import("./types").LANConfig>("/api/lan"),
   setLan: (opts: { ipaddr?: string; netmask?: string; ap_isolation?: boolean }) =>
     request<import("./types").ModuleResult<import("./types").LANConfig>>("/api/lan", {

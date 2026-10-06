@@ -314,6 +314,20 @@ export const demoWifi: T.WifiUI[] = [
   { section: "wifinet3", radio: "radio0", ifname: "phy0-ap2", band: "2g", ssid: "CasaGarcia-IoT", encryption: "psk2", has_key: true, hidden: false, mac: "", bssid: "8C:53:C3:11:22:32", disabled: false, clients: [{ mac: "B4:E6:2D:90:14:07", signal: -61 }, { mac: "C8:2B:96:33:77:19", signal: -72 }, { mac: "DC:A6:32:08:51:90", signal: -69 }] },
 ];
 
+export const demoWifiSchedules: T.WifiScheduleState[] = [
+  {
+    section: "wifinet0", ifname: "phy0-ap0", ssid: "CasaGarcia", disabled: false, off_by_schedule: false,
+    schedule: { section: "wifinet0", enabled: false, days: [1, 2, 3, 4, 5], start: "23:30", end: "06:30", paused: false },
+  },
+  {
+    section: "wifinet2", ifname: "phy0-ap1", ssid: "CasaGarcia-Invitados", disabled: false, off_by_schedule: false,
+    schedule: { section: "wifinet2", enabled: true, days: [1, 2, 3, 4, 5], start: "00:00", end: "06:30", paused: false },
+  },
+  {
+    section: "wifinet3", ifname: "phy0-ap2", ssid: "CasaGarcia-IoT", disabled: false, off_by_schedule: false,
+  },
+];
+
 export const demoLan: T.LANConfig = {
   applicable: true,
   ipaddr: "192.168.8.1",
