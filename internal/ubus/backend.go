@@ -10,6 +10,9 @@ import "testing"
 type Backend interface {
 	// SystemInfo mirrors `ubus call system info` (see GetSystemInfo).
 	SystemInfo() (*SystemInfo, error)
+	// WanStatus mirrors the network.interface dump + pick done by
+	// GetWanStatus (see its doc).
+	WanStatus() (*WanStatus, error)
 }
 
 // realBackend is the production implementation: the existing package-level
@@ -17,6 +20,8 @@ type Backend interface {
 type realBackend struct{}
 
 func (realBackend) SystemInfo() (*SystemInfo, error) { return GetSystemInfo() }
+
+func (realBackend) WanStatus() (*WanStatus, error) { return GetWanStatus() }
 
 // DefaultBackend is the package-level backend every read goes through.
 // It defaults to the real device and exists as a variable (not a Server

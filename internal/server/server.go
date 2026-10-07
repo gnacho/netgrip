@@ -648,7 +648,7 @@ func (s *Server) handleSystem(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) handleWan(w http.ResponseWriter, _ *http.Request) {
-	status, err := ubus.GetWanStatus()
+	status, err := ubus.DefaultBackend.WanStatus()
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
