@@ -60,7 +60,7 @@ it later), changing `ListClients` behavior, caching changes.
 | # | Phase | PR scope |
 | --- | --- | --- |
 | 1 | ubus reads via the seam | `ListClients` + `AvailableBands` use `DefaultBackend.WirelessStatus()` |
-| 2 | uci exec seam | `uciShowCached`/`uciGet`/`uciSectionExists` run through an overridable exec var |
+| 2 | uci exec seam | `uciShowCached`/`uciGet`/`uciSectionExists` run through an overridable exec var; **gateway SSH pulled in from phase 3**: a LAN dev host can really SSH to the gateway, so without the seam an "error path" test leaks real LAN data |
 | 3 | file/exec path seams | leases, arp, brif, parental ledger paths + gateway SSH + `ServiceEnabled` fakeable |
 | 4 | device-free handler test | `GET /api/clients` green without a device |
 

@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -82,7 +81,7 @@ const uciShowTTL = 2 * time.Second
 // "ucishow|" + pkg entry. ok is false when the command fails.
 func uciShowCached(pkg string) (string, bool) {
 	out, err := CachedRead("ucishow|"+pkg, uciShowTTL, func() (string, error) {
-		b, err := exec.Command("uci", "show", pkg).Output()
+		b, err := uciExec("show", pkg)
 		return string(b), err
 	})
 	if err != nil {

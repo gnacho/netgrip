@@ -2,7 +2,6 @@ package modules
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/gnacho/netgrip/internal/executor"
@@ -22,7 +21,7 @@ type IPv6Probe struct {
 }
 
 func uciGet(key string) string {
-	out, err := exec.Command("uci", "-q", "get", key).Output()
+	out, err := uciExec("-q", "get", key)
 	if err != nil {
 		return ""
 	}
@@ -30,7 +29,8 @@ func uciGet(key string) string {
 }
 
 func uciSectionExists(key string) bool {
-	return exec.Command("uci", "-q", "get", key).Run() == nil
+	_, err := uciExec("-q", "get", key)
+	return err == nil
 }
 
 // ProbeIPv6 reads the current IPv6 state. State is "disabled" only when the

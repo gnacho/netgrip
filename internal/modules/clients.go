@@ -224,7 +224,12 @@ func gatewayAddr() string {
 // dropbear's ssh client needs -y to accept the host key and does not support
 // -o BatchMode/ConnectTimeout. This is used both for read-only lease lookups
 // and for writing DHCP reservations on the gateway when the local device is an AP.
-func gatewaySSH(command string) (string, error) {
+// gatewaySSHRead runs a read-only command on the gateway over SSH. It is a
+// variable (seam, like ubus.DefaultBackend or uciExec) so tests on the
+// clients path can answer without a gateway: this dev machine can actually
+// SSH to the home gateway, which made an early device-free test leak real
+// LAN data through the fallback.
+var gatewaySSHRead = func(command string) (string, error) {
 	gw := gatewayAddr()
 	if gw == "" {
 		return "", fmt.Errorf("no default gateway")
@@ -244,6 +249,18 @@ func gatewaySSH(command string) (string, error) {
 		return "", fmt.Errorf("gateway ssh: %w", err)
 	}
 	return string(out), nil
+}
+
+func gatewaySSH(command string) (string, error) { return gatewaySSHRead(command) }
+
+// SetGatewaySSHForTest swaps gatewaySSHRead for fn for the duration of the
+// test and restores the previous one on cleanup. Regular file (not
+// _test.go) so other packages' tests can use it, like SetUciExecForTest.
+func SetGatewaySSHForTest(t testT, fn func(command string) (string, error)) {
+	t.Helper()
+	old := gatewaySSHRead
+	gatewaySSHRead = fn
+	t.Cleanup(func() { gatewaySSHRead = old })
 }
 
 // leasesForClients reads DHCP leases locally; on dumb APs without local
