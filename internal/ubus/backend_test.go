@@ -15,6 +15,8 @@ func (f *fakeBackend) SystemInfo() (*SystemInfo, error) {
 
 func (f *fakeBackend) WanStatus() (*WanStatus, error) { return nil, nil }
 
+func (f *fakeBackend) WirelessStatus() ([]WirelessRadio, error) { return nil, nil }
+
 // SetBackendForTest must swap the backend for the test and restore the real
 // one on cleanup, so suites run in any order.
 func TestSetBackendForTestSwapsAndRestores(t *testing.T) {

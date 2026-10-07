@@ -13,6 +13,9 @@ type Backend interface {
 	// WanStatus mirrors the network.interface dump + pick done by
 	// GetWanStatus (see its doc).
 	WanStatus() (*WanStatus, error)
+	// WirelessStatus mirrors `ubus call network.wireless status` merged
+	// with hostapd details (see GetWirelessStatus).
+	WirelessStatus() ([]WirelessRadio, error)
 }
 
 // realBackend is the production implementation: the existing package-level
@@ -22,6 +25,8 @@ type realBackend struct{}
 func (realBackend) SystemInfo() (*SystemInfo, error) { return GetSystemInfo() }
 
 func (realBackend) WanStatus() (*WanStatus, error) { return GetWanStatus() }
+
+func (realBackend) WirelessStatus() ([]WirelessRadio, error) { return GetWirelessStatus() }
 
 // DefaultBackend is the package-level backend every read goes through.
 // It defaults to the real device and exists as a variable (not a Server

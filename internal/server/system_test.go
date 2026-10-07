@@ -27,6 +27,10 @@ func (f *fakeSystemBackend) SystemInfo() (*ubus.SystemInfo, error) {
 // interface satisfied without a device.
 func (f *fakeSystemBackend) WanStatus() (*ubus.WanStatus, error) { return nil, nil }
 
+func (f *fakeSystemBackend) WirelessStatus() ([]ubus.WirelessRadio, error) {
+	return nil, nil
+}
+
 // GET /api/system behind requireAuth used to need a router: GetSystemInfo
 // forks `ubus call system info`. With the backend swapped for a fake the
 // handler answers 200 with the payload, on the auth path, no device.

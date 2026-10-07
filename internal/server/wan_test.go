@@ -25,6 +25,10 @@ func (f *fakeWanBackend) WanStatus() (*ubus.WanStatus, error) {
 	return f.status, f.err
 }
 
+func (f *fakeWanBackend) WirelessStatus() ([]ubus.WirelessRadio, error) {
+	return nil, nil
+}
+
 // GET /api/wan behind requireAuth used to need a router: GetWanStatus forks
 // the ubus CLI (and, since #467, the native client). With the backend
 // swapped for a fake the handler answers 200 with the payload on the auth

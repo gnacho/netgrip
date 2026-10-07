@@ -720,7 +720,7 @@ func (s *Server) handleWanConfigPost(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleWireless(w http.ResponseWriter, _ *http.Request) {
 	radios, err := modules.CachedRead("wireless", probeCacheTTL, func() ([]ubus.WirelessRadio, error) {
-		return ubus.GetWirelessStatus()
+		return ubus.DefaultBackend.WirelessStatus()
 	})
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
