@@ -58,9 +58,12 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
 /** Nav agrupada §7.1 (tareas, nombres llanos §7.2). */
 const NAV_GROUPS: { group: string | null; items: Page[] }[] = [
   { group: null, items: ["overview"] },
-  { group: "nav.group.network", items: ["wan", "clients", "coverage", "wifi", "lan", "ports", "forwards", "dpi"] },
-  { group: "nav.group.services", items: ["services", "usage", "banip"] },
-  { group: "nav.group.router", items: ["tools", "diagnostics", "storage", "fleet", "system"] },
+  { group: "nav.group.router", items: ["wan", "lan", "forwards", "dpi", "banip"] },
+  { group: "nav.group.wifi", items: ["wifi", "coverage"] },
+  { group: "nav.group.network", items: ["clients"] },
+  { group: "nav.group.switch", items: ["ports"] },
+  { group: "nav.group.services", items: ["services", "usage"] },
+  { group: "nav.group.management", items: ["tools", "diagnostics", "storage", "fleet", "system"] },
   { group: "nav.group.advanced", items: ["adv-network", "adv-switch"] },
   { group: "nav.group.about", items: ["about"] },
 ];
@@ -159,8 +162,13 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   // Role is first-class (#447): a device with only LAN ports is a managed
   // switch whatever its port count; hardware_class stays as fallback for
   // older probes.
-  const isSwitch = (mode?.role ?? mode?.hardware_class) === "switch";
-  const apMode = mode?.mode === "ap" && !isSwitch;
+  // Los grupos de área se gobiernan por rol (#447) y hardware: las páginas
+  // de gateway exigen role=router, las de WiFi exigen radios y la de Switch
+  // exige bocas ethernet. Hasta que llega el probe el nav se queda permisivo.
+  const role = mode?.role ?? (mode?.mode === "ap" ? "ap" : "router");
+  const isRouter = role === "router";
+  const hasWifiRadios = mode?.has_wifi ?? true;
+  const hasSwitchPorts = (mode?.port_count ?? 1) > 0;
   // Cobertura inalámbrica: solo si usteer reporta varios routers activos.
   const usteerMultiRouter = useMemo(() => {
     const hosts = new Set<string>();
@@ -168,8 +176,9 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     return hosts.size > 1;
   }, [usteerAps]);
   const visible = (id: Page) => {
-    if (isSwitch && (id === "wifi" || id === "services" || id === "usage" || id === "banip")) return false;
-    if (apMode && (id === "lan" || id === "ports" || id === "forwards" || id === "wan" || id === "banip")) return false;
+    if ((id === "wan" || id === "lan" || id === "forwards" || id === "dpi" || id === "banip") && !isRouter) return false;
+    if ((id === "wifi" || id === "coverage") && !hasWifiRadios) return false;
+    if (id === "ports" && !hasSwitchPorts) return false;
     if (id === "storage" && !storage?.applicable) return false;
     if (id === "coverage" && !usteerMultiRouter) return false;
     if ((id === "adv-network" || id === "adv-switch") && !advanced) return false;
@@ -223,7 +232,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
 
   // Bottom bar móvil §7.4: los 3–4 destinos más usados del modo actual + Menú.
   const bottomItems: Page[] = (
-    isSwitch
+    !isRouter
       ? (["overview", "ports", "tools"] as Page[])
       : (["overview", "wifi", "services", "tools"] as Page[])
   ).filter(visible);
@@ -295,7 +304,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         <Overview
           board={board} system={system} wan={wan}
           drift={drift} onDriftChange={setDrift}
-          isSwitch={isSwitch} health={health} mode={mode} onNavigate={navigate}
+          isSwitch={role === "switch"} health={health} mode={mode} onNavigate={navigate}
         />
       )}
       {activePage === "usage" && <UsagePage onNavigate={navigate} />}
@@ -309,7 +318,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         <LanPage ipv6={ipv6} onIpv6Change={setIpv6} />
       )}
       {activePage === "services" && (
-        <Services wg={wg} onWgChange={setWg} ddns={ddns} onDdnsChange={setDdns} mdns={mdns} onMdnsChange={setMdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} ts={ts} onTsChange={setTs} apMode={apMode} onNavigate={navigate} />
+        <Services wg={wg} onWgChange={setWg} ddns={ddns} onDdnsChange={setDdns} mdns={mdns} onMdnsChange={setMdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} ts={ts} onTsChange={setTs} apMode={!isRouter} onNavigate={navigate} />
       )}
       {activePage === "banip" && <BanipPage />}
       {activePage === "ports" && (

@@ -54,8 +54,11 @@ export default {
     menu: "Menú",
     group: {
       network: "Tu red",
+      wifi: "WiFi",
+      switch: "Switch",
       services: "Servicios",
       router: "Router",
+      management: "Mantenimiento",
       advanced: "Avanzadas",
       about: "Acerca de",
     },

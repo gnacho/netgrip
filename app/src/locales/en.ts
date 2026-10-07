@@ -53,9 +53,12 @@ export default {
     menu: "Menu",
     group: {
       network: "Your network",
+      wifi: "WiFi",
+      switch: "Switch",
     services: "Services",
     banip: "BanIP",
       router: "Router",
+      management: "Maintenance",
       advanced: "Advanced",
       about: "About",
     },
