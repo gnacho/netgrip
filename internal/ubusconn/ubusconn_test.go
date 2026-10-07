@@ -172,8 +172,8 @@ func TestLoginHelloAndCallNestedTable(t *testing.T) {
 	if got["temp"] != 41.5 {
 		t.Errorf("temp = %v (%T)", got["temp"], got["temp"])
 	}
-	if got["loaded"] != int64(1) {
-		t.Errorf("loaded = %v (%T)", got["loaded"], got["loaded"])
+	if got["loaded"] != true {
+		t.Errorf("loaded = %v (%T), want bool true (CLI parity: INT8 decodes as bool)", got["loaded"], got["loaded"])
 	}
 	release, ok := got["release"].(map[string]any)
 	if !ok {
@@ -269,7 +269,7 @@ func TestRoundTripAllArgTypes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if got["s"] != "hola" || got["b"] != int64(1) || got["i"] != int64(-7) ||
+	if got["s"] != "hola" || got["b"] != true || got["i"] != int64(-7) ||
 		got["i8"] != int64(-8) || got["i16"] != int64(-1600) || got["i32"] != int64(-320000) ||
 		got["i64"] != int64(1<<40) || got["f"] != 2.5 {
 		t.Errorf("scalars = %v", got)
@@ -281,7 +281,7 @@ func TestRoundTripAllArgTypes(t *testing.T) {
 		t.Errorf("ssub = %v", got["ssub"])
 	}
 	arr := got["arr"].([]any)
-	if len(arr) != 3 || arr[0] != "x" || arr[1] != int64(3) || arr[2] != int64(0) {
+	if len(arr) != 3 || arr[0] != "x" || arr[1] != int64(3) || arr[2] != false {
 		t.Errorf("arr = %v", arr)
 	}
 	sarr := got["sarr"].([]any)
@@ -324,4 +324,26 @@ func TestContainerRejectsGarbage(t *testing.T) {
 
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
+}
+
+// CLI parity: daemons send booleans as INT8 on the wire and the ubus CLI
+// renders INT8 as true/false (#471: interfaceDump.autostart). The native
+// path must decode the same way or every struct written against CLI output
+// breaks.
+func TestInt8DecodesAsBool(t *testing.T) {
+	feed := map[string]any{"autostart": true}
+	body, err := encodeBlobmsgTable(feed)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	// Re-decode: the encoder stores bools as INT8, and the decoder must
+	// hand back a bool, matching `ubus call` output.
+	got, err := decodeTable(body)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	v, ok := got["autostart"].(bool)
+	if !ok || !v {
+		t.Fatalf("autostart = %#v, want bool(true)", got["autostart"])
+	}
 }

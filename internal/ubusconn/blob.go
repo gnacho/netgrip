@@ -197,7 +197,10 @@ func appendValue(body []byte, name string, val any) ([]byte, error) {
 	case int:
 		return appendInt(body, name, int64(v))
 	case int8:
-		return appendBlobmsg(body, bmInt8, name, []byte{byte(v)}), nil
+		// Never emitted as INT8: the decoder renders INT8 as bool for CLI
+		// parity, so numeric int8 args would not round-trip. INT32 keeps
+		// them numeric on the wire.
+		return appendInt(body, name, int64(v))
 	case int16:
 		var p [2]byte
 		binary.BigEndian.PutUint16(p[:], uint16(v))
@@ -247,9 +250,11 @@ func appendValue(body []byte, name string, val any) ([]byte, error) {
 }
 
 func appendInt(body []byte, name string, v int64) ([]byte, error) {
+	// Numeric ints never encode as INT8: the decoder renders INT8 as
+	// true/false for CLI parity (daemons send booleans that way), so an
+	// INT8 number would not round-trip. INT32 is the smallest numeric
+	// encoding we emit.
 	switch {
-	case v >= math.MinInt8 && v <= math.MaxInt8:
-		return appendBlobmsg(body, bmInt8, name, []byte{byte(int8(v))}), nil
 	case v >= math.MinInt16 && v <= math.MaxInt16:
 		var p [2]byte
 		binary.BigEndian.PutUint16(p[:], uint16(int16(v)))
@@ -314,7 +319,12 @@ func decodeBlobmsgValue(a attr) (string, any, error) {
 		if len(data) < 1 {
 			return "", nil, errors.New("ubusconn: short INT8")
 		}
-		return name, int64(int8(data[0])), nil
+		// ubus daemons send booleans as INT8 on the wire, and the ubus CLI
+		// renders INT8 as true/false (its blob2json special-cases it for
+		// exactly this reason). Decoding to a number breaks every Go struct
+		// written against CLI output (e.g. interfaceDump.autostart, #471):
+		// match the CLI semantics so the native path is a drop-in.
+		return name, data[0] != 0, nil
 	case bmDouble:
 		if len(data) < 8 {
 			return "", nil, errors.New("ubusconn: short DOUBLE")
