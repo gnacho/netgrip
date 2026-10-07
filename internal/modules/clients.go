@@ -80,7 +80,7 @@ func ListClients(requesterIP string) []Client {
 	// the shared macfilter deny list (to keep manual pills clean).
 	parentalActive, parentalNext := parentalActiveNow()
 	parentalApplied := loadParentalLedger()
-	isAP := ProbeMode().Mode == "ap"
+	isAP := probeModeFn().Mode == "ap"
 
 	var clients []Client
 
@@ -126,14 +126,14 @@ func ListClients(requesterIP string) []Client {
 		// `/etc/init.d/firewall enabled` costs ~120 ms, because it sources
 		// OpenWrt's whole init framework. On a router with fifty clients
 		// that turned a listing into six seconds of CPU, every time.
-		firewallOn := executor.ServiceEnabled("firewall")
+		firewallOn := serviceEnabledFn("firewall")
 		wifiPorts := map[string]bool{}
 		for _, radio := range radios {
 			for _, iface := range radio.Interfaces {
 				wifiPorts[iface.Ifname] = true
 			}
 		}
-		fdb := bridgeFdb()
+		fdb := bridgeFdbRead()
 		// Ports in a stable order, one row per device: a MAC learned on two
 		// ports would otherwise land on whichever port the map happened to
 		// yield first and flip between refreshes.
@@ -142,7 +142,7 @@ func ListClients(requesterIP string) []Client {
 			fdbPorts = append(fdbPorts, port)
 		}
 		sort.Strings(fdbPorts)
-		cableBlk := cableBlockedSet()
+		cableBlk := cableBlockedFn()
 		seenWired := map[string]bool{}
 		for _, port := range fdbPorts {
 			if wifiPorts[port] {
@@ -266,7 +266,7 @@ func SetGatewaySSHForTest(t testT, fn func(command string) (string, error)) {
 // leasesForClients reads DHCP leases locally; on dumb APs without local
 // dnsmasq it falls back to the gateway's lease file over SSH.
 func leasesForClients() ([]ubus.Lease, string, error) {
-	leases, _ := ubus.ReadLeases("/tmp/dhcp.leases")
+	leases, _ := ubus.ReadLeases(leasesFilePath)
 	if len(leases) > 0 {
 		return leases, "local", nil
 	}
@@ -279,7 +279,7 @@ func leasesForClients() ([]ubus.Lease, string, error) {
 
 // localArp reads this router's neighbor table.
 func localArp() map[string]string {
-	raw, err := os.ReadFile("/proc/net/arp")
+	raw, err := os.ReadFile(arpFilePath)
 	if err != nil {
 		return map[string]string{}
 	}
@@ -820,7 +820,7 @@ func BlockedClients() []BlockedClient {
 
 // cableBlockedSet returns the MACs of wired clients currently blocked by a
 // firewall REJECT rule written by setCableBlocked (netgrip_block_* sections).
-func cableBlockedSet() map[string]bool {
+func cableBlockedSetImpl() map[string]bool {
 	cmdOut, _ := exec.Command("sh", "-c", "uci show firewall | grep 'src_mac='").Output()
 	return parseCableBlocked(string(cmdOut))
 }

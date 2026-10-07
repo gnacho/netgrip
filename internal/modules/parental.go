@@ -139,7 +139,9 @@ func parentalNextToday(t time.Time, r ParentalRule) string {
 // routerLocalNow returns the router's wall-clock time in local time. Go does
 // not understand OpenWrt's busybox /tmp/TZ (time.Now() runs in UTC), so we ask
 // the system (extending routerLocalHour to full date/time + weekday).
-func routerLocalNow() (time.Time, bool) {
+// routerLocalNow is a variable (seam, see clients_seams.go) so tests
+// can pin the router clock without exec'ing date.
+var routerLocalNow = func() (time.Time, bool) {
 	out, err := exec.Command("date", "+%Y %m %d %H %M %w").Output()
 	if err != nil {
 		return time.Now(), false
