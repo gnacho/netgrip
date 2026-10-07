@@ -56,7 +56,7 @@ func sample() {
 			break
 		}
 	}
-	info, _ := ubus.GetSystemInfo()
+	info, _ := ubus.DefaultBackend.SystemInfo()
 	var load float64
 	if info != nil && len(info.Load) > 0 {
 		load = info.Load[0]

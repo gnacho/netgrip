@@ -639,7 +639,7 @@ func (s *Server) handleBoard(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) handleSystem(w http.ResponseWriter, _ *http.Request) {
-	info, err := ubus.GetSystemInfo()
+	info, err := ubus.DefaultBackend.SystemInfo()
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
