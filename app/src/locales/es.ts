@@ -694,6 +694,7 @@ export default {
   banip: {
     stateActive: "Activo",
     stateStopped: "Parado",
+    startingHint: "Arrancando banIP: la primera vez descarga los feeds y puede tardar un minuto. No cierres la página.",
     stateDisabled: "Desactivado",
     stateChecking: "Comprobando…",
     start: "Arrancar",

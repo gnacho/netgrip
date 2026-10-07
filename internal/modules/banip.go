@@ -148,11 +148,20 @@ var banipCache = struct {
 	at           time.Time
 	status       *BanipStatus
 	statusAt     time.Time
+	report       string
+	reportOK     bool
+	reportAt     time.Time
 	revalidating bool
 	gen          uint64
 }{}
 
 const banipCacheTTL = 3 * time.Second
+
+// banipReportTTL bounds how often the probe forks `banip report`, the
+// single expensive command in the batch (~14 s of CPU on mipsle). Report
+// data moves slowly, so the probe may serve a cached copy; every mutation
+// still invalidates it (#460).
+const banipReportTTL = 30 * time.Second
 
 // banipRevalidateAfter is the age at which serving a cached probe also
 // triggers a background refresh. Serving never blocks on age: the probe
@@ -310,6 +319,22 @@ func banipRevalidate(gen uint64) {
 
 // banipInvalidate drops the cached probe and status. Write paths call this
 // (via defer) so the next read recomputes from the router.
+// banipReportCached runs `banip report` at most once per banipReportTTL;
+// mutations clear the entry through banipInvalidate.
+func banipReportCached() (string, bool) {
+	banipCache.Lock()
+	if banipCache.reportAt.IsZero() || time.Since(banipCache.reportAt) >= banipReportTTL {
+		banipCache.Unlock()
+		out, err := exec.Command("/etc/init.d/banip", "report").Output()
+		banipCache.Lock()
+		banipCache.report, banipCache.reportOK = string(out), err == nil
+		banipCache.reportAt = time.Now()
+	}
+	out, ok := banipCache.report, banipCache.reportOK
+	banipCache.Unlock()
+	return out, ok
+}
+
 func banipInvalidate() {
 	banipCache.Lock()
 	banipCache.probe = nil
@@ -826,12 +851,7 @@ func ProbeBanIP() *BanipProbe {
 			statusOut, statusOK = string(out), true
 		}
 	}()
-	go func() {
-		defer wg.Done()
-		if out, err := exec.Command("/etc/init.d/banip", "report").Output(); err == nil {
-			reportOut, reportOK = string(out), true
-		}
-	}()
+	go func() { defer wg.Done(); reportOut, reportOK = banipReportCached() }()
 	go func() { defer wg.Done(); allowlist = banipReadList(banipAllowlistPath) }()
 	go func() { defer wg.Done(); blocklist = banipReadList(banipBlocklistPath) }()
 	go func() { defer wg.Done(); downloadLog = banipDownloadLog() }()
@@ -947,18 +967,22 @@ func banipActionVerify(action string, before *BanipProbe) (*BanipProbe, bool, er
 	case "stop", "disable":
 		want = false
 	}
-	for i := 0; i < 10; i++ {
-		p := ProbeBanIP()
+	// Poll the light status (uci + pidfile, milliseconds) instead of the
+	// full probe: ProbeBanIP forks the ~14 s `banip report` on mipsle, so a
+	// full-probe loop made every action take minutes and could roll back a
+	// healthy first start whose feed download outlasted the window (#460).
+	for i := 0; i < 30; i++ {
+		st := ProbeBanipStatus()
 		if action == "enable" {
-			if p.Enabled && p.Running {
-				return p, false, nil
+			if st.Enabled && st.Running {
+				return ProbeBanIP(), false, nil
 			}
 		} else if action == "disable" {
-			if !p.Enabled && !p.Running {
-				return p, false, nil
+			if !st.Enabled && !st.Running {
+				return ProbeBanIP(), false, nil
 			}
-		} else if p.Running == want {
-			return p, false, nil
+		} else if st.Running == want {
+			return ProbeBanIP(), false, nil
 		}
 		time.Sleep(time.Second)
 	}

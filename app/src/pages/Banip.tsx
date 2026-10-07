@@ -263,6 +263,9 @@ export function BanipPage() {
             <Play size={14} aria-hidden="true" /> {probe.enabled ? t("banip.start") : t("banip.enable")}
           </Button>
         )}
+        {(busy === "enable" || busy === "start") && (
+          <span className="text-caption text-muted">{t("banip.startingHint")}</span>
+        )}
         <Button variant="primary" size="sm" disabled={busy !== null}
           title={t("banip.reloadHint")}
           onClick={() => setConfirmReload(true)}>
