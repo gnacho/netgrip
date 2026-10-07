@@ -181,9 +181,12 @@ func defaultRoute6Devices(table string) []string {
 // 100.64.0.0/10, while happily naming the uplink of a router behind a modem
 // that hands out 192.168.100.x.
 //
-// With no uplink to exclude - a dumb AP, or nothing answering - it falls back
-// to that same private-only rule, which is the safe direction: a name too few
-// costs a browser warning, a name too many is on the wire for two years.
+// The exclusion has a floor, though: on a dumb AP the only default route sits
+// on br-lan itself, so br-lan reads as the uplink and dropping it leaves
+// nothing but loopback - a SAN that names no way in at all. When no
+// administrative address survives the exclusion, fall back to naming private
+// addresses from every interface, the uplink included: that address is the
+// panel's only way in, and on an AP it is a LAN address, not a provider one.
 func sanAddresses(ifaces []ifaceAddrs, uplinks map[string]bool) []net.IP {
 	var out []net.IP
 	for _, ifc := range ifaces {
@@ -198,6 +201,18 @@ func sanAddresses(ifaces []ifaceAddrs, uplinks map[string]bool) []net.IP {
 				continue
 			}
 			out = append(out, ip)
+		}
+	}
+	if len(out) == 0 {
+		// The exclusion (or the absence of any candidate) left nothing to
+		// name. A certificate whose SAN names no reachable address is worse
+		// than one that names the uplink's private one.
+		for _, ifc := range ifaces {
+			for _, ip := range ifc.addrs {
+				if administrativeAddr(ip) && ip.IsPrivate() {
+					out = append(out, ip)
+				}
+			}
 		}
 	}
 	// Loopback last: reaching the panel on 127.0.0.1 is unusual, but the

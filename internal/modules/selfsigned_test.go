@@ -367,6 +367,47 @@ func TestSANExcludesAStandbyUplinkToo(t *testing.T) {
 	}
 }
 
+// A dumb AP has no WAN: its only default route sits on br-lan itself, so the
+// uplink detection names br-lan and the naive exclusion leaves the SAN with
+// nothing but loopback. The one private address on br-lan is the panel's only
+// way in, so it must be named anyway.
+func TestSanNamesTheLANAddressWhenTheUplinkIsTheLANItself(t *testing.T) {
+	ifaces := []ifaceAddrs{{name: "br-lan", addrs: []net.IP{
+		net.ParseIP("192.168.99.1"),
+		net.ParseIP("fe80::1"),
+	}}}
+	got := map[string]bool{}
+	for _, ip := range sanAddresses(ifaces, map[string]bool{"br-lan": true}) {
+		got[ip.String()] = true
+	}
+	if !got["192.168.99.1"] {
+		t.Error("br-lan is the only way into the panel; its address must be in the SAN")
+	}
+	if got["fe80::1"] {
+		t.Error("link-local is never named")
+	}
+}
+
+// An uplink with only public addresses is still excluded when real
+// administrative addresses exist elsewhere: the fallback only fires when
+// nothing else is left.
+func TestSanStillExcludesTheUplinkWhenALANAddressRemains(t *testing.T) {
+	ifaces := []ifaceAddrs{
+		{name: "br-lan", addrs: []net.IP{net.ParseIP("192.168.99.1")}},
+		{name: "wan0", addrs: []net.IP{net.ParseIP("203.0.113.9")}},
+	}
+	got := map[string]bool{}
+	for _, ip := range sanAddresses(ifaces, map[string]bool{"wan0": true}) {
+		got[ip.String()] = true
+	}
+	if !got["192.168.99.1"] {
+		t.Error("the LAN address must be named")
+	}
+	if got["203.0.113.9"] {
+		t.Error("a public uplink address must stay out while a LAN address remains")
+	}
+}
+
 // The routing tables name the uplinks. Fixtures are the real shape of the
 // files, with documentation addresses.
 func TestDefaultRouteDevicesAreFoundInBothTables(t *testing.T) {
