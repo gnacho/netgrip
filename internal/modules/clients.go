@@ -84,7 +84,7 @@ func ListClients(requesterIP string) []Client {
 
 	var clients []Client
 
-	radios, _ := ubus.GetWirelessStatus()
+	radios, _ := ubus.DefaultBackend.WirelessStatus()
 	for _, radio := range radios {
 		typ := "wifi24"
 		if radio.Band == "5g" {

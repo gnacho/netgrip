@@ -292,7 +292,7 @@ func parseCableParental(output string) map[string]bool {
 // device type: wifi goes through the macfilter deny list, cable through a
 // firewall REJECT rule.
 func clientTypeFor(mac string) string {
-	radios, _ := ubus.GetWirelessStatus()
+	radios, _ := ubus.DefaultBackend.WirelessStatus()
 	for _, radio := range radios {
 		for _, iface := range radio.Interfaces {
 			for _, wc := range iface.Clients {
