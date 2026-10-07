@@ -22,6 +22,8 @@ type fakeWirelessBackend struct {
 
 func (f *fakeWirelessBackend) SystemInfo() (*ubus.SystemInfo, error) { return nil, nil }
 
+func (f *fakeWirelessBackend) SystemBoard() (json.RawMessage, error) { return nil, nil }
+
 func (f *fakeWirelessBackend) WanStatus() (*ubus.WanStatus, error) { return nil, nil }
 
 func (f *fakeWirelessBackend) WirelessStatus() ([]ubus.WirelessRadio, error) {

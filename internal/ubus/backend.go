@@ -1,6 +1,9 @@
 package ubus
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 // Backend is the seam between the handlers/modules and the device: the
 // reads they need, expressed as methods, so a test can swap the real ubus
@@ -16,6 +19,10 @@ type Backend interface {
 	// WirelessStatus mirrors `ubus call network.wireless status` merged
 	// with hostapd details (see GetWirelessStatus).
 	WirelessStatus() ([]WirelessRadio, error)
+	// SystemBoard mirrors `ubus call system board`: the raw payload,
+	// passed through untouched because the board JSON varies by device
+	// and the panel only reads a few fields client-side.
+	SystemBoard() (json.RawMessage, error)
 }
 
 // realBackend is the production implementation: the existing package-level
@@ -27,6 +34,8 @@ func (realBackend) SystemInfo() (*SystemInfo, error) { return GetSystemInfo() }
 func (realBackend) WanStatus() (*WanStatus, error) { return GetWanStatus() }
 
 func (realBackend) WirelessStatus() ([]WirelessRadio, error) { return GetWirelessStatus() }
+
+func (realBackend) SystemBoard() (json.RawMessage, error) { return Call("system", "board") }
 
 // DefaultBackend is the package-level backend every read goes through.
 // It defaults to the real device and exists as a variable (not a Server

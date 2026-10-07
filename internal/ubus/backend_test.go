@@ -1,6 +1,9 @@
 package ubus
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 type fakeBackend struct {
 	calls int
@@ -16,6 +19,7 @@ func (f *fakeBackend) SystemInfo() (*SystemInfo, error) {
 func (f *fakeBackend) WanStatus() (*WanStatus, error) { return nil, nil }
 
 func (f *fakeBackend) WirelessStatus() ([]WirelessRadio, error) { return nil, nil }
+func (f *fakeBackend) SystemBoard() (json.RawMessage, error) { return nil, nil }
 
 // SetBackendForTest must swap the backend for the test and restore the real
 // one on cleanup, so suites run in any order.

@@ -30,6 +30,7 @@ func (f *fakeSystemBackend) WanStatus() (*ubus.WanStatus, error) { return nil, n
 func (f *fakeSystemBackend) WirelessStatus() ([]ubus.WirelessRadio, error) {
 	return nil, nil
 }
+func (f *fakeSystemBackend) SystemBoard() (json.RawMessage, error) { return nil, nil }
 
 // GET /api/system behind requireAuth used to need a router: GetSystemInfo
 // forks `ubus call system info`. With the backend swapped for a fake the

@@ -28,6 +28,7 @@ func (f *fakeWanBackend) WanStatus() (*ubus.WanStatus, error) {
 func (f *fakeWanBackend) WirelessStatus() ([]ubus.WirelessRadio, error) {
 	return nil, nil
 }
+func (f *fakeWanBackend) SystemBoard() (json.RawMessage, error) { return nil, nil }
 
 // GET /api/wan behind requireAuth used to need a router: GetWanStatus forks
 // the ubus CLI (and, since #467, the native client). With the backend

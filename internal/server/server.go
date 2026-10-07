@@ -629,7 +629,7 @@ func (s *Server) requireAdvanced(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func (s *Server) handleBoard(w http.ResponseWriter, _ *http.Request) {
-	raw, err := ubus.Call("system", "board")
+	raw, err := ubus.DefaultBackend.SystemBoard()
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
