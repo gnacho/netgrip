@@ -8,13 +8,45 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/gnacho/netgrip/internal/ubusconn"
 )
 
-// Call executes `ubus call <object> <method>` and returns the raw JSON payload.
+// Call executes a ubus call and returns the raw JSON payload. It prefers the
+// native client over the ubus socket (#461: ~3x faster than forking the CLI
+// on mipsle) and falls back to `ubus call` whenever the socket is missing,
+// the object is unknown, or the server answers with a non-zero status, so a
+// regression in the native path can never break a read it used to serve.
+// Set NETGRIP_UBUS_NATIVE=0 to force the CLI path.
 func Call(object, method string) (json.RawMessage, error) {
+	if os.Getenv("NETGRIP_UBUS_NATIVE") != "0" {
+		if out, err := callNative(object, method); err == nil {
+			return out, nil
+		}
+	}
 	out, err := exec.Command("ubus", "call", object, method).Output()
 	if err != nil {
 		return nil, fmt.Errorf("ubus call %s %s: %w", object, method, err)
+	}
+	return json.RawMessage(out), nil
+}
+
+// callNative dials per call: the client is not concurrent-safe, callers are,
+// and a per-call dial still measured ~3 ms on mipsle against ~12 ms for the
+// CLI fork (see docs/ubus-client-spike.md).
+func callNative(object, method string) (json.RawMessage, error) {
+	c, err := ubusconn.Dial("")
+	if err != nil {
+		return nil, err
+	}
+	defer c.Close()
+	res, err := c.Call(object, method, nil)
+	if err != nil {
+		return nil, err
+	}
+	out, err := json.Marshal(res)
+	if err != nil {
+		return nil, err
 	}
 	return json.RawMessage(out), nil
 }
