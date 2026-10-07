@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetGrip - OpenWrt para todos</title>
+  <meta name="description" content="NetGrip es un panel amable y software libre (AGPL) para routers OpenWrt. Toda la potencia de tu router, al alcance de cualquiera.">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F6F7F9">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0E1013">
+  <link rel="canonical" href="https://netgrip.cloudless.club/">
+  <link rel="alternate" hreflang="es" href="https://netgrip.cloudless.club/">
+  <link rel="alternate" hreflang="en" href="https://netgrip.cloudless.club/">
+  <link rel="alternate" hreflang="x-default" href="https://netgrip.cloudless.club/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="NetGrip">
+  <meta property="og:title" content="NetGrip - OpenWrt para todos">
+  <meta property="og:description" content="Un panel amable y software libre (AGPL) para routers OpenWrt. Toda la potencia de tu router, al alcance de cualquiera.">
+  <meta property="og:url" content="https://netgrip.cloudless.club/">
+  <meta property="og:image" content="https://netgrip.cloudless.club/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Panel Overview de NetGrip: salud del router, tráfico en vivo y almacenamiento">
+  <meta property="og:locale" content="es_ES">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="NetGrip - OpenWrt para todos">
+  <meta name="twitter:description" content="Un panel amable y software libre (AGPL) para routers OpenWrt. Toda la potencia de tu router, al alcance de cualquiera.">
+  <meta name="twitter:image" content="https://netgrip.cloudless.club/og.png">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "name": "NetGrip",
+        "url": "https://netgrip.cloudless.club/",
+        "description": "Panel amable y software libre (AGPL) para routers OpenWrt.",
+        "inLanguage": ["es", "en"]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "NetGrip",
+        "applicationCategory": "Utilities",
+        "operatingSystem": "OpenWrt",
+        "url": "https://netgrip.cloudless.club/",
+        "downloadUrl": "https://github.com/gnacho/netgrip/releases",
+        "codeRepository": "https://github.com/gnacho/netgrip",
+        "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+        "description": "Panel companion para routers OpenWrt: VPN, WiFi de invitados, SQM, cortafuegos y más, con textos claros y deshacer en cada cambio.",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "¿Qué añade NetGrip a OpenWrt?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Nada, y ese es el punto: todo lo que ves ya lo puede hacer OpenWrt. NetGrip lo hace entendible, con textos claros, ayudas en cada ajuste y gráficos fáciles de leer." }
+          },
+          {
+            "@type": "Question",
+            "name": "¿NetGrip es gratis?",
+            "acceptedAnswer": { "@type": "Answer", "text": "NetGrip es software libre (AGPL) para siempre: sin planes de pago, sin versión pro y sin funciones capadas." }
+          },
+          {
+            "@type": "Question",
+            "name": "¿NetGrip sustituye a LuCI?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. LuCI sigue ahí, potente y completo. NetGrip es una capa amable encima de OpenWrt para quien no quiere pelearse con formularios técnicos." }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Dónde corre NetGrip?",
+            "acceptedAnswer": { "@type": "Answer", "text": "En tu propio router OpenWrt, sin cuentas ni nube: todo ocurre en tu red." }
+          },
+          {
+            "@type": "Question",
+            "name": "¿La demo puede romper algo?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. La demo usa datos de ejemplo y nada se aplica de verdad." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <script>
+    /* Anti-FOUC: aplica el tema antes de pintar */
+    (function () {
+      try {
+        var t = localStorage.getItem("netgrip-web-theme");
+        if (t !== "light" && t !== "dark") {
+          t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.setAttribute("data-theme", t);
+      } catch (e) { /* sin localStorage: tema por defecto del HTML */ }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=11">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232E6BE6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12a8 8 0 0 1 16 0'/%3E%3Cpath d='M7.5 12a4.5 4.5 0 0 1 9 0'/%3E%3Ccircle cx='12' cy='13' r='1.6' fill='%232E6BE6' stroke='none'/%3E%3Cpath d='M12 15v5'/%3E%3Cpath d='M9 20h6'/%3E%3C/svg%3E">
+</head>
+<body>
+  <!-- Fondo dinámico: blobs aurora + rejilla + ruido -->
+  <div class="bg" aria-hidden="true">
+    <div class="bg-blob bg-blob--accent"></div>
+    <div class="bg-blob bg-blob--teal"></div>
+    <div class="bg-blob bg-blob--violet"></div>
+    <div class="bg-grid"></div>
+    <div class="bg-noise"></div>
+  </div>
+
+  <a class="skip-link" href="#main" data-i18n="a11y.skip">Saltar al contenido</a>
+
+  <!-- ============ 1. NAV ============ -->
+  <header class="header" id="header">
+    <div class="container header-inner">
+      <a class="brand" href="#top" aria-label="NetGrip - inicio">
+        <svg class="brand-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 12a8 8 0 0 1 16 0"/><path d="M7.5 12a4.5 4.5 0 0 1 9 0"/><circle cx="12" cy="13" r="1.4" fill="currentColor" stroke="none"/><path d="M12 15v5"/><path d="M9 20h6"/>
+        </svg>
+        <span class="brand-name">NetGrip</span>
+        <span class="brand-badge">AGPL</span>
+      </a>
+
+      <nav class="nav" id="nav" aria-label="Principal">
+        <a class="nav-link" href="#funciones" data-i18n="nav.features">Funcionalidades</a>
+        <a class="nav-link" href="#que-es" data-i18n="nav.what">Qué es</a>
+        <a class="nav-link" href="#capturas" data-i18n="nav.shots">Capturas</a>
+        <a class="nav-link" href="#comunidad" data-i18n="nav.community">Comunidad</a>
+        <div class="nav-mobile-actions">
+          <a class="btn btn--outline btn--sm" href="https://github.com/gnacho/netgrip" data-url="repo" target="_blank" rel="noopener">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+            <span data-i18n="nav.github">GitHub</span>
+          </a>
+          <a class="btn btn--outline btn--sm nav-star" href="https://github.com/gnacho/netgrip/stargazers" target="_blank" rel="noopener" aria-label="Dale una estrella a NetGrip en GitHub" data-i18n-aria="a11y.star">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span data-i18n="nav.star">Star</span><span class="star-count" data-n hidden></span>
+          </a>
+          <a class="btn btn--primary btn--sm" href="https://demo.netgrip.cloudless.club/?demo=1" data-url="demo" target="_blank" rel="noopener" data-i18n="nav.demo">Demo</a>
+        </div>
+      </nav>
+
+      <div class="header-actions">
+        <div class="lang-pill" role="group" aria-label="Idioma / Language">
+          <button class="lang-btn is-active" id="lang-es" data-lang="es" aria-label="Español">ES</button>
+          <button class="lang-btn" id="lang-en" data-lang="en" aria-label="English">EN</button>
+        </div>
+        <button class="theme-toggle" id="theme-toggle" aria-label="Cambiar tema" data-i18n-aria="a11y.theme">
+          <span class="sunmoon" aria-hidden="true">
+            <span class="sunmoon-disc"></span>
+            <span class="sunmoon-ray" style="--shine-id:1"></span>
+            <span class="sunmoon-ray" style="--shine-id:2"></span>
+            <span class="sunmoon-ray" style="--shine-id:3"></span>
+            <span class="sunmoon-ray" style="--shine-id:4"></span>
+            <span class="sunmoon-ray" style="--shine-id:5"></span>
+            <span class="sunmoon-ray" style="--shine-id:6"></span>
+            <span class="sunmoon-ray" style="--shine-id:7"></span>
+            <span class="sunmoon-ray" style="--shine-id:8"></span>
+            <span class="sunmoon-ray" style="--shine-id:9"></span>
+            <span class="sunmoon-ray" style="--shine-id:10"></span>
+            <span class="sunmoon-ray" style="--shine-id:11"></span>
+            <span class="sunmoon-ray" style="--shine-id:12"></span>
+          </span>
+        </button>
+        <a class="btn btn--outline btn--sm nav-github" href="https://github.com/gnacho/netgrip" data-url="repo" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+          <span data-i18n="nav.github">GitHub</span>
+        </a>
+        <a class="btn btn--outline btn--sm nav-star" id="navStar" href="https://github.com/gnacho/netgrip/stargazers" target="_blank" rel="noopener" aria-label="Dale una estrella a NetGrip en GitHub" data-i18n-aria="a11y.star">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span data-i18n="nav.star">Star</span><span class="star-count" data-n hidden></span>
+        </a>
+        <a class="btn btn--primary btn--sm nav-demo" href="https://demo.netgrip.cloudless.club/?demo=1" data-url="demo" target="_blank" rel="noopener" data-i18n="nav.demo">Demo</a>
+        <button class="hamburger" id="hamburger" aria-label="Abrir menú" aria-expanded="false" aria-controls="nav" data-i18n-aria="a11y.menu">
+          <svg class="icon-menu" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="20" y1="7" y2="7"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="17" y2="17"/></svg>
+          <svg class="icon-close" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ============ 2. HERO ============ -->
+    <section class="hero" id="top">
+      <div class="container hero-inner">
+        <p class="eyebrow reveal" data-i18n="hero.eyebrow">Software libre · AGPL · Hecho por la comunidad</p>
+        <h1 class="hero-title reveal" data-i18n="hero.title">OpenWrt para todos.</h1>
+        <p class="hero-sub reveal" data-i18n="hero.sub">Tu router con OpenWrt puede hacer de todo: VPN, WiFi de invitados, priorizar videollamadas… NetGrip lo convierte en algo que cualquiera de casa puede usar: sin manuales, sin miedo a romper nada.</p>
+        <div class="hero-ctas reveal">
+          <a class="btn btn--primary btn--lg" href="https://demo.netgrip.cloudless.club/?demo=1" data-url="demo" target="_blank" rel="noopener">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.54.84l12-7.5a1 1 0 0 0 0-1.68l-12-7.5A1 1 0 0 0 7 4.5Z"/></svg>
+            <span data-i18n="hero.ctaDemo">Probar la demo</span>
+          </a>
+          <a class="btn btn--outline btn--lg" href="https://github.com/gnacho/netgrip" data-url="repo" target="_blank" rel="noopener">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+            <span data-i18n="hero.ctaGithub">Ver en GitHub</span>
+          </a>
+        </div>
+        <p class="hero-micro reveal" data-i18n="hero.micro">La demo es de juguete: datos de ejemplo, nada se aplica de verdad.</p>
+
+        <div class="hero-visual reveal">
+          <div class="hero-halo" aria-hidden="true"></div>
+          <figure class="browser">
+            <div class="browser-bar" aria-hidden="true">
+              <span class="browser-dot browser-dot--r"></span>
+              <span class="browser-dot browser-dot--y"></span>
+              <span class="browser-dot browser-dot--g"></span>
+              <span class="browser-url">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                http://192.168.8.1
+              </span>
+            </div>
+            <img id="hero-shot" src="assets/shot-overview-light.webp" tabindex="0" width="1440" height="900" alt="Panel Overview de NetGrip en modo claro: salud del router, tráfico en vivo y CPU por núcleos" data-i18n-alt="hero.shotAlt" fetchpriority="high">
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 3. STRIP DE PRINCIPIOS ============ -->
+    <section class="strip">
+      <div class="container strip-grid">
+        <div class="strip-item reveal">
+          <span class="tile tile--blue">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>
+          </span>
+          <div>
+            <p class="strip-title" data-i18n="strip.gpl.t">100% libre (AGPL)</p>
+            <p class="strip-desc" data-i18n="strip.gpl.d">Para siempre. Sin versión «pro».</p>
+          </div>
+        </div>
+        <div class="strip-item reveal">
+          <span class="tile tile--teal">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </span>
+          <div>
+            <p class="strip-title" data-i18n="strip.local.t">Sin cuentas ni nube</p>
+            <p class="strip-desc" data-i18n="strip.local.d">Todo ocurre en tu router, en tu red.</p>
+          </div>
+        </div>
+        <div class="strip-item reveal">
+          <span class="tile tile--violet">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"/></svg>
+          </span>
+          <div>
+            <p class="strip-title" data-i18n="strip.zero.t">Cero funciones nuevas</p>
+            <p class="strip-desc" data-i18n="strip.zero.d">Solo una interfaz amable sobre OpenWrt.</p>
+          </div>
+        </div>
+        <div class="strip-item reveal">
+          <span class="tile tile--green">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </span>
+          <div>
+            <p class="strip-title" data-i18n="strip.community.t">Community-driven</p>
+            <p class="strip-desc" data-i18n="strip.community.d">Las prioridades las marca la comunidad.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 4. QUÉ ES ============ -->
+    <section class="section" id="que-es">
+      <div class="container what-grid">
+        <div class="what-text reveal">
+          <p class="eyebrow" data-i18n="what.eyebrow">Qué es</p>
+          <h2 class="section-title" data-i18n="what.title">Toda la potencia de OpenWrt, sin la curva de aprendizaje.</h2>
+          <p class="section-p" data-i18n="what.p1">OpenWrt es increíblemente capaz: VPN, cortafuegos, priorización de tráfico, redes separadas… está todo ahí dentro.</p>
+          <p class="section-p" data-i18n="what.p2">Sus herramientas clásicas, como LuCI, son potentes y completas, pero están pensadas para gente técnica. NetGrip es una capa amable encima: las mismas funciones, el mismo router, explicadas en tu idioma.</p>
+          <div class="what-netpulse reveal">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <span data-i18n="what.netpulse">También hace de agente de <a href="https://netpulse.cloudless.club" target="_blank" rel="noopener">NetPulse</a>: el mismo router reporta métricas, eventos WiFi y clientes sin instalar nada más.</span>
+          </div>
+          <div class="what-list">
+            <p class="what-list-title" data-i18n="what.listTitle">Amable =</p>
+            <ul>
+              <li class="reveal"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="what.li1">Ayudas contextuales en cada ajuste</span></li>
+              <li class="reveal"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="what.li2">Confirmaciones con deshacer</span></li>
+              <li class="reveal"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="what.li3">Gráficos en vez de tablas</span></li>
+              <li class="reveal"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="what.li4">Asistente de primer arranque</span></li>
+            </ul>
+          </div>
+        </div>
+        <aside class="card card--accent what-card reveal">
+          <span class="tile tile--accent">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          </span>
+          <h3 class="what-card-title" data-i18n="what.cardTitle">¿Qué añade NetGrip? Nada. Y eso es lo bueno.</h3>
+          <p class="what-card-text" data-i18n="what.cardText">No inventa funciones: todo lo que ves ya lo puede hacer OpenWrt. NetGrip solo lo hace entendible: textos claros, ayudas en cada ajuste y gráficos que se entienden de un vistazo.</p>
+          <p class="what-card-text" data-i18n="what.footprint">Ligero de verdad: unos 10 MB en disco y ~15 MB de RAM en uso, medidos en un router ARM64.</p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ============ 5. FUNCIONALIDADES ============ -->
+    <section class="section" id="funciones">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow" data-i18n="feat.eyebrow">Funcionalidades</p>
+          <h2 class="section-title" data-i18n="feat.title">Todo lo que tu router ya hace, en amable.</h2>
+        </div>
+        <div class="feat-grid">
+          <article class="card feat-card reveal">
+            <span class="tile tile--teal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></svg></span>
+            <h3 data-i18n="feat.f1.t">WiFi sin líos</h3>
+            <p data-i18n="feat.f1.d">Redes de invitados e IoT con dos toques, QR incluido.</p>
+          </article>
+          <article class="card feat-card reveal">
+            <span class="tile tile--violet"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></span>
+            <h3 data-i18n="feat.f2.t">VPN con WireGuard</h3>
+            <p data-i18n="feat.f2.d">Entra a tu casa desde fuera escaneando un código QR.</p>
+          </article>
+          <article class="card feat-card reveal">
+            <span class="tile tile--blue"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+            <h3 data-i18n="feat.f3.t">Quién usa tu red</h3>
+            <p data-i18n="feat.f3.d">Dispositivos, consumo y tráfico en vivo, con gráficos.</p>
+          </article>
+          <article class="card feat-card reveal">
+            <span class="tile tile--green"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></span>
+            <h3 data-i18n="feat.f4.t">Cortafuegos visual</h3>
+            <p data-i18n="feat.f4.d">Zonas y reglas explicadas con un diagrama, no con tablas.</p>
+          </article>
+          <article class="card feat-card reveal">
+            <span class="tile tile--teal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+            <h3 data-i18n="feat.f5.t">Adiós al lag (SQM)</h3>
+            <p data-i18n="feat.f5.d">Videollamadas fluidas aunque alguien suba 200 fotos.</p>
+          </article>
+          <article class="card feat-card reveal">
+            <span class="tile tile--violet"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span>
+            <h3 data-i18n="feat.f6.t">Un nombre para tu casa (DDNS)</h3>
+            <p data-i18n="feat.f6.d">Acceso remoto sin pelearte con IPs que cambian.</p>
+          </article>
+          <article class="card feat-card reveal">
+            <span class="tile tile--blue"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg></span>
+            <h3 data-i18n="feat.f7.t">Copias y plantillas</h3>
+            <p data-i18n="feat.f7.d">Snapshots antes de tocar nada, y plantillas listas para usar.</p>
+          </article>
+          <article class="card feat-card reveal">
+            <span class="tile tile--green"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg></span>
+            <h3 data-i18n="feat.f8.t">Toda la red con NetPulse</h3>
+            <p data-i18n="feat.f8.d">¿Varios routers? Nuestra app hermana los gestiona en conjunto.</p>
+          </article>
+          <article class="card feat-card reveal">
+            <span class="tile tile--teal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg></span>
+            <h3 data-i18n="feat.f9.t">VLANs y puertos</h3>
+            <p data-i18n="feat.f9.d">Redes por cable separadas, con los puertos reales de tu placa y la de acceso protegida.</p>
+          </article>
+          <article class="card feat-card reveal">
+            <span class="tile tile--violet"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg></span>
+            <h3 data-i18n="feat.f10.t">CPU núcleo a núcleo</h3>
+            <p data-i18n="feat.f10.d">El promedio engaña: mira el núcleo más cargado y los paquetes que se pierden.</p>
+          </article>
+          <article class="card feat-card reveal">
+            <span class="tile tile--blue"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/></svg></span>
+            <h3 data-i18n="feat.f11.t">Diagnóstico que explica</h3>
+            <p data-i18n="feat.f11.d">Ping, traceroute y DNS con resultados legibles, y un autochequeo que dice el porqué.</p>
+          </article>
+          <article class="card feat-card reveal">
+            <span class="tile tile--green"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg></span>
+            <h3 data-i18n="feat.f12.t">Qué tienes abierto a internet</h3>
+            <p data-i18n="feat.f12.d">Todo lo visible desde fuera, forwards y listeners incluidos; lo creado fuera, en solo lectura.</p>
+          </article>
+          <article class="card feat-card reveal">
+            <span class="tile tile--accent"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M4.93 19.07a10 10 0 0 1 0-14.14"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></span>
+            <h3 data-i18n="feat.f13.t">Home Assistant y MQTT</h3>
+            <p data-i18n="feat.f13.d">El router se descubre solo en Home Assistant: sensores de estado y tráfico, interruptores que actúan (WiFi de invitados, banIP, IPv6, SQM) y botón de reinicio. Desactivado por defecto.</p>
+          </article>
+          <article class="card feat-card reveal">
+            <span class="tile tile--blue"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m14.5 9.5-5 5"/><path d="m9.5 9.5 5 5"/></svg></span>
+            <h3 data-i18n="feat.f14.t">Protección y baneo de IPs</h3>
+            <p data-i18n="feat.f14.d">banIP integrado: feeds de listas negras, listas locales y un monitor que bloquea lo que insiste, con aviso cuando la RAM aprieta.</p>
+          </article>
+          <article class="card feat-card reveal">
+            <span class="tile tile--accent"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m7 11 2-2-2-2"/><path d="M11 13h4"/></svg></span>
+            <h3 data-i18n="feat.f15.t">Tu router, hablando con asistentes de IA</h3>
+            <p data-i18n="feat.f15.d">Endpoint MCP con 10 herramientas de solo lectura (estado, clientes, WiFi, WAN, SNMP) para que un asistente lea tu router en nuestro vocabulario. Desactivado por defecto, con token propio.</p>
+          </article>
+          <article class="card feat-card reveal">
+            <span class="tile tile--teal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg></span>
+            <h3 data-i18n="feat.f16.t">Modo avanzado opt-in</h3>
+            <p data-i18n="feat.f16.d">VLANs, SNMP, storm control y ACLs de MAC tras un check en Ajustes: potencia real fuera de vista hasta que la pides, y un menú que solo muestra lo que tu equipo tiene.</p>
+          </article>
+          <article class="card feat-card reveal">
+            <span class="tile tile--violet"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+            <h3 data-i18n="feat.f17.t">WiFi que se ajusta solo</h3>
+            <p data-i18n="feat.f17.d">Canal recomendado a partir de la utilización real del aire, aplicable en un clic, y horarios semanales por red: la de invitados, fuera de madrugada.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 6. CAPTURAS ============ -->
+    <section class="section" id="capturas">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow eyebrow--teal" data-i18n="shots.eyebrow">Capturas</p>
+          <h2 class="section-title" data-i18n="shots.title">Se ve tan bien como funciona.</h2>
+        </div>
+        <div class="shots-grid">
+          <figure class="shot shot--big reveal">
+            <div class="browser browser--flat">
+              <div class="browser-bar" aria-hidden="true">
+                <span class="browser-dot browser-dot--r"></span><span class="browser-dot browser-dot--y"></span><span class="browser-dot browser-dot--g"></span>
+                <span class="browser-url">http://192.168.8.1/#/ports</span>
+              </div>
+              <img src="assets/shot-ports-light.webp" tabindex="0" width="1440" height="900" loading="lazy" alt="Pantalla de puertos de NetGrip: tabla de VLANs por puerto con etiquetado U/T, estadísticas y LAG" data-i18n-alt="shots.alt1">
+            </div>
+            <figcaption data-i18n="shots.cap1">VLANs por puerto con su matriz de etiquetado, estadísticas y agregación LAG.</figcaption>
+          </figure>
+          <figure class="shot reveal">
+            <div class="browser browser--flat">
+              <div class="browser-bar" aria-hidden="true">
+                <span class="browser-dot browser-dot--r"></span><span class="browser-dot browser-dot--y"></span><span class="browser-dot browser-dot--g"></span>
+                <span class="browser-url">http://192.168.8.1/#/services</span>
+              </div>
+              <img src="assets/shot-services-light.webp" tabindex="0" width="1440" height="900" loading="lazy" alt="Pantalla de servicios de NetGrip: bloqueo de anuncios, cortafuegos visual, DDNS y consumo por dispositivo" data-i18n-alt="shots.alt2">
+            </div>
+            <figcaption data-i18n="shots.cap2">Bloqueo de anuncios, cortafuegos visual, DDNS y uso por dispositivo: cada servicio en su tarjeta.</figcaption>
+          </figure>
+          <figure class="shot reveal">
+            <div class="browser browser--flat">
+              <div class="browser-bar" aria-hidden="true">
+                <span class="browser-dot browser-dot--r"></span><span class="browser-dot browser-dot--y"></span><span class="browser-dot browser-dot--g"></span>
+                <span class="browser-url">http://192.168.8.1/#/wifi</span>
+              </div>
+              <img src="assets/shot-wifi-light.webp" tabindex="0" width="1440" height="900" loading="lazy" alt="Pantalla de WiFi de NetGrip con redes de invitados e IoT y códigos QR" data-i18n-alt="shots.alt3">
+            </div>
+            <figcaption data-i18n="shots.cap3">WiFi de invitados e IoT con QR listo para compartir.</figcaption>
+          </figure>
+          <figure class="shot reveal">
+            <div class="browser browser--flat">
+              <div class="browser-bar" aria-hidden="true">
+                <span class="browser-dot browser-dot--r"></span><span class="browser-dot browser-dot--y"></span><span class="browser-dot browser-dot--g"></span>
+                <span class="browser-url">http://192.168.8.1/#/diagnostics</span>
+              </div>
+              <img src="assets/shot-diagnostics-light.webp" tabindex="0" width="1440" height="900" loading="lazy" alt="Pantalla de diagnóstico de NetGrip con autochequeo explicado y herramientas ping, traceroute, DNS y puerto" data-i18n-alt="shots.alt4">
+            </div>
+            <figcaption data-i18n="shots.cap4">Autodiagnóstico que dice qué falla y por qué, más ping, traceroute, DNS y puertos.</figcaption>
+          </figure>
+          <figure class="shot reveal">
+            <div class="browser browser--flat browser--dark">
+              <div class="browser-bar" aria-hidden="true">
+                <span class="browser-dot browser-dot--r"></span><span class="browser-dot browser-dot--y"></span><span class="browser-dot browser-dot--g"></span>
+                <span class="browser-url">http://192.168.8.1/#/overview</span>
+              </div>
+              <img src="assets/shot-overview-dark.webp" tabindex="0" width="1440" height="900" loading="lazy" alt="Panel Overview de NetGrip en modo oscuro con gráficos de tráfico" data-i18n-alt="shots.alt5">
+            </div>
+            <figcaption data-i18n="shots.cap5">El modo oscuro también es cosa seria.</figcaption>
+          </figure>
+        </div>
+        <p class="shots-note reveal" data-i18n="shots.note">Capturas reales del modo demo.</p>
+      </div>
+    </section>
+
+    <!-- ============ 7. COMUNIDAD ============ -->
+    <section class="section section--community" id="comunidad">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow eyebrow--teal" data-i18n="comm.eyebrow">Comunidad</p>
+          <h2 class="section-title" data-i18n="comm.title">Libre hoy, libre siempre.</h2>
+          <p class="section-p section-p--center" data-i18n="comm.p">NetGrip es AGPL y lo seguirá siendo: sin planes de pago, sin funciones capadas, sin sorpresas. El rumbo lo decide la comunidad en GitHub: issues, ideas, traducciones y código.</p>
+        </div>
+        <div class="comm-grid">
+          <article class="card comm-card reveal">
+            <span class="tile tile--teal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/></svg></span>
+            <h3 data-i18n="comm.c1.t">Reporta o pide</h3>
+            <p data-i18n="comm.c1.d">Abre un issue con ese fallo que te persigue o la función que echas de menos.</p>
+          </article>
+          <article class="card comm-card reveal">
+            <span class="tile tile--violet"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg></span>
+            <h3 data-i18n="comm.c2.t">Traduce</h3>
+            <p data-i18n="comm.c2.d">NetGrip ya habla español e inglés. Añade tu idioma y ayuda a más gente.</p>
+          </article>
+          <article class="card comm-card reveal">
+            <span class="tile tile--blue"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></span>
+            <h3 data-i18n="comm.c3.t">Programa</h3>
+            <p data-i18n="comm.c3.d">React en el front, Go en el router. Los PRs son bienvenidos, grandes o pequeños.</p>
+          </article>
+        </div>
+        <div class="comm-actions reveal">
+          <a class="btn btn--primary btn--lg" href="https://github.com/gnacho/netgrip" data-url="repo" target="_blank" rel="noopener">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+            <span data-i18n="comm.github">Échale un ojo en GitHub</span>
+          </a>
+          <p class="comm-netpulse" data-i18n="comm.netpulse">¿Tienes varios routers? <a href="https://netpulse.cloudless.club" target="_blank" rel="noopener">NetPulse</a>, nuestra app hermana, los gestiona en conjunto.</p>
+          <p class="comm-netpulse" data-i18n="comm.star">¿Te sirve NetGrip? <a href="https://github.com/gnacho/netgrip/stargazers" target="_blank" rel="noopener">Una estrella en GitHub</a> ayuda mucho y no cuesta nada.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 8. CTA FINAL ============ -->
+    <section class="section cta-final">
+      <div class="container cta-inner reveal">
+        <h2 class="cta-title" data-i18n="cta.title">¿Le das una vuelta?</h2>
+        <div class="hero-ctas">
+          <a class="btn btn--primary btn--lg" href="https://demo.netgrip.cloudless.club/?demo=1" data-url="demo" target="_blank" rel="noopener">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.54.84l12-7.5a1 1 0 0 0 0-1.68l-12-7.5A1 1 0 0 0 7 4.5Z"/></svg>
+            <span data-i18n="cta.demo">Probar la demo</span>
+          </a>
+          <a class="btn btn--outline btn--lg" href="https://github.com/gnacho/netgrip" data-url="repo" target="_blank" rel="noopener">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+            <span data-i18n="cta.github">Ver en GitHub</span>
+          </a>
+        </div>
+        <p class="hero-micro" data-i18n="cta.micro">5 minutos en la demo, sin instalar nada.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ 9. FOOTER ============ -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <a class="brand" href="#top" aria-label="NetGrip - inicio">
+          <svg class="brand-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M7.5 12a4.5 4.5 0 0 1 9 0"/><circle cx="12" cy="13" r="1.4" fill="currentColor" stroke="none"/><path d="M12 15v5"/><path d="M9 20h6"/></svg>
+          <span class="brand-name">NetGrip</span>
+          <span class="brand-badge">AGPL</span>
+        </a>
+        <p class="footer-tag" data-i18n="footer.tag">NetGrip es software libre (AGPL) hecho por su comunidad.</p>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="https://github.com/gnacho/netgrip" data-url="repo" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://netpulse.cloudless.club" data-url="netpulse" target="_blank" rel="noopener">NetPulse</a>
+        <a href="https://openwrt.org" target="_blank" rel="noopener">OpenWrt.org</a>
+        <a href="https://demo.netgrip.cloudless.club/?demo=1" data-url="demo" target="_blank" rel="noopener">Demo</a>
+      </nav>
+    </div>
+    <div class="container footer-small">
+      <p data-i18n="footer.disclaimer">OpenWrt es una marca de su proyecto; NetGrip no está afiliado oficialmente.</p>
+    </div>
+  </footer>
+
+  <!-- ============ LIGHTBOX (capturas a tamano real) ============ -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Imagen ampliada" data-i18n-aria="a11y.lightbox" hidden>
+    <div class="lightbox-backdrop" id="lightbox-backdrop"></div>
+    <button class="lightbox-close" id="lightbox-close" aria-label="Cerrar" data-i18n-aria="a11y.close">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+    </button>
+    <button class="lightbox-nav lightbox-prev" id="lightbox-prev" aria-label="Captura anterior" data-i18n-aria="a11y.prev">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+    </button>
+    <figure class="lightbox-figure">
+      <img id="lightbox-img" src="" alt="">
+      <figcaption id="lightbox-caption"></figcaption>
+    </figure>
+    <button class="lightbox-nav lightbox-next" id="lightbox-next" aria-label="Captura siguiente" data-i18n-aria="a11y.next">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+    </button>
+  </div>
+
+  <script data-goatcounter="https://stats.netgrip.cloudless.club/count" async src="https://stats.netgrip.cloudless.club/count.js"></script>
+  <script defer src="https://stat.domatix.com/script.js" data-website-id="bdd62a39-252f-4c9e-886b-4804ce9873d9"></script>
+  <script src="app.js?v=11"></script>
+</body>
+</html>

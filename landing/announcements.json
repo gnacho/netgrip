@@ -1,0 +1,30 @@
+{
+  "announcements": [
+    {
+      "id": "v07232-2026-10",
+      "urgency": "info",
+      "title": { "es": "Novedades de la v0.72.32", "en": "What's new in v0.72.32" },
+      "body": {
+        "es": "Novedades de la v0.72.32: endpoint MCP para asistentes de IA (10 herramientas de solo lectura, desactivado por defecto), modo avanzado opt-in (VLANs, SNMP, storm control, MAC ACL), recomendación de canal WiFi con datos RF reales, horarios semanales por SSID, menú agrupado por áreas según tu equipo y lecturas por socket ubus nativo, más rápidas. Corregido: el auto-actualizador ya refresca el init script al reiniciar.",
+        "en": "v0.72.32 highlights: an MCP endpoint for AI assistants (10 read-only tools, off by default), opt-in advanced mode (VLANs, SNMP, storm control, MAC ACLs), Wi-Fi channel recommendation from real RF data, weekly per-SSID schedules, a menu grouped by what your device has, and faster reads over the native ubus socket. Fixed: the self-updater now refreshes the init script on restart."
+      },
+      "url": "https://github.com/gnacho/netgrip/releases/tag/v0.72.32",
+      "urlLabel": { "es": "Ver la release", "en": "See the release" },
+      "starts": "2026-10-07",
+      "expires": "2026-12-31"
+    },
+    {
+      "id": "test-canal-2026-09",
+      "urgency": "info",
+      "title": { "es": "Canal de anuncios en pruebas", "en": "Announcement channel in testing" },
+      "body": {
+        "es": "Si ves esto, tu instalación recibe anuncios desde netgrip.cloudless.club.",
+        "en": "If you see this, your install receives announcements from netgrip.cloudless.club."
+      },
+      "url": "https://github.com/gnacho/netgrip",
+      "urlLabel": { "es": "Ver el repo", "en": "See the repo" },
+      "starts": "2026-09-21",
+      "expires": "2026-09-22"
+    }
+  ]
+}
