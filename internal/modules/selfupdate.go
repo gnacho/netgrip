@@ -301,6 +301,10 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 		"✅ NetGrip\nSelf-update applied - restarting",
 		true)
 
+	// Refresh the init script (best effort) before restarting, so the new
+	// binary is also launched by the current script (#433).
+	syncInitScript(currentVersion)
+
 	setUpdateStatus("restarting", 100, "")
 	exec.Command("/etc/init.d/netgrip", "restart").Start()
 }
