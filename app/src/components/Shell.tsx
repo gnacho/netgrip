@@ -165,8 +165,12 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   // Los grupos de área se gobiernan por rol (#447) y hardware: las páginas
   // de gateway exigen role=router, las de WiFi exigen radios y la de Switch
   // exige bocas ethernet. Hasta que llega el probe el nav se queda permisivo.
+  // Matriz de roles (#484): gateway ve todo; ap ve bocas LAN + radios;
+  // switch solo bocas LAN + opciones de switch: sin Servicios ni Consumo
+  // (DNS blocker, VPN, QoS... nada de eso aplica a un L2 puro).
   const role = mode?.role ?? (mode?.mode === "ap" ? "ap" : "router");
   const isRouter = role === "router";
+  const isSwitch = role === "switch";
   const hasWifiRadios = mode?.has_wifi ?? true;
   const hasSwitchPorts = (mode?.port_count ?? 1) > 0;
   // Cobertura inalámbrica: solo si usteer reporta varios routers activos.
@@ -182,6 +186,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     if (id === "storage" && !storage?.applicable) return false;
     if (id === "coverage" && !usteerMultiRouter) return false;
     if ((id === "adv-network" || id === "adv-switch") && !advanced) return false;
+    if ((id === "services" || id === "usage") && isSwitch) return false;
     return true;
   };
   const activePage = NAV_GROUPS.some((g) => g.items.includes(page)) && visible(page) ? page : "overview";
@@ -193,13 +198,18 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
 
   const navList = (compact: boolean, onPick?: () => void) => (
     <div className="flex flex-col gap-0.5">
-      {NAV_GROUPS.map((g, gi) => (
+      {NAV_GROUPS.map((g, gi) => {
+        const items = g.items.filter(visible);
+        // Grupo vacío tras el filtro por rol (p.ej. Router en un AP, o
+        // WiFi y Servicios en un switch): no se pinta la cabecera suelta.
+        if (items.length === 0) return null;
+        return (
         <div key={g.group ?? "top"} className={gi > 0 ? "mt-4" : ""}>
           {g.group && !compact && (
             <p className="text-eyebrow text-faint px-2.5 mb-1">{t(g.group)}</p>
           )}
           {g.group && compact && gi > 0 && <div className="mx-2 my-2 border-t border-border" aria-hidden="true" />}
-          {g.items.filter(visible).map((id) => {
+          {items.map((id) => {
             const Icon = NAV_ICONS[id];
             const active = activePage === id;
             return (
@@ -226,15 +236,18 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
             );
           })}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 
-  // Bottom bar móvil §7.4: los 3–4 destinos más usados del modo actual + Menú.
+  // Bottom bar móvil §7.4: los 3-4 destinos más usados del modo actual + Menú.
   const bottomItems: Page[] = (
-    !isRouter
+    isSwitch
       ? (["overview", "ports", "tools"] as Page[])
-      : (["overview", "wifi", "services", "tools"] as Page[])
+      : !isRouter
+        ? (["overview", "wifi", "ports", "tools"] as Page[])
+        : (["overview", "wifi", "services", "tools"] as Page[])
   ).filter(visible);
 
   const demo = isDemo();
