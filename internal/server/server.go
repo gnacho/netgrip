@@ -228,6 +228,11 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("GET /api/vlans", s.requireAdvanced(s.handleVLANsGet))
 	s.mux.HandleFunc("POST /api/vlans", s.requireAdvanced(s.handleVLANsSet))
 	s.mux.HandleFunc("DELETE /api/vlans", s.requireAdvanced(s.handleVLANsDelete))
+	s.mux.HandleFunc("GET /api/stp", s.requireAdvanced(s.handleSTPGet))
+	s.mux.HandleFunc("POST /api/stp/bridge", s.requireAdvanced(s.handleSTPBridgeSet))
+	s.mux.HandleFunc("POST /api/stp/port", s.requireAdvanced(s.handleSTPPortSet))
+	s.mux.HandleFunc("GET /api/physports", s.requireAuth(s.handlePhysPortsGet))
+	s.mux.HandleFunc("POST /api/physports/port", s.requireAdvanced(s.handlePhysPortSet))
 	s.mux.HandleFunc("GET /api/lag", s.requireAuth(s.handleLAGGet))
 	s.mux.HandleFunc("POST /api/lag", s.requireAuth(s.handleLAGSet))
 	s.mux.HandleFunc("DELETE /api/lag", s.requireAuth(s.handleLAGDelete))
@@ -2301,6 +2306,56 @@ func (s *Server) handleVLANsDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	probe, rolledBack, err := modules.DeleteVLAN(req.VID)
 	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleSTPGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeSTP())
+}
+
+// Los setters STP validan antes de escribir; lo que llega aqui es un error
+// de validacion o del kernel, y en ambos casos el mensaje limpio sale como
+// 400: es un fallo del trabajo pedido, no del panel.
+func (s *Server) handleSTPBridgeSet(w http.ResponseWriter, r *http.Request) {
+	var edit modules.STPBridgeEdit
+	if err := json.NewDecoder(r.Body).Decode(&edit); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := modules.SetSTPBridge(edit); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "applied"})
+}
+
+func (s *Server) handleSTPPortSet(w http.ResponseWriter, r *http.Request) {
+	var edit modules.STPPortEdit
+	if err := json.NewDecoder(r.Body).Decode(&edit); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := modules.SetSTPPort(edit); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "applied"})
+}
+
+func (s *Server) handlePhysPortsGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbePhysPorts())
+}
+
+func (s *Server) handlePhysPortSet(w http.ResponseWriter, r *http.Request) {
+	var edit modules.PhysPortEdit
+	if err := json.NewDecoder(r.Body).Decode(&edit); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := modules.SetPhysPort(edit); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "applied"})
 }
 
 func (s *Server) handleLAGGet(w http.ResponseWriter, _ *http.Request) {

@@ -967,6 +967,107 @@ export interface SwitchPortEdit {
   description?: string;
 }
 
+export interface STPBridge {
+  enabled: boolean;
+  priority: number;
+  hello_time: number;
+  max_age: number;
+  forward_delay: number;
+  bridge_id: string;
+  designated_root: string;
+  root_port: string;
+  root_path_cost: number;
+  topology_change: boolean;
+}
+
+export interface STPPort {
+  port: string;
+  state: number;
+  state_name: string;
+  path_cost: number;
+  priority: number;
+  bpdu_guard: boolean;
+  bpdu_filter: boolean;
+  root_block: boolean;
+  port_id: string;
+  designated_root: string;
+  designated_cost: number;
+  designated_port: string;
+}
+
+export interface STPProbe {
+  applicable: boolean;
+  bridge: string;
+  bridge_info: STPBridge;
+  ports: STPPort[];
+}
+
+export interface STPBridgeEdit {
+  enabled: boolean;
+  priority: number;
+  hello_time: number;
+  max_age: number;
+  forward_delay: number;
+}
+
+export interface STPPortEdit {
+  name: string;
+  path_cost?: number;
+  priority?: number;
+  bpdu_guard?: boolean;
+  bpdu_filter?: boolean;
+  root_block?: boolean;
+}
+
+export interface LinkMode {
+  speed_mbps: number;
+  duplex: string;
+}
+
+export interface SFPInfo {
+  state: "module" | "empty" | "unsupported" | "error";
+  identifier?: string;
+  vendor?: string;
+  pn?: string;
+  sn?: string;
+  date?: string;
+  temp_c?: number;
+  voltage?: number;
+  bias_ma?: number;
+  tx_power_mw?: number;
+  tx_power_dbm?: number;
+  rx_power_mw?: number;
+  rx_power_dbm?: number;
+}
+
+export interface PhysPort {
+  name: string;
+  autoneg: boolean;
+  speed_mbps: number;
+  duplex: string;
+  supported: LinkMode[];
+  eee_supported: boolean;
+  eee_enabled: boolean;
+  mtu: number;
+  mtu_max: number;
+  mtu_supported: boolean;
+  sfp?: SFPInfo;
+}
+
+export interface PhysPortsProbe {
+  applicable: boolean;
+  ports: PhysPort[];
+}
+
+export interface PhysPortEdit {
+  name: string;
+  autoneg?: boolean;
+  speed_mbps?: number;
+  duplex?: string;
+  mtu?: number;
+  eee?: boolean;
+}
+
 export interface PortStats {
   name: string;
   rx_bytes: number;

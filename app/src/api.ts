@@ -689,6 +689,28 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(edit),
     }),
+  stp: () =>
+    request<import("./types").STPProbe>("/api/stp"),
+  setSTPBridge: (edit: import("./types").STPBridgeEdit) =>
+    request<{ status: string }>("/api/stp/bridge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(edit),
+    }),
+  setSTPPort: (edit: import("./types").STPPortEdit) =>
+    request<{ status: string }>("/api/stp/port", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(edit),
+    }),
+  physPorts: () =>
+    request<import("./types").PhysPortsProbe>("/api/physports"),
+  setPhysPort: (edit: import("./types").PhysPortEdit) =>
+    request<{ status: string }>("/api/physports/port", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(edit),
+    }),
   portStats: () =>
     request<import("./types").PortStatsProbe>("/api/port-stats"),
   switchModes: () =>
