@@ -1,9 +1,13 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Cable } from "lucide-react";
-import type { EthPort } from "../../types";
-import { Card, EmptyState, SkeletonRows } from "../ui";
+import { Cable, Pencil, Zap } from "lucide-react";
+import { api } from "../../api";
+import type { EthPort, SwitchPort, SwitchProbe } from "../../types";
+import {
+  ActionBanner, Button, Card, ConfirmDialog, EmptyState, Input, Pill, SkeletonRows, Toggle,
+} from "../ui";
 import { IlluPlug } from "../ui/illustrations";
+import { useActionCycle } from "../wifi/action";
 
 /** Título de tarjeta a una línea (design-rev2 §3): ellipsis + tooltip nativo. */
 function oneLine(text: string) {
@@ -11,20 +15,91 @@ function oneLine(text: string) {
 }
 
 /**
- * Chasis RJ45 de la página Puertos ethernet (#384): sale del resumen,
- * donde ocupaba una fila entera para un vistazo que encaja mejor junto al
- * resto del detalle de puertos.
+ * Chasis RJ45 de la página Puertos ethernet (#384). Cada boca es un botón:
+ * al pulsarla se selecciona y bajo el chasis aparece una banda de detalle
+ * con nota, estado admin y PoE (del SwitchProbe, fusionado por nombre de
+ * puerto; en routers/AP sin switch aplicable solo se muestra MAC/velocidad).
+ * La antigua tarjeta "Las bocas del switch" (#484) desaparece: su
+ * funcionalidad vive en esta banda.
  */
 export function EthPortsCard({ ports, index = 0 }: { ports?: EthPort[]; index?: number }) {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<string>();
+  const [probe, setProbe] = useState<SwitchProbe>();
+  const [busyPort, setBusyPort] = useState<string>();
+  const [editDesc, setEditDesc] = useState<{ name: string; value: string }>();
+  const [confirmOff, setConfirmOff] = useState<SwitchPort>();
+  const [msg, setMsg] = useState<{ tone: "ok" | "danger"; text: string }>();
+  const { phase, detail, busy, run, clear } = useActionCycle();
+
+  const load = useCallback(async () => {
+    try {
+      setProbe(await api.switchPorts());
+    } catch {
+      // Sin datos de switch (router/AP) el chasis funciona igual, sin detalle.
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   const sorted = useMemo(() => !ports ? [] : [...ports].sort((a, b) => {
     if (a.wan !== b.wan) return a.wan ? -1 : 1;
     return a.name.localeCompare(b.name, undefined, { numeric: true });
   }), [ports]);
 
+  // Fusion defensiva por nombre: solo enriquece bocas que existen en ambos.
+  const swByName = useMemo(() => {
+    const m = new Map<string, SwitchPort>();
+    if (probe?.applicable) for (const p of probe.ports) m.set(p.name, p);
+    return m;
+  }, [probe]);
+
   const selectedPort = sorted.find((p) => p.name === selected);
+  const selectedSw = selectedPort ? swByName.get(selectedPort.name) : undefined;
+
+  const setAdmin = (port: SwitchPort, up: boolean) => {
+    setBusyPort(port.name);
+    run(() => api.setSwitchPort({ name: port.name, admin_up: up })).then((res) => {
+      setBusyPort(undefined);
+      if (res?.status === "applied") setProbe(res.state);
+    });
+  };
+
+  const togglePoe = async (port: SwitchPort) => {
+    setBusyPort(port.name + "-poe"); setMsg(undefined);
+    try {
+      const res = await api.setSwitchPort({ name: port.name, poe_enabled: !port.poe_enabled });
+      if (res.status === "applied") setProbe(res.state);
+      else setMsg({ tone: "danger", text: res.error || t("fwd.failed") });
+    } catch (e) {
+      setMsg({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
+    } finally { setBusyPort(undefined); }
+  };
+
+  const saveDesc = async () => {
+    if (!editDesc) return;
+    setBusyPort(editDesc.name); setMsg(undefined);
+    try {
+      const res = await api.setSwitchPort({ name: editDesc.name, description: editDesc.value });
+      if (res.status === "applied") {
+        setProbe(res.state);
+        setEditDesc(undefined);
+        setMsg({ tone: "ok", text: t("ports.noteSaved") });
+      } else {
+        setMsg({ tone: "danger", text: res.error || t("fwd.failed") });
+      }
+    } catch (e) {
+      setMsg({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
+    } finally { setBusyPort(undefined); }
+  };
+
+  const portLabel = (p: EthPort) =>
+    p.wan ? "WAN" : p.name.toUpperCase().replace(/^LAN(\d+)$/, "LAN $1");
+
+  const macLine = (p: EthPort) =>
+    `${p.devices[0]?.mac ?? ""}${p.up && p.speed_mbps > 0
+      ? ` · ${p.speed_mbps >= 1000 ? `${p.speed_mbps / 1000} Gb/s` : `${p.speed_mbps} Mb/s`}`
+      : ""}`;
 
   return (
     <Card index={index} className="md:col-span-2"
@@ -39,12 +114,16 @@ export function EthPortsCard({ ports, index = 0 }: { ports?: EthPort[]; index?: 
           {/* chasis RJ45 redibujado: boca + LED + etiqueta + dispositivo */}
           <div className="flex flex-wrap gap-x-3 gap-y-4 rounded-md border border-border bg-surface-2 px-3 py-3">
             {sorted.map((p) => {
-              const label = p.wan ? "WAN" : p.name.toUpperCase().replace(/^LAN(\d+)$/, "LAN $1");
+              const swp = swByName.get(p.name);
+              const adminDown = swp ? !swp.admin_up : false;
+              const label = portLabel(p);
               const device = !p.up ? t("ports.free")
                 : p.devices.length === 1 ? p.devices[0].name || p.devices[0].mac
                 : p.devices.length > 1 ? t("ports.unmanagedN", { count: p.devices.length })
                 : t("ports.busy");
-              const led = !p.up ? "bg-border-strong" : p.speed_mbps >= 1000 ? "bg-ok" : "bg-warn";
+              const led = adminDown ? "bg-danger"
+                : !p.up ? "bg-border-strong"
+                : p.speed_mbps >= 1000 ? "bg-ok" : "bg-warn";
               return (
                 <button key={p.name} type="button"
                   onClick={() => setSelected(selected === p.name ? undefined : p.name)}
@@ -69,16 +148,103 @@ export function EthPortsCard({ ports, index = 0 }: { ports?: EthPort[]; index?: 
               );
             })}
           </div>
-          {selectedPort && (
+
+          {/* Banda de detalle de la boca seleccionada (#484) */}
+          {selectedPort && !selectedSw && (
             <div className="mt-3 flex items-center justify-between gap-2 text-small">
-              <span className="text-muted font-mono text-caption">
-                {selectedPort.devices[0]?.mac ?? ""}
-                {selectedPort.up && selectedPort.speed_mbps > 0 && ` · ${selectedPort.speed_mbps >= 1000 ? `${selectedPort.speed_mbps / 1000} Gb/s` : `${selectedPort.speed_mbps} Mb/s`}`}
-              </span>
+              <span className="text-muted font-mono text-caption">{macLine(selectedPort)}</span>
+            </div>
+          )}
+          {selectedPort && selectedSw && (
+            <div className="mt-3 rounded-md border border-border bg-surface-2 p-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span
+                  aria-hidden="true"
+                  className={`h-2 w-2 rounded-full shrink-0 ${selectedSw.oper_up ? "bg-ok" : "bg-faint"}`}
+                />
+                <span className="font-mono text-small font-medium">{portLabel(selectedPort)}</span>
+                <Pill tone={selectedSw.admin_up ? "ok" : "muted"} live={selectedSw.oper_up}>
+                  {selectedSw.oper_up ? t("ports.up") : t("ports.down")}
+                </Pill>
+                {!selectedSw.admin_up && <Pill tone="danger">{t("ports.disabled")}</Pill>}
+                <span className="font-mono text-caption text-muted">
+                  {selectedSw.oper_up && selectedSw.speed_mbps > 0
+                    ? `${selectedSw.speed_mbps >= 1000 ? `${selectedSw.speed_mbps / 1000} Gb/s` : `${selectedSw.speed_mbps} Mb/s`}`
+                    : macLine(selectedPort)}
+                </span>
+                <span className="ml-auto flex items-center gap-4">
+                  {selectedSw.poe_supported && (
+                    <span className="flex items-center gap-1.5">
+                      <Zap size={12} className="text-faint" aria-hidden="true" />
+                      <span className="text-caption text-muted">PoE</span>
+                      <Toggle
+                        checked={selectedSw.poe_enabled}
+                        busy={busyPort === selectedSw.name + "-poe"}
+                        onChange={() => togglePoe(selectedSw)}
+                        label={`PoE ${selectedSw.name}`}
+                      />
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-caption text-muted">{t("ports.admin")}</span>
+                    <Toggle
+                      checked={selectedSw.admin_up}
+                      busy={busyPort === selectedSw.name || busy}
+                      onChange={(v) => (v ? setAdmin(selectedSw, true) : setConfirmOff(selectedSw))}
+                      label={selectedSw.name}
+                    />
+                  </span>
+                </span>
+              </div>
+
+              {/* Nota editable (lápiz ghost) */}
+              <div className="mt-2 min-h-6">
+                {editDesc?.name === selectedSw.name ? (
+                  <div className="flex gap-1.5">
+                    <Input
+                      value={editDesc.value}
+                      onChange={(e) => setEditDesc({ ...editDesc, value: e.target.value })}
+                      autoFocus
+                      onKeyDown={(e) => e.key === "Enter" && saveDesc()}
+                      aria-label={t("ports.note")}
+                      placeholder={t("ports.notePlaceholder")}
+                      className="!h-9 text-small"
+                    />
+                    <Button size="sm" onClick={saveDesc} loading={busyPort === selectedSw.name}>{t("lan.save")}</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditDesc(undefined)}>{t("common.cancel")}</Button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEditDesc({ name: selectedSw.name, value: selectedSw.description })}
+                    title={t("ports.editNote")}
+                    className="flex items-center gap-1.5 text-small text-muted hover:text-text transition-colors duration-[var(--dur-fast)] ring-focus rounded-sm max-w-full"
+                  >
+                    <Pencil size={12} className="shrink-0 text-faint" aria-hidden="true" />
+                    <span className="truncate">{selectedSw.description || t("ports.noteAdd")}</span>
+                  </button>
+                )}
+              </div>
+
+              {phase && (
+                <div className="mt-3">
+                  <ActionBanner phase={phase} detail={detail} onDone={clear} />
+                </div>
+              )}
+              {msg && <p className={`text-caption mt-2 ${msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
             </div>
           )}
         </>
       )}
+
+      <ConfirmDialog
+        open={!!confirmOff}
+        onClose={() => setConfirmOff(undefined)}
+        onConfirm={() => { const p = confirmOff; setConfirmOff(undefined); if (p) setAdmin(p, false); }}
+        title={t("ports.adminOffTitle", { port: confirmOff?.name ?? "" })}
+        consequence={t("ports.adminOffConsequence")}
+        confirmLabel={t("ports.adminOffConfirm")}
+      />
     </Card>
   );
 }
