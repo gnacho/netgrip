@@ -3,8 +3,9 @@ import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import { Activity, ArrowLeftRight, Blocks, ChartColumn, ChartPie, CircuitBoard, Download, Forward, Globe, HardDrive, Info, Layers, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldBan, Smartphone, Wifi, Wrench } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
-import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MDNSProbe, ModeProbe, MultiWanProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
+import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MDNSProbe, MultiWanProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
+import { useMode } from "../hooks/useMode";
 import { AnnouncementBanner } from "./AnnouncementBanner";
 import { Banner, Button, Drawer, Pill, StatusDot, ThemeToggle, ToastProvider } from "./ui";
 import { Logo } from "./ui/illustrations";
@@ -75,7 +76,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   const [board, setBoard] = useState<Board>();
   const [system, setSystem] = useState<SystemInfo>();
   const [wan, setWan] = useState<WanStatus>();
-  const [mode, setMode] = useState<ModeProbe>();
   const [ipv6, setIpv6] = useState<IPv6Probe>();
   const [update, setUpdate] = useState<UpdateCheck>();
   const [wg, setWg] = useState<WGProbe>();
@@ -134,7 +134,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   // Slow checks (owut hits the ASU server): load in the background.
   useEffect(() => {
     api.updateCheck().then(setUpdate).catch(() => {});
-    api.mode().then(setMode).catch(() => {});
     api.wireguard().then(setWg).catch(() => {});
     api.ddns().then(setDdns).catch(() => {});
     api.mdns().then(setMdns).catch(() => {});
@@ -154,6 +153,8 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     api.advanced().then((p) => setAdvanced(p.advanced)).catch(() => {});
   }, []);
 
+  const { mode, modeReady } = useMode();
+
   const health = useHealthScore({ system, wan, drift, mode, wireless });
 
   // In AP mode the router is not the gateway: hide pages that only apply to
@@ -164,13 +165,20 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   // older probes.
   // Los grupos de área se gobiernan por rol (#447) y hardware: las páginas
   // de gateway exigen role=router, las de WiFi exigen radios y la de Switch
-  // exige bocas ethernet. Hasta que llega el probe el nav se queda permisivo.
+  // exige bocas ethernet. El rol llega por useMode (#484): caché en
+  // localStorage para el primer paint + refetch en segundo plano.
   // Matriz de roles (#484): gateway ve todo; ap ve bocas LAN + radios;
   // switch solo bocas LAN + opciones de switch: sin Servicios ni Consumo
   // (DNS blocker, VPN, QoS... nada de eso aplica a un L2 puro).
+  // Hasta que modeReady es falso NADA gateado se pinta: solo overview. Así
+  // las entradas del rol nunca parpadean: o salen cacheadas (recarga) o no
+  // salen hasta que el probe confirma el rol (primera visita).
   const role = mode?.role ?? (mode?.mode === "ap" ? "ap" : "router");
   const isRouter = role === "router";
   const isSwitch = role === "switch";
+  // Fallbacks por campo solo cuando modeReady: si el probe trae un campo
+  // concreto se usa tal cual; si falta (probes antiguos sin role), el
+  // fallback actual aplica solo a ese campo.
   const hasWifiRadios = mode?.has_wifi ?? true;
   const hasSwitchPorts = (mode?.port_count ?? 1) > 0;
   // Cobertura inalámbrica: solo si usteer reporta varios routers activos.
@@ -180,6 +188,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     return hosts.size > 1;
   }, [usteerAps]);
   const visible = (id: Page) => {
+    if (!modeReady) return id === "overview";
     if ((id === "wan" || id === "lan" || id === "forwards" || id === "dpi" || id === "banip") && !isRouter) return false;
     if ((id === "wifi" || id === "coverage") && !hasWifiRadios) return false;
     if (id === "ports" && !hasSwitchPorts) return false;
