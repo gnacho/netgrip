@@ -55,7 +55,7 @@ export function SwitchModesCard() {
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
         {modes.map((mode) => (
           <div key={mode.id} className="flex items-start gap-3 p-3 bg-surface border border-border rounded-md">
             <div className="flex-1 min-w-0">

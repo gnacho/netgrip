@@ -65,56 +65,53 @@ export function PortStatsCard() {
 
   return (
     <Card variant="subtle" animate={false} icon={Activity} title={t("portStats.title")} help="portstats">
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="text-caption text-muted border-b border-border">
-              <th className="text-left font-medium py-1.5 px-1">{t("portStats.port")}</th>
-              <th className="text-right font-medium py-1.5 px-1">RX</th>
-              <th className="text-right font-medium py-1.5 px-1">TX</th>
-              <th className="text-right font-medium py-1.5 px-1">{t("portStats.errors")}</th>
-              <th className="text-right font-medium py-1.5 px-1">{t("portStats.drops")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ports.map((p) => {
-              const r = rates[p.name];
-              const errs = p.rx_errors + p.tx_errors;
-              const drops = p.rx_drops + p.tx_drops;
-              return (
-                <tr key={p.name} className="border-b border-border/40 last:border-0">
-                  <td className="py-1.5 px-1 font-mono text-small">{p.name}</td>
-                  <td className="py-1.5 px-1 text-right text-small font-mono whitespace-nowrap tabular-nums text-muted min-w-24">
-                    <span className="text-chart-rx">↓</span> {r ? fmtRate(r.rx) : "—"}
-                    {r && maxRx > 0 && ratioBar(r.rx, maxRx, "var(--color-accent)")}
-                  </td>
-                  <td className="py-1.5 px-1 text-right text-small font-mono whitespace-nowrap tabular-nums text-muted min-w-24">
-                    <span className="text-chart-tx">↑</span> {r ? fmtRate(r.tx) : "—"}
-                    {r && maxTx > 0 && ratioBar(r.tx, maxTx, "var(--color-teal)")}
-                  </td>
-                  <td className="py-1.5 px-1 text-right text-small font-mono tabular-nums">
-                    {errs > 0 ? (
-                      <span className="text-danger inline-flex items-center justify-end gap-1 font-semibold">
-                        <TriangleAlert size={12} /> {errs}
-                      </span>
-                    ) : (
-                      <span className="text-faint">0</span>
-                    )}
-                  </td>
-                  <td className="py-1.5 px-1 text-right text-small font-mono tabular-nums">
-                    {drops > 0 ? (
-                      <span className="text-danger inline-flex items-center justify-end gap-1 font-semibold">
-                        <TriangleAlert size={12} /> {drops}
-                      </span>
-                    ) : (
-                      <span className="text-faint">0</span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      {/* Leyenda de la rejilla densa (issue #485). */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-muted mb-2">
+        <span><span className="text-chart-rx">↓</span> RX</span>
+        <span><span className="text-chart-tx">↑</span> TX</span>
+        <span className="inline-flex items-center gap-1">
+          <TriangleAlert size={12} className="text-danger" />
+          {t("portStats.errors")} / {t("portStats.drops")}
+        </span>
+      </div>
+
+      {/* Rejilla densa: 2 columnas en movil, 3 en md, 4 en xl. */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-2.5">
+        {ports.map((p) => {
+          const r = rates[p.name];
+          const errs = p.rx_errors + p.tx_errors;
+          const drops = p.rx_drops + p.tx_drops;
+          const errSpan = (count: number, label: string) => (
+            <span
+              title={label}
+              className={`inline-flex items-center gap-0.5 ${count > 0 ? "text-danger font-semibold" : "text-faint"}`}
+            >
+              {count > 0 && <TriangleAlert size={11} />}
+              {count}
+            </span>
+          );
+          return (
+            <div key={p.name} className="min-w-0">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-mono text-small truncate">{p.name}</span>
+                <span className="flex items-center gap-2 text-caption font-mono tabular-nums shrink-0">
+                  {errSpan(errs, t("portStats.errors"))}
+                  {errSpan(drops, t("portStats.drops"))}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-caption font-mono tabular-nums text-muted">
+                <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                  <span className="text-chart-rx">↓</span> {r ? fmtRate(r.rx) : "-"}
+                </span>
+                <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                  <span className="text-chart-tx">↑</span> {r ? fmtRate(r.tx) : "-"}
+                </span>
+              </div>
+              {r && maxRx > 0 && ratioBar(r.rx, maxRx, "var(--color-accent)")}
+              {r && maxTx > 0 && ratioBar(r.tx, maxTx, "var(--color-teal)")}
+            </div>
+          );
+        })}
       </div>
 
       {hasErrors && <p className="text-caption text-warn mt-2">{t("portStats.hasErrors")}</p>}

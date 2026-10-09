@@ -12,10 +12,11 @@ import { MacAclCard, StormControlCard } from "../components/tools/advanced";
 
 /**
  * Switch (avanzadas, #485): pocas tarjetas densas de ancho total en vez de
- * una retícula a medias. Cada grupo envuelve las tarjetas existentes con
- * columnas internas: STP (ajustes de puente + tabla de puertos), LAG a todo
- * el ancho, protección y perfiles (tormentas a todo el ancho, luego MAC ACL,
- * perfiles, plantillas y modos por parejas) y ópticos con estadísticas.
+ * una retícula a medias. Cada grupo envuelve las tarjetas existentes apiladas
+ * a ancho completo: STP (ajustes de puente + tabla de puertos), LAG a todo
+ * el ancho, protección y perfiles (tormentas, MAC ACL, perfiles, plantillas y
+ * modos, todas con rejillas internas multi-columna) y ópticos con
+ * estadísticas.
  */
 export function AdvancedSwitchPage() {
   const { t } = useTranslation();
