@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Cable, Pencil, Zap } from "lucide-react";
 import { api } from "../../api";
-import type { EthPort, SwitchPort, SwitchProbe } from "../../types";
+import type { EthPort, PhysPortsProbe, SwitchPort, SwitchProbe } from "../../types";
 import {
   ActionBanner, Button, Card, ConfirmDialog, EmptyState, Input, Pill, SkeletonRows, Toggle,
 } from "../ui";
 import { IlluPlug } from "../ui/illustrations";
 import { useActionCycle } from "../wifi/action";
+import { PhysConfigSection, SfpModuleSection } from "./PhysPortDetail";
 
 /** Título de tarjeta a una línea (design-rev2 §3): ellipsis + tooltip nativo. */
 function oneLine(text: string) {
@@ -32,6 +33,13 @@ export function EthPortsCard({ ports, index = 0 }: { ports?: EthPort[]; index?: 
   const [msg, setMsg] = useState<{ tone: "ok" | "danger"; text: string }>();
   const { phase, detail, busy, run, clear } = useActionCycle();
 
+  // Config física y SFP (#485): el modo avanzado se consulta una vez; el
+  // probe de puertos fisicos se carga la primera vez que se abre el detalle
+  // de una boca (52 ethtool tardan un par de segundos).
+  const [advanced, setAdvanced] = useState(false);
+  const [phys, setPhys] = useState<PhysPortsProbe>();
+  const physRequested = useRef(false);
+
   const load = useCallback(async () => {
     try {
       setProbe(await api.switchPorts());
@@ -41,6 +49,24 @@ export function EthPortsCard({ ports, index = 0 }: { ports?: EthPort[]; index?: 
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    api.advanced().then((p) => setAdvanced(p.advanced)).catch(() => {});
+  }, []);
+  const loadPhys = useCallback(async () => {
+    try { setPhys(await api.physPorts()); } catch { /* sin probe, sin bloque */ }
+  }, []);
+  useEffect(() => {
+    if (selected && !physRequested.current) {
+      physRequested.current = true;
+      void loadPhys();
+    }
+  }, [selected, loadPhys]);
+
+  const physByName = useMemo(() => {
+    const m = new Map<string, PhysPortsProbe["ports"][number]>();
+    if (phys?.applicable) for (const p of phys.ports) m.set(p.name, p);
+    return m;
+  }, [phys]);
 
   const sorted = useMemo(() => !ports ? [] : [...ports].sort((a, b) => {
     if (a.wan !== b.wan) return a.wan ? -1 : 1;
@@ -56,6 +82,7 @@ export function EthPortsCard({ ports, index = 0 }: { ports?: EthPort[]; index?: 
 
   const selectedPort = sorted.find((p) => p.name === selected);
   const selectedSw = selectedPort ? swByName.get(selectedPort.name) : undefined;
+  const selectedPhys = selectedPort ? physByName.get(selectedPort.name) : undefined;
 
   const setAdmin = (port: SwitchPort, up: boolean) => {
     setBusyPort(port.name);
@@ -232,6 +259,18 @@ export function EthPortsCard({ ports, index = 0 }: { ports?: EthPort[]; index?: 
                 </div>
               )}
               {msg && <p className={`text-caption mt-2 ${msg.tone === "ok" ? "text-ok" : "text-danger"}`}>{msg.text}</p>}
+
+              {/* Módulo óptico (jaulas SFP, #485) */}
+              {selectedPhys?.sfp && <SfpModuleSection sfp={selectedPhys.sfp} />}
+
+              {/* Configuración física: solo con modo avanzado */}
+              {advanced && selectedPhys && (
+                <PhysConfigSection
+                  phys={selectedPhys}
+                  busy={busyPort === selectedSw.name}
+                  onChanged={() => void loadPhys()}
+                />
+              )}
             </div>
           )}
         </>
