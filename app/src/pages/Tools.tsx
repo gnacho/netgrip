@@ -1,13 +1,14 @@
 import { useTranslation } from "react-i18next";
 import type { EthPort } from "../types";
 import { SnapshotsCard } from "../components/tools/snapshots";
-import { PackagesCard } from "../components/tools/PackagesCard";
 import { BounceCard, CableTestCard, LoopsCard } from "../components/tools/diagnostics";
 import { TemplatesCard } from "../components/tools/TemplatesCard";
 
 /**
  * Herramientas (tools.md): copias de seguridad como héroe, diagnóstico físico
- * en tres cards gemelas y un cajón avanzado para lo de switch.
+ * en tres cards gemelas y plantillas. La antigua tarjeta de paquetes
+ * opcionales (#484) se retiró: la paquetería se gestiona desde LuCI o CLI;
+ * el endpoint /api/packages/optional sigue vivo para el asistente inicial.
  */
 export function ToolsPage({ ethports }: { ethports: EthPort[] }) {
   const { t } = useTranslation();
@@ -17,7 +18,6 @@ export function ToolsPage({ ethports }: { ethports: EthPort[] }) {
         <p className="text-eyebrow text-faint mb-2">{t("tools.sectionMaintenance")}</p>
         <div className="flex flex-col gap-[var(--card-gap)]">
           <SnapshotsCard />
-          <PackagesCard index={1} />
           <TemplatesCard />
         </div>
       </section>
