@@ -2006,6 +2006,8 @@ export default {
   },
   vlan: {
     title: "VLANs",
+    colPort: "Port",
+    colLink: "Link",
     intro: "Manage VLANs on the bridge. Pick each port's role in a VLAN: not a member, untagged (U), untagged and the port's default (U*), or tagged (T).",
     newVid: "VID (2-4094)",
     add: "Create VLAN",

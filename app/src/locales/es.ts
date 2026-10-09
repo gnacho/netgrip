@@ -2006,6 +2006,8 @@ export default {
   },
   vlan: {
     title: "VLANs",
+    colPort: "Puerto",
+    colLink: "Enlace",
     intro: "Gestiona VLANs en el bridge. Elige el papel de cada puerto en una VLAN: no miembro, sin tag (U), sin tag y VLAN por defecto del puerto (U*), o con tag (T).",
     newVid: "VID (2-4094)",
     add: "Crear VLAN",
