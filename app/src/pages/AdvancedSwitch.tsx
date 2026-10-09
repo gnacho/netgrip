@@ -9,6 +9,7 @@ import { SfpCard } from "../components/ports/SfpCard";
 import { StpBridgeCard, StpPortsCard } from "../components/ports/StpCards";
 import { SwitchModesCard } from "../components/ports/SwitchModesCard";
 import { MacAclCard, StormControlCard } from "../components/tools/advanced";
+import { useMode } from "../hooks/useMode";
 
 /**
  * Switch (avanzadas, #485): pocas tarjetas densas de ancho total en vez de
@@ -17,26 +18,36 @@ import { MacAclCard, StormControlCard } from "../components/tools/advanced";
  * el ancho, protección y perfiles (tormentas, MAC ACL, perfiles, plantillas y
  * modos, todas con rejillas internas multi-columna) y ópticos con
  * estadísticas.
+ *
+ * Rol=switch (#487): STP, LAG y control de tormentas viven ya en las
+ * pestañas de "Puertos y VLANs", así que aquí se ocultan (grupo STP
+ * completo, LagCard y StormControlCard del grupo de protección) y la
+ * página se reduce a MAC ACL, perfiles, plantillas, modos, ópticos y
+ * estadísticas. Para cualquier otro rol se pinta todo como hasta ahora.
  */
 export function AdvancedSwitchPage() {
   const { t } = useTranslation();
+  const { mode, modeReady } = useMode();
+  const isSwitch = modeReady && mode?.role === "switch";
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
       <p className="text-small text-muted">{t("advanced.pageSwitchIntro")}</p>
 
-      <Card variant="subtle" animate={false} icon={GitBranch} title={t("advanced.groupStp")}>
-        <div className="flex flex-col gap-[var(--card-gap)]">
-          <StpBridgeCard index={0} />
-          <StpPortsCard index={1} />
-        </div>
-      </Card>
+      {!isSwitch && (
+        <Card variant="subtle" animate={false} icon={GitBranch} title={t("advanced.groupStp")}>
+          <div className="flex flex-col gap-[var(--card-gap)]">
+            <StpBridgeCard index={0} />
+            <StpPortsCard index={1} />
+          </div>
+        </Card>
+      )}
 
-      <LagCard index={2} />
+      {!isSwitch && <LagCard index={2} />}
 
       <Card variant="subtle" animate={false} icon={ShieldCheck} title={t("advanced.groupProtection")}>
-        {/* Tarjetas apiladas a ancho total: nada al 50% dentro de un grupo. */}
+        {/* Tarjetas apiladas a ancho completo: nada al 50% dentro de un grupo. */}
         <div className="flex flex-col gap-[var(--card-gap)]">
-          <StormControlCard />
+          {!isSwitch && <StormControlCard />}
           <MacAclCard />
           <RoleProfilesCard />
           <PortTemplatesCard />

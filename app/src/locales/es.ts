@@ -1353,6 +1353,14 @@ export default {
   },
   ports: {
     title: "Puertos ethernet",
+    tabsAria: "Secciones de Puertos y VLANs",
+    tab: {
+      ports: "Puertos",
+      vlans: "VLANs",
+      lag: "Agregación",
+      stp: "STP y tormentas",
+      advanced: "Avanzado",
+    },
     empty: "Sin puertos físicos detectados",
     up: "enlace",
     down: "sin cable",
