@@ -11,6 +11,7 @@ import { IdentityCard } from "../components/system/IdentityCard";
 import { NetPulseCard } from "../components/system/NetPulseCard";
 import { MQTTCard } from "../components/system/MQTTCard";
 import { ConfigBackupCard } from "../components/ConfigBackupCard";
+import { SnmpCard } from "../components/advanced/SnmpCard";
 import { UpdateCard } from "../components/system/UpdateCard";
 import { SelfUpdateCard } from "../components/system/SelfUpdateCard";
 import { WizardRelaunchCard } from "../components/system/WizardRelaunchCard";
@@ -67,6 +68,14 @@ export function System({ board, update, onUpdateChange, onLogout }: {
         <MQTTCard index={2} />
         <SelfUpdateCard index={3} />
         <ConfigBackupCard index={4} />
+      </section>
+
+      {/* Monitorización (#487): SNMP llegaba de la página "Redes"
+          avanzada, eliminada en el rediseño: el daemon snmpd se gestiona
+          aquí, junto al resto de opciones de este equipo. */}
+      <section className="flex flex-col gap-[var(--card-gap)]">
+        <GroupLabel>{t("system.groupMonitoring")}</GroupLabel>
+        <SnmpCard index={0} />
       </section>
 
       {/* Mantenimiento (#155): actualización de la imagen OpenWrt. La rama

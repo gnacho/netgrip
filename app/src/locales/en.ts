@@ -361,6 +361,7 @@ export default {
     groupFresh: "Keeping up to date",
     groupProtection: "Protection",
     groupDevice: "This device",
+    groupMonitoring: "Monitoring",
     groupMaintenance: "Maintenance",
     groupOptions: "Options",
     identityTitle: "Identity and reboot",

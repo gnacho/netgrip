@@ -361,6 +361,7 @@ export default {
     groupFresh: "Mantenerse al día",
     groupProtection: "Protección",
     groupDevice: "Este equipo",
+    groupMonitoring: "Monitorización",
     groupMaintenance: "Mantenimiento",
     groupOptions: "Opciones",
     identityTitle: "Identidad y reinicio",
