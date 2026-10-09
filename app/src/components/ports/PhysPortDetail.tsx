@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../../api";
 import type { PhysPort, SFPInfo } from "../../types";
-import { Button, Input, Toggle } from "../ui";
+import { Button, Input, Pill, Toggle } from "../ui";
 
 /**
  * "Configuración física" de la banda de detalle de boca (#485): negociación,
@@ -97,12 +97,23 @@ export function PhysConfigSection({ phys, busy, onChanged }: {
         {phys.eee_supported && (
           <span className="flex items-center gap-1.5">
             <span className="text-caption text-muted">{t("phys.eee")}</span>
-            <Toggle
-              checked={phys.eee_enabled}
-              busy={busy}
-              onChange={(v) => void apply({ eee: v })}
-              label={`${t("phys.eee")} ${phys.name}`}
-            />
+            {phys.eee_writable ? (
+              <Toggle
+                checked={phys.eee_enabled}
+                busy={busy}
+                onChange={(v) => void apply({ eee: v })}
+                label={`${t("phys.eee")} ${phys.name}`}
+              />
+            ) : (
+              // Solo lectura en Realtek DSA: el toggle enviaria un write que
+              // reinicia el SoC (#485). El backend tambien lo rechaza.
+              <>
+                <Pill tone={phys.eee_enabled ? "ok" : "muted"}>
+                  {phys.eee_enabled ? t("phys.eeeOn") : t("phys.eeeOff")}
+                </Pill>
+                <span className="text-caption text-faint">{t("phys.eeeReadonly")}</span>
+              </>
+            )}
           </span>
         )}
       </div>

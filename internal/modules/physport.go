@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // Configuracion fisica por puerto (#485): negociacion, velocidad/duplex,
@@ -45,10 +46,14 @@ type PhysPort struct {
 	Supported    []LinkMode `json:"supported"`
 	EeeSupported bool       `json:"eee_supported"`
 	EeeEnabled   bool       `json:"eee_enabled"`
-	MTU          int        `json:"mtu"`
-	MTUMax       int        `json:"mtu_max"`
-	MTUSupported bool       `json:"mtu_supported"`
-	SFP          *SFPInfo   `json:"sfp,omitempty"`
+	// EeeWritable es false en switches Realtek DSA (rtl83xx/rtl93xx):
+	// `ethtool --set-eee` reinicia el SoC (bug del driver, verificado en un
+	// rtl9311, #485), asi que la UI muestra el estado en solo lectura.
+	EeeWritable  bool     `json:"eee_writable"`
+	MTU          int      `json:"mtu"`
+	MTUMax       int      `json:"mtu_max"`
+	MTUSupported bool     `json:"mtu_supported"`
+	SFP          *SFPInfo `json:"sfp,omitempty"`
 }
 
 type PhysPortsProbe struct {
@@ -68,8 +73,9 @@ func ProbePhysPorts() *PhysPortsProbe {
 	}
 	probe.Applicable = true
 	mtuSupported := probeMTUCeiling(ports[0])
+	eeeWritable := eeeWritableFn()
 	for _, name := range ports {
-		p := PhysPort{Name: name, Supported: []LinkMode{}, MTUSupported: mtuSupported, MTUMax: 1500}
+		p := PhysPort{Name: name, Supported: []LinkMode{}, MTUSupported: mtuSupported, MTUMax: 1500, EeeWritable: eeeWritable}
 		if mtuSupported {
 			p.MTUMax = 1522
 		}
@@ -165,6 +171,40 @@ func mustAtoi(s string) int {
 	v, _ := strconv.Atoi(s)
 	return v
 }
+
+// compatibleIsRealtekDSA detecta la familia de chips Realtek DSA en el
+// `compatible` del devicetree (NUL-separado), p.ej.
+// "linksys,lgs352c\0realtek,rtl9311-soc\0". Verificado en hardware real
+// (#485): leer /sys/firmware/devicetree/base/compatible en el switch.
+func compatibleIsRealtekDSA(content string) bool {
+	for _, part := range strings.Split(content, "\x00") {
+		part = strings.ToLower(part)
+		if strings.Contains(part, "rtl83") || strings.Contains(part, "rtl93") {
+			return true
+		}
+	}
+	return false
+}
+
+// detectEeeWritable reporta si la plataforma permite escribir EEE. En los
+// switches Realtek DSA (rtl83xx/rtl93xx) aplicar EEE reinicia el SoC (bug
+// del driver rtl931x), asi que EEE se trata como de solo lectura. El
+// resultado se cachea: el compatible no cambia en caliente.
+func detectEeeWritable() bool {
+	for _, path := range []string{
+		"/sys/firmware/devicetree/base/compatible",
+		"/proc/device-tree/compatible",
+	} {
+		if data, err := os.ReadFile(path); err == nil {
+			return !compatibleIsRealtekDSA(string(data))
+		}
+	}
+	return true
+}
+
+// eeeWritableFn envuelve la deteccion para que los tests puedan forzar la
+// plataforma sin tocar sysfs.
+var eeeWritableFn = sync.OnceValue(detectEeeWritable)
 
 // ethtoolEEE devuelve (soportado, activado). Sin modos EEE soportados el
 // hardware no tiene EEE aunque el comando exista; es el criterio que usa la
@@ -330,6 +370,11 @@ func SetPhysPort(e PhysPortEdit) error {
 		}
 	}
 	if e.EEE != nil {
+		// Defensa en profundidad: la UI ya lo muestra en solo lectura, pero
+		// un POST manual tambien debe rebotar (#485).
+		if !eeeWritableFn() {
+			return fmt.Errorf("EEE is read-only on this device (Realtek DSA)")
+		}
 		if err := setPhysPortEEE(e.Name, *e.EEE); err != nil {
 			return err
 		}

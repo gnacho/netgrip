@@ -1048,6 +1048,8 @@ export interface PhysPort {
   supported: LinkMode[];
   eee_supported: boolean;
   eee_enabled: boolean;
+  /** False en Realtek DSA (rtl83xx/rtl93xx): escribir EEE reinicia el SoC (#485). */
+  eee_writable: boolean;
   mtu: number;
   mtu_max: number;
   mtu_supported: boolean;
