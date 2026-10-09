@@ -33,11 +33,9 @@ export function AdvancedSwitchPage() {
       <LagCard index={2} />
 
       <Card variant="subtle" animate={false} icon={ShieldCheck} title={t("advanced.groupProtection")}>
-        <div className="grid grid-cols-1 gap-[var(--card-gap)] md:grid-cols-2">
-          {/* 52 deslizadores necesitan todo el ancho del grupo */}
-          <div className="md:col-span-2">
-            <StormControlCard />
-          </div>
+        {/* Tarjetas apiladas a ancho total: nada al 50% dentro de un grupo. */}
+        <div className="flex flex-col gap-[var(--card-gap)]">
+          <StormControlCard />
           <MacAclCard />
           <RoleProfilesCard />
           <PortTemplatesCard />
@@ -46,7 +44,7 @@ export function AdvancedSwitchPage() {
       </Card>
 
       <Card variant="subtle" animate={false} icon={Waves} title={t("advanced.groupOptics")}>
-        <div className="grid grid-cols-1 gap-[var(--card-gap)] md:grid-cols-2">
+        <div className="flex flex-col gap-[var(--card-gap)]">
           <SfpCard index={0} />
           <PortStatsCard />
         </div>
