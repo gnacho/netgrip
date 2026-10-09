@@ -10,15 +10,13 @@ import { AnnouncementBanner } from "./AnnouncementBanner";
 import { Banner, Button, Drawer, Pill, StatusDot, ThemeToggle, ToastProvider } from "./ui";
 import { Logo } from "./ui/illustrations";
 import { Overview } from "../pages/Overview";
-import { UsagePage } from "../pages/Usage";
+import { TrafficPage } from "../pages/Traffic";
 import { CoveragePage } from "../pages/Coverage";
 import { ClientsPage } from "../pages/Clients";
 import { WifiPage } from "../pages/Wifi";
-import { WanPage } from "../pages/Wan";
+import { InternetPage } from "../pages/Internet";
 import { Services } from "../pages/Services";
-import { BanipPage } from "../pages/Banip";
 import { Ports } from "../pages/Ports";
-import { ForwardsPage } from "../pages/Forwards";
 import { System } from "../pages/System";
 import { LanPage } from "../pages/Lan";
 import { ToolsPage } from "../pages/Tools";
@@ -27,21 +25,21 @@ import { AdvancedNetworkPage } from "../pages/AdvancedNetwork";
 import { AdvancedSwitchPage } from "../pages/AdvancedSwitch";
 import { FleetPage } from "../pages/Fleet";
 import { StoragePage } from "../pages/Storage";
-import { DpiPage } from "../pages/Dpi";
 import { AboutPage } from "../pages/About";
 import { SelfUpdateDialog } from "../components/system/SelfUpdateDialog";
 
-export type Page = "overview" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "usage" | "banip" | "ports" | "forwards" | "tools" | "diagnostics" | "adv-network" | "adv-switch" | "fleet" | "storage" | "system" | "dpi" | "about";
+export type Page = "overview" | "internet" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "traffic" | "banip" | "ports" | "forwards" | "tools" | "diagnostics" | "adv-network" | "adv-switch" | "fleet" | "storage" | "system" | "dpi" | "about";
 
 const NAV_ICONS: Record<Page, LucideIcon> = {
   overview: LayoutDashboard,
+  internet: Globe,
   wan: Globe,
   clients: Smartphone,
   coverage: Radar,
   wifi: Wifi,
   lan: Network,
   services: Blocks,
-  usage: ChartPie,
+  traffic: ChartPie,
   banip: ShieldBan,
   ports: ArrowLeftRight,
   forwards: Forward,
@@ -56,17 +54,25 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
   about: Info,
 };
 
-/** Nav agrupada §7.1 (tareas, nombres llanos §7.2). */
+/** Badge de rol en la cabecera del sidebar (#487): colores del mockup de
+ *  rediseño. Solo se pinta cuando useMode confirma el rol (modeReady). */
+const ROLE_BADGE: Record<"router" | "ap" | "switch", { labelKey: string; cls: string; dot: string }> = {
+  router: { labelKey: "nav.role.router", cls: "bg-accent-soft text-accent", dot: "bg-accent" },
+  ap: { labelKey: "nav.role.ap", cls: "bg-success-soft text-success", dot: "bg-success" },
+  switch: { labelKey: "nav.role.switch", cls: "bg-violet-soft text-violet", dot: "bg-violet" },
+};
+
+/** IA de navegación por roles (#487): misma agrupación que el mockup de
+ *  rediseño. "wan", "forwards", "dpi" y "banip" siguen existiendo como
+ *  páginas pero ya no son entradas directas: se componen dentro de
+ *  "internet" (solo gateway). */
 const NAV_GROUPS: { group: string | null; items: Page[] }[] = [
   { group: null, items: ["overview"] },
-  { group: "nav.group.router", items: ["wan", "lan", "forwards", "dpi", "banip"] },
-  { group: "nav.group.wifi", items: ["wifi", "coverage"] },
-  { group: "nav.group.network", items: ["clients"] },
-  { group: "nav.group.switch", items: ["ports"] },
-  { group: "nav.group.services", items: ["services", "usage"] },
-  { group: "nav.group.management", items: ["tools", "diagnostics", "storage", "fleet", "system"] },
+  { group: "nav.group.yourNetwork", items: ["clients", "coverage", "traffic"] },
+  { group: "nav.group.connection", items: ["internet", "wifi", "lan", "ports"] },
+  { group: "nav.group.services", items: ["services"] },
+  { group: "nav.group.system", items: ["tools", "diagnostics", "storage", "fleet", "system", "about"] },
   { group: "nav.group.advanced", items: ["adv-network", "adv-switch"] },
-  { group: "nav.group.about", items: ["about"] },
 ];
 
 function ShellInner({ onLogout }: { onLogout: () => void }) {
@@ -189,13 +195,18 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   }, [usteerAps]);
   const visible = (id: Page) => {
     if (!modeReady) return id === "overview";
-    if ((id === "wan" || id === "lan" || id === "forwards" || id === "dpi" || id === "banip") && !isRouter) return false;
+    // La línea de salida y todo lo que cuelga de ella (reenvío de puertos,
+    // DPI, banIP) solo aplica a la puerta de enlace.
+    if ((id === "internet" || id === "wan" || id === "forwards" || id === "dpi" || id === "banip") && !isRouter) return false;
+    // Red local (DHCP/DNS/reservas): sin dnsmasq la página quedaría vacía
+    // (p. ej. un switch gestionado), así que la entrada no se ofrece.
+    if (id === "lan" && !mode?.dnsmasq_on) return false;
     if ((id === "wifi" || id === "coverage") && !hasWifiRadios) return false;
     if (id === "ports" && !hasSwitchPorts) return false;
     if (id === "storage" && !storage?.applicable) return false;
     if (id === "coverage" && !usteerMultiRouter) return false;
     if ((id === "adv-network" || id === "adv-switch") && !advanced) return false;
-    if ((id === "services" || id === "usage") && isSwitch) return false;
+    if (id === "services" && isSwitch) return false;
     return true;
   };
   const activePage = NAV_GROUPS.some((g) => g.items.includes(page)) && visible(page) ? page : "overview";
@@ -221,6 +232,10 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
           {items.map((id) => {
             const Icon = NAV_ICONS[id];
             const active = activePage === id;
+            // En un switch la entrada de puertos cambia de nombre y lleva
+            // el número de bocas (#487), como en el mockup de rediseño.
+            const label = id === "ports" && isSwitch ? t("nav.portsSwitch") : t(`nav.${id}`);
+            const portCount = id === "ports" && isSwitch ? mode?.port_count : undefined;
             return (
               <button
                 key={id}
@@ -239,7 +254,12 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
                 <span className="relative shrink-0">
                   <Icon size={18} />
                 </span>
-                {!compact && <span className="flex-1 truncate">{t(`nav.${id}`)}</span>}
+                {!compact && <span className="flex-1 truncate">{label}</span>}
+                {!compact && portCount !== undefined && portCount > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-md bg-accent-soft text-accent text-[10px] font-bold tabular-nums">
+                    {portCount}
+                  </span>
+                )}
                 {!compact && id === "overview" && <StatusDot tone={health.tone} label={t(health.labelKey)} />}
               </button>
             );
@@ -256,7 +276,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
       ? (["overview", "ports", "tools"] as Page[])
       : !isRouter
         ? (["overview", "wifi", "ports", "tools"] as Page[])
-        : (["overview", "wifi", "services", "tools"] as Page[])
+        : (["overview", "wifi", "traffic", "tools"] as Page[])
   ).filter(visible);
 
   const demo = isDemo();
@@ -329,9 +349,11 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
           isSwitch={role === "switch"} health={health} mode={mode} onNavigate={navigate}
         />
       )}
-      {activePage === "usage" && <UsagePage onNavigate={navigate} />}
+      {activePage === "traffic" && <TrafficPage onNavigate={navigate} />}
       {activePage === "clients" && <ClientsPage />}
-      {activePage === "wan" && <WanPage mwan={mwan} onMwanChange={setMwan} />}
+      {activePage === "internet" && (
+        <InternetPage mwan={mwan} onMwanChange={setMwan} fwd={fwd} onFwdChange={setFwd} />
+      )}
       {activePage === "coverage" && <CoveragePage aps={usteerAps} error={usteerError} />}
       {activePage === "wifi" && (
         <WifiPage iot={iot} onIotChange={setIot} guest={guest} onGuestChange={setGuest} />
@@ -342,12 +364,8 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
       {activePage === "services" && (
         <Services wg={wg} onWgChange={setWg} ddns={ddns} onDdnsChange={setDdns} mdns={mdns} onMdnsChange={setMdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} ts={ts} onTsChange={setTs} apMode={!isRouter} onNavigate={navigate} />
       )}
-      {activePage === "banip" && <BanipPage />}
       {activePage === "ports" && (
         <Ports ethports={ethports ?? []} />
-      )}
-      {activePage === "forwards" && (
-        <ForwardsPage fwd={fwd} onFwdChange={setFwd} />
       )}
       {activePage === "tools" && (
         <ToolsPage ethports={ethports ?? []} />
@@ -361,7 +379,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
       {activePage === "storage" && (
         <StoragePage />
       )}
-      {activePage === "dpi" && <DpiPage />}
       {activePage === "about" && <AboutPage />}
       {activePage === "system" && (
         <System board={board} update={update} onUpdateChange={setUpdate} onLogout={onLogout} />
@@ -385,6 +402,16 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
               NetGrip <span className="text-muted font-normal font-mono text-small">· {board?.hostname ?? "…"}</span>
             </p>
           </div>
+          {/* Badge de rol (#487): debajo del nombre, solo cuando el rol es
+              fiable (caché o probe confirmado); nunca en la versión compacta. */}
+          {modeReady && (
+            <div className="hidden lg:block px-1.5 pb-2 -mt-1">
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${ROLE_BADGE[role].cls}`}>
+                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${ROLE_BADGE[role].dot}`} />
+                {t(ROLE_BADGE[role].labelKey)}
+              </span>
+            </div>
+          )}
           <div className="lg:hidden">{navList(true)}</div>
           <div className="hidden lg:block">{navList(false)}</div>
         </nav>

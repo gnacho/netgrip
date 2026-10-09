@@ -4,10 +4,11 @@ import type { Client } from "../types";
 import { TopConsumersCard } from "../components/overview/TopConsumersCard";
 
 /**
- * Consumo (#385): "qué dispositivos y apps gastan más" tiene página propia
- * bajo Servicios; el resumen queda para salud y estado en vivo.
+ * Tráfico (#487): "qué dispositivos y apps gastan más" vive en el grupo "Tu
+ * red" con id "traffic" (antes "usage" bajo Servicios); el resumen queda para
+ * salud y estado en vivo.
  */
-export function UsagePage({ onNavigate }: { onNavigate: (p: string) => void }) {
+export function TrafficPage({ onNavigate }: { onNavigate: (p: string) => void }) {
   const [clients, setClients] = useState<Client[]>();
 
   useEffect(() => {
