@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gnacho/netgrip/internal/executor"
+	"github.com/gnacho/netgrip/internal/ubus"
 )
 
 // ModeProbe reports whether the router is a gateway/router or an access
@@ -46,7 +47,7 @@ func computeRole(p *ModeProbe) string {
 // ProbeMode detects the router mode and hardware class.
 func ProbeMode() *ModeProbe {
 	p := &ModeProbe{
-		WanConfigured: hasUplink(),
+		WanConfigured: hasGatewayUplink(),
 		DnsmasqOn:     executor.ServiceEnabled("dnsmasq"),
 		FirewallOn:    executor.ServiceEnabled("firewall"),
 		HasWifi:       hasWifiRadios(),
@@ -81,6 +82,40 @@ func hasWifiRadios() bool {
 		return false
 	}
 	return strings.TrimSpace(string(out)) != ""
+}
+
+// hasGatewayUplink decides whether this device routes traffic for others.
+// The route-based hasUplink() alone misfires on DHCP-managed LAN devices
+// (AP, switch): they learn the default route from the real gateway, so the
+// "active WAN" resolves to their own lan section and they masquerade as
+// routers. Named wan* interface sections settle it (they survive in
+// renamed-uplink setups, like the QMI failover in #325); otherwise the
+// route-based uplink only counts when its section is not a lan* one
+// (uplinks renamed "isp" and friends still win, #325).
+func hasGatewayUplink() bool {
+	ifaceNames := []string{}
+	if show, err := uciShowNetwork(); err == nil {
+		for name, s := range parseUCIShow(show, "network") {
+			if s.Type == "interface" {
+				ifaceNames = append(ifaceNames, name)
+			}
+		}
+	}
+	active := ubus.ActiveWANInterfaceName()
+	return isGatewayByUplinkNames(ifaceNames, active, uciSectionExists("network."+active))
+}
+
+// isGatewayByUplinkNames is the pure decision behind hasGatewayUplink.
+func isGatewayByUplinkNames(ifaceNames []string, activeName string, activeSectionExists bool) bool {
+	for _, n := range ifaceNames {
+		if strings.HasPrefix(n, "wan") {
+			return true
+		}
+	}
+	if activeName == "" || strings.HasPrefix(activeName, "lan") {
+		return false
+	}
+	return activeSectionExists
 }
 
 // SetMode converts the router between Router (gateway) and AP modes. This is

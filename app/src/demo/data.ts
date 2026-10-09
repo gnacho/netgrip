@@ -671,6 +671,18 @@ export const demoCableTest: T.CableTestProbe = {
 
 export const demoStorm: T.StormProbe = { applicable: false, ports: [] };
 
+export const demoStp: T.STPProbe = {
+  applicable: false,
+  bridge: "br-lan",
+  bridge_info: {
+    enabled: false, priority: 32767, hello_time: 1, max_age: 10, forward_delay: 8,
+    bridge_id: "", designated_root: "", root_port: "", root_path_cost: 0, topology_change: false,
+  },
+  ports: [],
+};
+
+export const demoPhysPorts: T.PhysPortsProbe = { applicable: false, ports: [] };
+
 export const demoStorage: T.StorageProbe = {
   applicable: true,
   devices: [{

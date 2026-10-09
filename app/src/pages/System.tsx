@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Board, UpdateCheck } from "../types";
+import { useMode } from "../hooks/useMode";
 import { SecurityCard } from "../components/system/SecurityCard";
 import { RemoteAccessCard } from "../components/system/RemoteAccessCard";
 import { AccessCard } from "../components/system/AccessCard";
@@ -35,13 +36,21 @@ export function System({ board, update, onUpdateChange, onLogout }: {
   onLogout: () => void;
 }) {
   const { t } = useTranslation();
+  // (#484) Solo el gateway gestiona acceso remoto, modo de operación y el
+  // asistente inicial. Las tres tarjetas son gateway-only: no se pintan
+  // hasta conocer el rol (useMode hidrata desde caché, así que en recargas
+  // la decisión es inmediata y en la primera visita esperan al probe en
+  // vez de quedarse visibles por defecto).
+  const { mode, modeReady } = useMode();
+  const role = mode?.role ?? (mode?.mode === "ap" ? "ap" : "router");
+  const isRouter = modeReady && role === "router";
   return (
     <div className="flex flex-col gap-6">
       {/* Protección */}
       <section className="flex flex-col gap-[var(--card-gap)]">
         <GroupLabel>{t("system.groupProtection")}</GroupLabel>
         <SecurityCard index={0} onLogout={onLogout} />
-        <RemoteAccessCard index={1} />
+        {isRouter && <RemoteAccessCard index={1} />}
         <AccessCard index={2} />
         <TelegramCard index={3} />
         <NtfyCard index={4} />
@@ -52,7 +61,7 @@ export function System({ board, update, onUpdateChange, onLogout }: {
         <GroupLabel>{t("system.groupDevice")}</GroupLabel>
         <NetPulseStandaloneBanner />
         <NetPulseStatusChip />
-        <ModeCard index={0} />
+        {isRouter && <ModeCard index={0} />}
         <IdentityCard index={1} board={board} />
         {!NETPULSE_CARD_HIDDEN && <NetPulseCard index={2} />}
         <MQTTCard index={2} />
@@ -71,7 +80,7 @@ export function System({ board, update, onUpdateChange, onLogout }: {
           update={update}
           onChange={onUpdateChange}
         />
-        <WizardRelaunchCard index={1} />
+        {isRouter && <WizardRelaunchCard index={1} />}
       </section>
 
       {/* Opciones (#158): preferencias de la interfaz (idioma, densidad,

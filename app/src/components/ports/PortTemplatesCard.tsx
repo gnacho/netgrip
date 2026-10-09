@@ -106,7 +106,7 @@ export function PortTemplatesCard() {
       {templates.length === 0 ? (
         <p className="text-small text-muted">{t("portTemplates.noTemplates")}</p>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
           {templates.map((tpl) => (
             <div key={tpl.name} className="bg-surface border border-border rounded-md p-3">
               <div className="flex items-start gap-2">

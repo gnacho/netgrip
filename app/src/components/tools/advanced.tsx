@@ -101,11 +101,12 @@ export function StormControlCard() {
   return (
     <Card variant="subtle" animate={false} title={t("tools.stormControl")} icon={ShieldAlert}>
       <p className="text-small text-muted mb-3">{t("tools.stormNote")}</p>
-      <div className="flex flex-col divide-y divide-border/60">
+      {/* Rejilla densa: 1 columna en movil, 2 en md, 3 en xl (issue #485). */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-3">
         {wired.map((p) => {
           const pct = percent[p.port] ?? (p.active ? 10 : 0);
           return (
-            <div key={p.port} className="py-2.5">
+            <div key={p.port} className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="w-12 shrink-0 font-mono text-small">{p.port}</span>
                 <span className="w-14 shrink-0 text-caption text-muted">
@@ -118,7 +119,7 @@ export function StormControlCard() {
                   value={pct}
                   aria-label={t("tools.stormAria", { port: p.port })}
                   onChange={(e) => setPercent((prev) => ({ ...prev, [p.port]: +e.target.value }))}
-                  className="flex-1 accent-accent"
+                  className="flex-1 min-w-0 accent-accent"
                 />
                 <span className="w-10 shrink-0 text-right text-caption tabular-nums">{pct}%</span>
                 <Button variant="secondary" size="sm" loading={busy === p.port} onClick={() => apply(p.port)}>
@@ -195,11 +196,13 @@ export function MacAclCard() {
   return (
     <Card variant="subtle" animate={false} title={t("tools.macAclTitle")} icon={Lock} help="macacl">
       <p className="text-small text-muted mb-3">{t("tools.macAclIntro")}</p>
-      <div className="flex flex-col gap-3">
+      {/* Rejilla densa: 2 columnas en md, 3 en xl; celda con borde ligero
+          porque ancla el textarea de MACs (issue #485). */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
         {wired.map((p) => {
           const mode = modes[p.port] || "off";
           return (
-            <div key={p.port} className="rounded-md border border-border p-3">
+            <div key={p.port} className="min-w-0 rounded-md border border-border/60 p-2.5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="w-12 shrink-0 font-mono text-small">{p.port}</span>
                 <SegmentedControl<MacAclMode>

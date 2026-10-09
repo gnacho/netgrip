@@ -104,7 +104,14 @@ func vlanSections(sections map[string]uciSection, bridge string) map[string]VLAN
 		}
 		ports := make([]VLANPort, 0, len(s.Options["ports"]))
 		for _, raw := range s.Options["ports"] {
-			ports = append(ports, parseVlanPort(raw))
+			// Los bridges DSA escriben los puertos como UN solo valor
+			// separado por espacios ("option ports 'lan1 lan2 ...'"), no
+			// como entradas de lista; sin el split la VLAN entera colapsaba
+			// en un pseudo-puerto (#485, verificado en un switch de 52
+			// bocas). Cada token sigue el formato "<port>[:u|:t][*]".
+			for _, one := range strings.Fields(raw) {
+				ports = append(ports, parseVlanPort(one))
+			}
 		}
 		out[name] = VLAN{VID: vid, Name: fmt.Sprintf("VLAN %d", vid), Device: bridge, Ports: ports}
 	}

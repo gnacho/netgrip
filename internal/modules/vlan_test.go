@@ -18,6 +18,30 @@ func TestCollectVLANsFindsAllSections(t *testing.T) {
 	}
 }
 
+// Los bridges DSA escriben `option ports 'lan1 lan2 ...'` como un solo
+// valor; sin el split por espacios la VLAN entera se colapsaba en un
+// pseudo-puerto con todos los nombres pegados (#485, switch de 52 bocas).
+func TestCollectVLANsSplitsSpaceSeparatedPorts(t *testing.T) {
+	show := `network.lan_vlan=bridge-vlan
+network.lan_vlan.device='switch'
+network.lan_vlan.vlan='1'
+network.lan_vlan.ports='lan1 lan2 lan3 lan49 lan52'
+`
+	vlans := collectVLANs(parseUCIShow(show, "network"), "switch")
+	if len(vlans) != 1 {
+		t.Fatalf("len(vlans) = %d, want 1", len(vlans))
+	}
+	want := []string{"lan1", "lan2", "lan3", "lan49", "lan52"}
+	if len(vlans[0].Ports) != len(want) {
+		t.Fatalf("ports = %+v, want %d entries", vlans[0].Ports, len(want))
+	}
+	for i, p := range vlans[0].Ports {
+		if p.Port != want[i] || p.Tagged {
+			t.Fatalf("ports[%d] = %+v, want %s sin tag", i, p, want[i])
+		}
+	}
+}
+
 func TestParseVlanPortFlags(t *testing.T) {
 	cases := []struct {
 		in   string
