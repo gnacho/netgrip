@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { Activity, ArrowLeftRight, Blocks, ChartColumn, ChartPie, CircuitBoard, Download, Forward, Globe, HardDrive, Info, Layers, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldBan, Smartphone, Wifi, Wrench } from "lucide-react";
+import { Activity, ArrowLeftRight, Blocks, ChartColumn, ChartPie, Download, Forward, Globe, HardDrive, Info, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldBan, Smartphone, Wifi, Wrench } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
 import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MDNSProbe, MultiWanProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
@@ -21,14 +21,12 @@ import { System } from "../pages/System";
 import { LanPage } from "../pages/Lan";
 import { ToolsPage } from "../pages/Tools";
 import { DiagnosticsPage } from "../pages/Diagnostics";
-import { AdvancedNetworkPage } from "../pages/AdvancedNetwork";
-import { AdvancedSwitchPage } from "../pages/AdvancedSwitch";
 import { FleetPage } from "../pages/Fleet";
 import { StoragePage } from "../pages/Storage";
 import { AboutPage } from "../pages/About";
 import { SelfUpdateDialog } from "../components/system/SelfUpdateDialog";
 
-export type Page = "overview" | "internet" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "traffic" | "banip" | "ports" | "forwards" | "tools" | "diagnostics" | "adv-network" | "adv-switch" | "fleet" | "storage" | "system" | "dpi" | "about";
+export type Page = "overview" | "internet" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "traffic" | "banip" | "ports" | "forwards" | "tools" | "diagnostics" | "fleet" | "storage" | "system" | "dpi" | "about";
 
 const NAV_ICONS: Record<Page, LucideIcon> = {
   overview: LayoutDashboard,
@@ -45,8 +43,6 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
   forwards: Forward,
   tools: Wrench,
   diagnostics: Activity,
-  "adv-network": Layers,
-  "adv-switch": CircuitBoard,
   storage: HardDrive,
   fleet: Server,
   system: Settings,
@@ -72,7 +68,6 @@ const NAV_GROUPS: { group: string | null; items: Page[] }[] = [
   { group: "nav.group.connection", items: ["internet", "wifi", "lan", "ports"] },
   { group: "nav.group.services", items: ["services"] },
   { group: "nav.group.system", items: ["tools", "diagnostics", "storage", "fleet", "system", "about"] },
-  { group: "nav.group.advanced", items: ["adv-network", "adv-switch"] },
 ];
 
 function ShellInner({ onLogout }: { onLogout: () => void }) {
@@ -101,7 +96,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   const [drift, setDrift] = useState<DriftProbe>();
   const [storage, setStorage] = useState<StorageProbe>();
   const [wireless, setWireless] = useState<WirelessRadio[]>();
-  const [advanced, setAdvanced] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [failCount, setFailCount] = useState(0);
   const [demoBannerDismissed, setDemoBannerDismissed] = useState(false);
@@ -156,7 +150,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     api.drift().then(setDrift).catch(() => {});
     api.storage().then(setStorage).catch(() => {});
     api.wireless().then(setWireless).catch(() => {});
-    api.advanced().then((p) => setAdvanced(p.advanced)).catch(() => {});
   }, []);
 
   const { mode, modeReady } = useMode();
@@ -205,7 +198,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     if (id === "ports" && !hasSwitchPorts) return false;
     if (id === "storage" && !storage?.applicable) return false;
     if (id === "coverage" && !usteerMultiRouter) return false;
-    if ((id === "adv-network" || id === "adv-switch") && !advanced) return false;
     if (id === "services" && isSwitch) return false;
     return true;
   };
@@ -372,8 +364,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         <ToolsPage ethports={ethports ?? []} />
       )}
       {activePage === "diagnostics" && <DiagnosticsPage />}
-      {activePage === "adv-network" && <AdvancedNetworkPage />}
-      {activePage === "adv-switch" && <AdvancedSwitchPage />}
       {activePage === "fleet" && (
         <FleetPage />
       )}
