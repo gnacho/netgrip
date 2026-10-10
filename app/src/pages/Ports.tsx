@@ -8,7 +8,6 @@ import { VLANTable } from "../components/ports/VLANTable";
 import { LagCard } from "../components/ports/LagCard";
 import { StpBridgeCard, StpPortsCard } from "../components/ports/StpCards";
 import { SfpCard } from "../components/ports/SfpCard";
-import { PortStatsCard } from "../components/ports/PortStatsCard";
 import { RoleProfilesCard } from "../components/ports/RoleProfilesCard";
 import { PortTemplatesCard } from "../components/ports/PortTemplatesCard";
 import { SwitchModesCard } from "../components/ports/SwitchModesCard";
@@ -111,7 +110,6 @@ export function Ports({ ethports }: { ethports?: EthPort[] }) {
       {active === "optics" && (
         <div className="flex flex-col gap-[var(--card-gap)]">
           <SfpCard index={0} />
-          <PortStatsCard />
         </div>
       )}
 
