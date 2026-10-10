@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
 const stormConfPath = "/etc/netgrip/storm.conf"
@@ -30,6 +32,11 @@ type StormPort struct {
 type StormProbe struct {
 	Applicable bool        `json:"applicable"`
 	Ports      []StormPort `json:"ports"`
+	// TcInstalled indica si el binario tc esta disponible. Los targets DSA
+	// (p. ej. realtek rtl93xx, verificado en el LGS352C) no traen tc de
+	// fabrica: SetStormControl lo instala al aplicar (#489), pero el probe
+	// lo expone para que la UI pueda avisar antes del primer apply.
+	TcInstalled bool `json:"tc_installed"`
 }
 
 type StormSetRequest struct {
@@ -57,11 +64,69 @@ func ProbeStormControl() StormProbe {
 	}
 
 	return StormProbe{
-		Applicable: true,
-		Ports:      ports,
+		Applicable:  true,
+		Ports:       ports,
+		TcInstalled: tcInstalled(),
 	}
 }
 
+// stormLookPath y stormInstallPkg son la costura de testeo de ensureTc: los
+// tests inyectan falses y verifican la logica de decision (falta tc ->
+// instalar paquete correcto -> reintentar) sin ejecutar nada real.
+var (
+	stormLookPath   = exec.LookPath
+	stormInstallPkg = executor.Run
+	// stormTcCheck verifica que tc no solo este en PATH sino que ejecute:
+	// tras desinstalar tc-tiny puede quedar un stub de busybox (symlink
+	// /sbin/tc -> /bin/busybox que imprime "applet not found" y sale 1).
+	stormTcCheck = func() error { return exec.Command("tc", "-V").Run() }
+)
+
+// tcInstalled reporta si el binario tc esta en el PATH y realmente
+// funciona (no basta LookPath: ver stormTcCheck).
+func tcInstalled() bool {
+	if _, err := stormLookPath("tc"); err != nil {
+		return false
+	}
+	return stormTcCheck() == nil
+}
+
+// tcPackages son los paquetes que hacen falta para aplicar storm control:
+// tc (binario), kmod-sched (em_cmp, el ematch de comparacion) y
+// kmod-sched-act-police (la accion police). Verificado en el LGS352C
+// (rtl931x, 25.12.1, #489). En releases con opkg (<= 24.10) act_police
+// viaja dentro de kmod-sched y el paquete independiente no existe, de ahi
+// el fallback.
+var (
+	tcPackages      = []string{"tc", "kmod-sched", "kmod-sched-act-police"}
+	tcPackagesOpkg  = []string{"tc", "kmod-sched"}
+	tcManualInstall = "tc, kmod-sched and kmod-sched-act-police (on opkg <= 24.10 the last one ships inside kmod-sched)"
+)
+
+// ensureTc garantiza que tc este disponible antes de aplicar filtros. Si
+// falta, lo instala con pkg_add (deteccion apk/opkg ya centralizada en el
+// executor, incluido el opkg update automatico con listas vacias) y
+// re-verifica. Error accionable si la instalacion falla (offline, sin
+// espacio, feed caido): el usuario sabe que paquetes instalar a mano.
+func ensureTc() error {
+	if tcInstalled() {
+		return nil
+	}
+	if err := stormInstallPkg(executor.Op{Kind: "pkg_add", Args: tcPackages}); err != nil {
+		// Fallback opkg antiguo: act_police no es paquete aparte.
+		if err2 := stormInstallPkg(executor.Op{Kind: "pkg_add", Args: tcPackagesOpkg}); err2 != nil {
+			return fmt.Errorf("tc is missing and installing %v failed (%v; fallback %v: %v): install %s manually", tcPackages, err, tcPackagesOpkg, err2, tcManualInstall)
+		}
+	}
+	if !tcInstalled() {
+		return fmt.Errorf("installed %v but tc is still not in PATH: install %s manually", tcPackages, tcManualInstall)
+	}
+	return nil
+}
+
+// readStormPort lee el estado de tc de una boca. El show solo funciona si
+// tc esta instalado; si falta, la boca se reporta inactiva (SetStormControl
+// lo instala al aplicar, #489).
 func readStormPort(port string) StormPort {
 	sp := StormPort{Port: port}
 
@@ -79,18 +144,28 @@ func readStormPort(port string) StormPort {
 	}
 	output := string(out)
 
-	if strings.Contains(output, "match ff:ff:ff:ff:ff:ff") {
+	// Las firmas corresponden a los filtros que crea setStormPort con
+	// ematch cmp (asic se imprimen en `tc filter show`). No buscar
+	// "police" a pelo: un police ajeno (manually added) daria falsos
+	// positivos de "activo".
+	if strings.Contains(output, stormSigBroadcast) {
 		sp.Active = true
 		sp.BroadcastKbps = parseTcRate(output, "broadcast")
 	}
-	if strings.Contains(output, "match 01:00:5e:00:00:00") ||
-		strings.Contains(output, "match 33:33:00:00:00:00") {
+	if strings.Contains(output, stormSigMulticast) {
 		sp.Active = true
 		sp.MulticastKbps = parseTcRate(output, "multicast")
 	}
 
 	return sp
 }
+
+// Firmas de los filtros storm en la salida de `tc filter show` (asic las
+// imprime el ematch cmp: "layer link" se muestra como "layer 0").
+const (
+	stormSigBroadcast = "cmp(u16 at 0 layer 0 mask 0xffff eq 65535)"
+	stormSigMulticast = "mask 0x1000000 eq"
+)
 
 func parseTcRate(output string, kind string) int {
 	lines := strings.Split(output, "\n")
@@ -100,10 +175,16 @@ func parseTcRate(output string, kind string) int {
 			for j, p := range parts {
 				if p == "rate" && j+1 < len(parts) {
 					val := parts[j+1]
+					mult := 1
+					// tc imprime "50Mbit" aunque se configure 50000kbit.
+					if strings.HasSuffix(val, "Mbit") {
+						mult = 1000
+						val = strings.TrimSuffix(val, "Mbit")
+					}
 					val = strings.TrimSuffix(val, "Kbit")
 					val = strings.TrimSuffix(val, "kbit")
 					if v, err := strconv.Atoi(val); err == nil {
-						return v
+						return v * mult
 					}
 				}
 			}
@@ -120,6 +201,15 @@ func SetStormControl(req StormSetRequest) error {
 	targets, err := stormTargets(req)
 	if err != nil {
 		return err
+	}
+
+	// Aplicar con un limite exige tc; los targets DSA no lo traen de
+	// fabrica (#489). El 0 (revertir) solo borra del storm.conf y hace un
+	// best-effort del qdisc, asi que no exige instalar nada.
+	if req.Percent > 0 {
+		if err := ensureTc(); err != nil {
+			return err
+		}
 	}
 
 	for _, port := range targets {
@@ -184,22 +274,34 @@ func setStormPort(port string, percent int) error {
 
 	bcRate := fmt.Sprintf("%dkbit", rateKbps)
 
-	exec.Command("tc", "filter", "add", "dev", port, "parent", "ffff:",
+	// Filtros de MAC destino con ematch cmp sobre "layer link": en ingress
+	// skb->data apunta a la cabecera L3 y cls_u32 no admite offsets
+	// negativos en este kernel (verificado en el LGS352C, rtl931x, #489).
+	// Difusion: 6 primeros bytes del dst = ff. Multidifusion: bit de grupo
+	// (LSB del primer byte) activado (cubre 01:00:5e IPv4 y 33:33 IPv6).
+	if out, err := exec.Command("tc", "filter", "add", "dev", port, "parent", "ffff:",
 		"protocol", "all", "prio", "1",
-		"basic", "match", "meta(dst eq ff:ff:ff:ff:ff:ff)",
-		"police", "rate", bcRate, "burst", "32k",
-		"exceed", "drop").Run()
+		"basic", "match", stormMatchBroadcast,
+		"police", "rate", bcRate, "burst", "32k", "drop").CombinedOutput(); err != nil {
+		return fmt.Errorf("add broadcast filter on %s: %v (%s)", port, err, strings.TrimSpace(string(out)))
+	}
 
-	exec.Command("tc", "filter", "add", "dev", port, "parent", "ffff:",
+	if out, err := exec.Command("tc", "filter", "add", "dev", port, "parent", "ffff:",
 		"protocol", "all", "prio", "2",
-		"basic", "match", "meta(dst eq 01:00:5e:00:00:00/01:00:00:00:00:00)",
-		"police", "rate", bcRate, "burst", "32k",
-		"exceed", "drop").Run()
+		"basic", "match", stormMatchMulticast,
+		"police", "rate", bcRate, "burst", "32k", "drop").CombinedOutput(); err != nil {
+		return fmt.Errorf("add multicast filter on %s: %v (%s)", port, err, strings.TrimSpace(string(out)))
+	}
 
 	saveStormConfig(port, percent)
 
 	return nil
 }
+
+const (
+	stormMatchBroadcast = "cmp(u16 at 0 layer link mask 0xffff eq 0xffff) and cmp(u16 at 2 layer link mask 0xffff eq 0xffff) and cmp(u16 at 4 layer link mask 0xffff eq 0xffff)"
+	stormMatchMulticast = "cmp(u32 at 0 layer link mask 0x01000000 eq 0x01000000)"
+)
 
 func loadStormConfigs() map[string]int {
 	configs := make(map[string]int)

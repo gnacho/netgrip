@@ -1800,6 +1800,7 @@ export default {
     linkDown: "Sin enlace",
     igmpDesc: "Hace que el vídeo en grupo (IPTV) no inunde tu WiFi. Si no usas TV del operador, déjalo como está.",
     stormNote: "Límite de tráfico de 'gritos' en la red. Útil con equipos que se vuelven locos.",
+    stormTcMissing: "Falta la utilidad tc en este equipo: se instalará automáticamente al aplicar el límite.",
     stormNow: "Ahora: {{broadcast}}/{{multicast}} kbps (difusión/multidifusión)",
     stormAria: "Límite para {{port}}",
     stormGlobalTitle: "Límite para todas las bocas",
