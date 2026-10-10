@@ -46,18 +46,24 @@ type STPBridge struct {
 }
 
 type STPPort struct {
-	Port           string `json:"port"`
-	State          int    `json:"state"`
-	StateName      string `json:"state_name"`
-	PathCost       int64  `json:"path_cost"`
-	Priority       int    `json:"priority"`
-	BpduGuard      bool   `json:"bpdu_guard"`
-	BpduFilter     bool   `json:"bpdu_filter"`
-	RootBlock      bool   `json:"root_block"`
-	PortID         string `json:"port_id"`
-	DesignatedRoot string `json:"designated_root"`
-	DesignatedCost int64  `json:"designated_cost"`
-	DesignatedPort string `json:"designated_port"`
+	Port       string `json:"port"`
+	State      int    `json:"state"`
+	StateName  string `json:"state_name"`
+	PathCost   int64  `json:"path_cost"`
+	Priority   int    `json:"priority"`
+	BpduGuard  bool   `json:"bpdu_guard"`
+	BpduFilter bool   `json:"bpdu_filter"`
+	RootBlock  bool   `json:"root_block"`
+	PortID     string `json:"port_id"`
+	// DefaultPathCost es el coste que el kernel asignaria segun la
+	// velocidad del enlace; sirve para restablecer una boca ajustada
+	// (el kernel no acepta 0 en path_cost). Custom resume si la boca se
+	// sale de los valores por defecto (#487).
+	DefaultPathCost int64  `json:"default_path_cost"`
+	Custom          bool   `json:"custom"`
+	DesignatedRoot  string `json:"designated_root"`
+	DesignatedCost  int64  `json:"designated_cost"`
+	DesignatedPort  string `json:"designated_port"`
 }
 
 type STPProbe struct {
@@ -115,20 +121,67 @@ func readSTPPort(bridge, port string) (STPPort, bool) {
 		return STPPort{}, false
 	}
 	state := int(readSysIntDefault(filepath.Join(base, "state")))
+	priority := int(readSysIntDefault(filepath.Join(base, "priority")))
+	pathCost := readSysIntDefault(filepath.Join(base, "path_cost"))
+	defCost := stpDefaultPathCost(readPortSpeedMbps(port))
+	guard := readSysIntDefault(filepath.Join(base, "bpdu_guard")) == 1
+	filter := readSysIntDefault(filepath.Join(base, "bpdu_filter")) == 1
+	rootBlock := readSysIntDefault(filepath.Join(base, "root_block")) == 1
 	return STPPort{
-		Port:           port,
-		State:          state,
-		StateName:      stpStateName(state),
-		PathCost:       readSysIntDefault(filepath.Join(base, "path_cost")),
-		Priority:       int(readSysIntDefault(filepath.Join(base, "priority"))),
-		BpduGuard:      readSysIntDefault(filepath.Join(base, "bpdu_guard")) == 1,
-		BpduFilter:     readSysIntDefault(filepath.Join(base, "bpdu_filter")) == 1,
-		RootBlock:      readSysIntDefault(filepath.Join(base, "root_block")) == 1,
-		PortID:         readSysString(filepath.Join(base, "port_id")),
-		DesignatedRoot: readSysString(filepath.Join(base, "designated_root")),
-		DesignatedCost: readSysIntDefault(filepath.Join(base, "designated_cost")),
-		DesignatedPort: readSysString(filepath.Join(base, "designated_port")),
+		Port:            port,
+		State:           state,
+		StateName:       stpStateName(state),
+		PathCost:        pathCost,
+		Priority:        priority,
+		BpduGuard:       guard,
+		BpduFilter:      filter,
+		RootBlock:       rootBlock,
+		PortID:          readSysString(filepath.Join(base, "port_id")),
+		DesignatedRoot:  readSysString(filepath.Join(base, "designated_root")),
+		DesignatedCost:  readSysIntDefault(filepath.Join(base, "designated_cost")),
+		DesignatedPort:  readSysString(filepath.Join(base, "designated_port")),
+		DefaultPathCost: defCost,
+		Custom:          priority != 32 || guard || filter || rootBlock || pathCost != defCost,
 	}, true
+}
+
+// readPortSpeedMbps lee la velocidad negociada; sin enlace o sin soporte
+// devuelve -1 (SPEED_UNKNOWN para el kernel).
+func readPortSpeedMbps(port string) int {
+	data, err := os.ReadFile("/sys/class/net/" + port + "/speed")
+	if err != nil {
+		return -1
+	}
+	v, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil || v <= 0 {
+		return -1
+	}
+	return v
+}
+
+// stpDefaultPathCost replica la tabla port_cost() del kernel
+// (net/bridge/br_if.c, con el ajuste de 2.5G/5G): >10G=1, 10G=2, 5G=3,
+// 2.5G=4, 1G=5, 100M=19, 10M=100 y 100 para velocidad desconocida.
+// Verificado en OpenWrt 6.12: boca a 1G reporta 5 y una caida 100.
+func stpDefaultPathCost(speedMbps int) int64 {
+	switch {
+	case speedMbps > 10000:
+		return 1
+	case speedMbps == 10000:
+		return 2
+	case speedMbps == 5000:
+		return 3
+	case speedMbps == 2500:
+		return 4
+	case speedMbps == 1000:
+		return 5
+	case speedMbps == 100:
+		return 19
+	case speedMbps == 10:
+		return 100
+	default:
+		return 100
+	}
 }
 
 type STPBridgeEdit struct {

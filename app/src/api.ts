@@ -843,6 +843,12 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ port, percent }),
     }),
+  setStormControlAll: (percent: number) =>
+    request<{ status: string }>("/api/storm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ all: true, percent }),
+    }),
   storage: () =>
     request<import("./types").StorageProbe>("/api/storage"),
   setStorageService: (name: string, action: "enable" | "disable") =>

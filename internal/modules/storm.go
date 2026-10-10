@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -19,6 +20,11 @@ type StormPort struct {
 	MulticastKbps      int    `json:"multicast_kbps"`
 	UnknownUnicastKbps int    `json:"unknown_unicast_kbps"`
 	Active             bool   `json:"active"`
+	// Percent es el limite configurado (storm.conf), 0 = sin control. El
+	// kbps efectivo se lee de tc, pero no se puede traducir a porcentaje
+	// sin velocidad de enlace (una boca caida reporta -1), asi que el
+	// probe expone ambos.
+	Percent int `json:"percent"`
 }
 
 type StormProbe struct {
@@ -27,8 +33,12 @@ type StormProbe struct {
 }
 
 type StormSetRequest struct {
-	Port    string `json:"port"`
-	Percent int    `json:"percent"`
+	// Port aplica a una boca; Ports a una lista; All a todas las del
+	// puente. En los tres casos con una sola llamada (#487).
+	Port    string   `json:"port"`
+	Ports   []string `json:"ports,omitempty"`
+	All     bool     `json:"all,omitempty"`
+	Percent int      `json:"percent"`
 }
 
 func ProbeStormControl() StormProbe {
@@ -37,9 +47,12 @@ func ProbeStormControl() StormProbe {
 		return StormProbe{Applicable: false}
 	}
 
+	configs := loadStormConfigs()
+
 	var ports []StormPort
 	for port := range portMap {
 		sp := readStormPort(port)
+		sp.Percent = configs[port]
 		ports = append(ports, sp)
 	}
 
@@ -100,16 +113,55 @@ func parseTcRate(output string, kind string) int {
 }
 
 func SetStormControl(req StormSetRequest) error {
-	if req.Port == "" || req.Percent < 0 || req.Percent > 100 {
-		return fmt.Errorf("invalid port or percent")
+	if req.Percent < 0 || req.Percent > 100 {
+		return fmt.Errorf("invalid percent")
 	}
 
+	targets, err := stormTargets(req)
+	if err != nil {
+		return err
+	}
+
+	for _, port := range targets {
+		if err := setStormPort(port, req.Percent); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// stormTargets resuelve la lista de bocas destino: todas las del puente
+// (All), una lista explicita (Ports) o una sola (Port), validando que
+// existan en el puente.
+func stormTargets(req StormSetRequest) ([]string, error) {
 	portMap := bridgePorts()
-	if _, ok := portMap[req.Port]; !ok {
-		return fmt.Errorf("port not in bridge")
+	if req.All {
+		ports := make([]string, 0, len(portMap))
+		for p := range portMap {
+			ports = append(ports, p)
+		}
+		sort.Strings(ports)
+		return ports, nil
 	}
+	if len(req.Ports) > 0 {
+		for _, p := range req.Ports {
+			if _, ok := portMap[p]; !ok {
+				return nil, fmt.Errorf("port %s not in bridge", p)
+			}
+		}
+		return req.Ports, nil
+	}
+	if req.Port == "" {
+		return nil, fmt.Errorf("invalid port")
+	}
+	if _, ok := portMap[req.Port]; !ok {
+		return nil, fmt.Errorf("port not in bridge")
+	}
+	return []string{req.Port}, nil
+}
 
-	speedPath := fmt.Sprintf("/sys/class/net/%s/speed", req.Port)
+func setStormPort(port string, percent int) error {
+	speedPath := fmt.Sprintf("/sys/class/net/%s/speed", port)
 	speedMbps := 1000
 	if data, err := os.ReadFile(speedPath); err == nil {
 		if v, err := strconv.Atoi(strings.TrimSpace(string(data))); err == nil && v > 0 {
@@ -117,34 +169,34 @@ func SetStormControl(req StormSetRequest) error {
 		}
 	}
 
-	rateKbps := speedMbps * 1000 * req.Percent / 100
+	rateKbps := speedMbps * 1000 * percent / 100
 
-	exec.Command("tc", "qdisc", "del", "dev", req.Port, "ingress").Run()
+	exec.Command("tc", "qdisc", "del", "dev", port, "ingress").Run()
 
-	if req.Percent == 0 {
-		removeStormConfig(req.Port)
+	if percent == 0 {
+		removeStormConfig(port)
 		return nil
 	}
 
-	if err := exec.Command("tc", "qdisc", "add", "dev", req.Port, "ingress").Run(); err != nil {
-		return fmt.Errorf("add ingress qdisc: %v", err)
+	if err := exec.Command("tc", "qdisc", "add", "dev", port, "ingress").Run(); err != nil {
+		return fmt.Errorf("add ingress qdisc on %s: %v", port, err)
 	}
 
 	bcRate := fmt.Sprintf("%dkbit", rateKbps)
 
-	exec.Command("tc", "filter", "add", "dev", req.Port, "parent", "ffff:",
+	exec.Command("tc", "filter", "add", "dev", port, "parent", "ffff:",
 		"protocol", "all", "prio", "1",
 		"basic", "match", "meta(dst eq ff:ff:ff:ff:ff:ff)",
 		"police", "rate", bcRate, "burst", "32k",
 		"exceed", "drop").Run()
 
-	exec.Command("tc", "filter", "add", "dev", req.Port, "parent", "ffff:",
+	exec.Command("tc", "filter", "add", "dev", port, "parent", "ffff:",
 		"protocol", "all", "prio", "2",
 		"basic", "match", "meta(dst eq 01:00:5e:00:00:00/01:00:00:00:00:00)",
 		"police", "rate", bcRate, "burst", "32k",
 		"exceed", "drop").Run()
 
-	saveStormConfig(req.Port, req.Percent)
+	saveStormConfig(port, percent)
 
 	return nil
 }

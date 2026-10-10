@@ -64,9 +64,12 @@ function fmtDur(s: number): string {
 /** Página WAN (#243): estado de salida a Internet + configuración (lectura con
  *  Editar; el form no abre por defecto). El port-forwarding vive en su propia
  *  página "Puertos" (#353); esta página añade el multi-WAN. */
-export function WanPage({ mwan, onMwanChange }: {
+export function WanPage({ mwan, onMwanChange, hideMode = false }: {
   mwan?: MultiWanProbe;
   onMwanChange?: (p: MultiWanProbe) => void;
+  /** Dentro de la página compuesta "Internet" (#487) la tarjeta de modo no se
+   *  repite: ya vive en Sistema > Modo del dispositivo. */
+  hideMode?: boolean;
 }) {
   const { t } = useTranslation();
   const { push } = useToast();
@@ -142,7 +145,7 @@ export function WanPage({ mwan, onMwanChange }: {
 
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
-      <ModeCard index={0} />
+      {!hideMode && <ModeCard index={0} />}
       <Card index={1} icon={Globe} title={t("wan.title")}>
         {error ? (
           <Banner tone="danger">{t("common.loadError")}</Banner>

@@ -23,7 +23,13 @@ function oneLine(text: string) {
  * La antigua tarjeta "Las bocas del switch" (#484) desaparece: su
  * funcionalidad vive en esta banda.
  */
-export function EthPortsCard({ ports, index = 0 }: { ports?: EthPort[]; index?: number }) {
+export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: {
+  ports?: EthPort[];
+  index?: number;
+  /** Ancho de la retícula: por defecto media página (2/2); el Resumen de
+   *  switch (#487) lo pasa a 12/12 para el chasis a ancho completo. */
+  className?: string;
+}) {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<string>();
   const [probe, setProbe] = useState<SwitchProbe>();
@@ -129,7 +135,7 @@ export function EthPortsCard({ ports, index = 0 }: { ports?: EthPort[]; index?: 
       : ""}`;
 
   return (
-    <Card index={index} className="md:col-span-2"
+    <Card index={index} className={className}
       title={oneLine(t("overview.ports"))} icon={Cable} iconTone="teal">
       {!ports ? <SkeletonRows rows={3} /> : sorted.length === 0 ? (
         <EmptyState small illustration={<IlluPlug size={120} />} title={t("overview.portsEmpty")} />

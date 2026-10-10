@@ -989,6 +989,10 @@ export interface STPPort {
   bpdu_guard: boolean;
   bpdu_filter: boolean;
   root_block: boolean;
+  /** Coste que el kernel asignaria por velocidad de enlace (restablecer). */
+  default_path_cost: number;
+  /** true cuando la boca se sale de los valores por defecto del kernel. */
+  custom: boolean;
   port_id: string;
   designated_root: string;
   designated_cost: number;
@@ -1387,6 +1391,8 @@ export interface StormPort {
   multicast_kbps: number;
   unknown_unicast_kbps: number;
   active: boolean;
+  /** Limite configurado en % (0 = sin control); fiable aun sin enlace. */
+  percent: number;
 }
 
 export interface StormProbe {

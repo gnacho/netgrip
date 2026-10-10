@@ -661,6 +661,7 @@ export const demoApi: typeof api = {
   },
   stormControl: () => get(D.demoStorm),
   setStormControl: async () => { await wait(800, 1500); return { status: "ok" }; },
+  setStormControlAll: async () => { await wait(800, 1500); return { status: "ok" }; },
   macAcl: () => get(D.demoMacAcl),
   runBufferbloatTest: async () => {
     await wait(2500, 4000);
