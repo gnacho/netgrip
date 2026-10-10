@@ -129,6 +129,76 @@ func TestSelfUpdateSyncInitIdempotent(t *testing.T) {
 	}
 }
 
+// TestSelfUpdateSyncInitHealsLegacyPackagedScript: a script shipped by the
+// package before the managed marker existed carries no marker, but matching
+// a known packaged variant byte-for-byte proves it is ours, so it is
+// rewritten like any other stale managed script (#492).
+func TestSelfUpdateSyncInitHealsLegacyPackagedScript(t *testing.T) {
+	entries, err := legacyInitFS.ReadDir("selfupdate_init/legacy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		t.Run(entry.Name(), func(t *testing.T) {
+			path := useTempInitScript(t)
+
+			legacy, err := legacyInitFS.ReadFile("selfupdate_init/legacy/" + entry.Name())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, legacy, 0755); err != nil {
+				t.Fatal(err)
+			}
+
+			syncInitScript("v0.72.0")
+
+			got, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want, err := canonicalInitScript()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(got, want) {
+				t.Errorf("legacy packaged init script not rewritten to embedded canonical:\n--- got ---\n%s", got)
+			}
+			if _, err := os.Stat(path + ".bak-0.72.0"); err != nil {
+				t.Errorf("backup not created for legacy packaged script: %v", err)
+			}
+		})
+	}
+}
+
+// TestSelfUpdateSyncInitKeepsTweakedLegacyScript: a legacy package script
+// with a local edit no longer byte-matches any packaged variant, so it is
+// treated like any other customized script and left untouched (#492).
+func TestSelfUpdateSyncInitKeepsTweakedLegacyScript(t *testing.T) {
+	path := useTempInitScript(t)
+
+	legacy, err := legacyInitFS.ReadFile("selfupdate_init/legacy/netgrip-v3.init")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tweaked := append([]byte("#!/bin/sh /etc/rc.common\n# local tweak\n"), legacy...)
+	if err := os.WriteFile(path, tweaked, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	syncInitScript("v0.72.0")
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, tweaked) {
+		t.Errorf("tweaked legacy init script was modified:\n%s", got)
+	}
+}
+
 // TestSelfUpdateEmbeddedInitMatchesPackaged guards the single source of
 // truth: the embedded copy must stay byte-identical to the init script the
 // apk/ipk package ships.
