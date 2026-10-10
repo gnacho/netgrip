@@ -1,6 +1,8 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { gzipSync } from "node:zlib";
 
 // Tracker GoatCounter SOLO en el build de la demo pública:
@@ -26,21 +28,29 @@ function goatcounterPlugin(): Plugin {
 // JavaScript and CSS dominate the embedded filesystem. Store only their gzip
 // representation; the Go server sends it directly to browsers and inflates it
 // only for clients that do not advertise gzip support.
+// Se hace en writeBundle y no en generateBundle: el generateBundle de este
+// plugin corría antes que el de Vite 8 (vite:build-import-analysis) y borraba
+// los chunks antes de que Vite sustituyera el marcador interno
+// __VITE_PRELOAD__ de los imports dinámicos. El marcador quedaba literal en
+// el .gz y el modo demo explotaba al cargar su chunk lazy. writeBundle corre
+// después de TODOS los hooks de generateBundle, con el código ya definitivo.
 function gzipEmbeddedAssets(): Plugin {
+  let outDir = "";
   return {
     name: "netgrip-gzip-embedded-assets",
     apply: "build",
     enforce: "post",
-    generateBundle(_options, bundle) {
+    configResolved(config) {
+      outDir = path.resolve(config.root, config.build.outDir);
+    },
+    writeBundle(_options, bundle) {
       for (const [fileName, item] of Object.entries(bundle)) {
         if (!fileName.endsWith(".js") && !fileName.endsWith(".css")) continue;
         const source = item.type === "chunk" ? item.code : item.source;
-        this.emitFile({
-          type: "asset",
-          fileName: `${fileName}.gz`,
-          source: gzipSync(typeof source === "string" ? source : Buffer.from(source), { level: 9 }),
-        });
-        delete bundle[fileName];
+        const target = path.join(outDir, `${fileName}.gz`);
+        mkdirSync(path.dirname(target), { recursive: true });
+        writeFileSync(target, gzipSync(typeof source === "string" ? source : Buffer.from(source), { level: 9 }));
+        rmSync(path.join(outDir, fileName));
       }
     },
   };
