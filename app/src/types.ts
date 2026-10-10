@@ -1398,6 +1398,7 @@ export interface StormPort {
 export interface StormProbe {
   applicable: boolean;
   ports: StormPort[];
+  tc_installed?: boolean;
 }
 
 export interface StorageDevice {

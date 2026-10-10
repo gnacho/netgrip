@@ -156,6 +156,9 @@ export function StormControlCard() {
   return (
     <Card variant="subtle" animate={false} title={t("tools.stormControl")} icon={ShieldAlert}>
       <p className="text-small text-muted mb-3">{t("tools.stormNote")}</p>
+      {probe.tc_installed === false && (
+        <p className="text-small text-muted mb-3">{t("tools.stormTcMissing")}</p>
+      )}
       {/* Fila global estilo mockup: titulo+descripcion | slider | % | toggle. */}
       <div className="flex items-center gap-3 sm:gap-4 py-1">
         <div className="flex-1 min-w-0">

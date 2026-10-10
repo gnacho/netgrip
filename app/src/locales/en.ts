@@ -1800,6 +1800,7 @@ export default {
     linkDown: "Link down",
     igmpDesc: "Keeps group video (IPTV) from flooding your Wi-Fi. If you don't use your provider's TV, leave it as is.",
     stormNote: "A limit on 'shouting' traffic in the network. Handy when a device goes haywire.",
+    stormTcMissing: "The tc utility is missing on this device: it will be installed automatically when you apply a limit.",
     stormNow: "Now: {{broadcast}}/{{multicast}} kbps (broadcast/multicast)",
     stormAria: "Limit for {{port}}",
     stormGlobalTitle: "Limit for all ports",
