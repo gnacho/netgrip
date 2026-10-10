@@ -1,6 +1,19 @@
 {
   "announcements": [
     {
+      "id": "v0731-2026-10",
+      "urgency": "info",
+      "title": { "es": "Novedades de la v0.73.1", "en": "What's new in v0.73.1" },
+      "body": {
+        "es": "Novedades de la v0.73: la interfaz se reorganiza por rol (router, punto de acceso o switch), la sección Puertos y VLANs añade una matriz para ver y editar el estado de cada puerto de un vistazo, y el modo demo vuelve a funcionar en demo.netgrip.cloudless.club.",
+        "en": "v0.73 highlights: the interface is now organized by role (router, access point or switch), the Ports and VLANs section adds a matrix to see and edit every port's state at a glance, and demo mode works again at demo.netgrip.cloudless.club."
+      },
+      "url": "https://github.com/gnacho/netgrip/releases/tag/v0.73.1",
+      "urlLabel": { "es": "Ver la release", "en": "See the release" },
+      "starts": "2026-10-10",
+      "expires": "2026-12-09"
+    },
+    {
       "id": "v07232-2026-10",
       "urgency": "info",
       "title": { "es": "Novedades de la v0.72.32", "en": "What's new in v0.72.32" },
