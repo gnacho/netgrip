@@ -45,6 +45,9 @@ export function System({ board, update, onUpdateChange, onLogout }: {
   const { mode, modeReady } = useMode();
   const role = mode?.role ?? (mode?.mode === "ap" ? "ap" : "router");
   const isRouter = modeReady && role === "router";
+  // Un AP puede volver a ser router (y viceversa): la tarjeta de modo se
+  // ofrece en ambos. Un switch no tiene modo que conmutar (#487).
+  const canSwitchMode = modeReady && role !== "switch";
   return (
     <div className="flex flex-col gap-6">
       {/* Protección */}
@@ -62,7 +65,7 @@ export function System({ board, update, onUpdateChange, onLogout }: {
         <GroupLabel>{t("system.groupDevice")}</GroupLabel>
         <NetPulseStandaloneBanner />
         <NetPulseStatusChip />
-        {isRouter && <ModeCard index={0} />}
+        {canSwitchMode && <ModeCard index={0} />}
         <IdentityCard index={1} board={board} />
         {!NETPULSE_CARD_HIDDEN && <NetPulseCard index={2} />}
         <MQTTCard index={2} />

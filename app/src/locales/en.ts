@@ -1414,7 +1414,7 @@ export default {
     util: "{{count}}% util",
   },
   mode: {
-    title: "Router mode",
+    title: "Device mode",
     ap: "Repeater",
     router: "Main router",
     dnsmasq: "dnsmasq: {{state}}",
