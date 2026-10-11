@@ -77,35 +77,44 @@ export function SelfTestCard({ onResult }: { onResult: (r: SelfTestResult) => vo
     : [];
 
   return (
-    <Card title={t("diagnostics.selfTestTitle")} icon={Activity} iconTone="accent">
-      <Button onClick={run} loading={busy}>
-        {busy ? t("diagnostics.selfTestRunning") : t("diagnostics.selfTestRun")}
-      </Button>
-
-      <ErrBanner error={error} onRetry={run} />
-
-      {result && !error && (
-        <div className="mt-3 flex flex-col gap-2">
-          {checks.map((c) => (
-            <div key={c.key} className="flex items-start gap-2">
-              {/* Amber, not red, for something merely unproven: a provider
-                  that ignores pings is not a fault to chase. */}
-              <StatusDot
-                tone={c.ok ? "ok" : c.info ? "warn" : "danger"}
-                label={c.ok ? t("diagnostics.ok") : c.info ? t("diagnostics.unknown") : t("diagnostics.fail")}
-              />
-              <div className="min-w-0">
-                <span className="text-small">{t(`diagnostics.${c.key}`)}</span>
-                {/* The reason, always: a dot on its own says nothing. */}
-                {c.detail && <div className="text-caption text-muted">{c.detail}</div>}
-                {c.key === "ntp" && <div className="text-caption text-faint">{t("diagnostics.ntpApprox")}</div>}
-              </div>
-            </div>
-          ))}
-          <div className="mt-1">
+    <Card title={t("diagnostics.selfTestTitle")} icon={Activity} iconTone="accent"
+      action={
+        <div className="flex items-center gap-2.5">
+          {result && !error && (
             <Pill tone={result.all_ok ? "ok" : "warn"}>
               {result.all_ok ? t("diagnostics.allGood") : t("diagnostics.someFail")}
             </Pill>
+          )}
+          <Button size="sm" onClick={run} loading={busy}>
+            {busy ? t("diagnostics.selfTestRunning") : t("diagnostics.selfTestRun")}
+          </Button>
+        </div>
+      }
+    >
+      <ErrBanner error={error} onRetry={run} />
+
+      {result && !error && (
+        <div className="flex flex-col gap-2">
+          {/* #500: las comprobaciones en UNA fila bien organizada. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {checks.map((c) => (
+              <div key={c.key} className="flex items-start gap-2 min-w-0">
+                {/* Amber, not red, for something merely unproven: a provider
+                    that ignores pings is not a fault to chase. */}
+                <StatusDot
+                  tone={c.ok ? "ok" : c.info ? "warn" : "danger"}
+                  label={c.ok ? t("diagnostics.ok") : c.info ? t("diagnostics.unknown") : t("diagnostics.fail")}
+                />
+                <div className="min-w-0">
+                  <span className="text-small">{t(`diagnostics.${c.key}`)}</span>
+                  {/* The reason, always: a dot on its own says nothing. */}
+                  {c.detail && (
+                    <div className="text-caption text-muted truncate" title={c.detail}>{c.detail}</div>
+                  )}
+                  {c.key === "ntp" && <div className="text-caption text-faint">{t("diagnostics.ntpApprox")}</div>}
+                </div>
+              </div>
+            ))}
           </div>
           {missingTools.length > 0 && (
             <p className="text-caption text-faint">
