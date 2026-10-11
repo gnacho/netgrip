@@ -1,17 +1,22 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Radio, Server } from "lucide-react";
+import { Server } from "lucide-react";
 import { api } from "../../api";
 import type { MQTTInfo } from "../../types";
-import { Button, Card, Field, SettingRow, StatusDot, useToast } from "../ui";
+import { Button, Field, SettingRow, StatusDot, useToast } from "../ui";
 
 const STATUS_POLL_MS = 10_000;
 
 /**
- * MQTT integration (#398): state, commands and Home Assistant discovery.
- * Disabled by default; the settings live in /etc/netgrip/mqtt.env.
+ * Contenido del bloque MQTT dentro de "Avisos e integraciones" (#499).
+ * Sin Card propia: la envuelve CollapsibleSection. `onStatus` avisa al
+ * padre tras cargar y tras guardar para la pill de la cabecera; el
+ * sondeo de estado (10 s) solo corre con la sección abierta (`active`).
  */
-export function MQTTCard({ index = 0 }: { index?: number }) {
+export function MQTTSettings({ active = true, onStatus }: {
+  active?: boolean;
+  onStatus?: (enabled: boolean, connected: boolean) => void;
+}) {
   const { t } = useTranslation();
   const { push } = useToast();
   const [state, setState] = useState<MQTTInfo>();
@@ -25,6 +30,8 @@ export function MQTTCard({ index = 0 }: { index?: number }) {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
 
+  const report = (s: MQTTInfo | undefined) => onStatus?.(!!s?.enabled, !!s?.connected);
+
   const refresh = () => {
     api.mqtt().then((s) => {
       setState(s);
@@ -34,15 +41,24 @@ export function MQTTCard({ index = 0 }: { index?: number }) {
       setNodeId((prev) => (prev === "" ? s.node_id : prev));
       setIntervalSec((prev) => (prev === 60 ? s.interval : prev));
       setEnabled(s.enabled);
+      report(s);
     }).catch(() => {});
   };
 
   useEffect(() => {
+    // Carga inicial SIEMPRE: la pill de estado de la cabecera necesita el
+    // estado aunque la sección esté plegada. El sondeo (10 s) solo corre
+    // con la sección abierta (`active`).
     refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!active) return;
     const poll = window.setInterval(refresh, STATUS_POLL_MS);
     return () => window.clearInterval(poll);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [active]);
 
   const save = async () => {
     setSaving(true);
@@ -50,6 +66,7 @@ export function MQTTCard({ index = 0 }: { index?: number }) {
       const s = await api.setMqtt({ enabled, host, port, user, pass, nodeId, interval: intervalSec });
       setState(s);
       setPass("");
+      report(s);
       push({ tone: "ok", text: t("mqtt.saved") });
     } catch (e) {
       push({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
@@ -82,7 +99,7 @@ export function MQTTCard({ index = 0 }: { index?: number }) {
       : t("mqtt.disconnected");
 
   return (
-    <Card index={index} title={t("mqtt.title")} icon={Radio}>
+    <>
       <SettingRow
         title={t("mqtt.enabled")}
         description={t("mqtt.description")}
@@ -155,18 +172,19 @@ export function MQTTCard({ index = 0 }: { index?: number }) {
         </p>
       )}
 
-      <div className="flex gap-2 mt-4">
+      <div className="flex gap-2 mt-3">
         <Button
+          size="sm"
           onClick={save}
           loading={saving}
           disabled={!host || (enabled && !state?.configured && !pass)}
         >
           {t("mqtt.save")}
         </Button>
-        <Button variant="secondary" onClick={test} loading={testing} disabled={!host}>
+        <Button size="sm" variant="secondary" onClick={test} loading={testing} disabled={!host}>
           {t("mqtt.test")}
         </Button>
       </div>
-    </Card>
+    </>
   );
 }

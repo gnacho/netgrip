@@ -4,14 +4,11 @@ import { useMode } from "../hooks/useMode";
 import { SecurityCard } from "../components/system/SecurityCard";
 import { RemoteAccessCard } from "../components/system/RemoteAccessCard";
 import { AccessCard } from "../components/system/AccessCard";
-import { TelegramCard } from "../components/system/TelegramCard";
-import { NtfyCard } from "../components/system/NtfyCard";
 import { ModeCard } from "../components/system/ModeCard";
 import { IdentityCard } from "../components/system/IdentityCard";
+import { IntegrationsCard } from "../components/system/IntegrationsCard";
 import { NetPulseCard } from "../components/system/NetPulseCard";
-import { MQTTCard } from "../components/system/MQTTCard";
 import { ConfigBackupCard } from "../components/ConfigBackupCard";
-import { SnmpCard } from "../components/advanced/SnmpCard";
 import { UpdateCard } from "../components/system/UpdateCard";
 import { SelfUpdateCard } from "../components/system/SelfUpdateCard";
 import { WizardRelaunchCard } from "../components/system/WizardRelaunchCard";
@@ -28,6 +25,11 @@ const NETPULSE_CARD_HIDDEN = true;
 
 function GroupLabel({ children }: { children: ReactNode }) {
   return <p className="text-eyebrow text-faint mb-2 animate-fade-up">{children}</p>;
+}
+
+/** Rejilla de dos columnas (#499): en apilado en móvil, en paralelo desde lg. */
+function TwoCols({ children }: { children: ReactNode }) {
+  return <div className="grid gap-[var(--card-gap)] items-start lg:grid-cols-2">{children}</div>;
 }
 
 export function System({ board, update, onUpdateChange, onLogout }: {
@@ -50,57 +52,46 @@ export function System({ board, update, onUpdateChange, onLogout }: {
   const canSwitchMode = modeReady && role !== "switch";
   return (
     <div className="flex flex-col gap-6">
-      {/* Protección */}
+      {/* Actualizaciones (#499): el propio NetGrip y la del sistema, juntas. */}
       <section className="flex flex-col gap-[var(--card-gap)]">
-        <GroupLabel>{t("system.groupProtection")}</GroupLabel>
-        <SecurityCard index={0} onLogout={onLogout} />
-        {isRouter && <RemoteAccessCard index={1} />}
-        <AccessCard index={2} />
-        <TelegramCard index={3} />
-        <NtfyCard index={4} />
+        <GroupLabel>{t("system.groupUpdates")}</GroupLabel>
+        <TwoCols>
+          <SelfUpdateCard index={0} />
+          <UpdateCard
+            board={board}
+            update={update}
+            onChange={onUpdateChange}
+          />
+        </TwoCols>
       </section>
 
-      {/* Este equipo */}
+      {/* Protección y acceso (#499): contraseña y accesos, en paralelo. */}
+      <section className="flex flex-col gap-[var(--card-gap)]">
+        <GroupLabel>{t("system.groupProtection")}</GroupLabel>
+        <TwoCols>
+          <SecurityCard index={0} onLogout={onLogout} />
+          <AccessCard index={1} />
+          {isRouter && <RemoteAccessCard index={2} />}
+        </TwoCols>
+      </section>
+
+      {/* Este equipo: modo, identidad, avisos, copia de config y
+          preferencias. #499: Telegram/ntfy/MQTT colapsados en una sola
+          tarjeta; SNMP sale de aquí (vive en Servicios). */}
       <section className="flex flex-col gap-[var(--card-gap)]">
         <GroupLabel>{t("system.groupDevice")}</GroupLabel>
         <NetPulseStandaloneBanner />
         <NetPulseStatusChip />
-        {canSwitchMode && <ModeCard index={0} />}
-        <IdentityCard index={1} board={board} />
-        {!NETPULSE_CARD_HIDDEN && <NetPulseCard index={2} />}
-        <MQTTCard index={2} />
-        <SelfUpdateCard index={3} />
-        <ConfigBackupCard index={4} />
-      </section>
-
-      {/* Monitorización (#487): SNMP llegaba de la página "Redes"
-          avanzada, eliminada en el rediseño: el daemon snmpd se gestiona
-          aquí, junto al resto de opciones de este equipo. */}
-      <section className="flex flex-col gap-[var(--card-gap)]">
-        <GroupLabel>{t("system.groupMonitoring")}</GroupLabel>
-        <SnmpCard index={0} />
-      </section>
-
-      {/* Mantenimiento (#155): actualización de la imagen OpenWrt. La rama
-          de paquetes se oculta por diseño: la paquetería se gestiona desde
-          LuCI o CLI (`apk upgrade`), no desde esta tarjeta. #415: relanzar
-          el asistente inicial bajo demanda. */}
-      <section className="flex flex-col gap-[var(--card-gap)]">
-        <GroupLabel>{t("system.groupMaintenance")}</GroupLabel>
-        <UpdateCard
-          board={board}
-          update={update}
-          onChange={onUpdateChange}
-        />
-        {isRouter && <WizardRelaunchCard index={1} />}
-      </section>
-
-      {/* Opciones (#158): preferencias de la interfaz (idioma, densidad,
-          tema). La barra superior solo conserva el toggle rápido de tema. */}
-      <section className="flex flex-col gap-[var(--card-gap)]">
-        <GroupLabel>{t("system.groupOptions")}</GroupLabel>
-        <OptionsCard index={0} />
-        <AdvancedCard index={1} />
+        <TwoCols>
+          {canSwitchMode && <ModeCard index={0} />}
+          <IdentityCard index={1} board={board} />
+          {!NETPULSE_CARD_HIDDEN && <NetPulseCard index={2} />}
+          <IntegrationsCard index={2} />
+          <ConfigBackupCard index={3} />
+          <OptionsCard index={4} />
+          <AdvancedCard index={5} />
+          {isRouter && <WizardRelaunchCard index={6} />}
+        </TwoCols>
       </section>
     </div>
   );

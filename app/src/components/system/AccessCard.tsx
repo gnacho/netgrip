@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Lock, ShieldCheck } from "lucide-react";
 import { api, isDemo } from "../../api";
 import type { AccessProbe } from "../../types";
-import { ActionBanner, Button, Card, ConfirmDialog, Input, SegmentedControl, SkeletonRows, Toggle, useToast } from "../ui";
+import { ActionBanner, Button, Card, ConfirmDialog, HelpTip, Input, SegmentedControl, SkeletonRows, Toggle, useToast } from "../ui";
 import { useActionCycle } from "../wifi/action";
 
 /** Which certificate the panel serves. "custom" is a pair somebody
@@ -190,6 +190,17 @@ export function AccessCard({ index = 2 }: { index?: number }) {
       : []),
   ];
 
+  // Chip (i) del certificado (#499): la explicación específica de la
+  // opción elegida, más el estado del certificado propio si aplica.
+  const certHintBody = [
+    panelCert === "router"
+      ? t("access.certRouterHint")
+      : panelCert === "custom"
+        ? t("access.certCustomHint")
+        : t("access.certOwnHint"),
+    ...(panelCert === "panel" ? [t(hasCert ? "access.ownCertReady" : "access.ownCertNone")] : []),
+  ].join(" ");
+
   const numPort = (value: number, onChange: (v: number) => void, ariaLabel: string) => (
     <Input
       type="number" mono min={1} max={65535} value={value || ""} aria-label={ariaLabel}
@@ -213,7 +224,7 @@ export function AccessCard({ index = 2 }: { index?: number }) {
   );
 
   return (
-    <Card index={index} title={t("access.title")} icon={Lock}>
+    <Card index={index} title={t("access.title")} icon={Lock} help="access">
       <ConfirmDialog
         open={confirmScheme}
         onClose={() => setConfirmScheme(false)}
@@ -226,8 +237,6 @@ export function AccessCard({ index = 2 }: { index?: number }) {
         <SkeletonRows rows={3} />
       ) : (
         <div className="flex flex-col gap-3">
-          <p className="text-caption text-muted">{t("access.disclaimer")}</p>
-
           {section(
             t("access.panelSection"),
             <div className="flex flex-col gap-1">
@@ -240,35 +249,25 @@ export function AccessCard({ index = 2 }: { index?: number }) {
                   <span className="text-small text-muted">{t("access.minutes")}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-3 py-1.5">
-                <div className="flex-1 min-w-0">
-                  <span className="text-body font-medium">{t("access.panelHttps")}</span>
-                  <p className="text-caption text-muted">{t("access.panelHttpsHint")}</p>
-                </div>
+              <div className="flex items-center gap-2.5 py-1.5">
+                <span className="text-body font-medium flex-1 min-w-0">{t("access.panelHttps")}</span>
+                <HelpTip title={t("access.panelHttps")} body={t("access.panelHttpsHint")} />
                 <Toggle checked={panelHttps} onChange={setPanelHttps} label={t("access.panelHttps")} />
               </div>
               {panelHttps && (
-                <div className="flex flex-col gap-1.5 py-1.5">
-                  <div className="flex items-center gap-3">
-                    <span className="text-body font-medium flex-1 min-w-0">{t("access.certSource")}</span>
-                    <SegmentedControl
-                      size="sm"
-                      ariaLabel={t("access.certSource")}
-                      value={panelCert}
-                      onChange={(v) => setPanelCert(v)}
-                      options={certOptions}
-                    />
-                  </div>
-                  <p className="text-caption text-muted">
-                    {panelCert === "router"
-                      ? t("access.certRouterHint")
-                      : panelCert === "custom"
-                        ? t("access.certCustomHint")
-                        : t("access.certOwnHint")}
-                  </p>
+                <div className="flex items-center gap-2.5 py-1.5">
+                  <span className="text-body font-medium flex-1 min-w-0">{t("access.certSource")}</span>
+                  <HelpTip title={t("access.certSource")} body={certHintBody} />
+                  <SegmentedControl
+                    size="sm"
+                    ariaLabel={t("access.certSource")}
+                    value={panelCert}
+                    onChange={(v) => setPanelCert(v)}
+                    options={certOptions}
+                  />
                 </div>
               )}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 py-1">
                 <ShieldCheck size={14} className={servingTls ? "text-ok" : "text-faint"} aria-hidden="true" />
                 <span className="text-small flex-1">
                   {servingTls
@@ -284,9 +283,6 @@ export function AccessCard({ index = 2 }: { index?: number }) {
                     : t("access.servingPlain")}
                 </span>
               </div>
-              <p className="text-caption text-muted">
-                {hasCert ? t("access.ownCertReady") : t("access.ownCertNone")}
-              </p>
             </div>,
             savePanel, panel, ttlMin <= 0,
           )}

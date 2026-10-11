@@ -12,6 +12,7 @@ import { FirewallCard } from "../components/services/FirewallCard";
 import { AdguardCard } from "../components/services/AdguardCard";
 import { LanServicesCard } from "../components/services/LanServicesCard";
 import { BanipCard } from "../components/services/BanipCard";
+import { SnmpCard } from "../components/advanced/SnmpCard";
 
 /** Cabecera de grupo: eyebrow + una frase llana small muted (services.md §1). */
 function GroupHeader({ title, desc, index }: { title: string; desc: string; index: number }) {
@@ -51,6 +52,9 @@ export function Services({ wg, onWgChange, ddns, onDdnsChange, mdns, onMdnsChang
         <GroupHeader index={0} title={t("services.groupRules")} desc={t("services.groupRulesDesc")} />
         <AdguardCard index={0} />
         <NlbwmonCard index={0} />
+        {/* #499: snmpd vive en Servicios (es un daemon de monitorización),
+            no en Ajustes. */}
+        <SnmpCard index={0} />
         {!apMode && <FirewallCard index={0} />}
         {!apMode && <BanipCard index={0} onNavigate={onNavigate} />}
       </section>

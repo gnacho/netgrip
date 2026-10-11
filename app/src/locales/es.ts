@@ -43,7 +43,7 @@ export default {
     services: "Servicios",
     fleet: "Flota",
     storage: "Almacenamiento",
-    system: "Sistema",
+    system: "Ajustes",
     tools: "Herramientas",
     diagnostics: "Diagnóstico",
     about: "Acerca de",
@@ -57,7 +57,7 @@ export default {
       yourNetwork: "Tu red",
       connection: "Conexión",
       services: "Servicios",
-      system: "Sistema",
+      system: "Ajustes",
     },
     desc: {
       overview: "Cómo está tu router ahora",
@@ -73,7 +73,7 @@ export default {
       diagnostics: "Ping, traceroute, DNS y prueba de puertos",
       storage: "Discos USB conectados al router",
       fleet: "Otros equipos NetGrip de tu red",
-      system: "Actualizaciones, seguridad y modo del router",
+      system: "Contraseñas, acceso, avisos y actualizaciones",
       about: "Sobre el panel NetGrip",
     },
   },
@@ -153,6 +153,10 @@ export default {
     internet: {
       title: "Internet",
       body: "Es la conexión de tu router con tu proveedor. Si está activa, hay Internet en casa.",
+    },
+    access: {
+      title: "Acceso al panel",
+      body: "Cambiar el puerto por el que estás conectado puede cortar tu conexión; todo se aplica con copia previa y rollback automático si algo falla.",
     },
     cpu: {
       title: "Procesador",
@@ -364,7 +368,7 @@ export default {
     },
   },
   system: {
-    title: "Sistema",
+    title: "Ajustes",
     model: "Modelo",
     firmware: "Firmware",
     hostname: "Hostname",
@@ -375,11 +379,9 @@ export default {
     flash: "Flash",
     free: "libres",
     groupFresh: "Mantenerse al día",
-    groupProtection: "Protección",
+    groupUpdates: "Actualizaciones",
+    groupProtection: "Protección y acceso",
     groupDevice: "Este equipo",
-    groupMonitoring: "Monitorización",
-    groupMaintenance: "Mantenimiento",
-    groupOptions: "Opciones",
     identityTitle: "Identidad y reinicio",
     reboot: "Reiniciar el dispositivo",
     rebootConfirmTitle: "Reiniciar el dispositivo",
@@ -1511,7 +1513,6 @@ export default {
   access: {
     title: "Acceso al panel y SSH",
     intro: "Puertos y seguridad de acceso al router. Cambiar un puerto que uses para entrar puede cortar la conexión; se aplica con rechazo automático si falla.",
-    disclaimer: "Cambiar el puerto por el que estás conectado puede cortar tu conexión; se aplicará con copia y rollback.",
     sessionTtl: "La sesión dura…",
     minutes: "min",
     save: "Guardar",
@@ -1573,7 +1574,7 @@ export default {
   security: {
     title: "Seguridad",
     cardTitle: "Contraseña del router",
-    desc: "La llave de todo: cámbiala si la has compartido o sigue siendo la de fábrica.",
+    desc: "La llave de todo: cámbiala si la has compartido o es la de fábrica.",
     current: "Contraseña actual",
     next: "Nueva contraseña",
     confirm: "Repite la nueva contraseña",
@@ -1942,6 +1943,7 @@ export default {
     available: "Actualización disponible",
     newVersion: "Nueva versión {{version}}",
     update: "Actualizar NetGrip",
+    checkNow: "Comprobar ahora",
     updating: "Actualizando...",
     confirmMsg: "El panel se recargará solo al terminar.",
     done: "Actualización aplicada, reiniciando...",
@@ -1976,6 +1978,12 @@ export default {
     stepInstalling: "Instalando",
     stepRestarting: "Reiniciando",
     reloadSoon: "El panel está volviendo. Se recargará solo.",
+  },
+  integrations: {
+    title: "Avisos e integraciones",
+    on: "Activado",
+    off: "Desactivado",
+    noConn: "Sin conexión",
   },
   history: {
     title: "Historico",

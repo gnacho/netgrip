@@ -43,7 +43,7 @@ export default {
     services: "Services",
     fleet: "Fleet",
     storage: "Storage",
-    system: "System",
+    system: "Settings",
     tools: "Tools",
     diagnostics: "Diagnostics",
     about: "About",
@@ -57,7 +57,7 @@ export default {
       yourNetwork: "Your network",
       connection: "Connection",
       services: "Services",
-      system: "System",
+      system: "Settings",
     },
     desc: {
       overview: "How your router is doing",
@@ -73,7 +73,7 @@ export default {
       diagnostics: "Ping, traceroute, DNS and port tests",
       storage: "USB drives on the router",
       fleet: "Other NetGrip devices on your network",
-      system: "Updates, security and router mode",
+      system: "Passwords, access, notifications and updates",
       about: "About the NetGrip panel",
     },
   },
@@ -148,11 +148,15 @@ export default {
   help: {
     login: {
       title: "Which password?",
-      body: "The router's admin password — the same one you'd use for LuCI. NetGrip keeps no user database; it validates straight against the router.",
+      body: "The router's admin password: the same one you'd use for LuCI. NetGrip keeps no user database; it validates straight against the router.",
     },
     internet: {
       title: "Internet",
       body: "Your router's link to your provider. If it's up, there's Internet at home.",
+    },
+    access: {
+      title: "Panel access",
+      body: "Changing the port you're connected through may cut your connection; everything is applied with a prior backup and automatic rollback if something fails.",
     },
     cpu: {
       title: "Processor",
@@ -364,7 +368,7 @@ export default {
     },
   },
   system: {
-    title: "System",
+    title: "Settings",
     model: "Model",
     firmware: "Firmware",
     hostname: "Hostname",
@@ -375,11 +379,9 @@ export default {
     flash: "Flash",
     free: "free",
     groupFresh: "Keeping up to date",
-    groupProtection: "Protection",
+    groupUpdates: "Updates",
+    groupProtection: "Protection & access",
     groupDevice: "This device",
-    groupMonitoring: "Monitoring",
-    groupMaintenance: "Maintenance",
-    groupOptions: "Options",
     identityTitle: "Identity and reboot",
     reboot: "Reboot the device",
     rebootConfirmTitle: "Reboot the device",
@@ -1511,7 +1513,6 @@ export default {
   access: {
     title: "Panel and SSH access",
     intro: "Access ports and security for this router. Changing a port you use to connect may cut the connection; it is applied with automatic rollback on failure.",
-    disclaimer: "Changing the port you're connected through may cut your connection; it will be applied with a backup and rollback.",
     sessionTtl: "The session lasts…",
     minutes: "min",
     save: "Save",
@@ -1942,6 +1943,7 @@ export default {
     available: "Update available",
     newVersion: "New version {{version}}",
     update: "Update NetGrip",
+    checkNow: "Check now",
     updating: "Updating...",
     confirmMsg: "The panel will reload on its own when finished.",
     done: "Update applied, restarting...",
@@ -1976,6 +1978,12 @@ export default {
     stepInstalling: "Installing",
     stepRestarting: "Restarting",
     reloadSoon: "The panel is coming back. It will reload automatically.",
+  },
+  integrations: {
+    title: "Notifications & integrations",
+    on: "On",
+    off: "Off",
+    noConn: "No connection",
   },
   history: {
     title: "History",

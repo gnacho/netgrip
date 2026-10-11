@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Sparkles } from "lucide-react";
 import { api } from "../../api";
 import type { SelfUpdateCheck, SelfUpdateSchedule } from "../../types";
-import { Button, Card, Pill, SkeletonRows, Toggle } from "../ui";
+import { Button, Card, HelpTip, Pill, SkeletonRows, Toggle } from "../ui";
 import { SelfUpdateDialog } from "./SelfUpdateDialog";
 
 const fmtTime = (unix: number) =>
@@ -16,11 +16,18 @@ export function SelfUpdateCard({ index = 2 }: { index?: number }) {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     api.selfUpdateCheck().then(setCheck).catch(() => {});
     api.selfUpdateSchedule().then(setSched).catch(() => {});
   }, []);
+
+  const recheck = async () => {
+    setChecking(true);
+    try { setCheck(await api.selfUpdateCheck()); } catch { /* se conserva el estado anterior */ }
+    setChecking(false);
+  };
 
   const save = async (patch: Parameters<typeof api.selfUpdateScheduleSave>[0]) => {
     setSaving(true);
@@ -54,25 +61,29 @@ export function SelfUpdateCard({ index = 2 }: { index?: number }) {
           </div>
 
           {check.available && (
-            <>
-              <div className="flex items-baseline justify-between gap-4">
-                <span className="text-small text-muted">{t("selfupdate.latest")}</span>
-                <span className="font-mono text-small font-semibold text-warn">{check.latest}</span>
-              </div>
-              <div>
-                <Button size="sm" onClick={() => setDialogOpen(true)}>{t("selfupdate.update")}</Button>
-              </div>
-            </>
+            <div className="flex items-baseline justify-between gap-4">
+              <span className="text-small text-muted">{t("selfupdate.latest")}</span>
+              <span className="font-mono text-small font-semibold text-warn">{check.latest}</span>
+            </div>
           )}
+
+          <div className="flex flex-wrap gap-2">
+            {check.available && (
+              <Button size="sm" onClick={() => setDialogOpen(true)}>{t("selfupdate.update")}</Button>
+            )}
+            <Button size="sm" variant="secondary" loading={checking} onClick={recheck}>
+              {t("selfupdate.checkNow")}
+            </Button>
+          </div>
 
           {!cfg ? (
             <SkeletonRows rows={2} />
           ) : (
             <div className="mt-1 flex flex-col gap-2.5 border-t pt-2.5">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex flex-col">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
                   <span className="text-small font-medium">{t("selfupdate.auto")}</span>
-                  <span className="text-xs text-muted">{t("selfupdate.autoHint")}</span>
+                  <HelpTip title={t("selfupdate.auto")} body={t("selfupdate.autoHint")} />
                 </div>
                 <Toggle
                   checked={cfg.enabled}

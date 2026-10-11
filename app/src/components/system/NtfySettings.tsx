@@ -2,9 +2,14 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Bell, KeyRound, Server, Tag } from "lucide-react";
 import { api } from "../../api";
-import { Button, Card, Field, SettingRow, useToast } from "../ui";
+import { Button, Field, SettingRow, useToast } from "../ui";
 
-export function NtfyCard({ index = 0 }: { index?: number }) {
+/**
+ * Contenido del bloque ntfy dentro de "Avisos e integraciones" (#499).
+ * Sin Card propia: la envuelve CollapsibleSection. `onStatus` avisa al
+ * padre tras cargar para pintar la pill de estado en la cabecera.
+ */
+export function NtfySettings({ onStatus }: { onStatus?: (enabled: boolean) => void }) {
   const { t } = useTranslation();
   const { push } = useToast();
   const [server, setServer] = useState("");
@@ -21,7 +26,9 @@ export function NtfyCard({ index = 0 }: { index?: number }) {
       setTopic(d.topic || "");
       setTokenSet(d.tokenSet);
       setEnabled(d.enabled);
+      onStatus?.(d.enabled);
     }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const save = async () => {
@@ -30,6 +37,7 @@ export function NtfyCard({ index = 0 }: { index?: number }) {
       await api.ntfySet(server, topic, token, enabled);
       if (token) setTokenSet(true);
       push({ tone: "ok", text: t("ntfy.saved") });
+      onStatus?.(enabled);
     } catch (e) {
       push({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
     }
@@ -48,12 +56,12 @@ export function NtfyCard({ index = 0 }: { index?: number }) {
   };
 
   return (
-    <Card index={index} title={t("ntfy.title")} icon={Bell}>
+    <>
       <SettingRow
         title={t("ntfy.enabled")}
         description={t("ntfy.description")}
         checked={enabled}
-        onChange={setEnabled}
+        onChange={(v) => { setEnabled(v); onStatus?.(v); }}
       />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
         <Field
@@ -87,12 +95,12 @@ export function NtfyCard({ index = 0 }: { index?: number }) {
           }}
         />
       </div>
-      <div className="flex gap-2 mt-4">
-        <Button onClick={save} loading={saving} disabled={!topic}>{t("ntfy.save")}</Button>
-        <Button variant="secondary" icon={Bell} onClick={test} loading={testing} disabled={!enabled}>
+      <div className="flex gap-2 mt-3">
+        <Button size="sm" onClick={save} loading={saving} disabled={!topic}>{t("ntfy.save")}</Button>
+        <Button size="sm" variant="secondary" icon={Bell} onClick={test} loading={testing} disabled={!enabled}>
           {t("ntfy.sendTest")}
         </Button>
       </div>
-    </Card>
+    </>
   );
 }
