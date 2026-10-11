@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import type { Board, UpdateCheck } from "../types";
+import { useState, type ReactNode } from "react";
+import type { Board, MDNSProbe, UpdateCheck } from "../types";
 import { useMode } from "../hooks/useMode";
 import { SecurityCard } from "../components/system/SecurityCard";
 import { RemoteAccessCard } from "../components/system/RemoteAccessCard";
@@ -13,6 +13,7 @@ import { UpdateCard } from "../components/system/UpdateCard";
 import { SelfUpdateCard } from "../components/system/SelfUpdateCard";
 import { WizardRelaunchCard } from "../components/system/WizardRelaunchCard";
 import { OptionsCard } from "../components/system/OptionsCard";
+import { MdnsCard } from "../components/services/MdnsCard";
 import { NetPulseStandaloneBanner, NetPulseStatusChip } from "../components/system/NetPulseStatus";
 import { useTranslation } from "react-i18next";
 
@@ -33,6 +34,8 @@ export function System({ board, update, onUpdateChange, onLogout }: {
   onLogout: () => void;
 }) {
   const { t } = useTranslation();
+  // (#500) Estado del probe mDNS: la tarjeta "Nombre local" vive aquí.
+  const [mdnsProbe, setMdnsProbe] = useState<MDNSProbe>();
   // (#484) Solo el gateway gestiona acceso remoto, modo de operación y el
   // asistente inicial. Las tres tarjetas son gateway-only: no se pintan
   // hasta conocer el rol (useMode hidrata desde caché, así que en recargas
@@ -65,9 +68,12 @@ export function System({ board, update, onUpdateChange, onLogout }: {
         {canSwitchMode && <ModeCard index={0} />}
         {!NETPULSE_CARD_HIDDEN && <NetPulseCard index={1} />}
         <IntegrationsCard index={2} />
-        <ConfigBackupCard index={3} />
-        <OptionsCard index={4} />
-        {isRouter && <WizardRelaunchCard index={5} />}
+        {/* #500: "Nombre local" (mDNS) vive aquí, también en APs; en
+            switches gestionados no aplica. */}
+        {canSwitchMode && <MdnsCard probe={mdnsProbe} onChange={setMdnsProbe} index={3} />}
+        <ConfigBackupCard index={4} />
+        <OptionsCard index={5} />
+        {isRouter && <WizardRelaunchCard index={6} />}
       </section>
 
       {/* Actualizaciones (#499): última sección, con la identidad y el

@@ -205,15 +205,16 @@ export function AccessCard({ index = 2 }: { index?: number }) {
     <Input
       type="number" mono min={1} max={65535} value={value || ""} aria-label={ariaLabel}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="w-24"
+      className="w-20"
     />
   );
 
-  const section = (title: string, body: React.ReactNode, save: () => void, cycle: ReturnType<typeof useActionCycle>, disabled?: boolean) => (
-    <div className="flex flex-col gap-2 rounded-lg border border-border/60 p-3">
-      <span className="text-small font-semibold uppercase tracking-wide text-muted">{title}</span>
-      {body}
-      <div className="flex items-center gap-3">
+  /** Sección de UNA fila (#500): título, controles en línea y Guardar. */
+  const sectionRow = (title: string, controls: React.ReactNode, save: () => void, cycle: ReturnType<typeof useActionCycle>, disabled?: boolean) => (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border/60 px-3 py-2.5">
+      <span className="text-caption font-semibold uppercase tracking-wide text-muted w-full sm:w-48 shrink-0">{title}</span>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 flex-1 min-w-0">{controls}</div>
+      <div className="flex items-center gap-3 shrink-0">
         <Button size="sm" onClick={save} loading={cycle.busy} disabled={disabled}>{t("access.save")}</Button>
         {cycle.phase && (
           <ActionBanner phase={cycle.phase} text={cycle.phase === "done" ? t("access.saved") : undefined}
@@ -236,29 +237,25 @@ export function AccessCard({ index = 2 }: { index?: number }) {
       {!probe ? (
         <SkeletonRows rows={3} />
       ) : (
-        /* #500: dos columnas - "Este panel" a la izquierda; LuCI y SSH
-            apilados a la derecha. */
-        <div className="grid gap-3 items-start lg:grid-cols-2">
-          {section(
+        <div className="flex flex-col gap-2">
+          {sectionRow(
             t("access.panelSection"),
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-3 py-1.5">
-                <span className="text-body font-medium flex-1 min-w-0">{t("access.sessionTtl")}</span>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Input type="number" mono min={1} max={100000} value={ttlMin || ""}
-                    aria-label={t("access.sessionTtl")}
-                    onChange={(e) => setTtlMin(Number(e.target.value))} className="w-20" />
-                  <span className="text-small text-muted">{t("access.minutes")}</span>
-                </div>
+            <>
+              <span className="text-small text-muted whitespace-nowrap">{t("access.sessionTtl")}</span>
+              <div className="flex items-center gap-1.5">
+                <Input type="number" mono min={1} max={100000} value={ttlMin || ""}
+                  aria-label={t("access.sessionTtl")}
+                  onChange={(e) => setTtlMin(Number(e.target.value))} className="w-16" />
+                <span className="text-small text-muted">{t("access.minutes")}</span>
               </div>
-              <div className="flex items-center gap-2.5 py-1.5">
-                <span className="text-body font-medium flex-1 min-w-0">{t("access.panelHttps")}</span>
-                <HelpTip title={t("access.panelHttps")} body={t("access.panelHttpsHint")} />
-                <Toggle checked={panelHttps} onChange={setPanelHttps} label={t("access.panelHttps")} />
-              </div>
+              <span className="text-border-strong" aria-hidden="true">·</span>
+              <span className="text-small whitespace-nowrap">{t("access.panelHttps")}</span>
+              <HelpTip title={t("access.panelHttps")} body={t("access.panelHttpsHint")} />
+              <Toggle checked={panelHttps} onChange={setPanelHttps} label={t("access.panelHttps")} />
               {panelHttps && (
-                <div className="flex items-center gap-2.5 py-1.5">
-                  <span className="text-body font-medium flex-1 min-w-0">{t("access.certSource")}</span>
+                <>
+                  <span className="text-border-strong" aria-hidden="true">·</span>
+                  <span className="text-small text-muted whitespace-nowrap">{t("access.certSource")}</span>
                   <HelpTip title={t("access.certSource")} body={certHintBody} />
                   <SegmentedControl
                     size="sm"
@@ -267,11 +264,11 @@ export function AccessCard({ index = 2 }: { index?: number }) {
                     onChange={(v) => setPanelCert(v)}
                     options={certOptions}
                   />
-                </div>
+                </>
               )}
-              <div className="flex items-center gap-2 py-1">
+              <span className="flex items-center gap-1.5 min-w-0">
                 <ShieldCheck size={14} className={servingTls ? "text-ok" : "text-faint"} aria-hidden="true" />
-                <span className="text-small flex-1">
+                <span className="text-caption text-muted truncate">
                   {servingTls
                     ? t("access.servingWith", {
                         // An unknown source still means TLS is on: say so
@@ -284,47 +281,40 @@ export function AccessCard({ index = 2 }: { index?: number }) {
                       })
                     : t("access.servingPlain")}
                 </span>
-              </div>
-            </div>,
+              </span>
+            </>,
             savePanel, panel, ttlMin <= 0,
           )}
 
-          <div className="flex flex-col gap-3">
-          {section(
+          {sectionRow(
             t("access.luciSection"),
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-3 py-1.5">
-                <span className="text-body font-medium flex-1 min-w-0">{t("access.luciPorts")}</span>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {numPort(luciHttp, setLuciHttp, t("access.luciHttp"))}
-                  <span className="text-small text-muted">/</span>
-                  {numPort(luciHttps, setLuciHttps, t("access.luciHttps"))}
-                </div>
+            <>
+              <span className="text-small text-muted whitespace-nowrap">{t("access.luciPorts")}</span>
+              <div className="flex items-center gap-1.5">
+                {numPort(luciHttp, setLuciHttp, t("access.luciHttp"))}
+                <span className="text-small text-muted">/</span>
+                {numPort(luciHttps, setLuciHttps, t("access.luciHttps"))}
               </div>
-              <div className="flex items-center gap-3 py-1.5">
-                <span className="text-body font-medium flex-1">{t("access.forceHttps")}</span>
-                <Toggle checked={luciForce} onChange={setLuciForce} label={t("access.forceHttps")} />
-              </div>
-            </div>,
+              <span className="text-border-strong" aria-hidden="true">·</span>
+              <span className="text-small whitespace-nowrap">{t("access.forceHttps")}</span>
+              <Toggle checked={luciForce} onChange={setLuciForce} label={t("access.forceHttps")} />
+            </>,
             saveLuci, luci,
           )}
 
-          {section(
+          {sectionRow(
             t("access.sshSection"),
-            <div className="flex items-center gap-3 py-1.5">
-              <div className="flex-1 min-w-0">
-                <span className="text-body font-medium">{t("access.enableSsh")}</span>
-                <p className="text-caption text-muted">{t("access.sshHint")}</p>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <Input type="number" mono min={1} max={65535} value={sshPort}
-                  aria-label={t("access.sshPort")} onChange={(e) => setSshPort(e.target.value)} className="w-20" />
-                <Toggle checked={sshEnabled} onChange={setSshEnabled} label={t("access.enableSsh")} />
-              </div>
-            </div>,
+            <>
+              <span className="text-small whitespace-nowrap">{t("access.enableSsh")}</span>
+              <HelpTip title={t("access.enableSsh")} body={t("access.sshHint")} />
+              <Toggle checked={sshEnabled} onChange={setSshEnabled} label={t("access.enableSsh")} />
+              <span className="text-border-strong" aria-hidden="true">·</span>
+              <span className="text-small text-muted whitespace-nowrap">{t("access.sshPort")}</span>
+              <Input type="number" mono min={1} max={65535} value={sshPort}
+                aria-label={t("access.sshPort")} onChange={(e) => setSshPort(e.target.value)} className="w-20" />
+            </>,
             saveSsh, ssh,
           )}
-          </div>
         </div>
       )}
     </Card>

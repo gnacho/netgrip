@@ -23,6 +23,14 @@ export function MdnsCard({ probe, onChange, index = 0 }: {
     setLocal(probe);
   }, [probe]);
 
+  // #500: desde Ajustes nadie trae el probe de antemano; si no llega,
+  // la tarjeta se lo trae ella misma una vez.
+  useEffect(() => {
+    if (probe) return;
+    api.mdns().then(setLocal).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const toggle = async (enabled: boolean) => {
     setBusy(true);
     try {

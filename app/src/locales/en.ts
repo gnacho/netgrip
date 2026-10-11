@@ -1759,6 +1759,7 @@ export default {
     confirmBtn: "Enable advanced mode",
   },
   tools: {
+    physTitle: "Ports and cables",
     title: "Tools",
     snapshots: "Config snapshots",
     snapshotsIntro: "Save and restore the full device configuration.",

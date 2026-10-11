@@ -1759,6 +1759,7 @@ export default {
     confirmBtn: "Activar modo avanzado",
   },
   tools: {
+    physTitle: "Bocas y cables",
     title: "Herramientas",
     snapshots: "Copias de configuracion",
     snapshotsIntro: "Guarda y restaura la configuracion completa del dispositivo.",

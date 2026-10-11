@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import { Activity, ArrowLeftRight, Blocks, ChartColumn, ChartPie, Download, Forward, Globe, HardDrive, Info, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldBan, Smartphone, Wifi, Wrench } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
-import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MDNSProbe, MultiWanProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
+import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MultiWanProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
 import { useMode } from "../hooks/useMode";
 import { AnnouncementBanner } from "./AnnouncementBanner";
@@ -19,7 +19,6 @@ import { Services } from "../pages/Services";
 import { Ports } from "../pages/Ports";
 import { System } from "../pages/System";
 import { LanPage } from "../pages/Lan";
-import { ToolsPage } from "../pages/Tools";
 import { DiagnosticsPage } from "../pages/Diagnostics";
 import { FleetPage } from "../pages/Fleet";
 import { StoragePage } from "../pages/Storage";
@@ -67,7 +66,7 @@ const NAV_GROUPS: { group: string | null; items: Page[] }[] = [
   { group: "nav.group.yourNetwork", items: ["clients", "coverage", "traffic"] },
   { group: "nav.group.connection", items: ["internet", "wifi", "lan", "ports"] },
   { group: "nav.group.services", items: ["services"] },
-  { group: "nav.group.system", items: ["tools", "diagnostics", "storage", "fleet", "system", "about"] },
+  { group: "nav.group.system", items: ["diagnostics", "storage", "fleet", "system", "about"] },
 ];
 
 function ShellInner({ onLogout }: { onLogout: () => void }) {
@@ -81,7 +80,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   const [update, setUpdate] = useState<UpdateCheck>();
   const [wg, setWg] = useState<WGProbe>();
   const [ddns, setDdns] = useState<DDNSProbe>();
-  const [mdns, setMdns] = useState<MDNSProbe>();
   const [sqm, setSqm] = useState<SQMProbe>();
   const [ovpn, setOvpn] = useState<OVPNProbe>();
   const [iot, setIot] = useState<IoTProbe>();
@@ -136,7 +134,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     api.updateCheck().then(setUpdate).catch(() => {});
     api.wireguard().then(setWg).catch(() => {});
     api.ddns().then(setDdns).catch(() => {});
-    api.mdns().then(setMdns).catch(() => {});
     api.sqm().then(setSqm).catch(() => {});
     api.openvpn().then(setOvpn).catch(() => {});
     api.iotwifi().then(setIot).catch(() => {});
@@ -195,10 +192,15 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     // (p. ej. un switch gestionado), así que la entrada no se ofrece.
     if (id === "lan" && !mode?.dnsmasq_on) return false;
     if ((id === "wifi" || id === "coverage") && !hasWifiRadios) return false;
+    // #500: en un AP el detalle de bocas vive en Resumen; la página de
+    // puertos queda para gateway y switch.
+    if (id === "ports" && role === "ap") return false;
     if (id === "ports" && !hasSwitchPorts) return false;
     if (id === "storage" && !storage?.applicable) return false;
     if (id === "coverage" && !usteerMultiRouter) return false;
-    if (id === "services" && isSwitch) return false;
+    // #500: Servicios solo gateway (en AP solo quedaba AdGuard/mDNS;
+    // el nombre local se movió a Ajustes).
+    if (id === "services" && !isRouter) return false;
     return true;
   };
   const activePage = NAV_GROUPS.some((g) => g.items.includes(page)) && visible(page) ? page : "overview";
@@ -355,15 +357,12 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         <LanPage ipv6={ipv6} onIpv6Change={setIpv6} />
       )}
       {activePage === "services" && (
-        <Services wg={wg} onWgChange={setWg} ddns={ddns} onDdnsChange={setDdns} mdns={mdns} onMdnsChange={setMdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} ts={ts} onTsChange={setTs} apMode={!isRouter} onNavigate={navigate} />
+        <Services wg={wg} onWgChange={setWg} ddns={ddns} onDdnsChange={setDdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} ts={ts} onTsChange={setTs} apMode={!isRouter} onNavigate={navigate} />
       )}
       {activePage === "ports" && (
         <Ports ethports={ethports ?? []} />
       )}
-      {activePage === "tools" && (
-        <ToolsPage ethports={ethports ?? []} />
-      )}
-      {activePage === "diagnostics" && <DiagnosticsPage />}
+      {activePage === "diagnostics" && <DiagnosticsPage ethports={ethports ?? []} />}
       {activePage === "fleet" && (
         <FleetPage />
       )}
