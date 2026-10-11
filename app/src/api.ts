@@ -571,14 +571,6 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg),
     }),
-  advanced: () =>
-    request<import("./types").AdvancedProbe>("/api/advanced"),
-  setAdvanced: (enabled: boolean) =>
-    request<{ state: import("./types").AdvancedProbe }>("/api/advanced", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled, confirm: true }),
-    }),
   drift: () =>
     request<import("./types").DriftProbe>("/api/drift"),
   vlans: () =>

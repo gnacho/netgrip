@@ -2692,6 +2692,7 @@ export default {
     discoveryRestartNote: "Restart the NetGrip service to apply the change.",
   },
   backup: {
+    edit: "Edit",
     title: "Config Backup",
     description: "Push UCI snapshots to a central NetPulse server for off-device backup.",
     serverURL: "NetPulse server URL",

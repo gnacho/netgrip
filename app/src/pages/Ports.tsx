@@ -50,8 +50,6 @@ export function Ports({ ethports }: { ethports?: EthPort[] }) {
   const [stpOk, setStpOk] = useState<boolean>();
   const [trafficOk, setTrafficOk] = useState<boolean>();
   const [opticsOk, setOpticsOk] = useState<boolean>();
-  const [advanced, setAdvanced] = useState<boolean>();
-
   useEffect(() => {
     let live = true;
     api.vlans().then((p) => { if (live) setVlansOk(p.applicable); }).catch(() => {});
@@ -60,7 +58,6 @@ export function Ports({ ethports }: { ethports?: EthPort[] }) {
     api.physPorts().then((p) => {
       if (live) setOpticsOk(p.applicable && p.ports.some((x) => !!x.sfp));
     }).catch(() => {});
-    api.advanced().then((p) => { if (live) setAdvanced(p.advanced); }).catch(() => {});
     // Tráfico (#443): la pestaña se ofrece si ALGUNA de las dos funciones
     // es aplicable y su capacidad concreta funciona en este kernel.
     Promise.allSettled([api.mirror(), api.rateLimit()]).then(([m, r]) => {
@@ -77,14 +74,14 @@ export function Ports({ ethports }: { ethports?: EthPort[] }) {
     { value: "ports" as PortsTab, label: t("ports.tab.ports") },
     ...(vlansOk !== false ? [{ value: "vlans" as PortsTab, label: t("ports.tab.vlans") }] : []),
     ...(lagOk !== false ? [{ value: "lag" as PortsTab, label: t("ports.tab.lag") }] : []),
-    ...((advanced ?? true) && stpOk !== false
+    ...(stpOk !== false
       ? [{ value: "stp" as PortsTab, label: t("ports.tab.stp") }]
       : []),
-    ...((advanced ?? true) && trafficOk !== false
+    ...(trafficOk !== false
       ? [{ value: "traffic" as PortsTab, label: t("ports.tab.traffic") }]
       : []),
     ...(opticsOk !== false ? [{ value: "optics" as PortsTab, label: t("ports.tab.optics") }] : []),
-    ...(advanced ?? true ? [{ value: "profiles" as PortsTab, label: t("ports.tab.profiles") }] : []),
+    { value: "profiles" as PortsTab, label: t("ports.tab.profiles") },
   ];
   // Si la pestaña activa acaba ocultandose (probe que confirma no-aplica),
   // se vuelve a Puertos en vez de quedarse en un panel vacio.

@@ -236,7 +236,9 @@ export function AccessCard({ index = 2 }: { index?: number }) {
       {!probe ? (
         <SkeletonRows rows={3} />
       ) : (
-        <div className="flex flex-col gap-3">
+        /* #500: dos columnas - "Este panel" a la izquierda; LuCI y SSH
+            apilados a la derecha. */
+        <div className="grid gap-3 items-start lg:grid-cols-2">
           {section(
             t("access.panelSection"),
             <div className="flex flex-col gap-1">
@@ -287,6 +289,7 @@ export function AccessCard({ index = 2 }: { index?: number }) {
             savePanel, panel, ttlMin <= 0,
           )}
 
+          <div className="flex flex-col gap-3">
           {section(
             t("access.luciSection"),
             <div className="flex flex-col gap-1">
@@ -321,6 +324,7 @@ export function AccessCard({ index = 2 }: { index?: number }) {
             </div>,
             saveSsh, ssh,
           )}
+          </div>
         </div>
       )}
     </Card>

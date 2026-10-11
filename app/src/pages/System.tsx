@@ -12,7 +12,6 @@ import { ConfigBackupCard } from "../components/ConfigBackupCard";
 import { UpdateCard } from "../components/system/UpdateCard";
 import { SelfUpdateCard } from "../components/system/SelfUpdateCard";
 import { WizardRelaunchCard } from "../components/system/WizardRelaunchCard";
-import { AdvancedCard } from "../components/system/AdvancedCard";
 import { OptionsCard } from "../components/system/OptionsCard";
 import { NetPulseStandaloneBanner, NetPulseStatusChip } from "../components/system/NetPulseStatus";
 import { useTranslation } from "react-i18next";
@@ -47,7 +46,32 @@ export function System({ board, update, onUpdateChange, onLogout }: {
   const canSwitchMode = modeReady && role !== "switch";
   return (
     <div className="flex flex-col gap-6">
-      {/* Actualizaciones (#499): el propio NetGrip y la del sistema, juntas. */}
+      {/* Protección y acceso (#499/#500): la contraseña, al final de la
+          sección; las tarjetas SIEMPRE al 100% del ancho. */}
+      <section className="flex flex-col gap-[var(--card-gap)]">
+        <GroupLabel>{t("system.groupProtection")}</GroupLabel>
+        <AccessCard index={0} />
+        {isRouter && <RemoteAccessCard index={1} />}
+        <SecurityCard index={2} onLogout={onLogout} />
+      </section>
+
+      {/* Este equipo: modo, avisos, copia de config y preferencias.
+          #499/#500: Telegram/ntfy/MQTT colapsados en una sola tarjeta;
+          SNMP fuera de aquí (vive en Servicios). */}
+      <section className="flex flex-col gap-[var(--card-gap)]">
+        <GroupLabel>{t("system.groupDevice")}</GroupLabel>
+        <NetPulseStandaloneBanner />
+        <NetPulseStatusChip />
+        {canSwitchMode && <ModeCard index={0} />}
+        {!NETPULSE_CARD_HIDDEN && <NetPulseCard index={1} />}
+        <IntegrationsCard index={2} />
+        <ConfigBackupCard index={3} />
+        <OptionsCard index={4} />
+        {isRouter && <WizardRelaunchCard index={5} />}
+      </section>
+
+      {/* Actualizaciones (#499): última sección, con la identidad y el
+          reinicio al final de todo (orden pedido por el usuario). */}
       <section className="flex flex-col gap-[var(--card-gap)]">
         <GroupLabel>{t("system.groupUpdates")}</GroupLabel>
         <SelfUpdateCard index={0} />
@@ -56,32 +80,7 @@ export function System({ board, update, onUpdateChange, onLogout }: {
           update={update}
           onChange={onUpdateChange}
         />
-      </section>
-
-      {/* Protección y acceso (#499): contraseña y accesos. */}
-      <section className="flex flex-col gap-[var(--card-gap)]">
-        <GroupLabel>{t("system.groupProtection")}</GroupLabel>
-        <SecurityCard index={0} onLogout={onLogout} />
-        <AccessCard index={1} />
-        {isRouter && <RemoteAccessCard index={2} />}
-      </section>
-
-      {/* Este equipo: modo, identidad, avisos, copia de config y
-          preferencias. #499/#500: Telegram/ntfy/MQTT colapsados en una sola
-          tarjeta; SNMP sale de aquí (vive en Servicios). Tarjetas SIEMPRE al
-          100% del ancho: a medias dejan huecos imposibles de casar (#499). */}
-      <section className="flex flex-col gap-[var(--card-gap)]">
-        <GroupLabel>{t("system.groupDevice")}</GroupLabel>
-        <NetPulseStandaloneBanner />
-        <NetPulseStatusChip />
-        {canSwitchMode && <ModeCard index={0} />}
         <IdentityCard index={1} board={board} />
-        {!NETPULSE_CARD_HIDDEN && <NetPulseCard index={2} />}
-        <IntegrationsCard index={2} />
-        <ConfigBackupCard index={3} />
-        <OptionsCard index={4} />
-        <AdvancedCard index={5} />
-        {isRouter && <WizardRelaunchCard index={6} />}
       </section>
     </div>
   );

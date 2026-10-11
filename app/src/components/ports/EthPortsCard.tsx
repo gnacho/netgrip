@@ -42,7 +42,6 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
   // Config física y SFP (#485): el modo avanzado se consulta una vez; el
   // probe de puertos fisicos se carga la primera vez que se abre el detalle
   // de una boca (52 ethtool tardan un par de segundos).
-  const [advanced, setAdvanced] = useState(false);
   const [phys, setPhys] = useState<PhysPortsProbe>();
   const physRequested = useRef(false);
 
@@ -56,7 +55,6 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    api.advanced().then((p) => setAdvanced(p.advanced)).catch(() => {});
   }, []);
   const loadPhys = useCallback(async () => {
     try { setPhys(await api.physPorts()); } catch { /* sin probe, sin bloque */ }
@@ -269,8 +267,9 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
               {/* Módulo óptico (jaulas SFP, #485) */}
               {selectedPhys?.sfp && <SfpModuleSection sfp={selectedPhys.sfp} />}
 
-              {/* Configuración física: solo con modo avanzado */}
-              {advanced && selectedPhys && (
+              {/* Configuración física (#500: el gate de modo avanzado se
+                  retiró; queda por selección de boca) */}
+              {selectedPhys && (
                 <PhysConfigSection
                   phys={selectedPhys}
                   busy={busyPort === selectedSw.name}

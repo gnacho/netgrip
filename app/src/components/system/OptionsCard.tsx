@@ -32,7 +32,8 @@ export function OptionsCard({ index = 0 }: { index?: number }) {
 
   return (
     <Card index={index} title={t("options.title")} icon={Settings2}>
-      <div className="flex flex-col gap-4">
+      {/* #500: las cuatro preferencias en dos columnas. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Row
           icon={<Languages size={16} aria-hidden="true" />}
           label={t("options.language")}
