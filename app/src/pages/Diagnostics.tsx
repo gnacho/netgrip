@@ -37,16 +37,16 @@ export function DiagnosticsPage() {
 
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-small text-muted">{t("diagnostics.intro")}</p>
+      <div className="flex justify-end">
         <Button variant="secondary" icon={Copy} disabled={!hasResults} onClick={copy}>
           {t("diagnostics.share")}
         </Button>
       </div>
 
-      <SelfTestCard onResult={setSelfTest} />
-
-      <div className="grid grid-cols-1 gap-[var(--card-gap)] md:grid-cols-2">
+      {/* #500: rejilla única de dos columnas; las descripciones por tarjeta
+          desaparecen, ya viven en el chip (?) de cada una. */}
+      <div className="grid grid-cols-1 gap-[var(--card-gap)] items-start md:grid-cols-2">
+        <SelfTestCard onResult={setSelfTest} />
         <PingCard onResult={setPing} />
         <TracerouteCard onResult={setTraceroute} />
         <DnsCard onResult={setDns} />

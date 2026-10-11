@@ -67,13 +67,16 @@ export function Services({ wg, onWgChange, ddns, onDdnsChange, mdns, onMdnsChang
         {!apMode && <SqmCard probe={sqm} onChange={onSqmChange} index={2} />}
       </section>
 
-      {/* VPN — para entrar a tu casa desde fuera (al final) */}
+      {/* VPN — para entrar a tu casa desde fuera (al final). Solo gateway:
+          un AP no enruta, así que los túneles no aplican (#500). */}
+      {!apMode && (
       <section className="flex flex-col gap-[var(--card-gap)]">
         <GroupHeader index={4} title={t("services.groupVpn")} desc={t("services.groupVpnDesc")} />
         <WireguardCard probe={wg} onChange={onWgChange} index={4} />
         <OpenvpnCard probe={ovpn} onChange={onOvpnChange} index={4} />
         <TailscaleCard probe={ts} onChange={onTsChange} index={4} />
       </section>
+      )}
 
       {/* Servicios locales: tus servicios self-hosted en otras máquinas */}
       <section className="flex flex-col gap-[var(--card-gap)]">
