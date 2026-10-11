@@ -1,17 +1,43 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, CloudOff, RefreshCw, Repeat, RotateCcw, Stethoscope } from "lucide-react";
 import { api } from "../../api";
 import type { CableTestProbe, EthPort, LoopResult } from "../../types";
-import { Banner, Button, Card, ConfirmDialog, EmptyState, Pill, StatusDot } from "../ui";
+import { Banner, Button, ConfirmDialog, EmptyState, IconTile, Pill, StatusDot } from "../ui";
+import type { Tone } from "../ui/IconTile";
+import { HelpTip } from "../ui/HelpTip";
+import type { LucideIcon } from "lucide-react";
 
 /**
- * Diagnóstico (tools.md §3): tres cards gemelas "pulsar y entender" —
+ * Diagnóstico (tools.md §3): tres herramientas "pulsar y entender" que
+ * viven en UNA tarjeta a ancho completo (#500, tres columnas internas):
  * explicación llana + botón de acción + resultado con semáforo.
  */
 
+/** Cabecera de herramienta dentro de la tarjeta única (#500). */
+function ToolHeader({ icon, tone = "teal", title, helpTitle, helpBody }: {
+  icon: LucideIcon;
+  tone?: Tone;
+  title: string;
+  helpTitle?: string;
+  helpBody?: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 min-w-0">
+      <IconTile icon={icon} tone={tone} size={28} />
+      <h3 className="text-body font-semibold flex-1 min-w-0">{title}</h3>
+      {helpTitle && helpBody && <HelpTip title={helpTitle} body={helpBody} />}
+    </div>
+  );
+}
+
+/** Cuerpo compartido: la descripción llana de la herramienta. */
+function ToolDesc({ children }: { children: ReactNode }) {
+  return <p className="text-small text-muted">{children}</p>;
+}
+
 /** Test de cable (`/api/cable-test`). */
-export function CableTestCard({ index = 1 }: { index?: number }) {
+export function CableTestTool() {
   const { t } = useTranslation();
   const [probe, setProbe] = useState<CableTestProbe>();
   const [busy, setBusy] = useState(false);
@@ -26,14 +52,18 @@ export function CableTestCard({ index = 1 }: { index?: number }) {
   };
 
   return (
-    <Card index={index} title={t("tools.cableTestTitle")} icon={Stethoscope} iconTone="teal" help="cabletest">
-      <p className="text-small text-muted mb-3">{t("tools.cableTestDesc")}</p>
-      <Button onClick={run} loading={busy}>
-        {busy ? t("tools.testing") : t("tools.cableTestRunAll")}
-      </Button>
+    <div className="flex flex-col gap-3 min-w-0">
+      <ToolHeader icon={Stethoscope} tone="teal" title={t("tools.cableTestTitle")}
+        helpTitle={t("help.cabletest.title")} helpBody={t("help.cabletest.body")} />
+      <ToolDesc>{t("tools.cableTestDesc")}</ToolDesc>
+      <div>
+        <Button onClick={run} loading={busy}>
+          {busy ? t("tools.testing") : t("tools.cableTestRunAll")}
+        </Button>
+      </div>
 
       {error && (
-        <Banner tone="danger" className="mt-3"
+        <Banner tone="danger"
           action={<Button variant="secondary" size="sm" onClick={run}>{t("common.retry")}</Button>}>
           {t("tools.loadError")}
         </Banner>
@@ -41,11 +71,11 @@ export function CableTestCard({ index = 1 }: { index?: number }) {
 
       {probe && !error && (
         probe.missing_tool ? (
-          <Banner tone="warn" className="mt-3">{t("tools.cableMissingTool", { tool: probe.missing_tool })}</Banner>
+          <Banner tone="warn">{t("tools.cableMissingTool", { tool: probe.missing_tool })}</Banner>
         ) : probe.ports.length === 0 ? (
-          <p className="text-small text-muted mt-3">{t("tools.cableNotApplicable")}</p>
+          <p className="text-small text-muted">{t("tools.cableNotApplicable")}</p>
         ) : (
-          <div className="mt-3 flex flex-col gap-2">
+          <div className="flex flex-col gap-2">
             {probe.ports.map((p, i) => (
               <div key={p.port} style={{ "--i": i * 1.5 } as CSSProperties}
                 className="animate-fade-up flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -64,12 +94,12 @@ export function CableTestCard({ index = 1 }: { index?: number }) {
           </div>
         )
       )}
-    </Card>
+    </div>
   );
 }
 
 /** Bucles de red (`/api/loops` + bloqueo de boca). */
-export function LoopsCard({ index = 2 }: { index?: number }) {
+export function LoopsTool() {
   const { t } = useTranslation();
   const [result, setResult] = useState<LoopResult>();
   const [busy, setBusy] = useState(false);
@@ -100,21 +130,24 @@ export function LoopsCard({ index = 2 }: { index?: number }) {
   };
 
   return (
-    <Card index={index} title={t("tools.loopsTitle")} icon={Repeat} iconTone="warn">
-      <p className="text-small text-muted mb-3">{t("tools.loopsDesc")}</p>
-      <Button onClick={check} loading={busy}>
-        {busy ? t("tools.loopsSearching") : t("tools.loopsRun")}
-      </Button>
+    <div className="flex flex-col gap-3 min-w-0">
+      <ToolHeader icon={Repeat} tone="warn" title={t("tools.loopsTitle")} />
+      <ToolDesc>{t("tools.loopsDesc")}</ToolDesc>
+      <div>
+        <Button onClick={check} loading={busy}>
+          {busy ? t("tools.loopsSearching") : t("tools.loopsRun")}
+        </Button>
+      </div>
 
       {error && (
-        <Banner tone="danger" className="mt-3"
+        <Banner tone="danger"
           action={<Button variant="secondary" size="sm" onClick={check}>{t("common.retry")}</Button>}>
           {t("tools.loadError")}
         </Banner>
       )}
 
       {result && !error && (
-        <div className="mt-3 flex flex-col gap-2">
+        <div className="flex flex-col gap-2">
           {result.loops.length === 0 && !result.has_hub && (
             <Banner tone="ok">{t("tools.loopsClean")}</Banner>
           )}
@@ -150,7 +183,7 @@ export function LoopsCard({ index = 2 }: { index?: number }) {
       )}
 
       {msg && (
-        <Banner tone={msg.tone} className="mt-3" onDismiss={() => setMsg(undefined)}>{msg.text}</Banner>
+        <Banner tone={msg.tone} onDismiss={() => setMsg(undefined)}>{msg.text}</Banner>
       )}
 
       <ConfirmDialog
@@ -162,12 +195,12 @@ export function LoopsCard({ index = 2 }: { index?: number }) {
         confirmLabel={t("tools.loopBlockGo")}
         busy={!!blockBusy}
       />
-    </Card>
+    </div>
   );
 }
 
 /** Reiniciar una boca (`/api/ports/bounce`). */
-export function BounceCard({ ethports, index = 3 }: { ethports: EthPort[]; index?: number }) {
+export function BounceTool({ ethports }: { ethports: EthPort[] }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState<string>();
   const [justBounced, setJustBounced] = useState<string>();
@@ -197,8 +230,9 @@ export function BounceCard({ ethports, index = 3 }: { ethports: EthPort[]; index
   if (wired.length === 0) return null;
 
   return (
-    <Card index={index} title={t("tools.bounceTitle")} icon={RefreshCw} iconTone="muted">
-      <p className="text-small text-muted mb-3">{t("tools.bounceDesc")}</p>
+    <div className="flex flex-col gap-3 min-w-0">
+      <ToolHeader icon={RefreshCw} tone="muted" title={t("tools.bounceTitle")} />
+      <ToolDesc>{t("tools.bounceDesc")}</ToolDesc>
       <div className="flex flex-wrap gap-2">
         {wired.map((p) => (
           <div key={p.name} className="flex items-center gap-2">
@@ -211,9 +245,9 @@ export function BounceCard({ ethports, index = 3 }: { ethports: EthPort[]; index
         ))}
       </div>
       {failMsg && (
-        <Banner tone="danger" className="mt-3" onDismiss={() => setFailMsg(undefined)}>{failMsg}</Banner>
+        <Banner tone="danger" onDismiss={() => setFailMsg(undefined)}>{failMsg}</Banner>
       )}
-    </Card>
+    </div>
   );
 }
 

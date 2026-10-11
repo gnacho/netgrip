@@ -1848,6 +1848,7 @@ export default {
     macAclEdit: "Editar",
   },
   diagnostics: {
+    testsTitle: "Pruebas de red",
     shareTitle: "Diagnóstico de red",
     share: "Copiar resumen",
     copied: "Resumen copiado",

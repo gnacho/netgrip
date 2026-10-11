@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Activity, Globe, Plug, Route, Send } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { api } from "../../api";
 import type { DNSResult, PingResult, SelfTestResult, TCPResult, TracerouteResult } from "../../types";
 import { Banner, Button, Card, Input, Pill, StatusDot } from "../ui";
+import { IconTile, type Tone } from "../ui/IconTile";
 
 /**
- * Diagnóstico de red (issue #305): cinco pruebas guiadas con formulario y
- * tabla de resultados. Cada tarjeta informa su resultado a la página vía
+ * Diagnóstico de red (issue #305): autodiagnóstico + cuatro pruebas
+ * guiadas. Las cuatro viven en UNA tarjeta a ancho completo con dos
+ * columnas internas (#500); cada una informa su resultado a la página vía
  * `onResult` para poder montar el resumen compartible.
  */
 
@@ -24,6 +27,16 @@ function ErrBanner({ error, onRetry }: { error?: string; onRetry: () => void }) 
       action={<Button variant="secondary" size="sm" onClick={onRetry}>{t("common.retry")}</Button>}>
       {error}
     </Banner>
+  );
+}
+
+/** Cabecera de prueba dentro de la tarjeta única (#500). */
+function TestHeader({ icon, tone = "accent", title }: { icon: LucideIcon; tone?: Tone; title: string }) {
+  return (
+    <div className="flex items-center gap-2.5 min-w-0">
+      <IconTile icon={icon} tone={tone} size={28} />
+      <h3 className="text-body font-semibold flex-1 min-w-0">{title}</h3>
+    </div>
   );
 }
 
@@ -64,7 +77,7 @@ export function SelfTestCard({ onResult }: { onResult: (r: SelfTestResult) => vo
     : [];
 
   return (
-    <Card title={t("diagnostics.selfTestTitle")} icon={Activity} iconTone="accent" help="diagnostics">
+    <Card title={t("diagnostics.selfTestTitle")} icon={Activity} iconTone="accent">
       <Button onClick={run} loading={busy}>
         {busy ? t("diagnostics.selfTestRunning") : t("diagnostics.selfTestRun")}
       </Button>
@@ -127,7 +140,8 @@ export function PingCard({ onResult }: { onResult: (r: PingResult) => void }) {
   };
 
   return (
-    <Card title={t("diagnostics.pingTitle")} icon={Send} iconTone="teal" help="diagnostics">
+    <div className="flex flex-col gap-3 min-w-0">
+      <TestHeader icon={Send} tone="teal" title={t("diagnostics.pingTitle")} />
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex-1 min-w-40 block">
           <span className="mb-1 block text-caption font-medium text-muted">{t("diagnostics.host")}</span>
@@ -175,7 +189,7 @@ export function PingCard({ onResult }: { onResult: (r: PingResult) => void }) {
           </div>
         )
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -200,7 +214,8 @@ export function TracerouteCard({ onResult }: { onResult: (r: TracerouteResult) =
   };
 
   return (
-    <Card title={t("diagnostics.tracerouteTitle")} icon={Route} iconTone="accent" help="diagnostics">
+    <div className="flex flex-col gap-3 min-w-0">
+      <TestHeader icon={Route} tone="accent" title={t("diagnostics.tracerouteTitle")} />
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex-1 min-w-40 block">
           <span className="mb-1 block text-caption font-medium text-muted">{t("diagnostics.host")}</span>
@@ -235,7 +250,7 @@ export function TracerouteCard({ onResult }: { onResult: (r: TracerouteResult) =
           </table>
         )
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -261,7 +276,8 @@ export function DnsCard({ onResult }: { onResult: (r: DNSResult) => void }) {
   };
 
   return (
-    <Card title={t("diagnostics.dnsTitle")} icon={Globe} iconTone="accent" help="diagnostics">
+    <div className="flex flex-col gap-3 min-w-0">
+      <TestHeader icon={Globe} tone="accent" title={t("diagnostics.dnsTitle")} />
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex-1 min-w-40 block">
           <span className="mb-1 block text-caption font-medium text-muted">{t("diagnostics.query")}</span>
@@ -304,7 +320,7 @@ export function DnsCard({ onResult }: { onResult: (r: DNSResult) => void }) {
           </div>
         )
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -330,7 +346,8 @@ export function TcpCard({ onResult }: { onResult: (r: TCPResult) => void }) {
   };
 
   return (
-    <Card title={t("diagnostics.tcpTitle")} icon={Plug} iconTone="teal" help="diagnostics">
+    <div className="flex flex-col gap-3 min-w-0">
+      <TestHeader icon={Plug} tone="teal" title={t("diagnostics.tcpTitle")} />
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex-1 min-w-40 block">
           <span className="mb-1 block text-caption font-medium text-muted">{t("diagnostics.host")}</span>
@@ -355,6 +372,6 @@ export function TcpCard({ onResult }: { onResult: (r: TCPResult) => void }) {
           )}
         </div>
       )}
-    </Card>
+    </div>
   );
 }

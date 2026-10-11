@@ -12,7 +12,6 @@ import { FirewallCard } from "../components/services/FirewallCard";
 import { AdguardCard } from "../components/services/AdguardCard";
 import { LanServicesCard } from "../components/services/LanServicesCard";
 import { BanipCard } from "../components/services/BanipCard";
-import { SnmpCard } from "../components/advanced/SnmpCard";
 
 /** Cabecera de grupo: eyebrow + una frase llana small muted (services.md §1). */
 function GroupHeader({ title, desc, index }: { title: string; desc: string; index: number }) {
@@ -47,14 +46,13 @@ export function Services({ wg, onWgChange, ddns, onDdnsChange, mdns, onMdnsChang
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-6 md:gap-8">
-      {/* Bloqueo y reglas — el bloqueador de anuncios arriba */}
+      {/* Bloqueo y reglas — el bloqueador de anuncios arriba. Contabilidad
+          y bloqueo solo en el gateway (#500): un AP no enruta, así que
+          nlbwmon no puede contar tráfico por equipo. */}
       <section className="flex flex-col gap-[var(--card-gap)]">
         <GroupHeader index={0} title={t("services.groupRules")} desc={t("services.groupRulesDesc")} />
         <AdguardCard index={0} />
-        <NlbwmonCard index={0} />
-        {/* #499: snmpd vive en Servicios (es un daemon de monitorización),
-            no en Ajustes. */}
-        <SnmpCard index={0} />
+        {!apMode && <NlbwmonCard index={0} />}
         {!apMode && <FirewallCard index={0} />}
         {!apMode && <BanipCard index={0} onNavigate={onNavigate} />}
       </section>
@@ -78,11 +76,14 @@ export function Services({ wg, onWgChange, ddns, onDdnsChange, mdns, onMdnsChang
       </section>
       )}
 
-      {/* Servicios locales: tus servicios self-hosted en otras máquinas */}
+      {/* Servicios locales: tus servicios self-hosted en otras máquinas.
+          Solo gateway (#500): en un AP es información ajena a su función. */}
+      {!apMode && (
       <section className="flex flex-col gap-[var(--card-gap)]">
         <GroupHeader index={6} title={t("services.groupLocal")} desc={t("services.groupLocalDesc")} />
         <LanServicesCard />
       </section>
+      )}
     </div>
   );
 }

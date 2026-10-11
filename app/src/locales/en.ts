@@ -1848,6 +1848,7 @@ export default {
     macAclEdit: "Edit",
   },
   diagnostics: {
+    testsTitle: "Network tests",
     shareTitle: "Network diagnostics",
     share: "Copy summary",
     copied: "Summary copied",
