@@ -27,11 +27,6 @@ function GroupLabel({ children }: { children: ReactNode }) {
   return <p className="text-eyebrow text-faint mb-2 animate-fade-up">{children}</p>;
 }
 
-/** Rejilla de dos columnas (#499): en apilado en móvil, en paralelo desde lg. */
-function TwoCols({ children }: { children: ReactNode }) {
-  return <div className="grid gap-[var(--card-gap)] items-start lg:grid-cols-2">{children}</div>;
-}
-
 export function System({ board, update, onUpdateChange, onLogout }: {
   board: Board | undefined;
   update: UpdateCheck | undefined;
@@ -55,43 +50,38 @@ export function System({ board, update, onUpdateChange, onLogout }: {
       {/* Actualizaciones (#499): el propio NetGrip y la del sistema, juntas. */}
       <section className="flex flex-col gap-[var(--card-gap)]">
         <GroupLabel>{t("system.groupUpdates")}</GroupLabel>
-        <TwoCols>
-          <SelfUpdateCard index={0} />
-          <UpdateCard
-            board={board}
-            update={update}
-            onChange={onUpdateChange}
-          />
-        </TwoCols>
+        <SelfUpdateCard index={0} />
+        <UpdateCard
+          board={board}
+          update={update}
+          onChange={onUpdateChange}
+        />
       </section>
 
-      {/* Protección y acceso (#499): contraseña y accesos, en paralelo. */}
+      {/* Protección y acceso (#499): contraseña y accesos. */}
       <section className="flex flex-col gap-[var(--card-gap)]">
         <GroupLabel>{t("system.groupProtection")}</GroupLabel>
-        <TwoCols>
-          <SecurityCard index={0} onLogout={onLogout} />
-          <AccessCard index={1} />
-          {isRouter && <RemoteAccessCard index={2} />}
-        </TwoCols>
+        <SecurityCard index={0} onLogout={onLogout} />
+        <AccessCard index={1} />
+        {isRouter && <RemoteAccessCard index={2} />}
       </section>
 
       {/* Este equipo: modo, identidad, avisos, copia de config y
-          preferencias. #499: Telegram/ntfy/MQTT colapsados en una sola
-          tarjeta; SNMP sale de aquí (vive en Servicios). */}
+          preferencias. #499/#500: Telegram/ntfy/MQTT colapsados en una sola
+          tarjeta; SNMP sale de aquí (vive en Servicios). Tarjetas SIEMPRE al
+          100% del ancho: a medias dejan huecos imposibles de casar (#499). */}
       <section className="flex flex-col gap-[var(--card-gap)]">
         <GroupLabel>{t("system.groupDevice")}</GroupLabel>
         <NetPulseStandaloneBanner />
         <NetPulseStatusChip />
-        <TwoCols>
-          {canSwitchMode && <ModeCard index={0} />}
-          <IdentityCard index={1} board={board} />
-          {!NETPULSE_CARD_HIDDEN && <NetPulseCard index={2} />}
-          <IntegrationsCard index={2} />
-          <ConfigBackupCard index={3} />
-          <OptionsCard index={4} />
-          <AdvancedCard index={5} />
-          {isRouter && <WizardRelaunchCard index={6} />}
-        </TwoCols>
+        {canSwitchMode && <ModeCard index={0} />}
+        <IdentityCard index={1} board={board} />
+        {!NETPULSE_CARD_HIDDEN && <NetPulseCard index={2} />}
+        <IntegrationsCard index={2} />
+        <ConfigBackupCard index={3} />
+        <OptionsCard index={4} />
+        <AdvancedCard index={5} />
+        {isRouter && <WizardRelaunchCard index={6} />}
       </section>
     </div>
   );

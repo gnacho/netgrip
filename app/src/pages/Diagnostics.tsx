@@ -43,10 +43,12 @@ export function DiagnosticsPage() {
         </Button>
       </div>
 
-      {/* #500: rejilla única de dos columnas; las descripciones por tarjeta
-          desaparecen, ya viven en el chip (?) de cada una. */}
-      <div className="grid grid-cols-1 gap-[var(--card-gap)] items-start md:grid-cols-2">
-        <SelfTestCard onResult={setSelfTest} />
+      <SelfTestCard onResult={setSelfTest} />
+
+      {/* #500: las cuatro pruebas emparejadas (alturas similares, sin
+          huecos); las descripciones por tarjeta desaparecen, ya viven en el
+          chip (?) de cada una. */}
+      <div className="grid grid-cols-1 gap-[var(--card-gap)] md:grid-cols-2">
         <PingCard onResult={setPing} />
         <TracerouteCard onResult={setTraceroute} />
         <DnsCard onResult={setDns} />
