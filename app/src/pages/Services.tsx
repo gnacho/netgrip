@@ -48,9 +48,12 @@ export function Services({ wg, onWgChange, ddns, onDdnsChange, mdns, onMdnsChang
     <div className="flex flex-col gap-6 md:gap-8">
       {/* Bloqueo y reglas — el bloqueador de anuncios arriba. Contabilidad
           y bloqueo solo en el gateway (#500): un AP no enruta, así que
-          nlbwmon no puede contar tráfico por equipo. */}
+          nlbwmon no puede contar tráfico por equipo. El encabezado también
+          solo en gateway: describe funciones que en un AP no se pintan. */}
       <section className="flex flex-col gap-[var(--card-gap)]">
-        <GroupHeader index={0} title={t("services.groupRules")} desc={t("services.groupRulesDesc")} />
+        {!apMode && (
+          <GroupHeader index={0} title={t("services.groupRules")} desc={t("services.groupRulesDesc")} />
+        )}
         <AdguardCard index={0} />
         {!apMode && <NlbwmonCard index={0} />}
         {!apMode && <FirewallCard index={0} />}
