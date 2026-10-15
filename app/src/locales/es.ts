@@ -1632,6 +1632,9 @@ export default {
   error: {
     load: "Error cargando datos",
     network: "No pudimos hablar con el router. Reintentando…",
+    crashTitle: "Algo se ha torcido en el panel",
+    crashBody: "La interfaz ha chocado con un error inesperado. Recarga la página; si el router se ha actualizado hace poco, con eso suele bastar.",
+    reload: "Recargar página",
   },
   lan: {
     title: "LAN",

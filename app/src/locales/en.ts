@@ -1632,6 +1632,9 @@ export default {
   error: {
     load: "Failed to load data",
     network: "We couldn't reach the router. Retrying…",
+    crashTitle: "The panel hit a snag",
+    crashBody: "The UI ran into an unexpected error. Reload the page; if the router was updated recently, that usually fixes it.",
+    reload: "Reload page",
   },
   lan: {
     title: "LAN",
