@@ -165,7 +165,9 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   // localStorage para el primer paint + refetch en segundo plano.
   // Matriz de roles (#484): gateway ve todo; ap ve bocas LAN + radios;
   // switch solo bocas LAN + opciones de switch: sin Servicios ni Consumo
-  // (DNS blocker, VPN, QoS... nada de eso aplica a un L2 puro).
+  // (DNS blocker, VPN, QoS... nada de eso aplica a un L2 puro), y desde
+  // #518 tampoco Clientes ni Tráfico (sin dnsmasq ni nlbwmon no tienen
+  // fuente de datos).
   // Hasta que modeReady es falso NADA gateado se pinta: solo overview. Así
   // las entradas del rol nunca parpadean: o salen cacheadas (recarga) o no
   // salen hasta que el probe confirma el rol (primera visita).
@@ -201,6 +203,14 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     // #500: Servicios solo gateway (en AP solo quedaba AdGuard/mDNS;
     // el nombre local se movió a Ajustes).
     if (id === "services" && !isRouter) return false;
+    // #518: Clientes y Tráfico no tienen fuente de datos en un switch L2
+    // dedicado: sin dnsmasq no hay leases ni reservas, y el conteo por
+    // cliente/app (nlbwmon) no aplica al forwarding por hardware. Ambas
+    // páginas quedaban vacías (Tráfico con un CTA muerto hacia Servicios,
+    // que en switch tampoco se ofrece), así que la entrada no se ofrece.
+    // El FDB del bridge sí se lee en switches; un inventario por boca sería
+    // una feature aparte (#518 comenta la evidencia).
+    if ((id === "clients" || id === "traffic") && isSwitch) return false;
     return true;
   };
   const activePage = NAV_GROUPS.some((g) => g.items.includes(page)) && visible(page) ? page : "overview";
