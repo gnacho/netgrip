@@ -1,8 +1,10 @@
 package modules
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -111,9 +113,29 @@ type PoESchedule struct {
 	OffTime string `json:"off_time"`
 }
 
+// rePoEScheduleTime matches the HH:MM value the UI sends (input type=time).
+var rePoEScheduleTime = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][0-9]$`)
+
+// poeCronSchedule converts an "HH:MM" time into the five-field crontab
+// schedule crond expects. The value used to be written verbatim, and crond
+// silently discarded the entry, so PoE schedules never ran.
+func poeCronSchedule(hhmm string) string {
+	h, m, _ := strings.Cut(hhmm, ":")
+	return m + " " + h + " * * *"
+}
+
 func SetPoESchedule(sched PoESchedule) (*PoEProbe, error) {
 	if sched.Port == "" {
 		return nil, nil
+	}
+	if sched.OnTime != "" && !rePoEScheduleTime.MatchString(sched.OnTime) {
+		return nil, fmt.Errorf("invalid on_time %q (want HH:MM)", sched.OnTime)
+	}
+	if sched.OffTime != "" && !rePoEScheduleTime.MatchString(sched.OffTime) {
+		return nil, fmt.Errorf("invalid off_time %q (want HH:MM)", sched.OffTime)
+	}
+	if !bridgePorts()[sched.Port] {
+		return nil, fmt.Errorf("unknown bridge port %q", sched.Port)
 	}
 	key := "netgrip.poe." + sanitizeUCIKey(sched.Port)
 	_ = EnsureNetgripSection("poe", "poe")
@@ -138,11 +160,11 @@ func SetPoESchedule(sched PoESchedule) (*PoEProbe, error) {
 
 func applyPoESchedule(sched PoESchedule) {
 	if sched.OnTime != "" {
-		cronLine := sched.OnTime + " /bin/sh -c 'echo enable > /sys/class/net/" + sched.Port + "/device/of_node/poe/status 2>/dev/null || poe-util enable " + sched.Port + " 2>/dev/null'"
+		cronLine := poeCronSchedule(sched.OnTime) + " /bin/sh -c 'echo enable > /sys/class/net/" + sched.Port + "/device/of_node/poe/status 2>/dev/null || poe-util enable " + sched.Port + " 2>/dev/null'"
 		writeCronEntry("netgrip-poe-on-"+sanitizeUCIKey(sched.Port), cronLine)
 	}
 	if sched.OffTime != "" {
-		cronLine := sched.OffTime + " /bin/sh -c 'echo disable > /sys/class/net/" + sched.Port + "/device/of_node/poe/status 2>/dev/null || poe-util disable " + sched.Port + " 2>/dev/null'"
+		cronLine := poeCronSchedule(sched.OffTime) + " /bin/sh -c 'echo disable > /sys/class/net/" + sched.Port + "/device/of_node/poe/status 2>/dev/null || poe-util disable " + sched.Port + " 2>/dev/null'"
 		writeCronEntry("netgrip-poe-off-"+sanitizeUCIKey(sched.Port), cronLine)
 	}
 	exec.Command("/etc/init.d/cron", "restart").Run()
