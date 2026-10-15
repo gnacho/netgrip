@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { Activity, ArrowLeftRight, Blocks, ChartColumn, ChartPie, Download, Forward, Globe, HardDrive, Info, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldBan, Smartphone, Wifi, Wrench } from "lucide-react";
+import { Activity, ArrowLeftRight, Blocks, ChartColumn, ChartPie, Download, EyeOff, Forward, Globe, HardDrive, Info, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldBan, Smartphone, Wifi, Wrench } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
 import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MultiWanProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
@@ -112,6 +112,8 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   const [failCount, setFailCount] = useState(0);
   const [demoBannerDismissed, setDemoBannerDismissed] = useState(false);
   const [selfUpdateDialogOpen, setSelfUpdateDialogOpen] = useState(false);
+  // #521: desplegable del pie del sidebar con las secciones ocultas por rol.
+  const [hiddenOpen, setHiddenOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoadError(false);
@@ -199,24 +201,28 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     for (const a of usteerAps ?? []) hosts.add(a.hostname || a.bssid);
     return hosts.size > 1;
   }, [usteerAps]);
-  const visible = (id: Page) => {
-    if (!modeReady) return id === "overview";
+  // #521: gateOf devuelve la CLAVE del motivo cuando la entrada se oculta
+  // (null = visible). El mismo cálculo alimenta el menú y el desplegable
+  // "N secciones ocultas por este rol" del pie del sidebar, que nombra cada
+  // sección oculta y explica por qué no aplica.
+  const gateOf = (id: Page): string | null => {
+    if (!modeReady) return id === "overview" ? null : "loading";
     // La línea de salida y todo lo que cuelga de ella (reenvío de puertos,
     // DPI, banIP) solo aplica a la puerta de enlace.
-    if ((id === "internet" || id === "wan" || id === "forwards" || id === "dpi" || id === "banip") && !isRouter) return false;
+    if ((id === "internet" || id === "wan" || id === "forwards" || id === "dpi" || id === "banip") && !isRouter) return "gatewayOnly";
     // Red local (DHCP/DNS/reservas): sin dnsmasq la página quedaría vacía
     // (p. ej. un switch gestionado), así que la entrada no se ofrece.
-    if (id === "lan" && !mode?.dnsmasq_on) return false;
-    if ((id === "wifi" || id === "coverage") && !hasWifiRadios) return false;
+    if (id === "lan" && !mode?.dnsmasq_on) return "noDnsmasq";
+    if ((id === "wifi" || id === "coverage") && !hasWifiRadios) return "noWifi";
     // #500: en un AP el detalle de bocas vive en Resumen; la página de
     // puertos queda para gateway y switch.
-    if (id === "ports" && role === "ap") return false;
-    if (id === "ports" && !hasSwitchPorts) return false;
-    if (id === "storage" && !storage?.applicable) return false;
-    if (id === "coverage" && !usteerMultiRouter) return false;
+    if (id === "ports" && role === "ap") return "portsAp";
+    if (id === "ports" && !hasSwitchPorts) return "noPorts";
+    if (id === "storage" && !storage?.applicable) return "noStorage";
+    if (id === "coverage" && !usteerMultiRouter) return "coverageSingle";
     // #500: Servicios solo gateway (en AP solo quedaba AdGuard/mDNS;
     // el nombre local se movió a Ajustes).
-    if (id === "services" && !isRouter) return false;
+    if (id === "services" && !isRouter) return "gatewayOnly";
     // #518: Clientes y Tráfico no tienen fuente de datos en un switch L2
     // dedicado: sin dnsmasq no hay leases ni reservas, y el conteo por
     // cliente/app (nlbwmon) no aplica al forwarding por hardware. Ambas
@@ -224,9 +230,14 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     // que en switch tampoco se ofrece), así que la entrada no se ofrece.
     // El FDB del bridge sí se lee en switches; un inventario por boca sería
     // una feature aparte (#518 comenta la evidencia).
-    if ((id === "clients" || id === "traffic") && isSwitch) return false;
-    return true;
+    if ((id === "clients" || id === "traffic") && isSwitch) return "switchL2";
+    return null;
   };
+  const visible = (id: Page) => gateOf(id) === null;
+  // #521: secciones ocultas por el rol actual (solo con rol confirmado).
+  const hiddenSections = modeReady
+    ? NAV_GROUPS.flatMap((g) => g.items).filter((id) => gateOf(id) !== null && gateOf(id) !== "loading")
+    : [];
   const activePage = NAV_GROUPS.some((g) => g.items.includes(page)) && visible(page) ? page : "overview";
 
   // #508: navegar = escribir el hash (la barra de direcciones siempre
@@ -307,6 +318,32 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         </div>
         );
       })}
+      {/* #521: pie del menú - las secciones que el rol oculta, nombradas y
+          con su motivo. El menú se encoge por capacidades; esto lo dice en
+          voz alta en vez de dejar al usuario adivinando. */}
+      {!compact && hiddenSections.length > 0 && (
+        <div className="mt-4 border-t border-border pt-2 px-1">
+          <button
+            type="button"
+            onClick={() => setHiddenOpen((v) => !v)}
+            aria-expanded={hiddenOpen}
+            className="flex items-center gap-2 w-full rounded-md px-2 py-1.5 text-caption text-muted hover:text-text transition-colors duration-[var(--dur-fast)]"
+          >
+            <EyeOff size={14} />
+            <span className="flex-1 text-left">{t("nav.hiddenSections", { count: hiddenSections.length })}</span>
+          </button>
+          {hiddenOpen && (
+            <ul className="mt-1 flex flex-col gap-1.5 px-2 pb-1">
+              {hiddenSections.map((id) => (
+                <li key={id} className="text-caption">
+                  <span className="font-medium text-text">{t(`nav.${id}`)}</span>
+                  <span className="block text-muted">{t(`nav.hiddenReason.${gateOf(id)}`)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 
@@ -387,7 +424,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
           board={board} system={system} wan={wan}
           drift={drift} onDriftChange={setDrift}
           isSwitch={role === "switch"} health={health} mode={mode}
-          wireless={wireless} ethports={ethports} onNavigate={navigate}
+          wireless={wireless} ethports={ethports} storage={storage} onNavigate={navigate}
         />
       )}
       {activePage === "traffic" && <TrafficPage onNavigate={navigate} />}
