@@ -69,9 +69,23 @@ const NAV_GROUPS: { group: string | null; items: Page[] }[] = [
   { group: "nav.group.system", items: ["diagnostics", "storage", "fleet", "system", "about"] },
 ];
 
+// Deep-linking (#508): cada página es direccionable por hash (`#/clients`).
+// F5 conserva la vista, atrás/adelante del navegador funcionan y la doc y el
+// soporte pueden enlazar a una página concreta ("Puertos y VLANs" =
+// `#/ports`). El hash es la fuente de verdad: navegar escribe el hash y el
+// listener hashchange actualiza el estado (cubre atrás/adelante y enlaces
+// pegados a mano).
+const VALID_PAGES: readonly string[] = NAV_GROUPS.flatMap((g) => g.items);
+
+function pageFromHash(): Page | null {
+  const h = window.location.hash.replace(/^#\/?/, "").split(/[/?]/)[0];
+  return VALID_PAGES.includes(h) ? (h as Page) : null;
+}
+
 function ShellInner({ onLogout }: { onLogout: () => void }) {
   const { t } = useTranslation();
-  const [page, setPage] = useState<Page>("overview");
+  // #508: la página inicial sale del hash si lo hay (deep link / F5).
+  const [page, setPage] = useState<Page>(() => pageFromHash() ?? "overview");
   const [menuOpen, setMenuOpen] = useState(false);
   const [board, setBoard] = useState<Board>();
   const [system, setSystem] = useState<SystemInfo>();
@@ -215,10 +229,32 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   };
   const activePage = NAV_GROUPS.some((g) => g.items.includes(page)) && visible(page) ? page : "overview";
 
-  const navigate = useCallback((p: string) => {
-    setPage(p as Page);
-    setMenuOpen(false);
+  // #508: navegar = escribir el hash (la barra de direcciones siempre
+  // refleja la vista y cada navegación entra en el historial). El estado se
+  // actualiza aquí para respuesta inmediata; el listener hashchange cubre
+  // atrás/adelante y enlaces pegados a mano.
+  const navigateTo = useCallback((p: Page) => {
+    setPage(p);
+    const target = `#/${p}`;
+    if (window.location.hash !== target) {
+      window.location.hash = target;
+    }
   }, []);
+
+  // Atrás/adelante del navegador y deep links escritos a mano.
+  useEffect(() => {
+    const onHash = () => {
+      const p = pageFromHash();
+      if (p) setPage(p);
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  const navigate = useCallback((p: string) => {
+    navigateTo(p as Page);
+    setMenuOpen(false);
+  }, [navigateTo]);
 
   const navList = (compact: boolean, onPick?: () => void) => (
     <div className="flex flex-col gap-0.5">
@@ -245,7 +281,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
                 key={id}
                 type="button"
                 title={t(`nav.desc.${id}`)}
-                onClick={() => { setPage(id); onPick?.(); }}
+                onClick={() => { navigateTo(id); onPick?.(); }}
                 aria-current={active ? "page" : undefined}
                 className={`relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-body font-medium text-left w-full
                   transition-colors duration-[var(--dur-fast)]
@@ -435,7 +471,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
             <button
               key={id}
               type="button"
-              onClick={() => setPage(id)}
+              onClick={() => navigateTo(id)}
               aria-current={active ? "page" : undefined}
               className={`flex-1 relative flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors
                 ${active ? "text-accent" : "text-muted"}`}
