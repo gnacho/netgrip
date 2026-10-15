@@ -342,8 +342,15 @@ func elfArchMatches(goarch, path string) (bool, error) {
 	if hdr[0] != 0x7f || hdr[1] != 'E' || hdr[2] != 'L' || hdr[3] != 'F' {
 		return false, fmt.Errorf("not an ELF file")
 	}
-	// e_machine is at offset 18 (2 bytes), little-endian for the usual LE ELF.
-	return binary.LittleEndian.Uint16(hdr[18:20]) == want, nil
+	// e_machine is at offset 18 (2 bytes), in the endianness declared by
+	// EI_DATA (offset 5): 1 = LSB (little-endian), 2 = MSB (big-endian).
+	// Big-endian targets (GOARCH=mips) ship big-endian ELF headers, so a
+	// fixed little-endian read rejects the correct binary (#513).
+	var order binary.ByteOrder = binary.LittleEndian
+	if hdr[5] == 2 {
+		order = binary.BigEndian
+	}
+	return order.Uint16(hdr[18:20]) == want, nil
 }
 
 func copyFile(src, dst string) error {

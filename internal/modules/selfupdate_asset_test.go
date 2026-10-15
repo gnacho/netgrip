@@ -192,25 +192,48 @@ func TestStartSelfUpdateUsesValidCacheWithoutRecheck(t *testing.T) {
 	}
 }
 
-func TestElfArchMatches(t *testing.T) {
-	mk := func(machine uint16) string {
-		p := t.TempDir() + "/bin"
-		// ELF: EI_MAG + class(2=64) + data(1=LE) + e_machine at 18
-		b := make([]byte, 64)
-		copy(b[0:4], []byte{0x7f, 'E', 'L', 'F'})
-		b[4], b[5] = 2, 1
+// mkELF escribe una cabecera ELF mínima (solo los campos que lee
+// elfArchMatches: mag, EI_DATA y e_machine) con la endianness indicada.
+func mkELF(t *testing.T, machine uint16, eiData byte) string {
+	t.Helper()
+	p := t.TempDir() + "/bin"
+	b := make([]byte, 64)
+	copy(b[0:4], []byte{0x7f, 'E', 'L', 'F'})
+	b[4], b[5] = 2, eiData
+	if eiData == 2 {
+		b[18] = byte(machine >> 8)
+		b[19] = byte(machine)
+	} else {
 		b[18] = byte(machine)
 		b[19] = byte(machine >> 8)
-		if err := os.WriteFile(p, b, 0755); err != nil {
-			t.Fatal(err)
-		}
-		return p
+	}
+	if err := os.WriteFile(p, b, 0755); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func TestElfArchMatches(t *testing.T) {
+	mk := func(machine uint16) string {
+		return mkELF(t, machine, 1)
+	}
+	// mkBE builds a big-endian (EI_DATA=2) ELF header, like GOARCH=mips.
+	mkBE := func(machine uint16) string {
+		return mkELF(t, machine, 2)
 	}
 	if ok, err := elfArchMatches("arm64", mk(183)); err != nil || !ok {
 		t.Fatalf("arm64/EM_AARCH64 expected ok, got %v %v", ok, err)
 	}
 	if ok, _ := elfArchMatches("mipsle", mk(8)); !ok {
 		t.Fatal("mipsle/EM_MIPS expected ok")
+	}
+	// Big-endian MIPS (e.g. Linksys LGS352C, rtl931x): the same EM_MIPS
+	// value is stored MSB-first; a fixed LE read would reject it (#513).
+	if ok, err := elfArchMatches("mips", mkBE(8)); err != nil || !ok {
+		t.Fatalf("mips/EM_MIPS big-endian expected ok, got %v %v", ok, err)
+	}
+	if ok, _ := elfArchMatches("mipsle", mkBE(8)); !ok {
+		t.Fatal("mipsle on a big-endian MIPS ELF must still match (same e_machine value)")
 	}
 	if ok, _ := elfArchMatches("arm64", mk(8)); ok {
 		t.Fatal("arm64 on a MIPS ELF must be refused")
