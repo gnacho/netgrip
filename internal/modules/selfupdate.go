@@ -3,15 +3,18 @@ package modules
 import (
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -19,6 +22,14 @@ const (
 	githubRepo = "gnacho/netgrip"
 	tmpPath    = "/tmp/netgrip.update"
 )
+
+// prevBinaryPath is the post-install rescue copy of the previous binary.
+// It lives on tmpfs, never on the overlay: tiny-overlay devices cannot
+// afford a second persistent copy of the binary, and no rollback path ever
+// consumed the old on-overlay .bak, which just accumulated dead weight and
+// eventually made every update fail with ENOSPC (#528). tmpfs survives a
+// service restart, which is the risky moment right after an update.
+var prevBinaryPath = "/tmp/netgrip.prev"
 
 // binaryAssetName is the release asset for this build's architecture, so an
 // unsupported arch (e.g. mipsel before #236) never matches an existing asset
@@ -266,30 +277,14 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 	}
 	currentBin = strings.TrimSuffix(currentBin, " (deleted)")
 
-	backupPath := currentBin + ".bak"
-	stagedPath := currentBin + ".update"
-	// Backup by content: renaming the running binary fails on OpenWrt
-	// overlayfs with ESTALE (#299); copying it is always safe.
-	if err := copyFile(currentBin, backupPath); err != nil {
-		os.Remove(tmpPath)
-		failUpdate("backup: %v", err)
-		return
-	}
-	os.Chmod(backupPath, 0755)
-	// Stage next to the target and swap with a same-filesystem rename:
-	// rename(2) does not cross devices (/tmp is tmpfs), writing the binary
-	// in place would give ETXTBSY, and renaming the running binary gives
-	// ESTALE on overlayfs (#299). The rename itself only replaces the
-	// directory entry, so the running inode keeps working. On failure the
-	// current binary is untouched, so no rollback is needed.
-	if err := copyFile(tmpPath, stagedPath); err != nil {
-		os.Remove(tmpPath)
-		failUpdate("stage: %v", err)
-		return
-	}
-	os.Chmod(stagedPath, 0755)
-	if err := os.Rename(stagedPath, currentBin); err != nil {
-		os.Remove(stagedPath)
+	// Unlink the running binary, then copy the new one into the freed
+	// space. Peak overlay usage stays at one copy, which is what makes
+	// self-update fit on tiny ubifs/jffs2 overlays (#528). The unlinked
+	// inode stays alive for the running process, so the service keeps
+	// working until the restart below; writing over a running binary
+	// fails with ETXTBSY and renaming it gives ESTALE on overlayfs
+	// (#299), which is why the copy is a remove + create.
+	if err := installSelfUpdate(tmpPath, currentBin); err != nil {
 		os.Remove(tmpPath)
 		failUpdate("install: %v", err)
 		return
@@ -351,6 +346,59 @@ func elfArchMatches(goarch, path string) (bool, error) {
 		order = binary.BigEndian
 	}
 	return order.Uint16(hdr[18:20]) == want, nil
+}
+
+// installSelfUpdate replaces currentBin with the downloaded binary in
+// tmpPath, using at most one copy's worth of space on the target
+// filesystem: the previous binary is unlinked first, which frees its
+// space for the new copy. Tiny overlays (tens of MB) cannot hold the old
+// binary, a staged copy and a backup at the same time, and that triple
+// accounting is what used to fail with ENOSPC (#528).
+//
+// The rescue copy of the old binary goes to tmpfs, best effort: it exists
+// so a bad update can be reverted by hand after a service restart, not as
+// an automatic rollback (there is none).
+func installSelfUpdate(tmpPath, currentBin string) error {
+	if err := copyFile(currentBin, prevBinaryPath); err != nil {
+		log.Printf("netgrip: self-update: rescue copy to %s: %v (continuing)", prevBinaryPath, err)
+	}
+
+	info, err := os.Stat(tmpPath)
+	if err != nil {
+		return fmt.Errorf("stat downloaded binary: %w", err)
+	}
+
+	dir := filepath.Dir(currentBin)
+	if !spaceFor(dir, uint64(info.Size())) {
+		// Best effort: drop the package cache to make room on tiny
+		// overlays. No-op where the directory does not exist.
+		os.RemoveAll("/etc/apk/cache")
+		if !spaceFor(dir, uint64(info.Size())) {
+			return fmt.Errorf("not enough space on %s for the new binary (need ~%d bytes)", dir, info.Size())
+		}
+	}
+
+	// The running process keeps the unlinked inode alive, so the service
+	// is unaffected until the post-update restart.
+	if err := os.Remove(currentBin); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("remove current binary: %w", err)
+	}
+	if err := copyFile(tmpPath, currentBin); err != nil {
+		return fmt.Errorf("write new binary: %w", err)
+	}
+	return os.Chmod(currentBin, 0755)
+}
+
+// spaceFor reports whether dir has at least needed bytes available plus a
+// small headroom. Unknown filesystems (statfs failure) are treated as
+// having room so the update is never blocked by an exotic mount.
+func spaceFor(dir string, needed uint64) bool {
+	var st syscall.Statfs_t
+	if err := syscall.Statfs(dir, &st); err != nil || st.Bsize <= 0 {
+		return true
+	}
+	avail := uint64(st.Bavail) * uint64(st.Bsize)
+	return avail >= needed+(1<<20)
 }
 
 func copyFile(src, dst string) error {
