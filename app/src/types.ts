@@ -694,6 +694,25 @@ export interface VLANProbe {
   ports: string[];
 }
 
+/** One learned MAC in a switch's bridge FDB (#520). */
+export interface L2Client {
+  mac: string;
+  vendor?: string;
+  random?: boolean;
+  port: string;
+  vlans: number[];
+  age?: number;
+  static?: boolean;
+}
+
+/** GET /api/l2clients payload (#520). */
+export interface L2Probe {
+  applicable: boolean;
+  bridge?: string;
+  ports?: string[];
+  clients: L2Client[];
+}
+
 export interface VLANEdit {
   vid: number;
   ports: VLANPort[];

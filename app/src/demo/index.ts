@@ -563,6 +563,7 @@ export const demoApi: typeof api = {
 
   // puertos
   ethports: () => get({ ports: D.demoEthPorts }),
+  l2clients: () => get(D.demoL2Clients),
   multiwan: () => get(state.mwan),
   setMultiwan: async (req) => {
     const m = state.mwan;

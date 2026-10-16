@@ -347,6 +347,7 @@ const realApi = {
       body: JSON.stringify({ ip, hostname, remove }),
     }),
   ethports: () => request<{ ports: import("./types").EthPort[] }>("/api/ethports"),
+  l2clients: () => request<import("./types").L2Probe>("/api/l2clients"),
   usteer: () => request<{ aps: import("./types").UsteerAP[] }>("/api/usteer"),
   guestwifi: () => request<import("./types").GuestProbe>("/api/guestwifi"),
   setGuestwifi: (cfg: { enabled: boolean; ssid?: string; key?: string; band?: string; subnet?: string; isolate?: boolean }) =>

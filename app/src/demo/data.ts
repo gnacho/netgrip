@@ -731,6 +731,21 @@ export const demoStorage: T.StorageProbe = {
   ],
 };
 
+export const demoL2Clients: T.L2Probe = {
+  applicable: true,
+  bridge: "br-lan",
+  ports: ["lan1", "lan2", "lan3", "lan4"],
+  clients: [
+    { mac: "04:cf:8c:11:22:33", vendor: "Xiaomi", port: "lan1", vlans: [10, 20], age: 42 },
+    { mac: "4c:eb:d6:aa:bb:cc", vendor: "Espressif", port: "lan1", vlans: [20], age: 3 },
+    { mac: "02:1a:2b:3c:4d:5e", random: true, port: "lan2", vlans: [0], age: 120 },
+    { mac: "00:0a:eb:12:34:56", vendor: "TP-Link Technologies", port: "lan2", vlans: [], age: 5 },
+    { mac: "00:15:6d:de:ad:00", vendor: "Ubiquiti", port: "lan3", vlans: [10], age: 90 },
+    { mac: "00:04:3c:70:80:90", vendor: "Sonos", port: "lan4", vlans: [10, 30], age: 3600, static: true },
+    { mac: "b8:27:eb:aa:11:22", vendor: "Raspberry Pi Foundation", port: "lan4", vlans: [30], age: 15 },
+  ],
+};
+
 export const demoMacAcl: T.MACACLProbe = { applicable: false, ports: [] };
 
 export const demoSelfUpdate: T.SelfUpdateCheck = {

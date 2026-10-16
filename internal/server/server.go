@@ -207,6 +207,7 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("GET /api/ethports", s.requireAuth(s.handleEthPorts))
 	s.mux.HandleFunc("GET /api/usteer", s.requireAuth(s.handleUsteer))
 	s.mux.HandleFunc("GET /api/clients", s.requireAuth(s.handleClients))
+	s.mux.HandleFunc("GET /api/l2clients", s.requireAuth(s.handleL2Clients))
 	s.mux.HandleFunc("GET /api/clients/blocked", s.requireAuth(s.handleClientsBlocked))
 	s.mux.HandleFunc("GET /api/clients/meta", s.requireAuth(s.handleClientMeta))
 	s.mux.HandleFunc("POST /api/clients/meta", s.requireAuth(s.handleSetClientMeta))
@@ -1842,6 +1843,13 @@ func (s *Server) handleClients(w http.ResponseWriter, r *http.Request) {
 		return map[string]any{"clients": modules.ListClients(requesterIP), "bands": modules.AvailableBands(), "ts": time.Now().UnixMilli()}, nil
 	})
 	writeJSON(w, payload)
+}
+
+func (s *Server) handleL2Clients(w http.ResponseWriter, _ *http.Request) {
+	probe, _ := modules.CachedRead("l2clients", probeCacheTTL, func() (*modules.L2Probe, error) {
+		return modules.ProbeL2Clients(), nil
+	})
+	writeJSON(w, probe)
 }
 
 func (s *Server) handleClientsBlocked(w http.ResponseWriter, _ *http.Request) {

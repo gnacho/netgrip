@@ -13,6 +13,7 @@ import { Overview } from "../pages/Overview";
 import { TrafficPage } from "../pages/Traffic";
 import { CoveragePage } from "../pages/Coverage";
 import { ClientsPage } from "../pages/Clients";
+import { L2ClientsPage } from "../pages/L2Clients";
 import { WifiPage } from "../pages/Wifi";
 import { InternetPage } from "../pages/Internet";
 import { Services } from "../pages/Services";
@@ -233,14 +234,12 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     // #500: Servicios solo gateway (en AP solo quedaba AdGuard/mDNS;
     // el nombre local se movió a Ajustes).
     if (id === "services" && !isRouter) return "gatewayOnly";
-    // #518: Clientes y Tráfico no tienen fuente de datos en un switch L2
-    // dedicado: sin dnsmasq no hay leases ni reservas, y el conteo por
-    // cliente/app (nlbwmon) no aplica al forwarding por hardware. Ambas
-    // páginas quedaban vacías (Tráfico con un CTA muerto hacia Servicios,
-    // que en switch tampoco se ofrece), así que la entrada no se ofrece.
-    // El FDB del bridge sí se lee en switches; un inventario por boca sería
-    // una feature aparte (#518 comenta la evidencia).
-    if ((id === "clients" || id === "traffic") && isSwitch) return "switchL2";
+    // #518/#520: en un switch L2, "Clients" muestra el inventario de la FDB
+    // (L2ClientsPage) en vez de la vista de router. "Traffic" sí queda
+    // oculto: el conteo por cliente/app (nlbwmon) no aplica al forwarding
+    // por hardware y la página quedaría vacía (su CTA apunta a Servicios,
+    // que en switch tampoco se ofrece).
+    if ((id === "traffic") && isSwitch) return "switchL2";
     return null;
   };
   const visible = (id: Page) => gateOf(id) === null;
@@ -438,7 +437,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         />
       )}
       {activePage === "traffic" && <TrafficPage onNavigate={navigate} />}
-      {activePage === "clients" && <ClientsPage />}
+      {activePage === "clients" && (isSwitch ? <L2ClientsPage /> : <ClientsPage />)}
       {activePage === "internet" && (
         <InternetPage mwan={mwan} onMwanChange={setMwan} fwd={fwd} onFwdChange={setFwd} />
       )}
