@@ -44,8 +44,11 @@ func ProbeSwitchPorts() *SwitchProbe {
 			p.OperUp = state == "up"
 		}
 
-		if data, err := os.ReadFile("/sys/class/net/" + name + "/carrier"); err == nil {
-			p.AdminUp = strings.TrimSpace(string(data)) == "1"
+		// AdminUp = bit IFF_UP de /sys/class/net/X/flags, el estado
+		// administrativo real. Antes se leía carrier (0 = sin cable) y una
+		// boca habilitada sin cable salía como desactivada (#531).
+		if data, err := os.ReadFile("/sys/class/net/" + name + "/flags"); err == nil {
+			p.AdminUp = portAdminUp(string(data))
 		}
 
 		if data, err := os.ReadFile("/sys/class/net/" + name + "/speed"); err == nil {
@@ -74,6 +77,13 @@ func ProbeSwitchPorts() *SwitchProbe {
 
 func sanitizeUCIKey(s string) string {
 	return strings.NewReplacer("-", "_", ".", "_").Replace(s)
+}
+
+// portAdminUp (#531): bit IFF_UP (0x1) del contenido de /sys/class/net/X/flags
+// (hex tipo "0x1303"). carrier NO sirve: es 0 siempre que no haya cable.
+func portAdminUp(flags string) bool {
+	v, err := strconv.ParseUint(strings.TrimSpace(flags), 0, 64)
+	return err == nil && v&0x1 == 0x1
 }
 
 type SwitchPortEdit struct {
