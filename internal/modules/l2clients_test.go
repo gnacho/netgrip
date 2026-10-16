@@ -64,10 +64,13 @@ func TestAssembleL2ClientsStaticAndAge(t *testing.T) {
 	// A configured entry is reported as static: the kernel marks it NUD_NOARP
 	// or, for the entries hostapd and the WAN port install, NUD_PERMANENT (a
 	// real router dump uses the latter). Learned entries are REACHABLE/STALE.
+	//
+	// Only a learned entry has an age: the kernel reports the ageing timer as
+	// time since boot for a configured one, which is not an age.
 	entries := []l2Neigh{
-		{mac: "aa:bb:cc:00:00:01", port: "lan1", vlan: 0, state: unix.NUD_NOARP, used: 300},
-		{mac: "aa:bb:cc:00:00:02", port: "lan1", vlan: 0, state: unix.NUD_PERMANENT, used: 0},
-		{mac: "aa:bb:cc:00:00:03", port: "lan1", vlan: 0, state: unix.NUD_REACHABLE, used: 16609},
+		{mac: "aa:bb:cc:00:00:01", port: "lan1", vlan: 0, state: unix.NUD_NOARP, updated: 300},
+		{mac: "aa:bb:cc:00:00:02", port: "lan1", vlan: 0, state: unix.NUD_PERMANENT, updated: 53713774},
+		{mac: "aa:bb:cc:00:00:03", port: "lan1", vlan: 0, state: unix.NUD_REACHABLE, updated: 16609},
 	}
 	clients := assembleL2Clients(entries)
 	if len(clients) != 3 {
@@ -77,14 +80,39 @@ func TestAssembleL2ClientsStaticAndAge(t *testing.T) {
 	for _, c := range clients {
 		byMAC[c.MAC] = c
 	}
-	if c := byMAC["aa:bb:cc:00:00:01"]; !c.Static || c.Age != 3 {
-		t.Errorf("NOARP entry = %+v, want Static=true Age=3", c)
+	if c := byMAC["aa:bb:cc:00:00:01"]; !c.Static || c.Age != 0 {
+		t.Errorf("NOARP entry = %+v, want Static=true y sin edad", c)
 	}
 	if c := byMAC["aa:bb:cc:00:00:02"]; !c.Static || c.Age != 0 {
-		t.Errorf("PERMANENT entry = %+v, want Static=true Age=0", c)
+		t.Errorf("PERMANENT entry = %+v, want Static=true y sin edad", c)
 	}
 	if c := byMAC["aa:bb:cc:00:00:03"]; c.Static || c.Age != 166 {
 		t.Errorf("learned entry = %+v, want Static=false Age=166", c)
+	}
+}
+
+// ageFromTicks traduce ticks del kernel a segundos con dos bordes fijados:
+// 0 es "sin dato" (el kernel no mando NDA_CACHEINFO) y un valor sub-segundo
+// no puede truncarse a 0 porque lo pintaria como desconocido cuando es justo
+// lo contrario: el equipo esta hablando ahora mismo (caso real: el equipo que
+// mas trafico genera salia "desconocido").
+func TestAgeFromTicksEdges(t *testing.T) {
+	cases := []struct {
+		ticks uint32
+		want  int
+	}{
+		{0, 0},       // sin dato
+		{1, 1},       // sub-segundo: redondeo hacia arriba
+		{36, 1},      // caso real: 0,36 s
+		{99, 1},      // limite del redondeo
+		{100, 1},     // segundo exacto
+		{16609, 166}, // 166,09 s
+		{29999, 299}, // techo del envejecimiento (300 s)
+	}
+	for _, tc := range cases {
+		if got := ageFromTicks(tc.ticks); got != tc.want {
+			t.Errorf("ageFromTicks(%d) = %d, want %d", tc.ticks, got, tc.want)
+		}
 	}
 }
 
@@ -151,14 +179,14 @@ func TestNormalizeVlansDropsUnfilteredMarker(t *testing.T) {
 func TestAssembleL2ClientsLiveRouterFixture(t *testing.T) {
 	entries := []l2Neigh{
 		// lan1: la bajada al resto de la casa, MACs aprendidas con edad.
-		{mac: "34:5f:45:5f:ab:7d", port: "lan1", vlan: 0, state: unix.NUD_REACHABLE, used: 16609},
-		{mac: "5c:cf:7f:4e:f9:d5", port: "lan1", vlan: 0, state: unix.NUD_REACHABLE, used: 16615},
-		{mac: "02:78:f4:02:8a:94", port: "lan1", vlan: 0, state: unix.NUD_REACHABLE, used: 127},
+		{mac: "34:5f:45:5f:ab:7d", port: "lan1", vlan: 0, state: unix.NUD_REACHABLE, updated: 16609},
+		{mac: "5c:cf:7f:4e:f9:d5", port: "lan1", vlan: 0, state: unix.NUD_REACHABLE, updated: 16615},
+		{mac: "02:78:f4:02:8a:94", port: "lan1", vlan: 0, state: unix.NUD_REACHABLE, updated: 127},
 		// phy1-ap0: un cliente asociado a la radio de 2,4 GHz.
-		{mac: "d8:d6:68:32:7c:46", port: "phy1-ap0", vlan: 0, state: unix.NUD_REACHABLE, used: 275},
+		{mac: "d8:d6:68:32:7c:46", port: "phy1-ap0", vlan: 0, state: unix.NUD_REACHABLE, updated: 275},
 		// Entrada estatica del propio puerto WAN, vista en vlan 0 y vlan 1.
-		{mac: "28:d1:27:f5:99:f2", port: "wan", vlan: 0, state: unix.NUD_PERMANENT, used: 53713774},
-		{mac: "28:d1:27:f5:99:f2", port: "wan", vlan: 1, state: unix.NUD_PERMANENT, used: 53713774},
+		{mac: "28:d1:27:f5:99:f2", port: "wan", vlan: 0, state: unix.NUD_PERMANENT, updated: 53713774},
+		{mac: "28:d1:27:f5:99:f2", port: "wan", vlan: 1, state: unix.NUD_PERMANENT, updated: 53713774},
 	}
 	clients := assembleL2Clients(entries)
 	if len(clients) != 5 {

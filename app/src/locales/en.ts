@@ -1291,7 +1291,7 @@ export default {
       vendor: "Vendor",
       port: "Port",
       vlans: "VLANs",
-      age: "Age",
+      age: "Last seen",
       static: "Static",
     },
     empty: "No clients learned on the bridge yet",

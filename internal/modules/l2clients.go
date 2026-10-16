@@ -40,12 +40,12 @@ type L2Probe struct {
 // bridge port the entry belongs to: the dump is issued per port, so the port
 // is known by construction instead of resolved from an interface index.
 type l2Neigh struct {
-	mac   string
-	port  string
-	vlan  int
-	flags int
-	state int
-	used  uint32
+	mac     string
+	port    string
+	vlan    int
+	flags   int
+	state   int
+	updated uint32
 }
 
 // probeL2ClientsFn is the seam for tests; it defaults to the real read.
@@ -107,12 +107,12 @@ func probeL2ClientsImpl() *L2Probe {
 				continue
 			}
 			entries = append(entries, l2Neigh{
-				mac:   mac,
-				port:  name,
-				vlan:  n.Vlan,
-				flags: n.Flags,
-				state: n.State,
-				used:  n.Used,
+				mac:     mac,
+				port:    name,
+				vlan:    n.Vlan,
+				flags:   n.Flags,
+				state:   n.State,
+				updated: n.Updated,
 			})
 		}
 	}
@@ -164,7 +164,7 @@ func assembleL2Clients(entries []l2Neigh) []L2Client {
 					MAC:    e.mac,
 					Port:   port,
 					Static: isStaticFdbState(e.state),
-					Age:    ageFromTicks(e.used),
+					Age:    ageOf(e.state, e.updated),
 				},
 				seen: map[int]bool{},
 			}
@@ -219,13 +219,41 @@ func normalizeVlans(vlans []int) []int {
 	return out
 }
 
-// ageFromTicks converts a netlink "used" clock-tick count into seconds. The
-// kernel expresses it in clock ticks; _SC_CLK_TCK is 100 on every OpenWrt
-// target NetGrip runs on, so divide by 100. Zero means "unknown age" and is
-// left as zero rather than guessed from another source.
-func ageFromTicks(used uint32) int {
-	if used == 0 {
+// ageFromTicks converts a netlink "updated" clock-tick count into seconds.
+// The kernel expresses it in clock ticks; _SC_CLK_TCK is 100 on every OpenWrt
+// target NetGrip runs on, so divide by 100.
+//
+// Two edges matter. Zero ticks means the kernel did not send NDA_CACHEINFO
+// and the age is unknown: it is left as zero rather than guessed. And a
+// sub-second age would also truncate to zero seconds, so the freshest rows
+// (a device talking right now) would read "unknown": they round up to one
+// second instead.
+func ageFromTicks(updated uint32) int {
+	if updated == 0 {
 		return 0
 	}
-	return int(used / 100)
+	age := int(updated / 100)
+	if age == 0 {
+		age = 1
+	}
+	return age
+}
+
+// ageOf is the age shown for an entry, in seconds since the bridge last saw
+// traffic from that MAC.
+//
+// The value comes from NDA_CACHEINFO's ndm_updated, which is the kernel's own
+// ageing timer: the same number brctl prints, verified MAC by MAC against a
+// live router (57 dynamic entries, all within 0.03 s, the sampling interval).
+// It must NOT come from ndm_used, the neighbouring field, which only moves
+// when the entry is used in the forwarding path and reported ages of days for
+// entries that were seconds old.
+//
+// A configured entry never ages, and the kernel reports ndm_updated as time
+// since boot for it: that is not an age, so those report none.
+func ageOf(state int, updated uint32) int {
+	if isStaticFdbState(state) {
+		return 0
+	}
+	return ageFromTicks(updated)
 }

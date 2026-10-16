@@ -1291,7 +1291,7 @@ export default {
       vendor: "Fabricante",
       port: "Puerto",
       vlans: "VLANs",
-      age: "Edad",
+      age: "Visto hace",
       static: "Estática",
     },
     empty: "No hay clientes aprendidos en el bridge todavía",
