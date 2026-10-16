@@ -29,7 +29,10 @@ export function PhysConfigSection({ phys, busy, onChanged }: {
     }
   };
 
-  const modes = phys.supported;
+  // #534: el probe puede llegar con supported nulo (boca sin ethtool o sin
+  // modos soportados) y el acceso a .length tira todo el panel. El backend ya
+  // lo normaliza a []; esto es la red de seguridad del lado cliente.
+  const modes = phys.supported ?? [];
   const currentMode = `${phys.speed_mbps}/${phys.duplex}`;
   const mtuDirty = draftMtu !== undefined && parseInt(draftMtu, 10) !== phys.mtu;
 

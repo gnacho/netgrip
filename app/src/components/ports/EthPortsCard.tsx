@@ -68,7 +68,9 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
 
   const physByName = useMemo(() => {
     const m = new Map<string, PhysPortsProbe["ports"][number]>();
-    if (phys?.applicable) for (const p of phys.ports) m.set(p.name, p);
+    // #534: supported/ports pueden llegar nulos desde un probe viejo o
+    // incompleto; el chasis no debe caerse por un array ausente.
+    if (phys?.applicable) for (const p of phys.ports ?? []) m.set(p.name, p);
     return m;
   }, [phys]);
 

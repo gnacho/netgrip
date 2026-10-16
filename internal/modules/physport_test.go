@@ -1,10 +1,71 @@
 package modules
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
 )
+
+// ethtoolNoModesSample es una boca cuyo bloque "Supported link modes" no
+// aparece (driver que no lo expone): el parser no acumula ningun modo.
+const ethtoolNoModesSample = `Settings for lan21:
+	Speed: Unknown!
+	Duplex: Unknown! (255)
+	Link detected: no
+`
+
+// El slice de modos de una boca nunca puede salir nulo (#534): sin ethtool
+// instalado (rt-lab) o sin bloque de modos soportados, un nil se serializa
+// como null y PhysConfigSection hace modes.length sobre el, tirando el panel
+// entero con el error boundary. Se prueban los dos bordes que producen el
+// valor y ademas el contrato JSON que consume la UI.
+func TestEtoolPortModesNeverNil(t *testing.T) {
+	orig := ethtoolOutputFn
+	t.Cleanup(func() { ethtoolOutputFn = orig })
+
+	t.Run("sin ethtool", func(t *testing.T) {
+		ethtoolOutputFn = func(string) ([]byte, error) {
+			return nil, errors.New("exec: \"ethtool\": executable file not found in $PATH")
+		}
+		autoneg, speed, duplex, modes := ethtoolPort("lan2")
+		if autoneg || speed != 0 || duplex != "" {
+			t.Fatalf("boca sin ethtool = %v/%d/%q, want false/0/empty", autoneg, speed, duplex)
+		}
+		if modes == nil {
+			t.Fatal("modes nulo: saldria null en JSON (#534)")
+		}
+		if len(modes) != 0 {
+			t.Fatalf("modes = %+v, want vacio", modes)
+		}
+	})
+
+	t.Run("sin bloque de modos", func(t *testing.T) {
+		ethtoolOutputFn = func(string) ([]byte, error) {
+			return []byte(ethtoolNoModesSample), nil
+		}
+		if _, _, _, modes := ethtoolPort("lan21"); modes == nil || len(modes) != 0 {
+			t.Fatalf("modes = %+v (nil=%v), want slice vacio no nulo", modes, modes == nil)
+		}
+	})
+
+	t.Run("contrato JSON", func(t *testing.T) {
+		ethtoolOutputFn = func(string) ([]byte, error) {
+			return []byte(ethtoolNoModesSample), nil
+		}
+		_, _, _, modes := ethtoolPort("lan21")
+		raw, err := json.Marshal(PhysPort{Name: "lan21", Supported: modes})
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if strings.Contains(string(raw), `"supported":null`) {
+			t.Fatalf("supported sale null: %s", raw)
+		}
+		if !strings.Contains(string(raw), `"supported":[]`) {
+			t.Fatalf("supported no sale como lista vacia: %s", raw)
+		}
+	})
+}
 
 // Deteccion de Realtek DSA para eee_writable (#485): el `compatible` del
 // devicetree es una lista NUL-separada; basta con que una entrada lleve

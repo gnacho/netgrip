@@ -97,12 +97,28 @@ var linkModeRe = regexp.MustCompile(`^(\d+)base[TFX]/([A-Za-z]+)`)
 // ethtoolPort parsea la salida de `ethtool <dev>`: negociacion, velocidad y
 // duplex actuales y modos soportados. Un puerto caido contesta "Speed:
 // Unknown!": se devuelve 0 y la UI lo muestra como sin enlace.
+//
+// El slice de modos NUNCA es nulo (#534): un nil se serializa como null en
+// JSON y la banda de detalle hacia modes.length sobre el, tirando el panel
+// entero. Pasa en cualquier target sin ethtool instalado (rt-lab) y en un
+// puerto cuyo bloque "Supported link modes" viene vacio, asi que la garantia
+// vive aqui, en el unico borde que produce el valor.
 func ethtoolPort(dev string) (autoneg bool, speedMbps int, duplex string, supported []LinkMode) {
-	out, err := exec.Command("ethtool", dev).Output()
+	out, err := ethtoolOutputFn(dev)
 	if err != nil {
-		return false, 0, "", nil
+		return false, 0, "", []LinkMode{}
 	}
-	return parseEtoolOutput(string(out))
+	autoneg, speedMbps, duplex, supported = parseEtoolOutput(string(out))
+	if supported == nil {
+		supported = []LinkMode{}
+	}
+	return autoneg, speedMbps, duplex, supported
+}
+
+// ethtoolOutputFn aisla la ejecucion de ethtool para que los tests puedan
+// forzar el fallo del binario ausente (#534).
+var ethtoolOutputFn = func(dev string) ([]byte, error) {
+	return exec.Command("ethtool", dev).Output()
 }
 
 func parseEtoolOutput(output string) (autoneg bool, speedMbps int, duplex string, supported []LinkMode) {
