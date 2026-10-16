@@ -132,6 +132,20 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
       ? ` · ${p.speed_mbps >= 1000 ? `${p.speed_mbps / 1000} Gb/s` : `${p.speed_mbps} Mb/s`}`
       : ""}`;
 
+  // #523: nivel de velocidad de una boca -> tono y número de barras del
+  // chasis (8 = 1G+, 5 = 100M, 2 = 10M, 0 = sin enlace). El tono marca el
+  // caso accionable: activo a velocidad reducida (ámbar) es el cable de 4
+  // hilos del banner #522.
+  const speedTier = (p: EthPort): { tone: "ok" | "warn" | "danger" | "off"; bars: number; label: string } => {
+    if (!p.up || p.speed_mbps <= 0) return { tone: "off", bars: 0, label: "" };
+    if (p.speed_mbps >= 1000) return { tone: "ok", bars: 8, label: `${p.speed_mbps >= 1000 ? `${p.speed_mbps / 1000} G` : p.speed_mbps}` };
+    if (p.speed_mbps >= 100) return { tone: "warn", bars: 5, label: `${p.speed_mbps}M` };
+    return { tone: "danger", bars: 2, label: `${p.speed_mbps}M` };
+  };
+  const tierBar = { ok: "bg-ok", warn: "bg-warn", danger: "bg-danger", off: "bg-border" } as const;
+  // Leyenda: PoE solo si alguna boca lo soporta (#523).
+  const anyPoe = useMemo(() => sorted.some((p) => swByName.get(p.name)?.poe_supported), [sorted, swByName]);
+
   return (
     <Card index={index} className={className}
       title={oneLine(t("overview.ports"))} icon={Cable} iconTone="teal">
@@ -142,7 +156,8 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
           <p className="text-caption text-muted mb-3">
             {t("ports.inUse", { used: sorted.filter((p) => p.up).length, total: sorted.length })}
           </p>
-          {/* chasis RJ45 redibujado: boca + LED + etiqueta + dispositivo */}
+          {/* chasis (#523): boca + barras de velocidad + badge PoE +
+              etiqueta + dispositivo; bajo el chasis, leyenda de estados. */}
           <div className="flex flex-wrap gap-x-3 gap-y-4 rounded-md border border-border bg-surface-2 px-3 py-3">
             {sorted.map((p) => {
               const swp = swByName.get(p.name);
@@ -152,18 +167,26 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
                 : p.devices.length === 1 ? p.devices[0].name || p.devices[0].mac
                 : p.devices.length > 1 ? t("ports.unmanagedN", { count: p.devices.length })
                 : t("ports.busy");
+              const tier = speedTier(p);
               const led = adminDown ? "bg-danger"
                 : !p.up ? "bg-border-strong"
-                : p.speed_mbps >= 1000 ? "bg-ok" : "bg-warn";
+                : tier.tone === "ok" ? "bg-ok" : tier.tone === "warn" ? "bg-warn" : "bg-danger";
               return (
                 <button key={p.name} type="button"
                   onClick={() => setSelected(selected === p.name ? undefined : p.name)}
                   title={p.up ? `${label} · ${p.speed_mbps >= 1000 ? `${p.speed_mbps / 1000} Gb/s` : `${p.speed_mbps} Mb/s`} · ${device}` : label}
-                  className={`flex w-[64px] flex-col items-center gap-1 rounded-sm p-1 ring-focus transition-colors hover:bg-surface
+                  className={`flex w-[68px] flex-col items-center gap-1 rounded-sm p-1 ring-focus transition-colors hover:bg-surface
                     ${selected === p.name ? "bg-surface shadow-card" : ""}`}>
-                  <span className="flex w-8 justify-between" aria-hidden="true">
-                    <span className={`h-1.5 w-1.5 rounded-full ${led}`} />
-                    <span className={`h-1.5 w-1.5 rounded-full ${led} ${p.up ? "animate-pulse-dot" : ""}`} />
+                  <span className="flex w-full items-center justify-between px-0.5" aria-hidden="true">
+                    <span className="flex gap-1.5">
+                      <span className={`h-1.5 w-1.5 rounded-full ${led}`} />
+                      <span className={`h-1.5 w-1.5 rounded-full ${led} ${p.up ? "animate-pulse-dot" : ""}`} />
+                    </span>
+                    {swp?.poe_supported && (
+                      <Zap size={11} strokeWidth={2.5}
+                        aria-label={t("ports.legendPoe")}
+                        className={swp.poe_enabled ? "text-warn" : "text-faint"} />
+                    )}
                   </span>
                   <span className={`relative h-10 w-10 rounded-sm border-2 ${p.up ? "border-border-strong bg-surface" : "border-border bg-surface-2"}`} aria-hidden="true">
                     <span className="absolute inset-x-[6px] top-[4px] flex justify-between">
@@ -173,11 +196,37 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
                     </span>
                     <span className="absolute inset-x-[5px] bottom-[4px] h-[14px] rounded-[3px] border border-border bg-bg" />
                   </span>
-                  <span className={`text-[10px] font-semibold font-mono tracking-wide ${p.wan ? "text-accent" : "text-muted"}`}>{label}</span>
+                  {/* Barras de velocidad: cuántas van encendidas y en qué
+                      color dicen el nivel de un vistazo (tipo señal). */}
+                  <span className="flex items-end gap-[2px] h-3" aria-hidden="true">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <span key={i} style={{ height: `${4 + i}px` }}
+                        className={`w-[3px] rounded-full ${i < tier.bars ? tierBar[tier.tone] : "bg-border/60"}`} />
+                    ))}
+                  </span>
+                  <span className={`text-[10px] font-semibold font-mono tracking-wide ${p.wan ? "text-accent" : "text-muted"}`}>
+                    {label}
+                  </span>
+                  {tier.label && (
+                    <span className={`-mt-0.5 text-[10px] font-bold font-mono ${
+                      tier.tone === "ok" ? "text-ok" : tier.tone === "warn" ? "text-warn" : "text-danger"
+                    }`}>
+                      {tier.label}
+                    </span>
+                  )}
                   <span className="w-full truncate text-center text-[11px] text-text">{device}</span>
                 </button>
               );
             })}
+          </div>
+          {/* Leyenda del chasis (#523) */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-muted">
+            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-ok" />{t("ports.legendActive")}</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-warn" />{t("ports.legendReduced")}</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-border-strong" />{t("ports.legendFree")}</span>
+            {anyPoe && (
+              <span className="inline-flex items-center gap-1.5"><Zap size={11} strokeWidth={2.5} className="text-warn" />{t("ports.legendPoe")}</span>
+            )}
           </div>
 
           {/* Banda de detalle de la boca seleccionada (#484) */}
