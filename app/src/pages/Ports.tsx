@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { EthPort } from "../types";
+import type { EthPort, PhysPortsProbe } from "../types";
 import { api } from "../api";
+import { degradedPorts, fmtMbps } from "../lib/degradedPorts";
+import { Banner } from "../components/ui/Banner";
 import { EthPortsCard } from "../components/ports/EthPortsCard";
 import { PoECard } from "../components/ports/PoECard";
 import { VLANTable } from "../components/ports/VLANTable";
@@ -50,13 +52,18 @@ export function Ports({ ethports }: { ethports?: EthPort[] }) {
   const [stpOk, setStpOk] = useState<boolean>();
   const [trafficOk, setTrafficOk] = useState<boolean>();
   const [opticsOk, setOpticsOk] = useState<boolean>();
+  // #522: el mismo probe de Ópticas alimenta el banner de puertos que
+  // negocian por debajo de su capacidad (un solo fetch para ambas cosas).
+  const [physProbe, setPhysProbe] = useState<PhysPortsProbe>();
   useEffect(() => {
     let live = true;
     api.vlans().then((p) => { if (live) setVlansOk(p.applicable); }).catch(() => {});
     api.lag().then((p) => { if (live) setLagOk(p.applicable); }).catch(() => {});
     api.stp().then((p) => { if (live) setStpOk(p.applicable); }).catch(() => {});
     api.physPorts().then((p) => {
-      if (live) setOpticsOk(p.applicable && p.ports.some((x) => !!x.sfp));
+      if (!live) return;
+      setPhysProbe(p);
+      setOpticsOk(p.applicable && p.ports.some((x) => !!x.sfp));
     }).catch(() => {});
     // Tráfico (#443): la pestaña se ofrece si ALGUNA de las dos funciones
     // es aplicable y su capacidad concreta funciona en este kernel.
@@ -87,6 +94,10 @@ export function Ports({ ethports }: { ethports?: EthPort[] }) {
   // se vuelve a Puertos en vez de quedarse en un panel vacio.
   const active = options.some((o) => o.value === tab) ? tab : "ports";
 
+  // #522: puertos que negocian por debajo de su capacidad (cable dañado o
+  // de 4 hilos). Aviso accionable arriba de la pestaña Puertos.
+  const degraded = degradedPorts(physProbe);
+
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
       {/* self-start: sin él el contenedor flex-col estira el tablist a
@@ -99,6 +110,14 @@ export function Ports({ ethports }: { ethports?: EthPort[] }) {
           options={options}
         />
       </div>
+
+      {active === "ports" && degraded.length > 0 && (
+        <Banner tone="warn" className="mb-0">
+          <span className="font-medium">{t("ports.slowBannerTitle")}</span>{" "}
+          {degraded.map((d) => t("ports.slowBannerItem", { port: d.name, speed: fmtMbps(d.speed), max: fmtMbps(d.max) })).join(" · ")}
+          {" "}{t("ports.slowBannerHint")}
+        </Banner>
+      )}
 
       {active === "ports" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-[var(--card-gap)]">

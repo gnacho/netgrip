@@ -155,6 +155,7 @@ export default {
       drift: "La configuración cambió desde la última copia",
       update: "Hay una actualización del sistema",
       wifiOff: "El WiFi está apagado",
+      portSlow: "{{port}} negocia a {{speed}} pudiendo {{max}}",
     },
   },
   help: {
@@ -1414,6 +1415,9 @@ export default {
   ports: {
     title: "Puertos ethernet",
     tabsAria: "Secciones de Puertos y VLANs",
+    slowBannerTitle: "Puertos por debajo de su velocidad:",
+    slowBannerItem: "{{port}} negocia a {{speed}} pudiendo {{max}}.",
+    slowBannerHint: "Lo normal es un cable dañado o de 4 hilos: cámbialo y volverá a su velocidad máxima.",
     tab: {
       ports: "Puertos",
       vlans: "VLANs",

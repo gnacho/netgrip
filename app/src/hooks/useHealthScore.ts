@@ -2,18 +2,20 @@ import { useMemo } from "react";
 import type {
   DriftProbe,
   ModeProbe,
+  PhysPortsProbe,
   SystemInfo,
   WanStatus,
   WirelessRadio,
 } from "../types";
+import { degradedPorts, fmtMbps } from "../lib/degradedPorts";
 
 export type HealthTone = "ok" | "warn" | "danger";
 
 export interface HealthReason {
   /** clave i18n bajo health.reasons.* */
   key: string;
-  /** interpolación para la clave (p.ej. { pct }) */
-  params?: Record<string, number>;
+  /** interpolación para la clave (p.ej. { pct } o { port, speed, max }) */
+  params?: Record<string, string | number>;
   /** página destino del chip (Page del Shell) */
   page: string;
   /** ancla dentro de la página (scrollIntoView) */
@@ -34,13 +36,16 @@ export interface HealthInput {
   drift?: DriftProbe;
   mode?: ModeProbe;
   wireless?: WirelessRadio[];
+  /** #522: probe de puertos físicos (ethtool) para detectar enlaces que
+   *  negocian por debajo de su capacidad (cable dañado o de 4 hilos). */
+  physports?: PhysPortsProbe;
 }
 
 /**
  * Health score §8.1 de design.md. Función pura (testeable) calculada en el
  * cliente solo con datos ya disponibles en el Shell.
  */
-export function computeHealthScore({ system, wan, drift, mode, wireless }: HealthInput): HealthScore {
+export function computeHealthScore({ system, wan, drift, mode, wireless, physports }: HealthInput): HealthScore {
   let score = 100;
   const reasons: HealthReason[] = [];
 
@@ -103,6 +108,16 @@ export function computeHealthScore({ system, wan, drift, mode, wireless }: Healt
     reasons.push({ key: "wifiOff", page: "wifi" });
   }
 
+  // #522: puerto negociando por debajo de su capacidad (cable dañado o de
+  // 4 hilos). Una sola razón con el primer caso; el detalle completo vive
+  // en el banner de la página Puertos.
+  const degraded = degradedPorts(physports);
+  if (degraded.length > 0) {
+    score -= 10;
+    const d = degraded[0];
+    reasons.push({ key: "portSlow", params: { port: d.name, speed: fmtMbps(d.speed), max: fmtMbps(d.max) }, page: "ports" });
+  }
+
   score = Math.max(0, Math.min(100, Math.round(score)));
 
   const tone: HealthTone = score >= 70 ? "ok" : score >= 50 ? "warn" : "danger";
@@ -113,9 +128,9 @@ export function computeHealthScore({ system, wan, drift, mode, wireless }: Healt
 
 /** Hook §8: mismo cálculo, memoizado sobre los datos del Shell. */
 export function useHealthScore(input: HealthInput): HealthScore {
-  const { system, wan, drift, mode, wireless } = input;
+  const { system, wan, drift, mode, wireless, physports } = input;
   return useMemo(
-    () => computeHealthScore({ system, wan, drift, mode, wireless }),
-    [system, wan, drift, mode, wireless],
+    () => computeHealthScore({ system, wan, drift, mode, wireless, physports }),
+    [system, wan, drift, mode, wireless, physports],
   );
 }

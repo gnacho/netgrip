@@ -155,6 +155,7 @@ export default {
       drift: "Configuration changed since the last snapshot",
       update: "There's a system update",
       wifiOff: "Wi-Fi is off",
+      portSlow: "{{port}} links at {{speed}}, below its {{max}} capability",
     },
   },
   help: {
@@ -1414,6 +1415,9 @@ export default {
   ports: {
     title: "Ethernet ports",
     tabsAria: "Ports and VLANs sections",
+    slowBannerTitle: "Ports below their link speed:",
+    slowBannerItem: "{{port}} negotiates {{speed}} when it could do {{max}}.",
+    slowBannerHint: "Usually a damaged or 4-wire cable: swap it and the port will be back to full speed.",
     tab: {
       ports: "Ports",
       vlans: "VLANs",

@@ -695,7 +695,26 @@ export const demoStp: T.STPProbe = {
   ports: [],
 };
 
-export const demoPhysPorts: T.PhysPortsProbe = { applicable: false, ports: [] };
+// Puertos físicos (#522): el demo lleva lan2 negociando a 100 Mbps en un
+// puerto de 1 G (el clásico cable de 4 hilos): enseña el banner de Puertos
+// y la razón concreta en la salud del Resumen.
+const demoLinkModes = [10, 100, 1000].map((s) => ({ speed_mbps: s, duplex: "full" }));
+const demoPhysPort = (name: string, speed: number): T.PhysPort => ({
+  name, autoneg: true, speed_mbps: speed, duplex: "full",
+  supported: demoLinkModes,
+  eee_supported: true, eee_enabled: false, eee_writable: true,
+  mtu: 1500, mtu_max: 1500, mtu_supported: false,
+});
+export const demoPhysPorts: T.PhysPortsProbe = {
+  applicable: true,
+  ports: [
+    demoPhysPort("wan", 1000),
+    demoPhysPort("lan1", 1000),
+    demoPhysPort("lan2", 100), // cable de 4 hilos: banner + razón de salud
+    demoPhysPort("lan3", 1000),
+    demoPhysPort("lan4", 0),   // sin enlace
+  ],
+};
 
 export const demoStorage: T.StorageProbe = {
   applicable: true,

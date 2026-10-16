@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import { Activity, ArrowLeftRight, Blocks, ChartColumn, ChartPie, Download, EyeOff, Forward, Globe, HardDrive, Info, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldBan, Smartphone, Wifi, Wrench } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
-import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MultiWanProbe, OVPNProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
+import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MultiWanProbe, OVPNProbe, PhysPortsProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
 import { useMode } from "../hooks/useMode";
 import { AnnouncementBanner } from "./AnnouncementBanner";
@@ -108,6 +108,8 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   const [drift, setDrift] = useState<DriftProbe>();
   const [storage, setStorage] = useState<StorageProbe>();
   const [wireless, setWireless] = useState<WirelessRadio[]>();
+  // #522: probe de puertos físicos (salud: enlace por debajo de capacidad).
+  const [physports, setPhysports] = useState<PhysPortsProbe>();
   const [loadError, setLoadError] = useState(false);
   const [failCount, setFailCount] = useState(0);
   const [demoBannerDismissed, setDemoBannerDismissed] = useState(false);
@@ -167,7 +169,15 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
 
   const { mode, modeReady } = useMode();
 
-  const health = useHealthScore({ system, wan, drift, mode, wireless });
+  // #522: probe de puertos físicos SOLO cuando el equipo tiene bocas de
+  // switch (ethtool por puerto no es gratis; en un AP/router sin switch no
+  // aplica). En segundo plano, como el resto de checks lentos.
+  useEffect(() => {
+    if (!modeReady || (mode?.port_count ?? 0) === 0) return;
+    api.physPorts().then(setPhysports).catch(() => {});
+  }, [modeReady, mode?.port_count]);
+
+  const health = useHealthScore({ system, wan, drift, mode, wireless, physports });
 
   // In AP mode the router is not the gateway: hide pages that only apply to
   // the gateway (LAN config with dnsmasq, port forwarding).
