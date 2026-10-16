@@ -318,8 +318,10 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
               {selectedPhys?.sfp && <SfpModuleSection sfp={selectedPhys.sfp} />}
 
               {/* Configuración física (#500: el gate de modo avanzado se
-                  retiró; queda por selección de boca) */}
-              {selectedPhys && (
+                  retiró; queda por selección de boca). Sin enlace no hay
+                  nada que configurar: el driver rechaza esos writes y la
+                  boca solo necesita estado, nota y admin (#535). */}
+              {selectedPhys && selectedSw.oper_up && (
                 <PhysConfigSection
                   phys={selectedPhys}
                   busy={busyPort === selectedSw.name}

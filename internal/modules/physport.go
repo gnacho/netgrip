@@ -240,14 +240,18 @@ func parseEeeOutput(output string) (supported bool, enabled bool) {
 // devuelve datos o el error de jaula vacia, hay jaula; "not supported" es
 // un puerto de cobre corriente.
 func ethtoolModule(dev string) *SFPInfo {
-	out, err := exec.Command("ethtool", "-m", dev).CombinedOutput()
+	out, err := ethtoolModuleOutputFn(dev)
 	if err != nil {
 		msg := string(out)
 		switch {
+		// Sin ethtool en el target (rt-lab) la salida llega vacia: no es un
+		// fallo al leer un modulo, es que no hay nada que leer, y pintar el
+		// error en cada puerto RJ45 es ruido (#535). Igual que el cobre
+		// corriente ("not supported"): sin seccion SFP.
+		case strings.TrimSpace(msg) == "", strings.Contains(strings.ToLower(msg), "not supported"):
+			return nil
 		case strings.Contains(msg, "No such device"):
 			return &SFPInfo{State: "empty"}
-		case strings.Contains(strings.ToLower(msg), "not supported"):
-			return nil
 		default:
 			return &SFPInfo{State: "error"}
 		}
@@ -255,6 +259,13 @@ func ethtoolModule(dev string) *SFPInfo {
 	info := parseSFPEeprom(string(out))
 	info.State = "module"
 	return info
+}
+
+// ethtoolModuleOutputFn aisla la ejecucion de `ethtool -m` para que los tests
+// fuercen los tres escenarios (#535): sin binario, puerto de cobre y jaula
+// con modulo.
+var ethtoolModuleOutputFn = func(dev string) ([]byte, error) {
+	return exec.Command("ethtool", "-m", dev).CombinedOutput()
 }
 
 var eepromKVRe = regexp.MustCompile(`^\s*([^:]+?)\s*:\s*(.*)$`)
@@ -398,9 +409,20 @@ func setPhysPortMTU(dev string, mtu int) error {
 	}
 	out, err := exec.Command("ip", "link", "set", "dev", dev, "mtu", strconv.Itoa(mtu)).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("MTU %d rejected by the driver on %s: %s", mtu, dev, strings.TrimSpace(string(out)))
+		return fmt.Errorf("MTU %d rejected by the driver on %s: %s", mtu, dev, execErrDetail(out, err))
 	}
 	return nil
+}
+
+// execErrDetail explica por que fallo un write contra el driver: el mensaje
+// del propio driver si lo hay, y si la salida esta vacia (tipico: el binario
+// no existe en este target) el error de ejecucion, para no enseñar al
+// usuario un detalle vacio (#535).
+func execErrDetail(out []byte, err error) string {
+	if d := strings.TrimSpace(string(out)); d != "" {
+		return d
+	}
+	return err.Error()
 }
 
 func setPhysPortEEE(dev string, enabled bool) error {
@@ -412,7 +434,7 @@ func setPhysPortEEE(dev string, enabled bool) error {
 	}
 	out, err := exec.Command("ethtool", "--set-eee", dev, "eee", state).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("EEE %s rejected on %s: %s", state, dev, strings.TrimSpace(string(out)))
+		return fmt.Errorf("EEE %s rejected on %s: %s", state, dev, execErrDetail(out, err))
 	}
 	return nil
 }
@@ -437,7 +459,7 @@ func setPhysPortAutoneg(dev string, autoneg bool, speedMbps *int, duplex string)
 	}
 	out, err := exec.Command("ethtool", args...).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("link settings rejected on %s: %s", dev, strings.TrimSpace(string(out)))
+		return fmt.Errorf("link settings rejected on %s: %s", dev, execErrDetail(out, err))
 	}
 	return nil
 }
