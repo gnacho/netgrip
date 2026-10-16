@@ -177,16 +177,12 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
                   title={p.up ? `${label} · ${p.speed_mbps >= 1000 ? `${p.speed_mbps / 1000} Gb/s` : `${p.speed_mbps} Mb/s`} · ${device}` : label}
                   className={`flex w-[68px] flex-col items-center gap-1 rounded-sm p-1 ring-focus transition-colors hover:bg-surface
                     ${selected === p.name ? "bg-surface shadow-card" : ""}`}>
-                  <span className="flex w-full items-center justify-between px-0.5" aria-hidden="true">
-                    <span className="flex gap-1.5">
-                      <span className={`h-1.5 w-1.5 rounded-full ${led}`} />
-                      <span className={`h-1.5 w-1.5 rounded-full ${led} ${p.up ? "animate-pulse-dot" : ""}`} />
-                    </span>
-                    {swp?.poe_supported && (
-                      <Zap size={11} strokeWidth={2.5}
-                        aria-label={t("ports.legendPoe")}
-                        className={swp.poe_enabled ? "text-warn" : "text-faint"} />
-                    )}
+                  {/* LEDs como en un RJ45 real: uno a cada extremo de la
+                      boca. El badge PoE va en la esquina del icono para no
+                      romper la simetría. */}
+                  <span className="flex w-full items-center justify-between" aria-hidden="true">
+                    <span className={`h-1.5 w-1.5 rounded-full ${led}`} />
+                    <span className={`h-1.5 w-1.5 rounded-full ${led} ${p.up ? "animate-pulse-dot" : ""}`} />
                   </span>
                   <span className={`relative h-10 w-10 rounded-sm border-2 ${p.up ? "border-border-strong bg-surface" : "border-border bg-surface-2"}`} aria-hidden="true">
                     <span className="absolute inset-x-[6px] top-[4px] flex justify-between">
@@ -195,6 +191,11 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
                       ))}
                     </span>
                     <span className="absolute inset-x-[5px] bottom-[4px] h-[14px] rounded-[3px] border border-border bg-bg" />
+                    {swp?.poe_supported && (
+                      <Zap size={11} strokeWidth={2.5}
+                        aria-label={t("ports.legendPoe")}
+                        className={`absolute -top-1.5 -right-1.5 rounded-full bg-surface-2 p-px ${swp.poe_enabled ? "text-warn" : "text-faint"}`} />
+                    )}
                   </span>
                   {/* Barras de velocidad: cuántas van encendidas y en qué
                       color dicen el nivel de un vistazo (tipo señal). */}
