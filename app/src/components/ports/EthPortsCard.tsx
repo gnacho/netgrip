@@ -177,10 +177,10 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
                   title={p.up ? `${label} · ${p.speed_mbps >= 1000 ? `${p.speed_mbps / 1000} Gb/s` : `${p.speed_mbps} Mb/s`} · ${device}` : label}
                   className={`flex w-[68px] flex-col items-center gap-1 rounded-sm p-1 ring-focus transition-colors hover:bg-surface
                     ${selected === p.name ? "bg-surface shadow-card" : ""}`}>
-                  {/* LEDs como en un RJ45 real: uno a cada extremo de la
-                      boca. El badge PoE va en la esquina del icono para no
-                      romper la simetría. */}
-                  <span className="flex w-full items-center justify-between" aria-hidden="true">
+                  {/* LEDs como en un RJ45 real: uno a cada extremo, alineados
+                      con los bordes del icono (mismo w-10), no de la baldosa.
+                      El badge PoE va en la esquina del icono. */}
+                  <span className="flex w-10 items-center justify-between" aria-hidden="true">
                     <span className={`h-1.5 w-1.5 rounded-full ${led}`} />
                     <span className={`h-1.5 w-1.5 rounded-full ${led} ${p.up ? "animate-pulse-dot" : ""}`} />
                   </span>
