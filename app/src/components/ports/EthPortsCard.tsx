@@ -180,7 +180,7 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
                   {/* LEDs como en un RJ45 real: uno a cada extremo, alineados
                       con los bordes del icono (mismo w-10), no de la baldosa.
                       El badge PoE va en la esquina del icono. */}
-                  <span className="flex w-10 items-center justify-between" aria-hidden="true">
+                  <span className="flex w-10 items-center justify-between px-1" aria-hidden="true">
                     <span className={`h-1.5 w-1.5 rounded-full ${led}`} />
                     <span className={`h-1.5 w-1.5 rounded-full ${led} ${p.up ? "animate-pulse-dot" : ""}`} />
                   </span>
