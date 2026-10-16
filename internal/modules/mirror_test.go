@@ -21,9 +21,11 @@ func TestParseMirrorConf(t *testing.T) {
 		t.Fatalf("tolerancia: monitor=%q sources=%v", monitor, sources)
 	}
 
-	// Fichero vacio o inexistente -> espejo desactivado.
+	// Fichero vacio o inexistente -> espejo desactivado. El slice debe
+	// ser no-nil: serializado como [] y no como null, que crashea la
+	// pestana Trafico en el cliente (join sobre null).
 	monitor, sources = parseMirrorConf("")
-	if monitor != "" || sources != nil {
+	if monitor != "" || sources == nil || len(sources) != 0 {
 		t.Fatalf("vacio: monitor=%q sources=%v", monitor, sources)
 	}
 

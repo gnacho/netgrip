@@ -47,8 +47,9 @@ export function MirrorCard() {
     setError(false);
     try {
       const p = await api.mirror();
-      setProbe(p);
-    } catch { setError(true); }
+      // Defensa ante un sources null del backend (espejo nunca
+      // configurado): la card hace join() sobre el y crashearia.
+      setProbe({ ...p, sources: p.sources ?? [] });    } catch { setError(true); }
   }, []);
   useEffect(() => { load(); }, [load]);
 

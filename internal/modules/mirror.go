@@ -319,7 +319,10 @@ func loadMirrorConf() (string, []string) {
 // (funcion pura, testeable).
 func parseMirrorConf(text string) (string, []string) {
 	var monitor string
-	var sources []string
+	// Slice inicializado (no nil): serializado como [] y no como null,
+	// que romperia la pestana Trafico al hacer join() en el cliente
+	// (misma clase que el bug de loops, #175).
+	sources := []string{}
 	for _, line := range strings.Split(text, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
