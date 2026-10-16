@@ -1032,6 +1032,42 @@ const realApi = {
       body: JSON.stringify({ entry }),
     }),
 
+  // UPnP / NAT-PMP (#448)
+  upnp: () =>
+    request<import("./types").UpnpProbe>("/api/upnp"),
+  upnpStatus: () =>
+    request<import("./types").UpnpStatus>("/api/upnp/status"),
+  upnpAction: (action: string) =>
+    request<import("./types").ModuleResult<import("./types").UpnpProbe>>("/api/upnp/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    }),
+  upnpInstall: () =>
+    request<import("./types").UpnpProbe>("/api/upnp/install", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirm: true }),
+    }),
+  upnpUninstall: () =>
+    request<import("./types").UpnpProbe>("/api/upnp/uninstall", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirm: true }),
+    }),
+  upnpRuleAdd: (rule: import("./types").UpnpRuleConfig) =>
+    request<import("./types").ModuleResult<import("./types").UpnpProbe>>("/api/upnp/rule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rule),
+    }),
+  upnpRuleDelete: (section: string) =>
+    request<import("./types").ModuleResult<import("./types").UpnpProbe>>("/api/upnp/rule", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ section }),
+    }),
+
 };
 
 /** API pública: delega en `src/demo` cuando el modo demo está activo.

@@ -3,6 +3,7 @@ import { WanPage } from "./Wan";
 import { ForwardsPage } from "./Forwards";
 import { DpiPage } from "./Dpi";
 import { BanipPage } from "./Banip";
+import { UpnpPage } from "./Upnp";
 
 /**
  * Internet (#487): la pantalla de salida a Internet para la puerta de enlace.
@@ -24,6 +25,7 @@ export function InternetPage({ mwan, onMwanChange, fwd, onFwdChange }: {
           Sistema. */}
       <WanPage mwan={mwan} onMwanChange={onMwanChange} hideMode />
       <ForwardsPage fwd={fwd} onFwdChange={onFwdChange} />
+      <UpnpPage />
       <DpiPage />
       <BanipPage />
     </div>

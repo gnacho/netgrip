@@ -47,6 +47,7 @@ const state = {
   firewall: structuredClone(D.demoFirewall),
   nlbwmon: { ...D.demoNlbwmon },
   banip: structuredClone(D.demoBanip),
+  upnp: structuredClone(D.demoUpnp),
   offload: { ...D.demoOffload },
   mode: { ...D.demoMode },
   igmp: { ...D.demoIgmp },
@@ -451,6 +452,60 @@ export const demoApi: typeof api = {
     const i = target.indexOf(entry);
     if (i >= 0) target.splice(i, 1);
     return { status: "applied" as const, rolled_back: false, state: state.banip };
+  },
+  upnp: () => get(state.upnp),
+  upnpStatus: async () => {
+    await wait(100, 250);
+    return {
+      installed: state.upnp.installed,
+      enabled: state.upnp.enabled,
+      running: state.upnp.running,
+      applicable: state.upnp.applicable,
+    };
+  },
+  upnpAction: async (action: string) => {
+    await wait(800, 1500);
+    if (action === "start" || action === "reload" || action === "restart" || action === "enable") {
+      state.upnp.enabled = true;
+      state.upnp.running = true;
+    } else {
+      state.upnp.running = false;
+      if (action === "disable") state.upnp.enabled = false;
+    }
+    return { status: "applied" as const, rolled_back: false, state: state.upnp };
+  },
+  upnpInstall: async () => {
+    await wait(1500, 3000);
+    state.upnp.installed = true;
+    state.upnp.enabled = false;
+    state.upnp.running = false;
+    return state.upnp;
+  },
+  upnpUninstall: async () => {
+    await wait(1500, 3000);
+    state.upnp.installed = false;
+    state.upnp.running = false;
+    state.upnp.enabled = false;
+    return state.upnp;
+  },
+  upnpRuleAdd: async (rule: T.UpnpRuleConfig) => {
+    await wait(800, 1500);
+    const n = state.upnp.rules.filter((r) => r.section.startsWith("netgrip_upnp_")).length + 1;
+    state.upnp.rules.push({
+      section: `netgrip_upnp_${n}`,
+      action: rule.action,
+      int_addr: rule.int_addr,
+      int_ports: rule.int_ports ?? "",
+      ext_ports: rule.ext_ports ?? "",
+      comment: rule.comment ?? "",
+      managed: true,
+    });
+    return { status: "applied" as const, rolled_back: false, state: state.upnp };
+  },
+  upnpRuleDelete: async (section: string) => {
+    await wait(800, 1500);
+    state.upnp.rules = state.upnp.rules.filter((r) => r.section !== section);
+    return { status: "applied" as const, rolled_back: false, state: state.upnp };
   },
   firewall: () => get(state.firewall),
   addFirewallRule: async (rule) => {

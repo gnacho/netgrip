@@ -929,3 +929,23 @@ export const demoBanip: T.BanipProbe = {
   allowlist: ["192.168.1.0/24", "vpn.casa.example"],
   blocklist: ["203.0.113.66"],
 };
+
+export const demoUpnp: T.UpnpProbe = {
+  installed: true,
+  enabled: false,
+  running: false,
+  applicable: true,
+  secure_mode: true,
+  natpmp: true,
+  upnp: true,
+  lease_file: "/var/run/miniupnpd.leases",
+  leases: [
+    { proto: "TCP", ext_port: 32400, int_addr: "192.168.1.40", int_port: 32400, lease_time: 5400, desc: "Plex Media Server" },
+    { proto: "UDP", ext_port: 51820, int_addr: "192.168.1.50", int_port: 51820, lease_time: 0, desc: "WireGuard" },
+    { proto: "TCP", ext_port: 8080, int_addr: "192.168.1.60", int_port: 80, lease_time: 120, desc: "web server" },
+  ],
+  rules: [
+    { section: "@perm_rule[0]", action: "allow", int_addr: "0.0.0.0/0", int_ports: "1024-65535", ext_ports: "1024-65535", comment: "Allow high ports", managed: false },
+    { section: "netgrip_upnp_1", action: "deny", int_addr: "192.168.1.66", int_ports: "", ext_ports: "", comment: "smart TV", managed: true },
+  ],
+};

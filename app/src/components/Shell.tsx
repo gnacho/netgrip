@@ -26,7 +26,7 @@ import { StoragePage } from "../pages/Storage";
 import { AboutPage } from "../pages/About";
 import { SelfUpdateDialog } from "../components/system/SelfUpdateDialog";
 
-export type Page = "overview" | "internet" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "traffic" | "banip" | "ports" | "forwards" | "tools" | "diagnostics" | "fleet" | "storage" | "system" | "dpi" | "about";
+export type Page = "overview" | "internet" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "traffic" | "banip" | "upnp" | "ports" | "forwards" | "tools" | "diagnostics" | "fleet" | "storage" | "system" | "dpi" | "about";
 
 const NAV_ICONS: Record<Page, LucideIcon> = {
   overview: LayoutDashboard,
@@ -39,6 +39,7 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
   services: Blocks,
   traffic: ChartPie,
   banip: ShieldBan,
+  upnp: ArrowLeftRight,
   ports: ArrowLeftRight,
   forwards: Forward,
   tools: Wrench,
@@ -220,7 +221,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     if (!modeReady) return id === "overview" ? null : "loading";
     // La línea de salida y todo lo que cuelga de ella (reenvío de puertos,
     // DPI, banIP) solo aplica a la puerta de enlace.
-    if ((id === "internet" || id === "wan" || id === "forwards" || id === "dpi" || id === "banip") && !isRouter) return "gatewayOnly";
+    if ((id === "internet" || id === "wan" || id === "forwards" || id === "dpi" || id === "banip" || id === "upnp") && !isRouter) return "gatewayOnly";
     // Red local (DHCP/DNS/reservas): sin dnsmasq la página quedaría vacía
     // (p. ej. un switch gestionado), así que la entrada no se ofrece.
     if (id === "lan" && !mode?.dnsmasq_on) return "noDnsmasq";

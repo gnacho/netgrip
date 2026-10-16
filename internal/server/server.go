@@ -146,6 +146,13 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("GET /api/banip/blocklist", s.requireAuth(s.handleBanipListGet))
 	s.mux.HandleFunc("POST /api/banip/blocklist", s.requireAuth(s.handleBanipListAdd))
 	s.mux.HandleFunc("DELETE /api/banip/blocklist", s.requireAuth(s.handleBanipListDelete))
+	s.mux.HandleFunc("GET /api/upnp", s.requireAuth(s.handleUpnpGet))
+	s.mux.HandleFunc("GET /api/upnp/status", s.requireAuth(s.handleUpnpStatus))
+	s.mux.HandleFunc("POST /api/upnp/action", s.requireAuth(s.handleUpnpAction))
+	s.mux.HandleFunc("POST /api/upnp/install", s.requireAuth(s.handleUpnpInstall))
+	s.mux.HandleFunc("POST /api/upnp/uninstall", s.requireAuth(s.handleUpnpUninstall))
+	s.mux.HandleFunc("POST /api/upnp/rule", s.requireAuth(s.handleUpnpRuleAdd))
+	s.mux.HandleFunc("DELETE /api/upnp/rule", s.requireAuth(s.handleUpnpRuleDelete))
 	s.mux.HandleFunc("GET /api/sqm", s.requireAuth(s.handleSQMGet))
 	s.mux.HandleFunc("POST /api/sqm", s.requireAuth(s.handleSQMSet))
 	s.mux.HandleFunc("POST /api/sqm/test", s.requireAuth(s.handleBufferbloatTest))
@@ -1083,6 +1090,86 @@ func (s *Server) handleBanipListDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	probe, rolledBack, err := modules.SetBanipListEntry(banipListName(r), req.Entry, true)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleUpnpGet(w http.ResponseWriter, _ *http.Request) {
+	// No cache: the probe is two cheap forks (uci show + lease file read).
+	writeJSON(w, modules.ProbeUpnp())
+}
+
+func (s *Server) handleUpnpStatus(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeUpnpStatus())
+}
+
+type upnpActionRequest struct {
+	Action string `json:"action"`
+}
+
+func (s *Server) handleUpnpAction(w http.ResponseWriter, r *http.Request) {
+	var req upnpActionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.UpnpAction(req.Action)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+type upnpInstallRequest struct {
+	Confirm bool `json:"confirm"`
+}
+
+func (s *Server) handleUpnpInstall(w http.ResponseWriter, r *http.Request) {
+	var req upnpInstallRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, err := modules.InstallUpnp(req.Confirm)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, probe)
+}
+
+func (s *Server) handleUpnpUninstall(w http.ResponseWriter, r *http.Request) {
+	var req upnpInstallRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, err := modules.UninstallUpnp(req.Confirm)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, probe)
+}
+
+type upnpRuleRequest struct {
+	modules.UpnpRuleConfig
+	Section string `json:"section"`
+}
+
+func (s *Server) handleUpnpRuleAdd(w http.ResponseWriter, r *http.Request) {
+	var req upnpRuleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetUpnpRule(true, req.UpnpRuleConfig, "")
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+func (s *Server) handleUpnpRuleDelete(w http.ResponseWriter, r *http.Request) {
+	var req upnpRuleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.SetUpnpRule(false, modules.UpnpRuleConfig{}, req.Section)
 	writeModuleResult(w, probe, rolledBack, err)
 }
 

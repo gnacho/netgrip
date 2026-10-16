@@ -921,6 +921,57 @@ export interface BanipStatus {
   applicable: boolean;
 }
 
+// UPnP / NAT-PMP (#448). miniupnpd owns its nft table; NetGrip reads UCI + the
+// lease file only. Mappings are read-only (owned by the requesting client).
+export interface UpnpLease {
+  proto: "TCP" | "UDP";
+  ext_port: number;
+  int_addr: string;
+  int_port: number;
+  /** seconds remaining; 0 = no expiry */
+  lease_time: number;
+  desc: string;
+}
+
+/** One perm_rule (ACL) entry. */
+export interface UpnpRule {
+  section: string;
+  action: "allow" | "deny";
+  int_addr: string;
+  int_ports: string;
+  ext_ports: string;
+  comment: string;
+  managed: boolean;
+}
+
+export interface UpnpProbe {
+  installed: boolean;
+  enabled: boolean;
+  running: boolean;
+  applicable: boolean;
+  secure_mode: boolean;
+  natpmp: boolean;
+  upnp: boolean;
+  lease_file: string;
+  leases: UpnpLease[];
+  rules: UpnpRule[];
+}
+
+export interface UpnpRuleConfig {
+  action: "allow" | "deny";
+  int_addr: string;
+  int_ports?: string;
+  ext_ports?: string;
+  comment?: string;
+}
+
+export interface UpnpStatus {
+  installed: boolean;
+  enabled: boolean;
+  running: boolean;
+  applicable: boolean;
+}
+
 export interface FWZone {
   name: string;
   input: string;
