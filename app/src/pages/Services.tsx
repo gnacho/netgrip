@@ -7,7 +7,6 @@ import { TailscaleCard } from "../components/services/TailscaleCard";
 import { DdnsCard } from "../components/services/DdnsCard";
 import { SqmCard } from "../components/services/SqmCard";
 import { NlbwmonCard } from "../components/services/NlbwmonCard";
-import { FirewallCard } from "../components/services/FirewallCard";
 import { AdguardCard } from "../components/services/AdguardCard";
 import { LanServicesCard } from "../components/services/LanServicesCard";
 import { BanipCard } from "../components/services/BanipCard";
@@ -53,7 +52,6 @@ export function Services({ wg, onWgChange, ddns, onDdnsChange, sqm, onSqmChange,
         )}
         <AdguardCard index={0} />
         {!apMode && <NlbwmonCard index={0} />}
-        {!apMode && <FirewallCard index={0} />}
         {!apMode && <BanipCard index={0} onNavigate={onNavigate} />}
       </section>
 

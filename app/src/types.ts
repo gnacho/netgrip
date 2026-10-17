@@ -984,26 +984,39 @@ export interface FWZone {
 export interface FWRule {
   name: string;
   section: string;
-  src: string;
-  dest: string;
   proto: string;
-  dest_port: string;
+  src_ip?: string;
+  dest_ip?: string;
+  src_port?: string;
+  dest_port?: string;
   target: string;
+  start_time?: string;
+  stop_time?: string;
+  weekdays?: string;
+  utc_time?: boolean;
+  enabled: boolean;
+  managed: boolean;
 }
 
 export interface FirewallProbe {
   applicable: boolean;
   zones: FWZone[];
   rules: FWRule[];
+  mgmt_cidr?: string;
 }
 
 export interface FirewallRuleAdd {
   name: string;
-  src: string;
-  dest: string;
   proto: string;
-  dest_port: string;
+  src_ip?: string;
+  dest_ip?: string;
+  src_port?: string;
+  dest_port?: string;
   target: string;
+  start_time?: string;
+  stop_time?: string;
+  weekdays?: string;
+  utc_time?: boolean;
 }
 
 export interface Template {

@@ -509,12 +509,17 @@ export const demoNlbwmon: T.NlbwmonProbe = {
 
 export const demoFirewall: T.FirewallProbe = {
   applicable: true,
+  mgmt_cidr: "192.168.1.0/24",
   zones: [
     { name: "lan", input: "ACCEPT", output: "ACCEPT", forward: "ACCEPT", network: ["lan"], masq: false },
     { name: "wan", input: "REJECT", output: "ACCEPT", forward: "REJECT", network: ["wan"], masq: true },
     { name: "guest", input: "REJECT", output: "ACCEPT", forward: "REJECT", network: ["guest"], masq: false },
   ],
-  rules: [],
+  rules: [
+    { name: "Bloquear la tele por la noche", section: "netgrip_fw_1", proto: "tcp", src_ip: "192.168.1.50", dest_port: "80-443", target: "REJECT", start_time: "22:00", stop_time: "07:00", weekdays: "Mon Tue Wed Thu Fri Sun", enabled: true, managed: true },
+    { name: "Impresora sin salida a Internet", section: "netgrip_fw_2", proto: "", src_ip: "192.168.1.60", target: "DROP", enabled: true, managed: true },
+    { name: "Allow-DHCP-Renew", section: "allow-dhcp", proto: "udp", dest_port: "68", target: "ACCEPT", enabled: true, managed: false },
+  ],
 };
 
 // Mismos datos que internal/modules/templates.go (ListTemplates), para que el

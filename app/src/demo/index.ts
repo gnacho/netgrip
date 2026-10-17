@@ -509,7 +509,8 @@ export const demoApi: typeof api = {
   },
   firewall: () => get(state.firewall),
   addFirewallRule: async (rule) => {
-    state.firewall.rules.push({ section: `rule_${state.firewall.rules.length}`, ...rule });
+    const n = state.firewall.rules.filter((r) => r.managed).length + 1;
+    state.firewall.rules.push({ section: `netgrip_fw_${n}`, managed: true, enabled: true, ...rule });
     return write(state.firewall);
   },
   deleteFirewallRule: async (section) => {
