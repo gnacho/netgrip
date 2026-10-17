@@ -22,6 +22,36 @@ function generateKey(): string {
   return Array.from(buf, (n) => chars[n % chars.length]).join("");
 }
 
+const bandSuffix = (band: string) => (band === "5g" ? "-5g" : band === "6g" ? "-6g" : "");
+
+/**
+ * Unchecking the unify toggle only separates the bands when their names end
+ * up different: grouping is derived from SSID equality (#541). When every
+ * per-band field still holds the same name, suggest one per band (base for
+ * 2.4 GHz, base-5g/-6g for the rest), avoiding names already used by other
+ * networks on the device. Edits made by the user are never touched.
+ */
+function suggestBandNames(
+  current: Record<string, string>,
+  group: WifiUI[],
+  main: WifiUI[],
+): Record<string, string> {
+  if (new Set(Object.values(current).map((v) => v.trim())).size > 1) return current;
+  const base = (group[0]?.ssid ?? "").trim();
+  const taken = new Set(
+    main.filter((m) => !group.some((g) => g.section === m.section)).map((m) => m.ssid),
+  );
+  const out: Record<string, string> = { ...current };
+  for (const g of group) {
+    let name = (base + bandSuffix(g.band)).slice(0, 32);
+    if (name !== base && (taken.has(name) || group.some((o) => o.section !== g.section && (out[o.section] ?? o.ssid) === name))) {
+      name = (name + "-2").slice(0, 32);
+    }
+    out[g.section] = name;
+  }
+  return out;
+}
+
 /**
  * Modal de edición WiFi (wifi.md §2): nombre, seguridad segmentada, clave con
  * generador, red oculta, emisión de la banda y aviso de reinicio.
@@ -141,7 +171,10 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
             title={t("wifi.unifyBands")}
             description={t("wifi.unifyBandsDesc")}
             checked={unify}
-            onChange={setUnify}
+            onChange={(checked) => {
+              setUnify(checked);
+              if (!checked) setBandSsids((s) => suggestBandNames(s, group, main));
+            }}
           />
         )}
 
@@ -165,7 +198,7 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
           </Field>
         )}
 
-        {sameBandNames && <Banner tone="info">{t("wifi.sameNamesWarn")}</Banner>}
+        {sameBandNames && <Banner tone="warn">{t("wifi.sameNamesWarn")}</Banner>}
 
         <Field label={t("wifi.encryption")} hint={t("wifi.securityCaption")}>
           <SegmentedControl
