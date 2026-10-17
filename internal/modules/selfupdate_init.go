@@ -43,8 +43,24 @@ const initMarker = "# netgrip init - managed"
 // t.TempDir() directory.
 var initScriptPath = "/etc/init.d/netgrip"
 
+// openwrtReleasePath gates the startup sync: without it the process is not
+// on a router (dev machine, demo mode) and there is nothing to heal.
+var openwrtReleasePath = "/etc/openwrt_release"
+
 func canonicalInitScript() ([]byte, error) {
 	return initScriptFS.ReadFile("selfupdate_init/netgrip.init")
+}
+
+// SyncInitScriptAtBoot converges the init script on every process start,
+// not only before a self-update restart: a device that only ever receives
+// manually copied binaries would otherwise keep a pre-HTTPS script forever
+// and its UCI https toggle would stay a no-op (#544). Same safety rules as
+// the self-update path: customized scripts are never touched.
+func SyncInitScriptAtBoot(currentVersion string) {
+	if _, err := os.Stat(openwrtReleasePath); err != nil {
+		return
+	}
+	ensureInitScript("startup", currentVersion)
 }
 
 // syncInitScript refreshes the init script before the post-update restart.
@@ -52,9 +68,13 @@ func canonicalInitScript() ([]byte, error) {
 // binary is already in place; the mismatch only means newer UCI-driven
 // flags (e.g. HTTPS) stay unavailable until fixed.
 func syncInitScript(currentVersion string) {
+	ensureInitScript("self-update", currentVersion)
+}
+
+func ensureInitScript(reason, currentVersion string) {
 	desired, err := canonicalInitScript()
 	if err != nil {
-		log.Printf("netgrip: self-update: embedded init script unreadable: %v", err)
+		log.Printf("netgrip: %s: embedded init script unreadable: %v", reason, err)
 		return
 	}
 
@@ -62,19 +82,19 @@ func syncInitScript(currentVersion string) {
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		if err := writeInitScript(desired); err != nil {
-			log.Printf("netgrip: self-update: install init script: %v", err)
+			log.Printf("netgrip: %s: install init script: %v", reason, err)
 			return
 		}
-		log.Printf("netgrip: self-update: installed missing init script %s", initScriptPath)
+		log.Printf("netgrip: %s: installed missing init script %s", reason, initScriptPath)
 	case err != nil:
-		log.Printf("netgrip: self-update: read init script: %v", err)
+		log.Printf("netgrip: %s: read init script: %v", reason, err)
 	case bytes.Equal(existing, desired):
 		// Already the current script; do not rewrite so the mtime stays.
 	case !strings.Contains(string(existing), initMarker) && !isPackagedLegacyScript(existing):
-		log.Printf("netgrip: self-update: %s has no %q marker and matches no packaged variant, leaving the customized script untouched",
-			initScriptPath, initMarker)
+		log.Printf("netgrip: %s: %s has no %q marker and matches no packaged variant, leaving the customized script untouched",
+			reason, initScriptPath, initMarker)
 	default:
-		rewriteInitScript(existing, desired, currentVersion)
+		rewriteInitScript(existing, desired, reason, currentVersion)
 	}
 }
 
@@ -104,17 +124,17 @@ func isPackagedLegacyScript(content []byte) bool {
 
 // rewriteInitScript replaces the init script with the canonical one, keeping
 // a versioned backup of the previous content.
-func rewriteInitScript(existing, desired []byte, currentVersion string) {
+func rewriteInitScript(existing, desired []byte, reason, currentVersion string) {
 	backup := fmt.Sprintf("%s.bak-%s", initScriptPath, strings.TrimPrefix(currentVersion, "v"))
 	if err := os.WriteFile(backup, existing, 0755); err != nil {
-		log.Printf("netgrip: self-update: backup init script: %v", err)
+		log.Printf("netgrip: %s: backup init script: %v", reason, err)
 		return
 	}
 	if err := writeInitScript(desired); err != nil {
-		log.Printf("netgrip: self-update: update init script: %v", err)
+		log.Printf("netgrip: %s: update init script: %v", reason, err)
 		return
 	}
-	log.Printf("netgrip: self-update: init script updated (backup at %s)", backup)
+	log.Printf("netgrip: %s: init script updated (backup at %s)", reason, backup)
 }
 
 func writeInitScript(content []byte) error {

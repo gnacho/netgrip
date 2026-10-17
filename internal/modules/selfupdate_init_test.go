@@ -215,3 +215,84 @@ func TestSelfUpdateEmbeddedInitMatchesPackaged(t *testing.T) {
 		t.Errorf("embedded init script diverged from deploy/openwrt/netgrip/files/netgrip.init;\nrefresh internal/modules/selfupdate_init/netgrip.init")
 	}
 }
+
+// useTempOpenWrtRelease points openwrtReleasePath at a file inside a
+// t.TempDir() (created only when present) and restores it on cleanup.
+func useTempOpenWrtRelease(t *testing.T, present bool) {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "openwrt_release")
+	if present {
+		if err := os.WriteFile(path, []byte("DISTRIB_ID='OpenWrt'\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	old := openwrtReleasePath
+	openwrtReleasePath = path
+	t.Cleanup(func() { openwrtReleasePath = old })
+}
+
+// TestBootSyncHealsLegacyPackagedScript: the startup sync behaves like the
+// self-update one, healing a pristine legacy packaged script so a device
+// that only ever got manually copied binaries converges too (#544).
+func TestBootSyncHealsLegacyPackagedScript(t *testing.T) {
+	useTempOpenWrtRelease(t, true)
+	path := useTempInitScript(t)
+
+	entries, err := legacyInitFS.ReadDir("selfupdate_init/legacy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) == 0 {
+		t.Fatal("no legacy init scripts embedded")
+	}
+	legacy, err := legacyInitFS.ReadFile("selfupdate_init/legacy/" + entries[0].Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, legacy, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	SyncInitScriptAtBoot("v0.76.99")
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := canonicalInitScript()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("startup sync did not heal the legacy packaged script:\n--- got ---\n%s", got)
+	}
+}
+
+// TestBootSyncSkipsOffRouter: without /etc/openwrt_release (dev machine,
+// demo mode) the startup sync must not create or rewrite anything.
+func TestBootSyncSkipsOffRouter(t *testing.T) {
+	useTempOpenWrtRelease(t, false)
+	path := useTempInitScript(t)
+
+	legacy, err := legacyInitFS.ReadFile("selfupdate_init/legacy/" + "netgrip-v1.init")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, legacy, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	SyncInitScriptAtBoot("v0.76.99")
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, legacy) {
+		t.Errorf("off-router startup sync rewrote the init script")
+	}
+	if _, err := os.Stat(path + ".bak-0.76.99"); !os.IsNotExist(err) {
+		t.Errorf("off-router startup sync created a backup: %v", err)
+	}
+}

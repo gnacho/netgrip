@@ -41,6 +41,12 @@ func main() {
 		return
 	}
 
+	// Converge the init script on every start, not only on self-update:
+	// a device updated only by manually copying binaries kept the
+	// pre-HTTPS init forever and its UCI https toggle stayed a no-op
+	// (#544). No-op off-router (guarded by /etc/openwrt_release).
+	modules.SyncInitScriptAtBoot(version)
+
 	// The flag always has a value (its default), so only treat it as an
 	// explicit override when it differs from the default endpoint.
 	explicit := ""
