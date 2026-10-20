@@ -622,14 +622,30 @@ func statusCallbackGen(gen int) func(runtime.Status) {
 // NetGrip se actualiza a sí mismo con su propio updater (sus releases de
 // GitHub, sha verificado); el servidor solo dispara. Si ya está en la última,
 // no hace nada (el guard de downgrades vive en el self-update).
+// #549: el resultado se reporta de vuelta a NetPulse (upgrade-progress /
+// upgrade-result con el token del agente): el self-update corre detached y
+// sin este reporte la acción parecía un no-op desde la UI de NetPulse, que
+// nunca recibía ni pasos ni el motivo real de un fallo (p. ej. sin espacio).
 func netPulseUpgradeTrigger(data string) {
 	check := CheckSelfUpdate(npVersion)
 	if check == nil || !check.Available {
 		log.Printf("netpulse: upgrade solicitado por el servidor: ya en la última (%s)", npVersion)
 		return
 	}
+	cfg, err := ReadNetPulseConfig(prodNetPulsePaths().env)
+	if err != nil {
+		cfg = NetPulseConfig{}
+	}
+	setSelfUpdateOutcomeHook(func(ok bool, errMsg string) {
+		npReportUpgradeResult(cfg, ok, errMsg)
+	})
+	npReportUpgradeProgress(cfg, "downloading", 0)
 	log.Printf("netpulse: upgrade solicitado por el servidor → %s", check.Latest)
 	if err := StartSelfUpdate(npVersion); err != nil {
+		// Consume el hook: el arranque no llegó a producir un resultado
+		// terminal (p. ej. "update already in progress") y NetPulse debe
+		// ver el fallo en vez de quedarse esperando.
+		reportSelfUpdateOutcome(false, err.Error())
 		log.Printf("netpulse: self-update falló: %v", err)
 	}
 }

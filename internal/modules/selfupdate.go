@@ -97,6 +97,36 @@ var (
 	updateCheck  *SelfUpdateCheck
 )
 
+// selfUpdateOutcomeHook, when armed, receives the terminal outcome of the
+// next self-update so a remote trigger (NetPulse's SSE "upgrade" command,
+// #549) can show real progress instead of a silent hang. One-shot: the
+// hook is consumed by the first terminal state (success before the
+// restart, or any failure) and self-updates started from the panel or the
+// scheduler never arm it, so they never report anywhere.
+var (
+	outcomeHookMu         sync.Mutex
+	selfUpdateOutcomeHook func(ok bool, errMsg string)
+)
+
+func setSelfUpdateOutcomeHook(f func(ok bool, errMsg string)) {
+	outcomeHookMu.Lock()
+	defer outcomeHookMu.Unlock()
+	selfUpdateOutcomeHook = f
+}
+
+// reportSelfUpdateOutcome entrega el resultado terminal al hook armado (si
+// hay) y lo consume. Se llama desde el único punto de cada final: el path
+// de éxito de runSelfUpdate (antes del restart) y failUpdate.
+func reportSelfUpdateOutcome(ok bool, errMsg string) {
+	outcomeHookMu.Lock()
+	f := selfUpdateOutcomeHook
+	selfUpdateOutcomeHook = nil
+	outcomeHookMu.Unlock()
+	if f != nil {
+		f(ok, errMsg)
+	}
+}
+
 func GetSelfUpdateStatus() SelfUpdateStatus {
 	updateMu.Lock()
 	defer updateMu.Unlock()
@@ -110,6 +140,7 @@ func failUpdate(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	log.Printf("netgrip: self-update failed: %s", msg)
 	setUpdateStatus("error", 0, msg)
+	reportSelfUpdateOutcome(false, msg)
 	notifyAll("NetGrip",
 		"🔴 <b>NetGrip</b>\nSelf-update failed: "+htmlEsc(msg),
 		"🔴 NetGrip\nSelf-update failed: "+msg,
@@ -301,6 +332,7 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 	syncInitScript(currentVersion)
 
 	setUpdateStatus("restarting", 100, "")
+	reportSelfUpdateOutcome(true, "")
 	exec.Command("/etc/init.d/netgrip", "restart").Start()
 }
 
