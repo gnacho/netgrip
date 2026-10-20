@@ -369,11 +369,26 @@ func installSelfUpdate(tmpPath, currentBin string) error {
 	}
 
 	dir := filepath.Dir(currentBin)
-	if !spaceFor(dir, uint64(info.Size())) {
+
+	// The current binary is unlinked below before the new copy lands, so
+	// its space counts towards the budget; without it the pre-check
+	// demands the whole new binary from free space alone and every update
+	// on a tiny overlay fails even though the swap itself would fit (#547).
+	// Apparent size is used on purpose: on compressing filesystems (ubifs)
+	// it overestimates what the unlink actually frees, which is the safe
+	// direction for a pre-check (a false "not enough" only fails the
+	// update; a false "enough" defers ENOSPC to the copy, which is already
+	// handled gracefully).
+	var freed uint64
+	if cur, err := os.Stat(currentBin); err == nil && cur.Size() > 0 {
+		freed = uint64(cur.Size())
+	}
+
+	if !spaceFor(dir, uint64(info.Size()), freed) {
 		// Best effort: drop the package cache to make room on tiny
 		// overlays. No-op where the directory does not exist.
 		os.RemoveAll("/etc/apk/cache")
-		if !spaceFor(dir, uint64(info.Size())) {
+		if !spaceFor(dir, uint64(info.Size()), freed) {
 			return fmt.Errorf("not enough space on %s for the new binary (need ~%d bytes)", dir, info.Size())
 		}
 	}
@@ -390,14 +405,16 @@ func installSelfUpdate(tmpPath, currentBin string) error {
 }
 
 // spaceFor reports whether dir has at least needed bytes available plus a
-// small headroom. Unknown filesystems (statfs failure) are treated as
-// having room so the update is never blocked by an exotic mount.
-func spaceFor(dir string, needed uint64) bool {
+// small headroom, counting freed bytes that the install is about to
+// release (the current binary being replaced). Unknown filesystems (statfs
+// failure) are treated as having room so the update is never blocked by an
+// exotic mount.
+func spaceFor(dir string, needed, freed uint64) bool {
 	var st syscall.Statfs_t
 	if err := syscall.Statfs(dir, &st); err != nil || st.Bsize <= 0 {
 		return true
 	}
-	avail := uint64(st.Bavail) * uint64(st.Bsize)
+	avail := uint64(st.Bavail)*uint64(st.Bsize) + freed
 	return avail >= needed+(1<<20)
 }
 
