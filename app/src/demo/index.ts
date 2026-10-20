@@ -717,6 +717,8 @@ export const demoApi: typeof api = {
   setStormControl: async () => { await wait(800, 1500); return { status: "ok" }; },
   setStormControlAll: async () => { await wait(800, 1500); return { status: "ok" }; },
   mirror: () => get(D.demoMirror),
+  // El demo no deduce boca de gestion: el chasis se muestra sin badge.
+  managementPort: () => get({ port: "" }),
   setMirror: async () => { await wait(800, 1500); return { status: "ok" }; },
   rateLimit: () => get(D.demoRate),
   setRateLimit: async () => { await wait(800, 1500); return { status: "ok" }; },

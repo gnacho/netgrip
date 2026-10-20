@@ -314,6 +314,7 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("GET /api/storm", s.requireAuth(s.handleStormGet))
 	s.mux.HandleFunc("POST /api/storm", s.requireAuth(s.handleStormSet))
 	s.mux.HandleFunc("GET /api/mirror", s.requireAuth(s.handleMirrorGet))
+	s.mux.HandleFunc("GET /api/management-port", s.requireAuth(s.handleManagementPortGet))
 	s.mux.HandleFunc("POST /api/mirror", s.requireAuth(s.handleMirrorSet))
 	s.mux.HandleFunc("GET /api/ratelimit", s.requireAuth(s.handleRateGet))
 	s.mux.HandleFunc("POST /api/ratelimit", s.requireAuth(s.handleRateSet))
@@ -3011,6 +3012,13 @@ func (s *Server) handleStormSet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleMirrorGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, modules.ProbeMirror())
+}
+
+// handleManagementPortGet sirve solo la boca de gestion deducida, barato
+// frente al probe de espejo completo: el badge del chasis lo pide de forma
+// perezosa tras el primer pintado (#543).
+func (s *Server) handleManagementPortGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeManagementPort())
 }
 
 func (s *Server) handleMirrorSet(w http.ResponseWriter, r *http.Request) {

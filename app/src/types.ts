@@ -1507,6 +1507,12 @@ export interface MirrorProbe {
   sources: string[];
 }
 
+/** Boca de gestion deducida para el badge del chasis (#543): port vacio
+ * cuando la heuristica (gateway -> ARP -> FDB) no ha podido deducirla. */
+export interface ManagementPortProbe {
+  port: string;
+}
+
 /** Banda ancha por boca (#443): limites in/out en % del ancho de enlace. */
 export interface RatePort {
   port: string;

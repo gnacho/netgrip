@@ -1510,6 +1510,7 @@ export default {
     legendReduced: "Reduced speed",
     legendFree: "Free",
     legendPoe: "PoE available",
+    legendMgmt: "Management port (this panel is reached through it)",
     free: "Free",
     busy: "In use",
     unmanagedN: "Unmanaged sw. ({{count}})",

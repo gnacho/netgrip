@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Cable, Pencil, Zap } from "lucide-react";
+import { Cable, Lock, Pencil, Zap } from "lucide-react";
 import { api } from "../../api";
 import type { EthPort, PhysPortsProbe, SwitchPort, SwitchProbe } from "../../types";
 import {
@@ -44,6 +44,19 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
   // de una boca (52 ethtool tardan un par de segundos).
   const [phys, setPhys] = useState<PhysPortsProbe>();
   const physRequested = useRef(false);
+
+  // Boca de gestion (#543): badge con candado en la baldosa. Se pide de
+  // forma perezosa tras montar: la deteccion (gateway -> ARP -> FDB) tarda
+  // unos cientos de ms en switches densos y no debe retrasar el primer
+  // pintado. Sin probe o sin deducir: no hay badge, el chasis queda igual.
+  const [mgmtPort, setMgmtPort] = useState<string>();
+  useEffect(() => {
+    let alive = true;
+    api.managementPort()
+      .then((r) => { if (alive && r.port) setMgmtPort(r.port); })
+      .catch(() => { /* sin dato, sin badge */ });
+    return () => { alive = false; };
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -170,13 +183,14 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
                 : p.devices.length > 1 ? t("ports.unmanagedN", { count: p.devices.length })
                 : t("ports.busy");
               const tier = speedTier(p);
+              const isMgmt = mgmtPort === p.name;
               const led = adminDown ? "bg-danger"
                 : !p.up ? "bg-border-strong"
                 : tier.tone === "ok" ? "bg-ok" : tier.tone === "warn" ? "bg-warn" : "bg-danger";
               return (
                 <button key={p.name} type="button"
                   onClick={() => setSelected(selected === p.name ? undefined : p.name)}
-                  title={p.up ? `${label} · ${p.speed_mbps >= 1000 ? `${p.speed_mbps / 1000} Gb/s` : `${p.speed_mbps} Mb/s`} · ${device}` : label}
+                  title={`${label}${isMgmt ? ` · ${t("ports.legendMgmt")}` : ""}${p.up ? ` · ${p.speed_mbps >= 1000 ? `${p.speed_mbps / 1000} Gb/s` : `${p.speed_mbps} Mb/s`} · ${device}` : ""}`}
                   className={`flex w-[68px] flex-col items-center gap-1 rounded-sm p-1 ring-focus transition-colors hover:bg-surface
                     ${selected === p.name ? "bg-surface shadow-card" : ""}`}>
                   {/* LEDs como en un RJ45 real: uno a cada extremo, alineados
@@ -197,6 +211,14 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
                       <Zap size={11} strokeWidth={2.5}
                         aria-label={t("ports.legendPoe")}
                         className={`absolute -top-1.5 -right-1.5 rounded-full bg-surface-2 p-px ${swp.poe_enabled ? "text-warn" : "text-faint"}`} />
+                    )}
+                    {/* Boca de gestion: el puerto por el que se alcanza
+                        este panel; no tocarla a ciegas con espejo/rate/STP.
+                        Esquina opuesta al badge PoE (#543). */}
+                    {isMgmt && (
+                      <Lock size={11} strokeWidth={2.5}
+                        aria-label={t("ports.legendMgmt")}
+                        className="absolute -top-1.5 -left-1.5 rounded-full bg-surface-2 p-px text-accent" />
                     )}
                   </span>
                   {/* Barras de velocidad: cuántas van encendidas y en qué
@@ -229,6 +251,9 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
             <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-border-strong" />{t("ports.legendFree")}</span>
             {anyPoe && (
               <span className="inline-flex items-center gap-1.5"><Zap size={11} strokeWidth={2.5} className="text-warn" />{t("ports.legendPoe")}</span>
+            )}
+            {mgmtPort && (
+              <span className="inline-flex items-center gap-1.5"><Lock size={11} strokeWidth={2.5} className="text-accent" />{t("ports.legendMgmt")}</span>
             )}
           </div>
 

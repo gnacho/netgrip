@@ -844,6 +844,8 @@ const realApi = {
     }),
   mirror: () =>
     request<import("./types").MirrorProbe>("/api/mirror"),
+  managementPort: () =>
+    request<import("./types").ManagementPortProbe>("/api/management-port"),
   setMirror: (monitor: string, sources: string[]) =>
     request<{ status: string }>("/api/mirror", {
       method: "POST",

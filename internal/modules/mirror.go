@@ -403,6 +403,22 @@ func managementPort() string {
 	return ""
 }
 
+// ManagementPortProbe expone la boca de gestion deducida para el badge
+// del chasis (#543): la heuristica completa (managementPort) sin el coste
+// del probe de espejo entero (tc filter show por boca). Port vacio cuando
+// no se ha podido deducir.
+type ManagementPortProbe struct {
+	Port string `json:"port"`
+}
+
+// ProbeManagementPort resuelve la boca de gestion: dos lecturas de /proc
+// y un brctl showmacs. La UI lo pide de forma perezosa tras pintar el
+// chasis, porque la deteccion puede tardar unos cientos de ms en
+// switches densos y no debe retrasar la primera pintada.
+func ProbeManagementPort() ManagementPortProbe {
+	return ManagementPortProbe{Port: managementPort()}
+}
+
 // defaultGatewayIP extrae la IP del gateway por defecto de /proc/net/route
 // (funcion pura, testeable). El kernel imprime las direcciones como el
 // valor big-endian en hex (%08X de la __be32): C0A80101 -> 192.168.1.1

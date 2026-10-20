@@ -1510,6 +1510,7 @@ export default {
     legendReduced: "A velocidad reducida",
     legendFree: "Libre",
     legendPoe: "PoE disponible",
+    legendMgmt: "Puerto de gestión (por aquí se alcanza este panel)",
     free: "Libre",
     busy: "En uso",
     unmanagedN: "Switch no gest. ({{count}})",
