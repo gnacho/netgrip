@@ -503,19 +503,20 @@ func applyNetPulseAgent(p netpulsePaths) {
 	}
 
 	opts := runtime.Options{
-		Server:       cfg.Server,
-		Token:        cfg.Token,
-		Slug:         cfg.Slug,
-		ServerFP:     cfg.ServerFP,
-		Interval:     parseNetPulseInterval(cfg.Interval),
-		ScanInterval: parseNetPulseScanInterval(cfg.ScanInterval),
-		WanTarget:    cfg.WanTarget,
-		GwTarget:     cfg.GwTarget,
-		EnvFile:      p.env,
-		Version:      version,
-		Kind:         "netgrip",
-		SelfMQTT:     netPulseSelfMQTT,
-		OnUpgrade:    netPulseUpgradeTrigger,
+		Server:         cfg.Server,
+		Token:          cfg.Token,
+		Slug:           cfg.Slug,
+		ServerFP:       cfg.ServerFP,
+		Interval:       parseNetPulseInterval(cfg.Interval),
+		ScanInterval:   parseNetPulseScanInterval(cfg.ScanInterval),
+		WanTarget:      cfg.WanTarget,
+		GwTarget:       cfg.GwTarget,
+		EnvFile:        p.env,
+		Version:        version,
+		Kind:           "netgrip",
+		SelfMQTT:       netPulseSelfMQTT,
+		OnUpgrade:      netPulseUpgradeTrigger,
+		OnConfigBackup: netPulseConfigBackupTrigger,
 	}
 
 	ctx, cancel := context.WithCancel(base)
@@ -616,6 +617,21 @@ func statusCallbackGen(gen int) func(runtime.Status) {
 		}
 		npMu.Unlock()
 	}
+}
+
+// netPulseConfigBackupTrigger: evento SSE "config_backup" del servidor
+// NetPulse (netpulse#1462 / netgrip#553): snapshot standalone de la config,
+// independiente del flujo de firmware. Crea un snapshot fresco con el
+// módulo propio y lo empuja al endpoint genérico de backups. Best-effort:
+// los fallos van a log; NetPulse descubre el resultado al recibir (o no) la
+// subida.
+func netPulseConfigBackupTrigger(_ string) {
+	res := CreateAndPushSnapshot()
+	if !res.Ok {
+		log.Printf("netpulse: config_backup solicitado por el servidor falló: %s", res.Error)
+		return
+	}
+	log.Printf("netpulse: config_backup solicitado por el servidor → snapshot %s subido", res.SnapshotID)
 }
 
 // netPulseUpgradeTrigger: evento SSE "upgrade" del servidor NetPulse (#363):

@@ -47,6 +47,23 @@ func SetPushConfig(cfg PushConfig) error {
 	return os.WriteFile(pushConfigPath, data, 0600)
 }
 
+// CreateAndPushSnapshot (#553): crea un snapshot fresco y lo empuja a
+// NetPulse por el camino existente. Es la respuesta al evento SSE
+// "config_backup" de netpulse#1462: un backup standalone, independiente del
+// flujo de upgrade. Devuelve el resultado del push (o del propio create).
+func CreateAndPushSnapshot() PushResult {
+	if _, err := createSnapshotFn(); err != nil {
+		return PushResult{Error: fmt.Sprintf("create snapshot: %s", err)}
+	}
+	return pushLatestFn()
+}
+
+// Inyectables en tests (mismo patrón que netPulseMQTTEnvPath).
+var (
+	createSnapshotFn = CreateSnapshot
+	pushLatestFn     = PushLatestSnapshot
+)
+
 func PushLatestSnapshot() PushResult {
 	cfg := GetPushConfig()
 	if cfg.ServerURL == "" || cfg.RouterID == "" {
