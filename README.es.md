@@ -128,7 +128,8 @@ Se configura desde la tarjeta MQTT de la página Sistema, o escribiendo
 `/etc/netgrip/mqtt.env` (permisos 600). La tarjeta prueba la conexión antes
 de guardar, y un servidor de NetPulse puede enviarle la configuración del
 broker al router (aplicada con el mismo snapshot-y-rollback que cualquier
-otro cambio). Sin TLS: pensado para un broker de tu red local. No se
+otro cambio). Con TLS: el certificado se verifica contra las raíces del
+sistema, con una casilla para aceptar uno autofirmado. No se
 publica nada hasta que lo actives.
 
 **Asistentes de IA (MCP), si los quieres.** NetGrip puede exponer un

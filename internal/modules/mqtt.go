@@ -10,6 +10,7 @@ package modules
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,6 +28,7 @@ const (
 	mqttEnvFile = "/etc/netgrip/mqtt.env"
 
 	mqttDefaultPort     = 1883
+	mqttDefaultTLSPort  = 8883
 	mqttDefaultInterval = 60 // seconds between state publishes
 	mqttInitialBackoff  = 5 * time.Second
 	mqttMaxBackoff      = 2 * time.Minute
@@ -35,13 +37,15 @@ const (
 
 // MQTTConfig is the persisted configuration (mqtt.env).
 type MQTTConfig struct {
-	Enabled  bool   `json:"enabled"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	User     string `json:"user"`
-	Pass     string `json:"pass"`
-	NodeID   string `json:"node_id"`
-	Interval int    `json:"interval"` // seconds between state publishes
+	Enabled     bool   `json:"enabled"`
+	Host        string `json:"host"`
+	Port        int    `json:"port"`
+	User        string `json:"user"`
+	Pass        string `json:"pass"`
+	NodeID      string `json:"node_id"`
+	Interval    int    `json:"interval"` // seconds between state publishes
+	TLS         bool   `json:"tls"`
+	TLSInsecure bool   `json:"tls_insecure"`
 }
 
 // MQTTInfo is the read-only view for the API. The password is never returned.
@@ -53,6 +57,8 @@ type MQTTInfo struct {
 	User        string    `json:"user"`
 	NodeID      string    `json:"node_id"`
 	Interval    int       `json:"interval"`
+	TLS         bool      `json:"tls"`
+	TLSInsecure bool      `json:"tls_insecure"`
 	Connected   bool      `json:"connected"`
 	LastError   string    `json:"last_error,omitempty"`
 	LastPublish time.Time `json:"last_publish,omitempty"`
@@ -109,18 +115,22 @@ func ReadMQTTConfig(path string) (MQTTConfig, error) {
 	}
 	kv := parseEnvFile(string(data))
 	cfg := MQTTConfig{
-		Enabled:  kv["MQTT_ENABLED"] == "1",
-		Host:     kv["MQTT_HOST"],
-		Port:     mqttDefaultPort,
-		User:     kv["MQTT_USER"],
-		Pass:     kv["MQTT_PASS"],
-		NodeID:   kv["MQTT_NODE_ID"],
-		Interval: mqttDefaultInterval,
+		Enabled:     kv["MQTT_ENABLED"] == "1",
+		Host:        kv["MQTT_HOST"],
+		Port:        mqttDefaultPort,
+		User:        kv["MQTT_USER"],
+		Pass:        kv["MQTT_PASS"],
+		NodeID:      kv["MQTT_NODE_ID"],
+		Interval:    mqttDefaultInterval,
+		TLS:         kv["MQTT_TLS"] == "1",
+		TLSInsecure: kv["MQTT_TLS_INSECURE"] == "1",
 	}
 	if v := kv["MQTT_PORT"]; v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			cfg.Port = n
 		}
+	} else if cfg.TLS {
+		cfg.Port = mqttDefaultTLSPort
 	}
 	if v := kv["MQTT_INTERVAL"]; v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
@@ -157,6 +167,12 @@ func writeMQTTEnv(path string, cfg MQTTConfig) error {
 	if cfg.Interval > 0 {
 		b.WriteString("MQTT_INTERVAL=" + strconv.Itoa(cfg.Interval) + "\n")
 	}
+	if cfg.TLS {
+		b.WriteString("MQTT_TLS=1\n")
+		if cfg.TLSInsecure {
+			b.WriteString("MQTT_TLS_INSECURE=1\n")
+		}
+	}
 	return os.WriteFile(path, []byte(b.String()), 0o600)
 }
 
@@ -174,6 +190,15 @@ func setMQTTConfigAt(path string, cfg MQTTConfig) error {
 	}
 	if cfg.Enabled && strings.TrimSpace(cfg.Host) == "" {
 		return fmt.Errorf("host is required to enable MQTT")
+	}
+	if cfg.Port <= 0 {
+		cfg.Port = mqttDefaultPort
+		if cfg.TLS {
+			cfg.Port = mqttDefaultTLSPort
+		}
+	}
+	if !cfg.TLS {
+		cfg.TLSInsecure = false
 	}
 	if err := writeMQTTEnv(path, cfg); err != nil {
 		return err
@@ -202,6 +227,8 @@ func MQTTInfoNow() MQTTInfo {
 	info.User = cfg.User
 	info.NodeID = mqttNodeID(cfg)
 	info.Interval = cfg.Interval
+	info.TLS = cfg.TLS
+	info.TLSInsecure = cfg.TLSInsecure
 	info.Configured = strings.TrimSpace(cfg.Host) != ""
 	return info
 }
@@ -295,8 +322,33 @@ func runMQTT(ctx context.Context, cfg MQTTConfig, node, version string) {
 	}
 }
 
+// mqttBrokerURL builds the dial URL. TLS keeps the configured port: 8883 is
+// only the default when no port was set.
+func mqttBrokerURL(cfg MQTTConfig) string {
+	scheme := "tcp"
+	if cfg.TLS {
+		scheme = "tls"
+	}
+	return fmt.Sprintf("%s://%s:%d", scheme, cfg.Host, cfg.Port)
+}
+
+// mqttTLSOption returns the client TLS config. Certificates are verified
+// against the system roots unless the user explicitly allowed a self-signed
+// one, the same trade-off as mosquitto_sub --insecure.
+func mqttTLSOption(cfg MQTTConfig) (mq.Option, bool) {
+	if !cfg.TLS {
+		return nil, false
+	}
+	tc := &tls.Config{MinVersion: tls.VersionTLS12}
+	if cfg.TLSInsecure {
+		// #nosec G402 -- explicit opt-in from the settings card.
+		tc.InsecureSkipVerify = true
+	}
+	return mq.WithTLS(tc), true
+}
+
 func mqttDial(ctx context.Context, cfg MQTTConfig, node, version string) (*mq.Client, error) {
-	addr := fmt.Sprintf("tcp://%s:%d", cfg.Host, cfg.Port)
+	addr := mqttBrokerURL(cfg)
 	opts := []mq.Option{
 		mq.WithProtocolVersion(mq.ProtocolV311),
 		mq.WithClientID("netgrip-" + node),
@@ -324,6 +376,9 @@ func mqttDial(ctx context.Context, cfg MQTTConfig, node, version string) (*mq.Cl
 		mq.WithSubscription(commandFilter(node), func(c *mq.Client, msg mq.Message) {
 			go handleMQTTCommand(c, node, version, msg)
 		}),
+	}
+	if opt, ok := mqttTLSOption(cfg); ok {
+		opts = append(opts, opt)
 	}
 	if cfg.User != "" {
 		opts = append(opts, mq.WithCredentials(cfg.User, cfg.Pass))

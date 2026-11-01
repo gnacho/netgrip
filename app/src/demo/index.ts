@@ -72,6 +72,8 @@ const state = {
     user: "netgrip",
     node_id: "garcia-gw",
     interval: 60,
+    tls: false,
+    tls_insecure: false,
   },
   nftqos: {
     applicable: true,
@@ -878,6 +880,8 @@ export const demoApi: typeof api = {
       user: cfg.user ?? state.mqtt.user,
       node_id: cfg.nodeId || state.mqtt.node_id,
       interval: cfg.interval || state.mqtt.interval,
+      tls: cfg.tls ?? state.mqtt.tls,
+      tls_insecure: cfg.tlsInsecure ?? state.mqtt.tls_insecure,
     };
     return {
       ...state.mqtt,

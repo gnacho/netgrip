@@ -27,6 +27,8 @@ export function MQTTSettings({ active = true, onStatus }: {
   const [nodeId, setNodeId] = useState("");
   const [intervalSec, setIntervalSec] = useState(60);
   const [enabled, setEnabled] = useState(false);
+  const [tls, setTls] = useState(false);
+  const [tlsInsecure, setTlsInsecure] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
 
@@ -41,6 +43,8 @@ export function MQTTSettings({ active = true, onStatus }: {
       setNodeId((prev) => (prev === "" ? s.node_id : prev));
       setIntervalSec((prev) => (prev === 60 ? s.interval : prev));
       setEnabled(s.enabled);
+      setTls(s.tls);
+      setTlsInsecure(s.tls_insecure);
       report(s);
     }).catch(() => {});
   };
@@ -63,7 +67,7 @@ export function MQTTSettings({ active = true, onStatus }: {
   const save = async () => {
     setSaving(true);
     try {
-      const s = await api.setMqtt({ enabled, host, port, user, pass, nodeId, interval: intervalSec });
+      const s = await api.setMqtt({ enabled, host, port, user, pass, nodeId, interval: intervalSec, tls, tlsInsecure });
       setState(s);
       setPass("");
       report(s);
@@ -80,7 +84,7 @@ export function MQTTSettings({ active = true, onStatus }: {
   const test = async () => {
     setTesting(true);
     try {
-      const r = await api.testMqtt({ enabled, host, port, user, pass, nodeId, interval: intervalSec });
+      const r = await api.testMqtt({ enabled, host, port, user, pass, nodeId, interval: intervalSec, tls, tlsInsecure });
       push(r.ok
         ? { tone: "ok", text: t("mqtt.testOk") }
         : { tone: "danger", text: r.error || t("mqtt.testFail") });
@@ -89,6 +93,18 @@ export function MQTTSettings({ active = true, onStatus }: {
     } finally {
       setTesting(false);
     }
+  };
+
+  // TLS swaps the conventional port when it is still the default: 8883 for
+  // TLS, 1883 for plain. Another port is left untouched.
+  const toggleTLS = (on: boolean) => {
+    setTls(on);
+    if (on) {
+      setPort((p) => (p === 1883 ? 8883 : p));
+      return;
+    }
+    setTlsInsecure(false);
+    setPort((p) => (p === 8883 ? 1883 : p));
   };
 
   const dotTone = !state?.enabled ? "muted" : state.connected ? "ok" : "danger";
@@ -106,6 +122,22 @@ export function MQTTSettings({ active = true, onStatus }: {
         checked={enabled}
         onChange={setEnabled}
       />
+
+      <SettingRow
+        title={t("mqtt.tls")}
+        description={t("mqtt.tlsHint")}
+        checked={tls}
+        onChange={toggleTLS}
+      />
+
+      {tls && (
+        <SettingRow
+          title={t("mqtt.tlsInsecure")}
+          description={t("mqtt.tlsInsecureHint")}
+          checked={tlsInsecure}
+          onChange={setTlsInsecure}
+        />
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
         <Field

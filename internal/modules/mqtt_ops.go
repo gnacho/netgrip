@@ -18,11 +18,14 @@ import (
 // un CONNECT y desconecta. Sirve para el botón "probar conexión" de la tarjeta
 // y para verificar un mqtt.configure antes de darlo por bueno.
 func mqttProbe(ctx context.Context, cfg MQTTConfig, node string) error {
-	addr := fmt.Sprintf("tcp://%s:%d", cfg.Host, cfg.Port)
+	addr := mqttBrokerURL(cfg)
 	opts := []mq.Option{
 		mq.WithProtocolVersion(mq.ProtocolV311),
 		mq.WithClientID("netgrip-probe-" + node),
 		mq.WithConnectTimeout(5 * time.Second),
+	}
+	if opt, ok := mqttTLSOption(cfg); ok {
+		opts = append(opts, opt)
 	}
 	if cfg.User != "" {
 		opts = append(opts, mq.WithCredentials(cfg.User, cfg.Pass))
@@ -55,9 +58,11 @@ var mqttOpEnvPath = mqttEnvFile
 // /etc/netgrip/mqtt.env y lo aplica en caliente. Si el broker nuevo no
 // responde, restaura la configuración anterior y devuelve error.
 func applyMQTTConfigureOp(op executor.Op) error {
-	// Args: enabled host port user pass nodeId interval
-	if len(op.Args) != 7 {
-		return fmt.Errorf("mqtt.configure needs 7 args, got %d", len(op.Args))
+	// Args: enabled host port user pass nodeId interval [tls tlsInsecure]
+	// (#409, TLS in #1764). Seven args is the original shape: a plan from an
+	// older NetPulse still applies as a plain connection.
+	if len(op.Args) != 7 && len(op.Args) != 9 {
+		return fmt.Errorf("mqtt.configure needs 7 or 9 args, got %d", len(op.Args))
 	}
 	enabled := op.Args[0] == "1" || strings.EqualFold(op.Args[0], "true")
 	port := mqttDefaultPort
@@ -72,14 +77,18 @@ func applyMQTTConfigureOp(op executor.Op) error {
 	if err != nil || interval <= 0 {
 		interval = mqttDefaultInterval
 	}
+	tlsOn := len(op.Args) == 9 && (op.Args[7] == "1" || strings.EqualFold(op.Args[7], "true"))
+	insecure := tlsOn && (op.Args[8] == "1" || strings.EqualFold(op.Args[8], "true"))
 	next := MQTTConfig{
-		Enabled:  enabled,
-		Host:     op.Args[1],
-		Port:     port,
-		User:     op.Args[3],
-		Pass:     op.Args[4],
-		NodeID:   op.Args[5],
-		Interval: interval,
+		Enabled:     enabled,
+		Host:        op.Args[1],
+		Port:        port,
+		User:        op.Args[3],
+		Pass:        op.Args[4],
+		NodeID:      op.Args[5],
+		Interval:    interval,
+		TLS:         tlsOn,
+		TLSInsecure: insecure,
 	}
 
 	prev, prevErr := ReadMQTTConfig(mqttOpEnvPath)

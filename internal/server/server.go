@@ -3233,13 +3233,15 @@ func (s *Server) handleMQTTGet(w http.ResponseWriter, _ *http.Request) {
 }
 
 type mqttSetRequest struct {
-	Enabled  bool   `json:"enabled"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	User     string `json:"user"`
-	Pass     string `json:"pass"`
-	NodeID   string `json:"nodeId"`
-	Interval int    `json:"interval"`
+	Enabled     bool   `json:"enabled"`
+	Host        string `json:"host"`
+	Port        int    `json:"port"`
+	User        string `json:"user"`
+	Pass        string `json:"pass"`
+	NodeID      string `json:"nodeId"`
+	Interval    int    `json:"interval"`
+	TLS         bool   `json:"tls"`
+	TLSInsecure bool   `json:"tlsInsecure"`
 }
 
 func (s *Server) handleMQTTSet(w http.ResponseWriter, r *http.Request) {
@@ -3249,13 +3251,15 @@ func (s *Server) handleMQTTSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cfg := modules.MQTTConfig{
-		Enabled:  req.Enabled,
-		Host:     req.Host,
-		Port:     req.Port,
-		User:     req.User,
-		Pass:     req.Pass,
-		NodeID:   req.NodeID,
-		Interval: req.Interval,
+		Enabled:     req.Enabled,
+		Host:        req.Host,
+		Port:        req.Port,
+		User:        req.User,
+		Pass:        req.Pass,
+		NodeID:      req.NodeID,
+		Interval:    req.Interval,
+		TLS:         req.TLS,
+		TLSInsecure: req.TLSInsecure,
 	}
 	if err := modules.SetMQTTConfig(cfg); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -3272,7 +3276,10 @@ func (s *Server) handleMQTTTest(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	cfg := modules.MQTTConfig{Host: req.Host, Port: req.Port, User: req.User, Pass: req.Pass}
+	cfg := modules.MQTTConfig{
+		Host: req.Host, Port: req.Port, User: req.User, Pass: req.Pass,
+		TLS: req.TLS, TLSInsecure: req.TLSInsecure,
+	}
 	if err := modules.MQTTTestConnection(cfg); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return

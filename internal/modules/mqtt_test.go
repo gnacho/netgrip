@@ -33,13 +33,15 @@ func TestMQTTNodeID(t *testing.T) {
 func TestMQTTConfigRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "mqtt.env")
 	in := MQTTConfig{
-		Enabled:  true,
-		Host:     "broker.example",
-		Port:     1884,
-		User:     "mnemonic",
-		Pass:     "s3cret",
-		NodeID:   "rt-lab",
-		Interval: 120,
+		Enabled:     true,
+		Host:        "broker.example",
+		Port:        8883,
+		User:        "mnemonic",
+		Pass:        "s3cret",
+		NodeID:      "rt-lab",
+		Interval:    120,
+		TLS:         true,
+		TLSInsecure: true,
 	}
 	if err := writeMQTTEnv(path, in); err != nil {
 		t.Fatalf("writeMQTTEnv: %v", err)
@@ -74,6 +76,78 @@ func TestReadMQTTConfigDefaults(t *testing.T) {
 	}
 	if !cfg.Enabled || cfg.Host != "broker" {
 		t.Fatalf("unexpected config: %+v", cfg)
+	}
+}
+
+func TestReadMQTTConfigTLSDefaultsPort(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mqtt.env")
+	body := "MQTT_ENABLED=1\nMQTT_HOST=broker\nMQTT_TLS=1\nMQTT_TLS_INSECURE=1\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := ReadMQTTConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.TLS || !cfg.TLSInsecure {
+		t.Fatalf("tls flags not read back: %+v", cfg)
+	}
+	if cfg.Port != mqttDefaultTLSPort {
+		t.Fatalf("port = %d, want %d with TLS", cfg.Port, mqttDefaultTLSPort)
+	}
+}
+
+func TestWriteMQTTEnvDropsTLSWhenOff(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mqtt.env")
+	if err := writeMQTTEnv(path, MQTTConfig{Enabled: true, Host: "broker", Port: 8883, TLS: true, TLSInsecure: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeMQTTEnv(path, MQTTConfig{Enabled: true, Host: "broker", Port: 1883}); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "MQTT_TLS") {
+		t.Fatalf("TLS keys left in the env file:\n%s", raw)
+	}
+	cfg, err := ReadMQTTConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.TLS || cfg.TLSInsecure {
+		t.Fatalf("tls flags survived a plain rewrite: %+v", cfg)
+	}
+}
+
+func TestSetMQTTConfigAtTLSPort(t *testing.T) {
+	dir := t.TempDir()
+	cases := []struct {
+		name string
+		cfg  MQTTConfig
+		port int
+	}{
+		{"tls", MQTTConfig{Host: "broker", TLS: true, TLSInsecure: true}, mqttDefaultTLSPort},
+		{"plain", MQTTConfig{Host: "broker", TLSInsecure: true}, mqttDefaultPort},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(dir, tc.name+".env")
+			if err := setMQTTConfigAt(path, tc.cfg); err != nil {
+				t.Fatalf("setMQTTConfigAt: %v", err)
+			}
+			got, err := ReadMQTTConfig(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Port != tc.port {
+				t.Fatalf("port = %d, want %d", got.Port, tc.port)
+			}
+			if tc.name == "plain" && got.TLSInsecure {
+				t.Fatal("tls insecure must be cleared when TLS is off")
+			}
+		})
 	}
 }
 
