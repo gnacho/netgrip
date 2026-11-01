@@ -124,9 +124,9 @@ router replies on `netgrip/<router>/result`.
 It is configured from the MQTT card on the System page, or by writing
 `/etc/netgrip/mqtt.env` (mode 600). The card tests the connection before
 saving, and a NetPulse server can push the broker settings to the router
-(applied with the same snapshot-and-rollback as any other change). No TLS:
-meant for a broker on your local network. Nothing is published until you
-enable it.
+(applied with the same snapshot-and-rollback as any other change). With TLS:
+the certificate is checked against the system roots, with a checkbox to accept
+a self-signed one. Nothing is published until you enable it.
 
 **AI assistants (MCP), if you want them.** NetGrip can expose a local
 [MCP](https://modelcontextprotocol.io/) endpoint so an AI assistant can query

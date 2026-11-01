@@ -1646,6 +1646,8 @@ export interface MQTTInfo {
   user: string;
   node_id: string;
   interval: number;
+  tls: boolean;
+  tls_insecure: boolean;
   connected: boolean;
   last_error?: string;
   last_publish?: string;
@@ -1660,6 +1662,8 @@ export interface MQTTSet {
   pass: string;
   nodeId: string;
   interval: number;
+  tls: boolean;
+  tlsInsecure: boolean;
 }
 
 

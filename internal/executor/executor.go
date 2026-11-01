@@ -84,7 +84,14 @@ func decodeOpArgs(kind string, raw json.RawMessage) ([]string, error) {
 		return []string{get("name")}, nil
 	case "mqtt.configure":
 		// Orden fijo: enabled host port user pass nodeId interval (#409).
-		return []string{get("enabled"), get("host"), get("port"), get("user"), get("pass"), get("nodeId"), get("interval")}, nil
+		// TLS (#1764) appends tls and tlsInsecure only when the sender
+		// includes them: an older NetPulse keeps sending the original seven
+		// keys and still decodes into the same positional args.
+		args := []string{get("enabled"), get("host"), get("port"), get("user"), get("pass"), get("nodeId"), get("interval")}
+		if tls := get("tls"); tls != "" {
+			args = append(args, tls, get("tlsInsecure"))
+		}
+		return args, nil
 	default:
 		// Generic: collect the object values in a stable key order.
 		keys := []string{"config", "section", "option", "value", "service", "action"}
