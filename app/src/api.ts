@@ -282,7 +282,7 @@ const realApi = {
       body: JSON.stringify(edit),
     }),
   lan: () => request<import("./types").LANConfig>("/api/lan"),
-  setLan: (opts: { ipaddr?: string; netmask?: string; ap_isolation?: boolean }) =>
+  setLan: (opts: { ipaddr?: string; netmask?: string; ap_isolation?: boolean; confirm?: boolean }) =>
     request<import("./types").ModuleResult<import("./types").LANConfig>>("/api/lan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -502,6 +502,20 @@ const realApi = {
     request<{ diffs: import("./types").ConfigDiff[] }>(`/api/config/diff?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
   rollbackSnapshot: (id: string) =>
     request<{ status: string }>("/api/config/rollback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }),
+  confirmStatus: () =>
+    request<{ pending: boolean; id?: string; expires?: number }>("/api/config/confirm"),
+  confirmKeep: (id: string) =>
+    request<{ status: string }>("/api/config/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }),
+  confirmRevert: (id: string) =>
+    request<{ status: string }>("/api/config/confirm/rollback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),

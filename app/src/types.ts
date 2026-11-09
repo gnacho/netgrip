@@ -118,6 +118,8 @@ export interface ModuleResult<T> {
   rolled_back: boolean;
   state: T;
   error?: string;
+  /** Set when the change arms a revert timer (connectivity-risky saves). */
+  confirm?: { id: string; expires: number };
 }
 
 export interface DDNSEntry {

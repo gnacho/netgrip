@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Network, Pencil } from "lucide-react";
+import { Clock, Network, Pencil } from "lucide-react";
 import { api } from "../../api";
 import type { LANConfig } from "../../types";
 import {
   ActionBanner, AdvancedDisclosure, Button, Card, ConfirmDialog,
-  Field, Input, SegmentedControl, SettingRow,
+  Field, IconTile, Input, Modal, SegmentedControl, SettingRow,
 } from "../ui";
 import { useActionCycle } from "../wifi/action";
 
@@ -44,6 +44,10 @@ export function LanConfigCard({ cfg, onChange, index = 0 }: {
   const { phase, detail, busy, run, clear } = useActionCycle();
 
   const [ipaddr, setIpaddr] = useState(cfg.ipaddr);
+  // Pending apply-rollback window (change of the router IP). The server auto-
+  // reverts unless we confirm we can still reach the panel before the timer.
+  const [pending, setPending] = useState<{ id: string; expires: number } | null>(null);
+  const [seconds, setSeconds] = useState(0);
   const [maskMode, setMaskMode] = useState<"24" | "16" | "custom">("24");
   const [customMask, setCustomMask] = useState(cfg.netmask);
   const [dhcpOn, setDhcpOn] = useState(cfg.dhcp.enabled);
@@ -70,6 +74,40 @@ export function LanConfigCard({ cfg, onChange, index = 0 }: {
     setDns1(cfg.dhcp.dns1 ?? "");
     setDns2(cfg.dhcp.dns2 ?? "");
   }, [cfg]);
+
+  // Re-hydrate a confirm window left over from a page reload, and count it down.
+  useEffect(() => {
+    api.confirmStatus()
+      .then((c) => { if (c?.pending && c.id && c.expires) setPending({ id: c.id, expires: c.expires }); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!pending) return;
+    const tick = () => {
+      const left = Math.max(0, Math.ceil(pending.expires - Date.now() / 1000));
+      setSeconds(left);
+      if (left <= 0) setPending(null);
+    };
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [pending]);
+
+  const keep = () => {
+    const id = pending?.id;
+    setPending(null);
+    if (id) { api.confirmKeep(id).catch(() => {}); }
+    onChange({ ...cfg, ipaddr: ipaddr.trim(), netmask });
+  };
+
+  const revert = () => {
+    const id = pending?.id;
+    setPending(null);
+    if (id) { api.confirmRevert(id).catch(() => {}); }
+    setIpaddr(cfg.ipaddr);
+    clear();
+  };
 
   const netmask = maskMode === "custom" ? customMask.trim() : MASKS[maskMode];
   const startN = Number(start);
@@ -99,8 +137,11 @@ export function LanConfigCard({ cfg, onChange, index = 0 }: {
     run(async () => {
       let last: Awaited<ReturnType<typeof api.setLan>> | undefined;
       if (lanDirty) {
-        last = await api.setLan({ ipaddr: ipaddr.trim(), netmask });
+        last = await api.setLan({ ipaddr: ipaddr.trim(), netmask, confirm: ipChanged });
         if (last.status !== "applied") return last;
+        // An IP change arms the revert timer; defer DHCP so it can be applied
+        // on the new address once the change is confirmed.
+        if (last.confirm) return last;
       }
       if (dhcpDirty) {
         last = await api.setDhcp({
@@ -116,7 +157,12 @@ export function LanConfigCard({ cfg, onChange, index = 0 }: {
       if (!last) throw new Error("nothing to save");
       return last;
     }).then((res) => {
-      if (res?.status === "applied") onChange(res.state);
+      if (!res || res.status !== "applied") return;
+      if (res.confirm) {
+        setPending({ id: res.confirm.id, expires: res.confirm.expires });
+      } else {
+        onChange(res.state);
+      }
     });
   };
 
@@ -227,6 +273,20 @@ export function LanConfigCard({ cfg, onChange, index = 0 }: {
         consequence={t("lan.ipConfirmConsequence")}
         confirmLabel={t("lan.ipConfirmLabel")}
       />
+
+      <Modal open={pending !== null} onClose={keep}>
+        <div className="flex items-start gap-3">
+          <IconTile icon={Clock} tone="accent" />
+          <div className="min-w-0">
+            <h2 className="text-h2">{t("lan.confirmTitle")}</h2>
+            <p className="text-small text-muted mt-1">{t("lan.confirmBody", { seconds })}</p>
+          </div>
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="danger" onClick={revert}>{t("lan.revert")}</Button>
+          <Button onClick={keep}>{t("lan.keep")}</Button>
+        </div>
+      </Modal>
     </Card>
   );
 }
