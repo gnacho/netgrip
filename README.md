@@ -53,8 +53,7 @@ the services LuCI already exposes through rpcd and puts a switch in front of
 each one. Flip it, and NetGrip snapshots the config, applies the change,
 waits, checks the service came up, and undoes itself if it did not.
 
-Three rules shape it:
-
+Four rules shape it:
 - **It lives on the router.** One static Go binary with the UI embedded
   (12-15 MB on disk depending on architecture, and ~16-18 MB of RAM in
   use, measured on real routers), packaged as a real OpenWrt `.apk`/`.ipk`
@@ -63,6 +62,11 @@ Three rules shape it:
 - **Safe by construction.** Every change goes through an allowlisted
   executor with a config snapshot and automatic rollback. The panel cannot
   wander off the beaten path.
+- **It adapts to the device.** The same binary reads the box it runs on and
+  shows only what applies there: a router, an access point or a managed
+  switch each get the screens that make sense for them, and a feature that
+  needs something the box does not have (a radio, an uplink, a package)
+  simply stays out of the way.
 - **No new accounts.** Login validates against rpcd, the same session LuCI
   uses; one admin per router, nothing extra to administer. AGPL-3.0, no
   premium anything.

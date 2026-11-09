@@ -54,7 +54,7 @@ rpcd y les pone un interruptor delante. Lo pulsas, y NetGrip hace snapshot
 de la config, aplica el cambio, espera, comprueba que el servicio levantó, y
 se deshace solo si no fue así.
 
-Tres reglas lo dan forma:
+Cuatro reglas lo dan forma:
 
 - **Vive en el router.** Un único binario Go estático con la UI embebida
   (12-15 MB en disco según arquitectura, y ~16-18 MB de RAM en uso,
@@ -64,6 +64,11 @@ Tres reglas lo dan forma:
 - **Seguro por construcción.** Cada cambio pasa por un executor con
   allowlist, con snapshot de config y rollback automático. El panel no puede
   salirse del camino trazado.
+- **Se adapta al dispositivo.** El mismo binario lee la caja donde corre y
+  muestra solo lo que aplica allí: un router, un punto de acceso o un switch
+  gestionado reciben cada uno las pantallas que tienen sentido, y lo que
+  necesita algo que esa caja no tiene (una radio, un uplink, un paquete)
+  simplemente se aparta.
 - **Sin cuentas nuevas.** El login se valida contra rpcd, la misma sesión
   que usa LuCI; un admin por router, nada extra que administrar. AGPL-3.0,
   sin premium de ningún tipo.
