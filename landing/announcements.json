@@ -1,6 +1,25 @@
 {
  "announcements": [
   {
+   "id": "v0780-2026-11",
+   "urgency": "info",
+   "title": {
+    "es": "Novedades de la v0.78.0",
+    "en": "What's new in v0.78.0"
+   },
+   "body": {
+    "es": "Los cambios que podían dejarte fuera del panel (la IP de LAN, el WiFi, la WAN o el firewall) ahora se aplican con un temporizador: si no confirmas en dos minutos, se revierten solos. MQTT ya puede publicar por TLS (puerto 8883 y broker autofirmado opcional). El self-update verifica la firma del binario antes de instalar. Y NetPulse puede pedir una copia de la configuración del equipo bajo demanda.",
+    "en": "Changes that could lock you out of the panel (LAN IP, Wi-Fi, WAN, firewall) now apply with a revert timer: if you do not confirm within two minutes, they roll back on their own. MQTT can now publish over TLS (port 8883, self-signed broker optional). The self-update verifies the binary signature before installing. And NetPulse can ask the device for a config snapshot on demand."
+   },
+   "url": "https://github.com/gnacho/netgrip/releases/tag/v0.78.0",
+   "urlLabel": {
+    "es": "Ver la release",
+    "en": "See the release"
+   },
+   "starts": "2026-11-09",
+   "expires": "2026-12-31"
+  },
+  {
    "id": "v0773-2026-10",
    "urgency": "info",
    "title": {
