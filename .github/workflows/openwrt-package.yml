@@ -98,6 +98,10 @@ jobs:
         env:
           VERSION: ${{ needs.create-release.outputs.tag }}
         run: sh deploy/build-binaries.sh "${{ matrix.target }}"
+      - name: Sign binary
+        env:
+          NETGRIP_RELEASE_KEY: ${{ secrets.NETGRIP_RELEASE_KEY }}
+        run: go run deploy/sign-release.go "dist/netgrip-${{ matrix.target }}"
       - uses: actions/upload-artifact@v4
         with:
           name: netgrip-binary-${{ matrix.target }}
@@ -107,7 +111,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.create-release.outputs.tag }}
-        run: gh release upload "$TAG" "dist/netgrip-${{ matrix.target }}" --clobber
+        run: |
+          gh release upload "$TAG" "dist/netgrip-${{ matrix.target }}" --clobber
+          gh release upload "$TAG" "dist/netgrip-${{ matrix.target }}.sha256" "dist/netgrip-${{ matrix.target }}.sha256.sig" --clobber
 
   size-report:
     needs: [frontend, binaries]
