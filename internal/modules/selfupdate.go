@@ -1,7 +1,10 @@
 package modules
 
 import (
+	"crypto/ed25519"
+	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +20,21 @@ import (
 	"syscall"
 	"time"
 )
+
+// releasePubKeyHex is the ed25519 public key embedded in the binary; its
+// private half is the NETGRIP_RELEASE_KEY repo secret, which the release
+// workflow uses to sign each binary's .sha256 (deploy/sign-release.go).
+// Rotating the private key means bumping this constant and cutting a new
+// release, or every device would reject the newly signed assets.
+const releasePubKeyHex = "b42bff36dbb1cd6891a4f55e5858a7fa29fc5aa4cb5b431d0b6aeeba183fc13c"
+
+func releasePubKey() (ed25519.PublicKey, error) {
+	b, err := hex.DecodeString(releasePubKeyHex)
+	if err != nil || len(b) != ed25519.PublicKeySize {
+		return nil, fmt.Errorf("invalid embedded release public key")
+	}
+	return ed25519.PublicKey(b), nil
+}
 
 const (
 	githubRepo = "gnacho/netgrip"
@@ -79,10 +97,23 @@ type SelfUpdateCheck struct {
 	Notes     string `json:"notes"`
 	AssetURL  string `json:"asset_url,omitempty"`
 	AssetSize int64  `json:"asset_size,omitempty"`
+	// DigestURL and SigURL point at the signed sha256 manifest of the
+	// binary and its ed25519 signature, both published beside the asset.
+	DigestURL string `json:"digest_url,omitempty"`
+	SigURL    string `json:"sig_url,omitempty"`
 	// AssetsPending is true when the tag is newer but the downloadable
 	// asset has not been published yet (CI uploads assets a few minutes
 	// after the release object appears).
 	AssetsPending bool `json:"assets_pending,omitempty"`
+}
+
+// selfUpdateTarget is everything runSelfUpdate needs to fetch and verify a
+// release binary: the asset itself plus its signed digest.
+type selfUpdateTarget struct {
+	AssetURL  string
+	AssetSize int64
+	DigestURL string
+	SigURL    string
 }
 
 type SelfUpdateStatus struct {
@@ -186,19 +217,23 @@ func CheckSelfUpdate(currentVersion string) *SelfUpdateCheck {
 	newer := isNewerVersion(release.TagName, currentVersion)
 
 	for _, a := range release.Assets {
-		if a.Name == binaryAssetName() {
+		switch a.Name {
+		case binaryAssetName():
 			result.AssetURL = a.BrowserDownloadURL
 			result.AssetSize = a.Size
-			break
+		case binaryAssetName() + ".sha256":
+			result.DigestURL = a.BrowserDownloadURL
+		case binaryAssetName() + ".sha256.sig":
+			result.SigURL = a.BrowserDownloadURL
 		}
 	}
 
-	// Only advertise an update once the binary is actually downloadable:
-	// the CI attaches release assets a few minutes after the release
-	// object shows up, and an "available" update without an asset URL
-	// cannot be applied.
-	result.AssetsPending = newer && result.AssetURL == ""
-	result.Available = newer && result.AssetURL != ""
+	// Only advertise an update once the binary and its signature are
+	// actually downloadable: the CI attaches release assets a few minutes
+	// after the release object shows up, and an update we cannot verify is
+	// not one we will install.
+	result.AssetsPending = newer && (result.AssetURL == "" || result.DigestURL == "" || result.SigURL == "")
+	result.Available = newer && result.AssetURL != "" && result.DigestURL != "" && result.SigURL != ""
 
 	updateMu.Lock()
 	updateCheck = result
@@ -216,28 +251,33 @@ func StartSelfUpdate(currentVersion string) error {
 	ck := updateCheck
 	updateMu.Unlock()
 
-	if ck == nil || !ck.Available || ck.AssetURL == "" {
+	if ck == nil || !ck.Available || ck.AssetURL == "" || ck.DigestURL == "" || ck.SigURL == "" {
 		// The cached check may be empty (service restarted after the page
 		// loaded) or may predate asset publication; re-check before
 		// refusing so a retry from the same page works.
 		ck = CheckSelfUpdate(currentVersion)
 	}
-	if ck == nil || !ck.Available || ck.AssetURL == "" {
+	if ck == nil || !ck.Available || ck.AssetURL == "" || ck.DigestURL == "" || ck.SigURL == "" {
 		if ck != nil && ck.AssetsPending {
 			return fmt.Errorf("release assets not published yet, retry shortly")
 		}
 		return fmt.Errorf("no update available")
 	}
 
-	go runSelfUpdateF(ck.AssetURL, ck.AssetSize, currentVersion)
+	go runSelfUpdateF(selfUpdateTarget{
+		AssetURL:  ck.AssetURL,
+		AssetSize: ck.AssetSize,
+		DigestURL: ck.DigestURL,
+		SigURL:    ck.SigURL,
+	}, currentVersion)
 	return nil
 }
 
-func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
+func runSelfUpdate(target selfUpdateTarget, currentVersion string) {
 	setUpdateStatus("downloading", 0, "")
 
 	client := &http.Client{Timeout: 120 * time.Second}
-	resp, err := client.Get(assetURL)
+	resp, err := client.Get(target.AssetURL)
 	if err != nil {
 		failUpdate("download: %v", err)
 		return
@@ -248,7 +288,7 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 		return
 	}
 
-	total := assetSize
+	total := target.AssetSize
 	if total <= 0 {
 		total = resp.ContentLength
 	}
@@ -297,6 +337,31 @@ func runSelfUpdate(assetURL string, assetSize int64, currentVersion string) {
 	if ok, err := elfArchMatches(runtime.GOARCH, tmpPath); err != nil || !ok {
 		os.Remove(tmpPath)
 		failUpdate("arch mismatch: ok=%v err=%v", ok, err)
+		return
+	}
+
+	// Verify the signed release digest before installing (#561). A missing
+	// or invalid signature is a terminal failure: never install unsigned.
+	if target.DigestURL == "" || target.SigURL == "" {
+		os.Remove(tmpPath)
+		failUpdate("release has no .sha256 signature, refusing to install")
+		return
+	}
+	digestContent, err := downloadBytes(target.DigestURL)
+	if err != nil {
+		os.Remove(tmpPath)
+		failUpdate("download .sha256: %v", err)
+		return
+	}
+	sig, err := downloadBytes(target.SigURL)
+	if err != nil {
+		os.Remove(tmpPath)
+		failUpdate("download .sha256.sig: %v", err)
+		return
+	}
+	if err := verifyReleaseDigest(tmpPath, digestContent, sig); err != nil {
+		os.Remove(tmpPath)
+		failUpdate("verify: %v", err)
 		return
 	}
 
@@ -503,4 +568,53 @@ func parseSemver(v string) (out [3]int, ok bool) {
 		return out, false
 	}
 	return [3]int{a, b, c}, true
+}
+
+// downloadBytes fetches a small release asset (digest/signature) into memory.
+func downloadBytes(url string) ([]byte, error) {
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+	return io.ReadAll(resp.Body)
+}
+
+// verifyReleaseDigest checks the ed25519 signature over the .sha256 file
+// contents and that the downloaded binary matches that digest, using the
+// embedded release public key. Fail-closed: any mismatch refuses the update.
+func verifyReleaseDigest(binaryPath string, digestContent, sig []byte) error {
+	pub, err := releasePubKey()
+	if err != nil {
+		return err
+	}
+	return verifyDigestWithKey(pub, binaryPath, digestContent, sig)
+}
+
+// verifyDigestWithKey is the key-injected core of verifyReleaseDigest, kept
+// separate so tests can sign with a throwaway key.
+func verifyDigestWithKey(pub ed25519.PublicKey, binaryPath string, digestContent, sig []byte) error {
+	if !ed25519.Verify(pub, digestContent, sig) {
+		return fmt.Errorf("release signature verification failed")
+	}
+
+	f, err := os.Open(binaryPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return err
+	}
+	got := hex.EncodeToString(h.Sum(nil))
+	want := strings.TrimSpace(string(digestContent))
+	if !strings.EqualFold(got, want) {
+		return fmt.Errorf("binary sha256 mismatch: expected %s, got %s", want, got)
+	}
+	return nil
 }
