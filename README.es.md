@@ -158,6 +158,45 @@ tools (`server_status`, `list_clients`, `wireless_status`, `wan_status`,
 `multiwan_status`, `list_leases`, `list_devices`) leen las mismas sondas y
 cachés que el panel, y cada llamada queda en el log.
 
+## Lista de funcionalidades
+
+| Área | Qué te llevas |
+| --- | --- |
+| Resumen | Salud del sistema, estado WAN, gráfica de tráfico en vivo, chasis ethernet por puerto, detección de switch no gestionado |
+| Clientes | Velocidad y señal por estación, IPs reservadas, bloqueo, límite de ancho de banda por dispositivo |
+| LAN y DHCP | Reservas, rango, tiempo de concesión |
+| IPv6 | Servidor / relay, DNS anunciado |
+| Dual WAN | Políticas y reparto de mwan3 |
+| Modo router / AP | Mover el rol WAN sin editar network y firewall a mano |
+| WiFi | SSID, WPA2/WPA3, canal y ancho, potencia, separar o unificar bandas, red oculta |
+| WiFi invitados e IoT | Subredes aisladas, un interruptor cada una |
+| Malla / roaming | Grafo radial, 802.11r/k/v vía usteer |
+| VPN | WireGuard (servidor + cliente, peers con QR) y OpenVPN (servidor + cliente, descarga .ovpn) |
+| DNS | Protección contra rebinding |
+| QoS | SQM/cake con nota de bufferbloat |
+| DDNS | Actualización DNS dinámica |
+| Redirección de puertos | Redirects DNAT |
+| UPnP | miniupnpd / NAT-PMP |
+| Firewall | Reglas de tráfico y políticas de zona |
+| Control parental | Horarios de internet por dispositivo |
+| Tráfico | Análisis por aplicación (netifyd), línea de 24 h |
+| Historial de uso | Totales diarios y mensuales (vnstat + nlbwmon) |
+| Protección | Feeds de banIP y detección de AdGuard Home |
+| Almacenamiento USB | SMB (ksmbd o samba) + DLNA |
+| Asistente inicial | Configuración guiada |
+| Auto-actualización | Actualización en sitio con firma del binario verificada |
+| Firmware | Reconstrucción owut/ASU con tus paquetes dentro |
+| Seguridad | Snapshots de config, rollback automático, temporizador de confirmación anti-bloqueo |
+| Copia de seguridad | Descargar y restaurar la config |
+| Administración | Acceso, sesión, seguridad, contraseña, reinicio programado |
+| Software | Lista de paquetes vía apk/opkg |
+| Logs | Log del sistema |
+| MQTT / Home Assistant | Discovery + 23 entidades (sensores, interruptores, botones) |
+| Agente de NetPulse | Telemetría de flota integrada, opcional |
+| LuCI | Entrada opcional luci-app-netgrip |
+| MCP | Endpoint con token Bearer y tools de solo lectura para agentes |
+| Idioma | ES / EN |
+
 ## Ponlo en tu router
 
 Requisitos: un target amd64, ARM64, ARMv5/6/7, MIPS little-endian o MIPS
