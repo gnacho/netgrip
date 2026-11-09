@@ -94,9 +94,10 @@ router/AP que mueve el rol WAN sin editar `network` y `firewall` a mano.
 </p>
 
 **Cuidado del sistema sin ceremonia.** Acceso y sesión, tarjetas de
-seguridad, asistente de primer arranque, actualizaciones de firmware vía
-owut/ASU que reconstruyen la imagen con tus paquetes dentro, y la malla de
-roaming dibujada como grafo radial vía usteer.
+seguridad, asistente de primer arranque, auto-actualización (el panel se
+actualiza a sí mismo en el sitio, sin reinstalar), actualizaciones de
+firmware vía owut/ASU que reconstruyen la imagen con tus paquetes dentro, y
+la malla de roaming dibujada como grafo radial vía usteer.
 
 <p align="center">
   <img alt="Página de sistema con acceso, seguridad, modo Router/AP y tarjetas de actualización" src="assets/screenshot-system-es.png" width="800">

@@ -92,9 +92,10 @@ moves the WAN role without editing `network` and `firewall` by hand.
 </p>
 
 **System care without the ceremony.** Access and session settings, security
-cards, a first-run wizard, firmware updates through owut/ASU that rebuild
-the image with your packages inside, and the roaming mesh rendered as a
-radial graph via usteer.
+cards, a first-run wizard, self-updates (the panel upgrades itself in place,
+no reinstall), firmware updates through owut/ASU that rebuild the image with
+your packages inside, and the roaming mesh rendered as a radial graph via
+usteer.
 
 <p align="center">
   <img alt="System page with access settings, security, Router/AP mode and update cards" src="assets/screenshot-system-en.png" width="800">
