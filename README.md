@@ -152,6 +152,45 @@ with `uci set netgrip.mcp.rate_per_min=<n>`). The tools
 `multiwan_status`, `list_leases`, `list_devices`) read the same probes and
 caches as the panel, and every call is logged.
 
+## Feature list
+
+| Area | What you get |
+| --- | --- |
+| Overview | System health, WAN state, live traffic chart, per-port ethernet chassis, unmanaged-switch detection |
+| Clients | Per-station speed and signal, reserved IPs, block, per-device bandwidth limits |
+| LAN & DHCP | Reservations, range, lease time |
+| IPv6 | Server / relay, announced DNS |
+| Dual WAN | mwan3 policies and shares |
+| Router / AP mode | Move the WAN role without editing network and firewall by hand |
+| Wireless | SSID, WPA2/WPA3, channel and width, power, split or unify bands, hidden network |
+| Guest & IoT Wi-Fi | Isolated subnets, one switch each |
+| Mesh / roaming | Radial graph, 802.11r/k/v via usteer |
+| VPN | WireGuard (server + client, QR peers) and OpenVPN (server + client, .ovpn downloads) |
+| DNS | Rebind protection |
+| QoS | SQM/cake with a bufferbloat grade |
+| DDNS | Dynamic DNS updates |
+| Port forwarding | DNAT redirects |
+| UPnP | miniupnpd / NAT-PMP |
+| Firewall | Traffic rules and zone policies |
+| Parental controls | Per-device internet schedules |
+| Traffic | Per-app analysis (netifyd), 24 h timeline |
+| Usage history | Daily and monthly totals (vnstat + nlbwmon) |
+| Protection | banIP feeds and AdGuard Home detection |
+| USB storage | SMB (ksmbd or samba) + DLNA |
+| First-run wizard | Guided setup |
+| Self-update | In-place upgrade with verified binary signature |
+| Firmware | owut/ASU rebuild with your packages inside |
+| Safety | Config snapshots, automatic rollback, anti-lockout confirm timer |
+| Backup | Download and restore the config |
+| Administration | Access, session, security, password, scheduled reboot |
+| Software | Package list via apk/opkg |
+| Logs | System log |
+| MQTT / Home Assistant | Discovery + 23 entities (sensors, switches, buttons) |
+| NetPulse agent | Built-in fleet telemetry, optional |
+| LuCI | Optional luci-app-netgrip entry |
+| MCP | Bearer-token endpoint with read-only tools for agents |
+| Language | ES / EN |
+
 ## Get it on your router
 
 Requirements: a supported amd64, ARM64, ARMv5/6/7, little-endian MIPS or
