@@ -101,18 +101,22 @@ func (s *Server) confirmStatus() (id string, expires time.Time, ok bool) {
 	return s.confirm.id, s.confirm.expires, true
 }
 
-// captureRiskySnapshots exports the UCI configs a connectivity-risky change
-// can touch, so they can be restored on revert. Best effort: a missing config
-// (e.g. no wireless on a switch) is simply skipped.
-func captureRiskySnapshots() map[string]string {
+// snapshotConfigs exports the given UCI configs so they can be restored on
+// revert. Best effort: a missing config (e.g. no wireless on a switch) is
+// simply skipped.
+func snapshotConfigs(configs ...string) map[string]string {
 	out := map[string]string{}
-	if v, err := executor.Snapshot("network"); err == nil {
-		out["network"] = v
-	}
-	if v, err := executor.Snapshot("wireless"); err == nil {
-		out["wireless"] = v
+	for _, c := range configs {
+		if v, err := executor.Snapshot(c); err == nil {
+			out[c] = v
+		}
 	}
 	return out
+}
+
+// captureRiskySnapshots exports the UCI configs a LAN change can touch.
+func captureRiskySnapshots() map[string]string {
+	return snapshotConfigs("network", "wireless")
 }
 
 // revertSnapshots restores the captured configs and reloads the given init.d
@@ -127,6 +131,30 @@ func revertSnapshots(snapshots map[string]string, reloads []string) error {
 		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{svc, "reload"}})
 	}
 	return nil
+}
+
+// finishRiskyApply writes a module result, arming a confirm timer when the
+// apply succeeded and the request asked for one. Connectivity-risky handlers
+// (LAN, WAN, WiFi, firewall) route through it so their revert shares the same
+// single-flight window as the LAN change (#557).
+func (s *Server) finishRiskyApply(w http.ResponseWriter, probe any, rolledBack bool, err error, confirm bool, snapshots map[string]string, reloads []string) {
+	if err != nil {
+		writeModuleResult(w, probe, rolledBack, err)
+		return
+	}
+	if confirm {
+		id, expires := s.armConfirm(func() error {
+			return revertSnapshots(snapshots, reloads)
+		}, confirmTimeout)
+		writeJSON(w, map[string]any{
+			"state":       probe,
+			"rolled_back": rolledBack,
+			"status":      "applied",
+			"confirm":     map[string]any{"id": id, "expires": expires.Unix()},
+		})
+		return
+	}
+	writeModuleResult(w, probe, rolledBack, nil)
 }
 
 // ---- HTTP handlers ----

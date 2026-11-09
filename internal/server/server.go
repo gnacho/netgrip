@@ -718,14 +718,34 @@ func (s *Server) handleMultiWanGet(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) handleWanConfigPost(w http.ResponseWriter, r *http.Request) {
-	var cfg modules.WANConfig
-	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+	var req struct {
+		modules.WANConfig
+		Confirm bool `json:"confirm,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	applied, err := modules.ApplyWANConfig(cfg)
+	var snapshots map[string]string
+	if req.Confirm {
+		snapshots = snapshotConfigs("network")
+	}
+	applied, err := modules.ApplyWANConfig(req.WANConfig)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if req.Confirm {
+		id, expires := s.armConfirm(func() error {
+			return revertSnapshots(snapshots, []string{"network"})
+		}, confirmTimeout)
+		// Keep the WANConfig shape and attach the confirm on top, so a
+		// non-confirming client sees exactly what it saw before.
+		b, _ := json.Marshal(applied)
+		out := map[string]any{}
+		_ = json.Unmarshal(b, &out)
+		out["confirm"] = map[string]any{"id": id, "expires": expires.Unix()}
+		writeJSON(w, out)
 		return
 	}
 	writeJSON(w, applied)
@@ -1686,23 +1706,37 @@ func (s *Server) handleWifiKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleWifiSet(w http.ResponseWriter, r *http.Request) {
-	var edit modules.WifiEdit
-	if err := json.NewDecoder(r.Body).Decode(&edit); err != nil {
+	var req struct {
+		modules.WifiEdit
+		Confirm bool `json:"confirm,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	probe, rolledBack, err := modules.SetWifi(edit)
-	writeModuleResult(w, probe, rolledBack, err)
+	var snapshots map[string]string
+	if req.Confirm {
+		snapshots = snapshotConfigs("wireless")
+	}
+	probe, rolledBack, err := modules.SetWifi(req.WifiEdit)
+	s.finishRiskyApply(w, probe, rolledBack, err, req.Confirm, snapshots, []string{"wireless"})
 }
 
 func (s *Server) handleWifiRadioSet(w http.ResponseWriter, r *http.Request) {
-	var edit modules.RadioEdit
-	if err := json.NewDecoder(r.Body).Decode(&edit); err != nil {
+	var req struct {
+		modules.RadioEdit
+		Confirm bool `json:"confirm,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	probe, rolledBack, err := modules.SetWifiRadio(edit)
-	writeModuleResult(w, probe, rolledBack, err)
+	var snapshots map[string]string
+	if req.Confirm {
+		snapshots = snapshotConfigs("wireless")
+	}
+	probe, rolledBack, err := modules.SetWifiRadio(req.RadioEdit)
+	s.finishRiskyApply(w, probe, rolledBack, err, req.Confirm, snapshots, []string{"wireless"})
 }
 
 func (s *Server) handleWifiScheduleGet(w http.ResponseWriter, _ *http.Request) {
@@ -1781,23 +1815,7 @@ func (s *Server) handleLANSet(w http.ResponseWriter, r *http.Request) {
 		snapshots = captureRiskySnapshots()
 	}
 	probe, rolledBack, err := modules.SetLAN(cfg)
-	if err != nil {
-		writeModuleResult(w, probe, rolledBack, err)
-		return
-	}
-	if req.Confirm {
-		id, expires := s.armConfirm(func() error {
-			return revertSnapshots(snapshots, []string{"network"})
-		}, confirmTimeout)
-		writeJSON(w, map[string]any{
-			"state":       probe,
-			"rolled_back": rolledBack,
-			"status":      "applied",
-			"confirm":     map[string]any{"id": id, "expires": expires.Unix()},
-		})
-		return
-	}
-	writeModuleResult(w, probe, rolledBack, nil)
+	s.finishRiskyApply(w, probe, rolledBack, err, req.Confirm, snapshots, []string{"network"})
 }
 
 func (s *Server) handleDHCPSet(w http.ResponseWriter, r *http.Request) {
@@ -2668,17 +2686,25 @@ func (s *Server) handleFirewallGet(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) handleFirewallAddRule(w http.ResponseWriter, r *http.Request) {
-	var rule modules.FirewallRuleAdd
-	if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
+	var req struct {
+		modules.FirewallRuleAdd
+		Confirm bool `json:"confirm,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	probe, rolledBack, err := modules.AddFirewallRule(rule)
-	writeModuleResult(w, probe, rolledBack, err)
+	var snapshots map[string]string
+	if req.Confirm {
+		snapshots = snapshotConfigs("firewall")
+	}
+	probe, rolledBack, err := modules.AddFirewallRule(req.FirewallRuleAdd)
+	s.finishRiskyApply(w, probe, rolledBack, err, req.Confirm, snapshots, []string{"firewall"})
 }
 
 type fwDeleteRequest struct {
 	Section string `json:"section"`
+	Confirm bool   `json:"confirm,omitempty"`
 }
 
 func (s *Server) handleFirewallDelRule(w http.ResponseWriter, r *http.Request) {
@@ -2687,8 +2713,12 @@ func (s *Server) handleFirewallDelRule(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "section required")
 		return
 	}
+	var snapshots map[string]string
+	if req.Confirm {
+		snapshots = snapshotConfigs("firewall")
+	}
 	probe, rolledBack, err := modules.DeleteFirewallRule(req.Section)
-	writeModuleResult(w, probe, rolledBack, err)
+	s.finishRiskyApply(w, probe, rolledBack, err, req.Confirm, snapshots, []string{"firewall"})
 }
 
 func (s *Server) handleTemplatesGet(w http.ResponseWriter, _ *http.Request) {

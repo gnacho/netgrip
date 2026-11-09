@@ -7,6 +7,7 @@ import {
   ActionBanner, Banner, Button, Field, Input, Modal, Pill, SegmentedControl, SettingRow,
 } from "./ui";
 import { useActionCycle } from "./wifi/action";
+import { RollbackConfirmModal, useRollbackConfirm } from "./rollback";
 
 type Sec = "psk2" | "sae" | "sae-mixed" | "none";
 
@@ -79,6 +80,8 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
   const [emitting, setEmitting] = useState(!iface.disabled);
   const [unify, setUnify] = useState(group.length > 1);
   const { phase, detail, busy, run } = useActionCycle();
+  const rc = useRollbackConfirm();
+  const [savedState, setSavedState] = useState<{ state: WifiUI; key?: string } | null>(null);
 
   // Objetivo del cambio: al unificar, todas las radios principales si la red
   // estaba suelta; si ya estaba unificada, su propio grupo (sin arrastrar otras
@@ -123,28 +126,49 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
           encryption: sec,
           hidden,
           disabled: !emitting,
+          confirm: true,
           ...(key ? { key } : {}),
         });
       }
-      const edit: { section: string; sections: string[]; ssid: string; encryption: string; hidden: boolean; disabled: boolean; key?: string } = {
+      const edit: { section: string; sections: string[]; ssid: string; encryption: string; hidden: boolean; disabled: boolean; key?: string; confirm: boolean } = {
         section: iface.section,
         sections: target.map((i) => i.section),
         ssid,
         encryption: sec,
         hidden,
         disabled: !emitting,
+        confirm: true,
       };
       if (key) edit.key = key;
       return api.setWifi(edit);
     }).then((res) => {
-      if (res?.status === "applied") {
-        onSaved(res.state, key || undefined);
-        setTimeout(onClose, 900);
+      if (res?.status !== "applied") return;
+      if (res.confirm) {
+        rc.arm(res.confirm);
+        setSavedState({ state: res.state, key: key || undefined });
+        return;
       }
+      onSaved(res.state, key || undefined);
+      setTimeout(onClose, 900);
     });
   };
 
+  const keep = () => {
+    rc.keep();
+    const saved = savedState;
+    setSavedState(null);
+    if (saved) onSaved(saved.state, saved.key);
+    onClose();
+  };
+
+  const revert = () => {
+    rc.revert();
+    setSavedState(null);
+    onClose();
+  };
+
   return (
+    <>
     <Modal
       open
       onClose={onClose}
@@ -266,5 +290,7 @@ export function WifiEditModal({ iface, group, main, onClose, onSaved }: {
         )}
       </div>
     </Modal>
+    <RollbackConfirmModal pending={rc.pending} seconds={rc.seconds} onKeep={keep} onRevert={revert} />
+    </>
   );
 }

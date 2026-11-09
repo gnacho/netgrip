@@ -132,6 +132,10 @@ export default {
     copyDetail: "Copiar detalle",
     advanced: "Opciones avanzadas",
     delete: "Borrar",
+    rollbackTitle: "¿Se guardaron los cambios?",
+    rollbackBody: "Si esta página sigue respondiendo, mantenlos. Si no puedes confirmar, se revertirán solos en {{seconds}} s.",
+    keep: "Mantener",
+    revert: "Revertir",
   },
   action: {
     applying: "Aplicando… guardamos antes una copia por si falla.",

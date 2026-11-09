@@ -8,6 +8,7 @@ import {
   Pill, SegmentedControl, SkeletonRows, type PillTone,
 } from "../ui";
 import { useActionCycle } from "../wifi/action";
+import { RollbackConfirmModal, useRollbackConfirm } from "../rollback";
 
 const TARGET_LABELS: Record<string, string> = {
   ACCEPT: "trafficRules.allow",
@@ -123,6 +124,7 @@ export function TrafficRulesCard() {
   const { t } = useTranslation();
   const [probe, setProbe] = useState<FirewallProbe>();
   const { phase, detail, busy, run, clear } = useActionCycle();
+  const rc = useRollbackConfirm();
   const [modal, setModal] = useState(false);
   const [toDelete, setToDelete] = useState<FWRule>();
 
@@ -132,11 +134,15 @@ export function TrafficRulesCard() {
   const systemRules = probe?.rules.filter((r) => !r.managed) ?? [];
 
   const addRule = (rule: FirewallRuleAdd) => {
-    run(() => api.addFirewallRule(rule)).then((res) => {
-      if (res?.status === "applied") {
-        setProbe(res.state);
-        setModal(false);
+    const risk = lockoutRisk(rule, probe?.mgmt_cidr);
+    run(() => api.addFirewallRule(rule, risk)).then((res) => {
+      if (res?.status !== "applied") return;
+      setModal(false);
+      if (res.confirm) {
+        rc.arm(res.confirm);
+        return;
       }
+      setProbe(res.state);
     });
   };
 
@@ -144,6 +150,16 @@ export function TrafficRulesCard() {
     run(() => api.deleteFirewallRule(section)).then((res) => {
       if (res) setProbe(res.state);
     });
+  };
+
+  const keep = () => {
+    rc.keep();
+    api.firewall().then(setProbe).catch(() => {});
+  };
+
+  const revert = () => {
+    rc.revert();
+    api.firewall().then(setProbe).catch(() => {});
   };
 
   return (
@@ -228,6 +244,8 @@ export function TrafficRulesCard() {
         confirmLabel={t("trafficRules.deleteConfirm")}
         busy={busy}
       />
+
+      <RollbackConfirmModal pending={rc.pending} seconds={rc.seconds} onKeep={keep} onRevert={revert} />
     </div>
   );
 }
