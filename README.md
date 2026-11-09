@@ -56,8 +56,8 @@ waits, checks the service came up, and undoes itself if it did not.
 Three rules shape it:
 
 - **It lives on the router.** One static Go binary with the UI embedded
-  (about 10 MB on disk and ~15 MB of RAM in use, measured on an ARM64
-  router; ~11.4 MB on mipsle), packaged as a real OpenWrt `.apk`/`.ipk`
+  (12-15 MB on disk depending on architecture, and ~16-18 MB of RAM in
+  use, measured on real routers), packaged as a real OpenWrt `.apk`/`.ipk`
   that survives sysupgrade. No container, no extra box, no Node on a
   router.
 - **Safe by construction.** Every change goes through an allowlisted
@@ -279,6 +279,18 @@ On every release tag, CI builds and precompresses the frontend once,
 cross-compiles seven generic Go ABI binaries, and fans those binaries out into
 target-specific `.apk`/`.ipk` packages with the OpenWrt SDK. The release summary
 reports the size of every binary and the compressed frontend.
+
+Binary size (release assets, UI embedded):
+
+| Architecture | Size (approx) |
+| --- | ---: |
+| arm64 | 12.7 MB |
+| amd64 | 13.8 MB |
+| armv5 / armv6 | 13.4 MB |
+| armv7 | 13.3 MB |
+| mips / mipsle | 15.1 MB |
+
+Runtime memory use is ~16-18 MB RSS.
 
 ## License
 

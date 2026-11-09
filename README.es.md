@@ -57,10 +57,10 @@ se deshace solo si no fue así.
 Tres reglas lo dan forma:
 
 - **Vive en el router.** Un único binario Go estático con la UI embebida
-  (unos 10 MB en disco y ~15 MB de RAM en uso, medidos en un router ARM64;
-  ~11,4 MB en mipsle), empaquetado como `.apk`/`.ipk` real de OpenWrt que
-  sobrevive al sysupgrade. Sin contenedores, sin caja extra, sin Node en un
-  router.
+  (12-15 MB en disco según arquitectura, y ~16-18 MB de RAM en uso,
+  medidos en routers reales), empaquetado como `.apk`/`.ipk` real de OpenWrt
+  que sobrevive al sysupgrade. Sin contenedores, sin caja extra, sin Node en
+  un router.
 - **Seguro por construcción.** Cada cambio pasa por un executor con
   allowlist, con snapshot de config y rollback automático. El panel no puede
   salirse del camino trazado.
@@ -285,6 +285,18 @@ En cada tag de release, el CI compila y precomprime el frontend una sola vez,
 cross-compila siete binarios para ABI Go genéricos y los distribuye en paquetes
 `.apk`/`.ipk` específicos de cada target mediante el SDK de OpenWrt. El resumen
 de la release muestra el tamaño de cada binario y del frontend comprimido.
+
+Tamaño del binario (assets de release, con la UI embebida):
+
+| Arquitectura | Tamaño (aprox) |
+| --- | ---: |
+| arm64 | 12,7 MB |
+| amd64 | 13,8 MB |
+| armv5 / armv6 | 13,4 MB |
+| armv7 | 13,3 MB |
+| mips / mipsle | 15,1 MB |
+
+El uso de RAM en ejecución es de ~16-18 MB RSS.
 
 ## Licencia
 
