@@ -5,6 +5,7 @@ import { api } from "../api";
 import type { WirelessRadio } from "../types";
 import { ActionBanner, Banner, Button, Field, Input, Modal, Pill } from "./ui";
 import { useActionCycle } from "./wifi/action";
+import { RollbackConfirmModal, useRollbackConfirm } from "./rollback";
 
 // Canal y ancho admisibles por banda (permissivos; el firmware valida).
 const CH_2G = ["auto", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"];
@@ -32,6 +33,8 @@ export function WifiRadioModal({ radio, onClose, onSaved }: {
   const [htmode, setHtmode] = useState(radio.htmode || (is5g ? "HE80" : "HE20"));
   const [txpower, setTxpower] = useState(radio.txpower > 0 ? String(radio.txpower) : "");
   const { phase, detail, busy, run } = useActionCycle();
+  const rc = useRollbackConfirm();
+  const [savedState, setSavedState] = useState<WirelessRadio | null>(null);
 
   const bandLabel = is5g ? t("wifi.band5") : t("wifi.band24");
 
@@ -41,15 +44,35 @@ export function WifiRadioModal({ radio, onClose, onSaved }: {
       channel,
       htmode,
       txpower: txpower ? Number(txpower) : 0,
+      confirm: true,
     })).then((res) => {
-      if (res?.status === "applied") {
-        onSaved(res.state);
-        setTimeout(onClose, 900);
+      if (res?.status !== "applied") return;
+      if (res.confirm) {
+        rc.arm(res.confirm);
+        setSavedState(res.state);
+        return;
       }
+      onSaved(res.state);
+      setTimeout(onClose, 900);
     });
   };
 
+  const keep = () => {
+    rc.keep();
+    const saved = savedState;
+    setSavedState(null);
+    if (saved) onSaved(saved);
+    onClose();
+  };
+
+  const revert = () => {
+    rc.revert();
+    setSavedState(null);
+    onClose();
+  };
+
   return (
+    <>
     <Modal
       open
       onClose={onClose}
@@ -92,5 +115,7 @@ export function WifiRadioModal({ radio, onClose, onSaved }: {
         )}
       </div>
     </Modal>
+    <RollbackConfirmModal pending={rc.pending} seconds={rc.seconds} onKeep={keep} onRevert={revert} />
+    </>
   );
 }

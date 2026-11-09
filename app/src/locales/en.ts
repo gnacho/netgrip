@@ -132,6 +132,10 @@ export default {
     copyDetail: "Copy detail",
     advanced: "Advanced options",
     delete: "Delete",
+    rollbackTitle: "Did the change stick?",
+    rollbackBody: "If this page still responds, keep it. Otherwise it reverts on its own in {{seconds}}s.",
+    keep: "Keep",
+    revert: "Revert",
   },
   action: {
     applying: "Applying… we save a backup first, just in case.",

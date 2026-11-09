@@ -9,6 +9,7 @@ import {
 } from "../components/ui";
 import { MultiWanCard } from "../components/wan/MultiWanCard";
 import { ModeCard } from "../components/system/ModeCard";
+import { RollbackConfirmModal, useRollbackConfirm } from "../components/rollback";
 import { useLabs } from "../hooks/useLabs";
 
 const PROTO = ["dhcp", "static", "pppoe"] as const;
@@ -82,6 +83,8 @@ export function WanPage({ mwan, onMwanChange, hideMode = false }: {
   const [error, setError] = useState(false);
   const [publicIp, setPublicIp] = useState<PublicIP>();
   const [checking, setChecking] = useState(false);
+  const rc = useRollbackConfirm();
+  const [savedState, setSavedState] = useState<WANConfig | null>(null);
 
   const load = () => {
     api.wan().then(setStatus).catch(() => setError(true));
@@ -108,7 +111,12 @@ export function WanPage({ mwan, onMwanChange, hideMode = false }: {
   const save = async () => {
     setSaving(true);
     try {
-      const res = await api.setWanConfig(form);
+      const res = await api.setWanConfig(form, true);
+      if (res.confirm) {
+        rc.arm(res.confirm);
+        setSavedState(res);
+        return;
+      }
       setCfg(res);
       setForm(res);
       setEditing(false);
@@ -118,6 +126,24 @@ export function WanPage({ mwan, onMwanChange, hideMode = false }: {
     } finally {
       setSaving(false);
     }
+  };
+
+  const keep = () => {
+    rc.keep();
+    const saved = savedState;
+    setSavedState(null);
+    if (saved) {
+      setCfg(saved);
+      setForm(saved);
+      setEditing(false);
+      push({ tone: "ok", text: t("wan.saved") });
+    }
+  };
+
+  const revert = () => {
+    rc.revert();
+    setSavedState(null);
+    setEditing(false);
   };
 
   const stats = useMemo(() => ({
@@ -268,6 +294,7 @@ export function WanPage({ mwan, onMwanChange, hideMode = false }: {
       {/* MultiWAN es funcionalidad labs: solo se dibuja con Labs activado
           (Sistema > Opciones). */}
       {labs && <MultiWanCard probe={mwan} onChange={onMwanChange} index={3} />}
+      <RollbackConfirmModal pending={rc.pending} seconds={rc.seconds} onKeep={keep} onRevert={revert} />
     </div>
   );
 }

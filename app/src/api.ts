@@ -119,11 +119,11 @@ const realApi = {
   wan: () => request<import("./types").WanStatus>("/api/wan"),
   wanConfig: () => request<WANConfig>("/api/wan/config"),
   checkPublicIp: () => request<PublicIP>("/api/wan/public-ip", { method: "POST" }),
-  setWanConfig: (cfg: WANConfig) =>
-    request<WANConfig>("/api/wan/config", {
+  setWanConfig: (cfg: WANConfig, confirm?: boolean) =>
+    request<WANConfig & { confirm?: { id: string; expires: number } }>("/api/wan/config", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cfg),
+      body: JSON.stringify({ ...cfg, confirm }),
     }),
   wireless: () => request<import("./types").WirelessRadio[]>("/api/wireless"),
   leases: () => request<import("./types").Lease[]>("/api/leases"),
@@ -253,13 +253,13 @@ const realApi = {
     }),
   wifi: () => request<{ interfaces: import("./types").WifiUI[] }>("/api/wifi"),
   wifiKey: (section: string) => request<{ key: string }>(`/api/wifi/key?section=${encodeURIComponent(section)}`),
-  setWifi: (edit: { section: string; sections?: string[]; ssid?: string; key?: string; encryption?: string; hidden?: boolean; disabled?: boolean; mac?: string }) =>
+  setWifi: (edit: { section: string; sections?: string[]; ssid?: string; key?: string; encryption?: string; hidden?: boolean; disabled?: boolean; mac?: string; confirm?: boolean }) =>
     request<import("./types").ModuleResult<import("./types").WifiUI>>("/api/wifi", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(edit),
     }),
-  setWifiRadio: (edit: { radio: string; channel?: string; htmode?: string; txpower?: number }) =>
+  setWifiRadio: (edit: { radio: string; channel?: string; htmode?: string; txpower?: number; confirm?: boolean }) =>
     request<import("./types").ModuleResult<import("./types").WirelessRadio>>("/api/wifi/radio", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -668,17 +668,17 @@ const realApi = {
     }),
   firewall: () =>
     request<import("./types").FirewallProbe>("/api/firewall"),
-  addFirewallRule: (rule: import("./types").FirewallRuleAdd) =>
+  addFirewallRule: (rule: import("./types").FirewallRuleAdd, confirm?: boolean) =>
     request<import("./types").ModuleResult<import("./types").FirewallProbe>>("/api/firewall", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(rule),
+      body: JSON.stringify({ ...rule, confirm }),
     }),
-  deleteFirewallRule: (section: string) =>
+  deleteFirewallRule: (section: string, confirm?: boolean) =>
     request<import("./types").ModuleResult<import("./types").FirewallProbe>>("/api/firewall", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ section }),
+      body: JSON.stringify({ section, confirm }),
     }),
   templates: () =>
     request<{ templates: import("./types").Template[] }>("/api/templates"),
