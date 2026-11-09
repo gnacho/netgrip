@@ -86,6 +86,10 @@ type Server struct {
 	// logins slows password guessing. The panel's login takes the
 	// router's root password and had no rate limit at all.
 	logins *loginThrottle
+	// confirmMu guards confirm, the single pending apply-rollback window
+	// (connectivity-risky changes with a revert timer). See confirm.go.
+	confirmMu sync.Mutex
+	confirm   *confirmEntry
 }
 
 // New builds the panel. secure says it will be served over TLS, and
@@ -229,6 +233,9 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("GET /api/config/diff", s.requireAuth(s.handleSnapshotDiff))
 	s.mux.HandleFunc("POST /api/config/rollback", s.requireAuth(s.handleSnapshotRollback))
 	s.mux.HandleFunc("GET /api/config/snapshot/export", s.requireAuth(s.handleSnapshotExport))
+	s.mux.HandleFunc("GET /api/config/confirm", s.requireAuth(s.handleConfirmStatus))
+	s.mux.HandleFunc("POST /api/config/confirm", s.requireAuth(s.handleConfirmKeep))
+	s.mux.HandleFunc("POST /api/config/confirm/rollback", s.requireAuth(s.handleConfirmRevert))
 	s.mux.HandleFunc("POST /api/ports/bounce", s.requireAuth(s.handlePortBounce))
 	s.mux.HandleFunc("POST /api/ports/block", s.requireAuth(s.handlePortBlock))
 	s.mux.HandleFunc("GET /api/vlans", s.requireAuth(s.handleVLANsGet))
@@ -1752,6 +1759,7 @@ type lanSetRequest struct {
 	IpAddr      *string `json:"ipaddr,omitempty"`
 	Netmask     *string `json:"netmask,omitempty"`
 	ApIsolation *bool   `json:"ap_isolation,omitempty"`
+	Confirm     bool    `json:"confirm,omitempty"`
 }
 
 func (s *Server) handleLANSet(w http.ResponseWriter, r *http.Request) {
@@ -1765,8 +1773,31 @@ func (s *Server) handleLANSet(w http.ResponseWriter, r *http.Request) {
 		Netmask     *string `json:"netmask,omitempty"`
 		ApIsolation *bool   `json:"ap_isolation,omitempty"`
 	}{req.IpAddr, req.Netmask, req.ApIsolation}
+	// A LAN change (notably the panel's own IP) can cut the admin's session,
+	// so when confirm is requested we snapshot before applying and, on
+	// success, arm a revert timer that auto-restores unless the UI confirms.
+	var snapshots map[string]string
+	if req.Confirm {
+		snapshots = captureRiskySnapshots()
+	}
 	probe, rolledBack, err := modules.SetLAN(cfg)
-	writeModuleResult(w, probe, rolledBack, err)
+	if err != nil {
+		writeModuleResult(w, probe, rolledBack, err)
+		return
+	}
+	if req.Confirm {
+		id, expires := s.armConfirm(func() error {
+			return revertSnapshots(snapshots, []string{"network"})
+		}, confirmTimeout)
+		writeJSON(w, map[string]any{
+			"state":       probe,
+			"rolled_back": rolledBack,
+			"status":      "applied",
+			"confirm":     map[string]any{"id": id, "expires": expires.Unix()},
+		})
+		return
+	}
+	writeModuleResult(w, probe, rolledBack, nil)
 }
 
 func (s *Server) handleDHCPSet(w http.ResponseWriter, r *http.Request) {
