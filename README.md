@@ -53,16 +53,20 @@ the services LuCI already exposes through rpcd and puts a switch in front of
 each one. Flip it, and NetGrip snapshots the config, applies the change,
 waits, checks the service came up, and undoes itself if it did not.
 
-Three rules shape it:
-
+Four rules shape it:
 - **It lives on the router.** One static Go binary with the UI embedded
-  (about 10 MB on disk and ~15 MB of RAM in use, measured on an ARM64
-  router; ~11.4 MB on mipsle), packaged as a real OpenWrt `.apk`/`.ipk`
+  (12-15 MB on disk depending on architecture, and ~16-18 MB of RAM in
+  use, measured on real routers), packaged as a real OpenWrt `.apk`/`.ipk`
   that survives sysupgrade. No container, no extra box, no Node on a
   router.
 - **Safe by construction.** Every change goes through an allowlisted
   executor with a config snapshot and automatic rollback. The panel cannot
   wander off the beaten path.
+- **It adapts to the device.** The same binary reads the box it runs on and
+  shows only what applies there: a router, an access point or a managed
+  switch each get the screens that make sense for them, and a feature that
+  needs something the box does not have (a radio, an uplink, a package)
+  simply stays out of the way.
 - **No new accounts.** Login validates against rpcd, the same session LuCI
   uses; one admin per router, nothing extra to administer. AGPL-3.0, no
   premium anything.
@@ -92,9 +96,10 @@ moves the WAN role without editing `network` and `firewall` by hand.
 </p>
 
 **System care without the ceremony.** Access and session settings, security
-cards, a first-run wizard, firmware updates through owut/ASU that rebuild
-the image with your packages inside, and the roaming mesh rendered as a
-radial graph via usteer.
+cards, a first-run wizard, self-updates (the panel upgrades itself in place,
+no reinstall), firmware updates through owut/ASU that rebuild the image with
+your packages inside, and the roaming mesh rendered as a radial graph via
+usteer.
 
 <p align="center">
   <img alt="System page with access settings, security, Router/AP mode and update cards" src="assets/screenshot-system-en.png" width="800">
@@ -279,6 +284,18 @@ On every release tag, CI builds and precompresses the frontend once,
 cross-compiles seven generic Go ABI binaries, and fans those binaries out into
 target-specific `.apk`/`.ipk` packages with the OpenWrt SDK. The release summary
 reports the size of every binary and the compressed frontend.
+
+Binary size (release assets, UI embedded):
+
+| Architecture | Size (approx) |
+| --- | ---: |
+| arm64 | 12.7 MB |
+| amd64 | 13.8 MB |
+| armv5 / armv6 | 13.4 MB |
+| armv7 | 13.3 MB |
+| mips / mipsle | 15.1 MB |
+
+Runtime memory use is ~16-18 MB RSS.
 
 ## License
 
