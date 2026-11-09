@@ -297,6 +297,13 @@ Binary size (release assets, UI embedded):
 
 Runtime memory use is ~16-18 MB RSS.
 
+The 12-15 MB is the whole autonomous daemon, not the UI. It is the Go
+runtime plus the backend (ubus/rpcd client, probes, MQTT, the NetPulse
+agent, self-update) plus the embedded frontend. The frontend itself is
+~344 KB gzipped; the rest is what lets NetGrip run standalone where a
+pure UI layer (like LuCI) is a few hundred KB on top of services OpenWrt
+already ships.
+
 ## License
 
 AGPL-3.0-only. See [LICENSE](LICENSE).
