@@ -60,7 +60,8 @@ Cuatro reglas lo dan forma:
   (12-15 MB en disco según arquitectura, y ~16-18 MB de RAM en uso,
   medidos en routers reales), empaquetado como `.apk`/`.ipk` real de OpenWrt
   que sobrevive al sysupgrade. Sin contenedores, sin caja extra, sin Node en
-  un router.
+  un router y sin LuCI: sirve su propia UI y habla directo con rpcd/ubus de
+  OpenWrt, siendo `ethtool-full` su única dependencia extra.
 - **Seguro por construcción.** Cada cambio pasa por un executor con
   allowlist, con snapshot de config y rollback automático. El panel no puede
   salirse del camino trazado.
@@ -193,7 +194,7 @@ cachés que el panel, y cada llamada queda en el log.
 | Logs | Log del sistema |
 | MQTT / Home Assistant | Discovery + 23 entidades (sensores, interruptores, botones) |
 | Agente de NetPulse | Telemetría de flota integrada, opcional |
-| LuCI | Entrada opcional luci-app-netgrip |
+| LuCI | No lo necesita; entrada opcional luci-app-netgrip |
 | MCP | Endpoint con token Bearer y tools de solo lectura para agentes |
 | Idioma | ES / EN |
 
