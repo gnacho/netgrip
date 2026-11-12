@@ -61,7 +61,7 @@ Cuatro reglas lo dan forma:
   medidos en routers reales), empaquetado como `.apk`/`.ipk` real de OpenWrt
   que sobrevive al sysupgrade. Sin contenedores, sin caja extra, sin Node en
   un router y sin LuCI: sirve su propia UI y habla directo con rpcd/ubus de
-  OpenWrt, siendo `ethtool-full` su única dependencia extra.
+  OpenWrt. Sus dependencias extra son `ethtool-full` y `rpcd-mod-rpcsys`.
 - **Seguro por construcción.** Cada cambio pasa por un executor con
   allowlist, con snapshot de config y rollback automático. El panel no puede
   salirse del camino trazado.
@@ -229,8 +229,8 @@ Descarga el paquete correcto desde la página de
 router:
 
 ```sh
-# OpenWrt 25.12 (apk; el sufijo es la arquitectura genérica del binario)
-apk add netgrip-<version>-r1-arm64.apk
+# OpenWrt 25.12 (apk; el sufijo es la arquitectura exacta del paquete)
+apk add netgrip-<version>-r1-aarch64_cortex-a53.apk
 
 # OpenWrt 24.10 (ipk; el sufijo es la arquitectura exacta del paquete)
 opkg install netgrip_<version>-1_aarch64_cortex-a53.ipk

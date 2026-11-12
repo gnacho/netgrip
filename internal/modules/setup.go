@@ -27,7 +27,7 @@ var setupGroups = []SetupGroup{
 	{
 		ID:       "core",
 		TitleKey: "wizard.setup.required",
-		Packages: []string{"curl", "ca-certificates", "rpcd-mod-file"},
+		Packages: []string{"curl", "ca-certificates", "rpcd-mod-file", "rpcd-mod-rpcsys"},
 	},
 	{
 		ID:       "netpulse",
