@@ -229,8 +229,8 @@ Descarga el paquete correcto desde la página de
 router:
 
 ```sh
-# OpenWrt 25.12 (apk; el sufijo es la arquitectura genérica del binario)
-apk add netgrip-<version>-r1-arm64.apk
+# OpenWrt 25.12 (apk; el sufijo es la arquitectura exacta del paquete)
+apk add netgrip-<version>-r1-aarch64_cortex-a53.apk
 
 # OpenWrt 24.10 (ipk; el sufijo es la arquitectura exacta del paquete)
 opkg install netgrip_<version>-1_aarch64_cortex-a53.ipk

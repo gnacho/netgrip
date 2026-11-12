@@ -161,6 +161,11 @@ jobs:
             format: apk
             binary: linux-arm64
             pkgarch: aarch64_cortex-a53
+          - sdk-version: 25.12.5
+            sdk-target: bcm27xx/bcm2711
+            format: apk
+            binary: linux-arm64
+            pkgarch: aarch64_cortex-a72
           - sdk-version: 24.10.5
             sdk-target: x86/64
             format: ipk
@@ -251,14 +256,11 @@ jobs:
         run: |
           echo "Packages generated:"
           ls -la dist/packages/
-          # The SDK selects the exact package architecture; the release suffix
-          # identifies the generic Go ABI binary carried by the package.
+          # Keep target-specific packages distinct even when they share a Go binary.
           for apk in dist/packages/*.apk; do
             [ -f "$apk" ] || continue
             base="$(basename "$apk" .apk)"
-            asset_arch="${{ matrix.binary }}"
-            asset_arch="${asset_arch#linux-}"
-            newname="${base}-${asset_arch}.apk"
+            newname="${base}-${{ matrix.pkgarch }}.apk"
             mv "$apk" "dist/packages/$newname"
             echo "Renamed: $newname"
           done

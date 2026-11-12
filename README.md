@@ -223,8 +223,8 @@ Download the right package from the
 the router:
 
 ```sh
-# OpenWrt 25.12 (apk; suffix is the generic binary architecture)
-apk add netgrip-<version>-r1-arm64.apk
+# OpenWrt 25.12 (apk; suffix is the exact OpenWrt package architecture)
+apk add netgrip-<version>-r1-aarch64_cortex-a53.apk
 
 # OpenWrt 24.10 (ipk; suffix is the exact OpenWrt package architecture)
 opkg install netgrip_<version>-1_aarch64_cortex-a53.ipk
