@@ -61,7 +61,7 @@ Cuatro reglas lo dan forma:
   medidos en routers reales), empaquetado como `.apk`/`.ipk` real de OpenWrt
   que sobrevive al sysupgrade. Sin contenedores, sin caja extra, sin Node en
   un router y sin LuCI: sirve su propia UI y habla directo con rpcd/ubus de
-  OpenWrt, siendo `ethtool-full` su única dependencia extra.
+  OpenWrt. Sus dependencias extra son `ethtool-full` y `rpcd-mod-rpcsys`.
 - **Seguro por construcción.** Cada cambio pasa por un executor con
   allowlist, con snapshot de config y rollback automático. El panel no puede
   salirse del camino trazado.

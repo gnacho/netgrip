@@ -59,7 +59,8 @@ Four rules shape it:
   use, measured on real routers), packaged as a real OpenWrt `.apk`/`.ipk`
   that survives sysupgrade. No container, no extra box, no Node on a
   router, and no LuCI: it serves its own UI and talks to OpenWrt's
-  rpcd/ubus directly, its only extra dependency being `ethtool-full`.
+  rpcd/ubus directly. Its extra packages are `ethtool-full` and
+  `rpcd-mod-rpcsys`.
 - **Safe by construction.** Every change goes through an allowlisted
   executor with a config snapshot and automatic rollback. The panel cannot
   wander off the beaten path.
