@@ -14,7 +14,7 @@ define Package/netgrip
 	CATEGORY:=Utilities
 	TITLE:=Lightweight on-router companion panel for OpenWrt
 	URL:=https://github.com/gnacho/netgrip
-	DEPENDS:=@(aarch64||arm||mips||mipsel||x86_64) +ethtool-full
+	DEPENDS:=@(aarch64||arm||mips||mipsel||x86_64) +ethtool-full +rpcd-mod-rpcsys
 endef
 
 define Package/netgrip/description
