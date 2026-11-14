@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestInstallerSelectsNativeAPK(t *testing.T) {
@@ -72,6 +74,78 @@ printf 'package' > "$dest"
 			want := "https://example.test/release/netgrip-0.78.0-r1-" + tc.asset + ".apk"
 			if urls[len(urls)-1] != want {
 				t.Fatalf("downloaded %v, want %s", urls, want)
+			}
+		})
+	}
+}
+
+// Execute the release upload step with local packages and a stubbed GitHub CLI.
+// Existing heal scripts require the generic suffix even in new releases.
+func TestAPKReleaseNames(t *testing.T) {
+	data, err := os.ReadFile("../../.github/workflows/openwrt-package.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var workflow struct {
+		Jobs map[string]struct {
+			Strategy struct {
+				Matrix struct{ Include []map[string]string }
+			}
+			Steps []struct{ Name, Run string }
+		}
+	}
+	if err := yaml.Unmarshal(data, &workflow); err != nil {
+		t.Fatal(err)
+	}
+	job := workflow.Jobs["package"]
+	var upload string
+	for _, step := range job.Steps {
+		if step.Name == "Upload to release" {
+			upload = step.Run
+		}
+	}
+	if upload == "" {
+		t.Fatal("missing release upload step")
+	}
+	for _, row := range job.Strategy.Matrix.Include {
+		if row["format"] != "apk" {
+			continue
+		}
+		t.Run(row["pkgarch"], func(t *testing.T) {
+			dir := t.TempDir()
+			packages := filepath.Join(dir, "dist", "packages")
+			if err := os.MkdirAll(packages, 0755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(packages, "netgrip-0.78.0-r1.apk"), []byte("package"), 0644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "gh"), []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
+				t.Fatal(err)
+			}
+			script := upload
+			for key, value := range row {
+				script = strings.ReplaceAll(script, "${{ matrix."+key+" }}", value)
+			}
+			script = strings.ReplaceAll(script, "${{ github.repository }}", "example/netgrip")
+			// GitHub's expression defaults to the binary when no native suffix is set.
+			suffix := row["asset-suffix"]
+			if suffix == "" {
+				suffix = row["binary"]
+			}
+			script = strings.ReplaceAll(script, "${{ matrix.asset-suffix || matrix.binary }}", suffix)
+			cmd := exec.Command("sh", "-eu", "-c", script)
+			cmd.Dir = dir
+			cmd.Env = append(os.Environ(), "PATH="+dir+":/usr/bin:/bin", "TAG=v0.78.0")
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("%v: %s", err, out)
+			}
+			want := strings.TrimPrefix(row["binary"], "linux-")
+			if row["sdk-target"] == "bcm27xx/bcm2711" {
+				want = "aarch64_cortex-a72"
+			}
+			if _, err := os.Stat(filepath.Join(packages, "netgrip-0.78.0-r1-"+want+".apk")); err != nil {
+				t.Fatal(err)
 			}
 		})
 	}

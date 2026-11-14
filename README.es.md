@@ -229,8 +229,10 @@ Descarga el paquete correcto desde la página de
 router:
 
 ```sh
-# OpenWrt 25.12 (apk; el sufijo es la arquitectura exacta del paquete)
-apk add netgrip-<version>-r1-aarch64_cortex-a53.apk
+# OpenWrt 25.12: comprueba la arquitectura nativa antes de elegir el paquete
+cat /etc/apk/arch
+# Los targets existentes conservan el sufijo ABI (p. ej. arm64); Pi 4 usa aarch64_cortex-a72
+apk add netgrip-<version>-r1-<release-suffix>.apk
 
 # OpenWrt 24.10 (ipk; el sufijo es la arquitectura exacta del paquete)
 opkg install netgrip_<version>-1_aarch64_cortex-a53.ipk

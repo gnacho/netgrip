@@ -166,6 +166,7 @@ jobs:
             format: apk
             binary: linux-arm64
             pkgarch: aarch64_cortex-a72
+            asset-suffix: aarch64_cortex-a72
           - sdk-version: 24.10.5
             sdk-target: x86/64
             format: ipk
@@ -256,11 +257,13 @@ jobs:
         run: |
           echo "Packages generated:"
           ls -la dist/packages/
-          # Keep target-specific packages distinct even when they share a Go binary.
+          # Preserve generic names for existing heal scripts; new targets use native names.
           for apk in dist/packages/*.apk; do
             [ -f "$apk" ] || continue
             base="$(basename "$apk" .apk)"
-            newname="${base}-${{ matrix.pkgarch }}.apk"
+            asset_arch="${{ matrix.asset-suffix || matrix.binary }}"
+            asset_arch="${asset_arch#linux-}"
+            newname="${base}-${asset_arch}.apk"
             mv "$apk" "dist/packages/$newname"
             echo "Renamed: $newname"
           done
