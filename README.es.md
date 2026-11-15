@@ -261,7 +261,8 @@ cada paquete contra el hash que el índice registra. Si tu arquitectura todavía
 tiene directorio en el feed, `apk update` la marca como no disponible y los
 assets de la release siguen siendo la vía de entrada. Usar el feed desde
 owut/ASU no está verificado aún
-([#582](https://github.com/gnacho/netgrip/issues/582)).
+([#582](https://github.com/gnacho/netgrip/issues/582)). Este layout se publica
+desde la próxima release: los feeds anteriores eran un índice plano y sin firma.
 
 </details>
 

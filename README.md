@@ -255,7 +255,8 @@ none of that needs `--allow-untrusted`: apk verifies the index and checks every
 package against the hash the index records. If your package architecture has no
 directory in the feed yet, `apk update` reports it as unavailable and the release
 assets above remain the way in. Using the feed from owut/ASU is not verified yet
-([#582](https://github.com/gnacho/netgrip/issues/582)).
+([#582](https://github.com/gnacho/netgrip/issues/582)). This layout is published
+from the next release on: earlier feeds were a flat, unsigned index.
 
 </details>
 
