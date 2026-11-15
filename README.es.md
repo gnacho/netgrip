@@ -18,7 +18,8 @@
   puede pulsar tu familia.</strong><br>
   NetGrip es un panel companion que corre en el propio router, junto a LuCI:
   WireGuard, WiFi de invitados, QoS, DNS y más, un clic cada uno, con
-  snapshot, comprobación de salud y rollback automático si algo sale mal.
+  snapshot, comprobación de salud y rollback automático si algo sale mal.<br>
+  <strong>Un solo binario estático, 3,9 MB instalado, interfaz incluida.</strong>
 </p>
 
 <p align="center">
@@ -56,12 +57,13 @@ se deshace solo si no fue así.
 
 Cuatro reglas lo dan forma:
 
-- **Vive en el router.** Un único binario Go estático con la UI embebida
-  (12-15 MB en disco según arquitectura, y ~16-18 MB de RAM en uso,
-  medidos en routers reales), empaquetado como `.apk`/`.ipk` real de OpenWrt
-  que sobrevive al sysupgrade. Sin contenedores, sin caja extra, sin Node en
-  un router y sin LuCI: sirve su propia UI y habla directo con rpcd/ubus de
-  OpenWrt. Sus dependencias extra son `ethtool-full` y `rpcd-mod-rpcsys`.
+- **Vive en el router.** Un único binario Go estático con la UI embebida,
+  **3,9 MB instalado** (la release lo publica empaquetado con UPX y también
+  sin empaquetar), empaquetado como `.apk`/`.ipk` real de OpenWrt que
+  sobrevive al sysupgrade. Sin contenedores, sin caja extra, sin Node en un
+  router, sin PHP ni Python en ningún sitio, y sin LuCI: sirve su propia UI y
+  habla directo con rpcd/ubus de OpenWrt. Sus dependencias extra son
+  `ethtool-full` y `rpcd-mod-rpcsys`.
 - **Seguro por construcción.** Cada cambio pasa por un executor con
   allowlist, con snapshot de config y rollback automático. El panel no puede
   salirse del camino trazado.
@@ -363,12 +365,10 @@ Tamaño del binario (assets de release, con la UI embebida):
 | armv7 | 13,3 MB |
 | mips / mipsle | 15,1 MB |
 
-Esos son los tamaños sin empaquetar. Los assets de release salen **comprimidos con UPX al 29-33 % de esa cifra** (arm64: de 13,4 MB a 3,9 MB), así que lo que ocupa en el router es un tercio de la tabla. UPX comprime el ejecutable y su stub lo descomprime en memoria al arrancar: cambia flash por unos MB de RAM. El binario sin empaquetar se publica junto al comprimido con sufijo `.raw`, sin firmar y solo para depurar, porque `gdb` ve el stub y no el programa. Para descomprimir in situ: `upx -d /usr/sbin/netgrip`.
+Esos son los tamaños sin empaquetar. Los assets de release salen **comprimidos con UPX al 29-33 % de esa cifra** (arm64: de 13,4 MB a 3,9 MB), así que lo que ocupa en el router es un tercio de la tabla. UPX comprime el ejecutable y su stub lo descomprime en memoria al arrancar. El binario sin empaquetar se publica junto al comprimido con sufijo `.raw`, sin firmar y solo para depurar, porque `gdb` ve el stub y no el programa. Para descomprimir in situ: `upx -d /usr/sbin/netgrip`.
 
-El uso de RAM en ejecución es de ~16-18 MB RSS.
-
-Los 12-15 MB son el daemon autónomo entero, no la UI: el runtime de Go más
-el backend (cliente ubus/rpcd, sondas, MQTT, el agente de NetPulse,
+El binario sin empaquetar es el daemon autónomo entero, no la UI: el runtime
+de Go más el backend (cliente ubus/rpcd, sondas, MQTT, el agente de NetPulse,
 self-update) más el frontend embebido. El frontend en sí son ~344 KB gzip;
 el resto es lo que hace que NetGrip corra autónomo donde una capa solo-UI
 (como LuCI) pesa unos cientos de KB sobre servicios que OpenWrt ya trae.

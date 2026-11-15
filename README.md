@@ -18,7 +18,8 @@
   can press.</strong><br>
   NetGrip is a companion panel that runs on the router itself, next to LuCI:
   WireGuard, guest Wi-Fi, QoS, DNS and more, one click each, with a snapshot,
-  a health check and an automatic rollback if anything goes wrong.
+  a health check and an automatic rollback if anything goes wrong.<br>
+  <strong>One static binary, 3.9 MB installed, interface included.</strong>
 </p>
 
 <p align="center">
@@ -54,12 +55,12 @@ each one. Flip it, and NetGrip snapshots the config, applies the change,
 waits, checks the service came up, and undoes itself if it did not.
 
 Four rules shape it:
-- **It lives on the router.** One static Go binary with the UI embedded
-  (12-15 MB on disk depending on architecture, and ~16-18 MB of RAM in
-  use, measured on real routers), packaged as a real OpenWrt `.apk`/`.ipk`
-  that survives sysupgrade. No container, no extra box, no Node on a
-  router, and no LuCI: it serves its own UI and talks to OpenWrt's
-  rpcd/ubus directly. Its extra packages are `ethtool-full` and
+- **It lives on the router.** One static Go binary with the UI embedded,
+  **3.9 MB installed** (the release ships it UPX-packed and publishes the
+  unpacked build too), packaged as a real OpenWrt `.apk`/`.ipk` that
+  survives sysupgrade. No container, no extra box, no Node on a router, no
+  PHP or Python anywhere, and no LuCI: it serves its own UI and talks to
+  OpenWrt's rpcd/ubus directly. Its extra packages are `ethtool-full` and
   `rpcd-mod-rpcsys`.
 - **Safe by construction.** Every change goes through an allowlisted
   executor with a config snapshot and automatic rollback. The panel cannot
@@ -356,11 +357,9 @@ Binary size (release assets, UI embedded):
 | armv7 | 13.3 MB |
 | mips / mipsle | 15.1 MB |
 
-Those are the unpacked sizes. Release assets ship **UPX-packed at 29-33% of that** (arm64: 13.4 MB to 3.9 MB), so the footprint on the router is a third of the table. UPX compresses the executable and its stub decompresses it in memory at startup, which trades flash for a few MB of RAM. The unpacked binary is published next to the packed one with a `.raw` suffix, unsigned and for debugging only, since `gdb` sees the stub rather than the program. To unpack in place: `upx -d /usr/sbin/netgrip`.
+Those are the unpacked sizes. Release assets ship **UPX-packed at 29-33% of that** (arm64: 13.4 MB to 3.9 MB), so the footprint on the router is a third of the table. UPX compresses the executable and its stub decompresses it in memory at startup. The unpacked binary is published next to the packed one with a `.raw` suffix, unsigned and for debugging only, since `gdb` sees the stub rather than the program. To unpack in place: `upx -d /usr/sbin/netgrip`.
 
-Runtime memory use is ~16-18 MB RSS.
-
-The 12-15 MB is the whole autonomous daemon, not the UI. It is the Go
+The unpacked build is the whole autonomous daemon, not the UI. It is the Go
 runtime plus the backend (ubus/rpcd client, probes, MQTT, the NetPulse
 agent, self-update) plus the embedded frontend. The frontend itself is
 ~344 KB gzipped; the rest is what lets NetGrip run standalone where a
