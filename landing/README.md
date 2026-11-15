@@ -25,11 +25,20 @@ server (`/opt/netgrip-web/public`). No build step: plain HTML + CSS + JS.
 
 ## Deploy
 
-Manual for now. The site is a plain nginx root on the web server:
+The public site is served by Caddy in **CT 2111** (nodo2, `164.132.81.106`)
+from `/opt/netgrip-web/public`, files owned by `1000:1000`. The older nginx
+path on webs2 is still on disk but no longer answers for this domain.
 
-1. `tar -czf landing.tgz -C landing .`
-2. Copy to the server (via the npm2 -> webs2 hop) and extract into
-   `/opt/netgrip-web/public`, keeping a backup of the files you replace
-   (`index.html`, `app.js`, `announcements.json` change most often).
-3. Verify: `curl -s https://netgrip.cloudless.club/ | grep <new-key>` and
-   `curl -s https://netgrip.cloudless.club/announcements.json` parses.
+1. Package only what changed, for example
+   `tar czf /tmp/landing.tgz index.html app.js styles.css`.
+2. `scp -P 22222` it to `nodo2.domatix.cloud`, then `pct push 2111` it into
+   the container.
+3. Inside the container: back up the files being replaced into
+   `/root/landing-backup-<stamp>/`, extract over `/opt/netgrip-web/public`
+   and `chown 1000:1000` the replaced files.
+4. Bump the `?v=N` cache buster on `styles.css` and `app.js` in
+   `index.html` whenever either changes, or browsers keep the old copy for
+   an hour.
+5. Verify from outside: the new `?v=N` is served, the title and the new
+   section are in `curl https://netgrip.cloudless.club/`, and
+   `announcements.json` still parses.
