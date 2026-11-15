@@ -1,0 +1,93 @@
+#!/bin/sh
+# /usr/libexec/netgrip-restore-rules
+# Reapplies MAC ACL (nftables) and storm control (tc) rules after boot.
+# Called from /etc/init.d/netgrip start_service via a post-start hook.
+
+MAC_ACL_JSON="/etc/netgrip/mac-acl.json"
+STORM_CONF="/etc/netgrip/storm.conf"
+
+# --- MAC ACL (nftables bridge) ---
+if [ -f "$MAC_ACL_JSON" ]; then
+  # Delete stale table if present
+  nft delete table bridge netgrip_acl 2>/dev/null
+
+  # Parse JSON minimally with shell (jq not guaranteed on OpenWrt)
+  # Format: [{"port":"lan1","mode":"allow","macs":["aa:bb:cc:dd:ee:ff"]}, ...]
+  rules='table bridge netgrip_acl {'
+
+  # Extract each object between { and }
+  while IFS= read -r obj; do
+    port=$(echo "$obj" | sed -n 's/.*"port":"\([^"]*\)".*/\1/p')
+    mode=$(echo "$obj" | sed -n 's/.*"mode":"\([^"]*\)".*/\1/p')
+    macs=$(echo "$obj" | sed -n 's/.*"macs":\[\(.*\)\].*/\1/p' | tr -d '"')
+
+    [ -z "$port" ] || [ -z "$mode" ] || [ "$mode" = "off" ] || [ -z "$macs" ] && continue
+
+    chain="acl_$(echo "$port" | tr '.' '_')"
+    rules="$rules
+  chain $chain {"
+
+    IFS=',' read -ra mac_arr <<< "$macs"
+    for mac in "${mac_arr[@]}"; do
+      mac=$(echo "$mac" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
+      [ -z "$mac" ] && continue
+      if [ "$mode" = "allow" ]; then
+        rules="$rules
+    ether saddr $mac accept"
+      else
+        rules="$rules
+    ether saddr $mac drop"
+      fi
+    done
+
+    if [ "$mode" = "allow" ]; then
+      rules="$rules
+    drop"
+    fi
+
+    rules="$rules
+  }"
+  done <<EOF
+$(cat "$MAC_ACL_JSON" | tr -d '\n' | sed 's/},{/}\n{/g')
+EOF
+
+  rules="$rules
+}"
+
+  echo "$rules" | nft -f - 2>/dev/null
+  echo "[netgrip-restore] MAC ACL rules applied"
+fi
+
+# --- Storm control (tc) ---
+if [ -f "$STORM_CONF" ]; then
+  while IFS='=' read -r key val; do
+    [ -z "$key" ] || [ -z "$val" ] && continue
+    port="$key"
+    percent="$val"
+    [ "$percent" -eq 0 ] 2>/dev/null && continue
+
+    # Read link speed
+    speed_mbps=1000
+    if [ -f "/sys/class/net/$port/speed" ]; then
+      s=$(cat "/sys/class/net/$port/speed" 2>/dev/null)
+      [ "$s" -gt 0 ] 2>/dev/null && speed_mbps="$s"
+    fi
+
+    rate_kbps=$((speed_mbps * 1000 * percent / 100))
+
+    tc qdisc del dev "$port" ingress 2>/dev/null
+    tc qdisc add dev "$port" ingress 2>/dev/null || continue
+
+    tc filter add dev "$port" parent ffff: protocol all prio 1 \
+      basic match "meta(dst eq ff:ff:ff:ff:ff:ff)" \
+      police rate "${rate_kbps}kbit" burst 32k exceed drop 2>/dev/null
+
+    tc filter add dev "$port" parent ffff: protocol all prio 2 \
+      basic match "meta(dst eq 01:00:5e:00:00:00/01:00:00:00:00:00)" \
+      police rate "${rate_kbps}kbit" burst 32k exceed drop 2>/dev/null
+
+    echo "[netgrip-restore] Storm control applied on $port (${percent}%)"
+  done < "$STORM_CONF"
+fi
+
+exit 0

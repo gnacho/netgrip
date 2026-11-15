@@ -1,0 +1,125 @@
+#!/bin/sh
+# netgrip-heal-register: restore the package registry entry after an
+# attended sysupgrade (#296).
+#
+# owut/ASU only builds images with packages from official feeds, so an
+# attended upgrade drops netgrip from the image. The files survive the
+# flash via /etc/sysupgrade.conf (postinst adds them) and procd starts the
+# panel on first boot, but the apk/opkg registry entry is gone: the package
+# stops being "installed" and package managers never upgrade it again.
+#
+# This script runs in the background from the init script and reinstalls
+# the running version from the latest GitHub release:
+#   - apk (OpenWrt 25): the matching netgrip-<ver>-r1-<arch>.apk asset,
+#     installed with --allow-untrusted (custom feeds would need a
+#     PGP-signed packages.adb, which the CI cannot produce yet)
+#   - opkg (OpenWrt 24): the matching netgrip_<ver>-1_<arch>.ipk asset
+# Dev builds newer than the latest release are left alone. Failures are
+# logged and retried on the next boot. Never blocks the panel.
+
+PKG=netgrip
+BIN=/usr/sbin/netgrip
+RELEASES_API=https://api.github.com/repos/gnacho/netgrip/releases/latest
+
+log() { logger -t netgrip-heal "$*"; }
+
+lock=/var/run/netgrip-heal.pid
+if [ -f "$lock" ] && kill -0 "$(cat "$lock" 2>/dev/null)" 2>/dev/null; then
+	exit 0
+fi
+echo $$ > "$lock"
+trap 'rm -f "$lock"' EXIT INT TERM
+
+registered() {
+	if command -v apk >/dev/null 2>&1; then
+		apk info "$PKG" >/dev/null 2>&1
+	else
+		opkg list-installed "$PKG" 2>/dev/null | grep -q .
+	fi
+}
+
+if registered; then
+	exit 0
+fi
+
+ver=$("$BIN" -version 2>/dev/null)
+log "registry entry lost (running ${ver:-unknown}): restoring"
+
+# Resolve the release asset for this flavor and architecture.
+if command -v apk >/dev/null 2>&1; then
+	arch=$(apk --print-arch 2>/dev/null)
+	[ -n "$arch" ] || { log "cannot determine apk architecture"; exit 1; }
+	case "$arch" in
+		x86_64|amd64) asset_arch=amd64 ;;
+		aarch64|aarch64_*|arm64) asset_arch=arm64 ;;
+		armv5|arm_arm926ej-s*|arm_xscale*|arm_fa526*) asset_arch=armv5 ;;
+		armv6|arm_arm1176jzf-s*|arm_mpcore*) asset_arch=armv6 ;;
+		armv7|arm_cortex-*|arm_*) asset_arch=armv7 ;;
+		mipsel|mipsel_*|mipsle) asset_arch=mipsle ;;
+		mips|mips_*) asset_arch=mips ;;
+		*) log "no release asset for apk arch $arch"; exit 1 ;;
+	esac
+	pattern="netgrip-[^/]*-${asset_arch}\\.apk$"
+	pkgfile=/tmp/netgrip-heal.apk
+else
+	# print-architecture lists pseudo-archs (all, noarch) first; the arch of
+	# any installed native package is the reliable source.
+	arch=$(opkg status busybox 2>/dev/null | sed -n 's/^Architecture: *//p' | head -n1)
+	if [ -z "$arch" ] || [ "$arch" = "all" ] || [ "$arch" = "noarch" ]; then
+		arch=$(opkg print-architecture 2>/dev/null | awk 'tolower($1)=="arch" && $2!="all" && $2!="noarch" {print $2; exit}')
+	fi
+	[ -n "$arch" ] || { log "cannot determine architecture"; exit 1; }
+	pattern="netgrip_[^/]*_${arch}\.ipk$"
+	pkgfile=/tmp/netgrip-heal.ipk
+fi
+
+# Wait for WAN, up to ~3 minutes.
+i=0
+while [ "$i" -lt 36 ]; do
+	if wget -q -O /dev/null -T 5 https://api.github.com 2>/dev/null; then
+		break
+	fi
+	sleep 5
+	i=$((i + 1))
+done
+
+json=$(wget -q -O - -T 15 "$RELEASES_API" 2>/dev/null)
+[ -n "$json" ] || { log "cannot reach GitHub releases API"; exit 1; }
+
+url=$(printf '%s' "$json" | tr ',' '\n' | grep -o '"browser_download_url": *"[^"]*"' | cut -d'"' -f4 | grep -E "/${pattern}" | head -n1)
+[ -n "$url" ] || { log "no release asset matching ${pattern}"; exit 1; }
+
+# Never downgrade a dev build: only heal when the asset matches the
+# running version.
+if [ -n "$ver" ]; then
+	case "$url" in
+		*"netgrip-${ver}-"*|*"netgrip_${ver}-"*) ;;
+		*)
+			log "latest release does not match running $ver: skipping (reinstall manually)"
+			exit 0
+			;;
+	esac
+fi
+
+if ! wget -q -O "$pkgfile" -T 120 "$url"; then
+	rm -f "$pkgfile"
+	log "download failed: $url"
+	exit 1
+fi
+
+if command -v apk >/dev/null 2>&1; then
+	if apk add --allow-untrusted "$pkgfile" >/dev/null 2>&1; then
+		rm -f "$pkgfile"
+		log "restored from $url"
+		exit 0
+	fi
+else
+	if opkg install "$pkgfile" >/dev/null 2>&1; then
+		rm -f "$pkgfile"
+		log "restored from $url"
+		exit 0
+	fi
+fi
+rm -f "$pkgfile"
+log "install failed"
+exit 1

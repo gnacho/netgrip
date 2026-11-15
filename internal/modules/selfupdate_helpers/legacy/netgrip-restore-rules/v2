@@ -1,0 +1,207 @@
+#!/bin/sh
+# /usr/libexec/netgrip-restore-rules
+# Reapplies MAC ACL (nftables), port isolation and learning (bridge port
+# sysfs), static FDB entries (via `netgrip -restore-fdb`), storm control,
+# port mirroring and per-port rate limits (the tc parts) after boot.
+# Called from /etc/init.d/netgrip start_service via a post-start hook.
+
+MAC_ACL_JSON="/etc/netgrip/mac-acl.json"
+ISOLATION_CONF="/etc/netgrip/isolation.conf"
+LEARNING_CONF="/etc/netgrip/learning.conf"
+FDB_CONF="/etc/netgrip/fdb.conf"
+STORM_CONF="/etc/netgrip/storm.conf"
+MIRROR_CONF="/etc/netgrip/mirror.conf"
+RATE_CONF="/etc/netgrip/rate.conf"
+
+# --- MAC ACL (nftables bridge) ---
+if [ -f "$MAC_ACL_JSON" ]; then
+  # Delete stale table if present
+  nft delete table bridge netgrip_acl 2>/dev/null
+
+  # Parse JSON minimally with shell (jq not guaranteed on OpenWrt)
+  # Format: [{"port":"lan1","mode":"allow","macs":["aa:bb:cc:dd:ee:ff"]}, ...]
+  rules='table bridge netgrip_acl {'
+
+  # Extract each object between { and }
+  while IFS= read -r obj; do
+    port=$(echo "$obj" | sed -n 's/.*"port":"\([^"]*\)".*/\1/p')
+    mode=$(echo "$obj" | sed -n 's/.*"mode":"\([^"]*\)".*/\1/p')
+    macs=$(echo "$obj" | sed -n 's/.*"macs":\[\([^]]*\)\].*/\1/p' | tr -d '"')
+
+    [ -z "$port" ] || [ -z "$mode" ] || [ "$mode" = "off" ] || [ -z "$macs" ] && continue
+
+    chain="acl_$(echo "$port" | tr '.' '_')"
+    rules="$rules
+  chain $chain {"
+
+    # POSIX: busybox ash no soporta herestrings (<<< rompia el parseo de
+    # TODO el script, tambien en la seccion storm).
+    mac_list=$(echo "$macs" | tr ',' ' ')
+    for mac in $mac_list; do
+      mac=$(echo "$mac" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
+      [ -z "$mac" ] && continue
+      if [ "$mode" = "allow" ]; then
+        rules="$rules
+    ether saddr $mac accept"
+      else
+        rules="$rules
+    ether saddr $mac drop"
+      fi
+    done
+
+    if [ "$mode" = "allow" ]; then
+      rules="$rules
+    drop"
+    fi
+
+    rules="$rules
+  }"
+  done <<EOF
+$(cat "$MAC_ACL_JSON" | tr -d '\n' | sed 's/},{/}\n{/g')
+EOF
+
+  rules="$rules
+}"
+
+  echo "$rules" | nft -f - 2>/dev/null
+  echo "[netgrip-restore] MAC ACL rules applied"
+fi
+
+# --- Port isolation (bridge port sysfs, #449) ---
+# Format: one isolated port per line:
+#   lan20
+if [ -f "$ISOLATION_CONF" ]; then
+  while IFS= read -r line; do
+    port=${line%%=*}
+    val=${line#*=}
+    # Sin "=" val es la propia linea: nombre a pelo = aislado.
+    [ "$val" = "$line" ] && val=1
+    [ -z "$port" ] && [ -z "$val" ] && continue
+    [ "$val" = "0" ] && continue
+    if [ -f "/sys/class/net/$port/brport/isolated" ]; then
+      echo 1 > "/sys/class/net/$port/brport/isolated" 2>/dev/null
+      echo "[netgrip-restore] Port isolation applied on $port"
+    fi
+  done < "$ISOLATION_CONF"
+fi
+
+# --- Port learning off (bridge port sysfs, #449) ---
+# Format: one port with learning disabled per line:
+#   lan20=0
+if [ -f "$LEARNING_CONF" ]; then
+  while IFS='=' read -r port val; do
+    [ -z "$port" ] && continue
+    [ -z "$val" ] && val=0
+    [ "$val" != "0" ] && continue
+    if [ -f "/sys/class/net/$port/brport/learning" ]; then
+      echo 0 > "/sys/class/net/$port/brport/learning" 2>/dev/null
+      echo "[netgrip-restore] Port learning disabled on $port"
+    fi
+  done < "$LEARNING_CONF"
+fi
+
+# --- Static FDB entries (#449) ---
+# Format: "<port>=<mac> <mac>..." per line. No `bridge` tool exists on the
+# targets (busybox does not ship it), so the re-apply is netlink from the
+# netgrip binary itself.
+if [ -f "$FDB_CONF" ] && [ -x /usr/sbin/netgrip ]; then
+  /usr/sbin/netgrip -restore-fdb && echo "[netgrip-restore] Static FDB entries applied"
+fi
+
+# Everything below needs tc; skip the tc parts when it is missing (the
+# panel reinstalls it on the next apply, #489).
+command -v tc >/dev/null 2>&1 || exit 0
+
+# --- Storm control (tc) ---
+# clsact is the shared ingress/egress hook for storm, mirroring and rate
+# limits; storm owns priorities 1 and 2. Verified syntax on rtl931x (#489):
+# ematch cmp on "layer link".
+if [ -f "$STORM_CONF" ]; then
+  while IFS='=' read -r key val; do
+    [ -z "$key" ] || [ -z "$val" ] && continue
+    port="$key"
+    percent="$val"
+    [ "$percent" -eq 0 ] 2>/dev/null && continue
+
+    # Read link speed
+    speed_mbps=1000
+    if [ -f "/sys/class/net/$port/speed" ]; then
+      s=$(cat "/sys/class/net/$port/speed" 2>/dev/null)
+      [ "$s" -gt 0 ] 2>/dev/null && speed_mbps="$s"
+    fi
+
+    rate_kbps=$((speed_mbps * 1000 * percent / 100))
+
+    tc qdisc add dev "$port" clsact 2>/dev/null
+    tc filter del dev "$port" ingress prio 1 2>/dev/null
+    tc filter del dev "$port" ingress prio 2 2>/dev/null
+
+    tc filter add dev "$port" ingress protocol all prio 1 \
+      basic match "cmp(u16 at 0 layer link mask 0xffff eq 0xffff) and cmp(u16 at 2 layer link mask 0xffff eq 0xffff) and cmp(u16 at 4 layer link mask 0xffff eq 0xffff)" \
+      police rate "${rate_kbps}kbit" burst 32k drop 2>/dev/null
+
+    tc filter add dev "$port" ingress protocol all prio 2 \
+      basic match "cmp(u32 at 0 layer link mask 0x01000000 eq 0x01000000)" \
+      police rate "${rate_kbps}kbit" burst 32k drop 2>/dev/null
+
+    echo "[netgrip-restore] Storm control applied on $port (${percent}%)"
+  done < "$STORM_CONF"
+fi
+
+# --- Port mirroring (tc mirred) ---
+# Format:
+#   monitor=lan21
+#   sources=lan20 lan22
+if [ -f "$MIRROR_CONF" ]; then
+  monitor=$(sed -n 's/^monitor=//p' "$MIRROR_CONF" | head -n1)
+  sources=$(sed -n 's/^sources=//p' "$MIRROR_CONF" | head -n1)
+  if [ -n "$monitor" ]; then
+    for port in $sources; do
+      tc qdisc add dev "$port" clsact 2>/dev/null
+      tc filter del dev "$port" ingress prio 10 2>/dev/null
+      tc filter del dev "$port" egress prio 11 2>/dev/null
+      tc filter add dev "$port" ingress protocol all prio 10 \
+        matchall action mirred egress mirror dev "$monitor" 2>/dev/null
+      tc filter add dev "$port" egress protocol all prio 11 \
+        matchall action mirred egress mirror dev "$monitor" 2>/dev/null
+      echo "[netgrip-restore] Mirror $port -> $monitor applied"
+    done
+  fi
+fi
+
+# --- Per-port rate limit (tc) ---
+# Format: one port per line, ingress,egress percent of link speed:
+#   lan20=10,25
+if [ -f "$RATE_CONF" ]; then
+  while IFS='=' read -r port vals; do
+    [ -z "$port" ] && continue
+    ing=${vals%,*}
+    eg=${vals#*,}
+
+    speed_mbps=1000
+    if [ -f "/sys/class/net/$port/speed" ]; then
+      s=$(cat "/sys/class/net/$port/speed" 2>/dev/null)
+      [ "$s" -gt 0 ] 2>/dev/null && speed_mbps="$s"
+    fi
+    kbps=$((speed_mbps * 1000))
+
+    if [ "$ing" -gt 0 ] 2>/dev/null; then
+      rate_kbps=$((kbps * ing / 100))
+      tc qdisc add dev "$port" clsact 2>/dev/null
+      tc filter del dev "$port" ingress prio 20 2>/dev/null
+      tc filter add dev "$port" ingress protocol all prio 20 \
+        matchall action police rate "${rate_kbps}kbit" burst 32k drop 2>/dev/null
+    fi
+
+    if [ "$eg" -gt 0 ] 2>/dev/null; then
+      rate_kbps=$((kbps * eg / 100))
+      tc qdisc del dev "$port" root 2>/dev/null
+      tc qdisc add dev "$port" root handle 1: \
+        tbf rate "${rate_kbps}kbit" burst 32k latency 100ms 2>/dev/null
+    fi
+
+    echo "[netgrip-restore] Rate limit applied on $port (in ${ing}%, out ${eg}%)"
+  done < "$RATE_CONF"
+fi
+
+exit 0

@@ -1,4 +1,5 @@
 #!/bin/sh
+# netgrip helper - managed
 # /usr/libexec/netgrip-restore-rules
 # Reapplies MAC ACL (nftables), port isolation and learning (bridge port
 # sysfs), static FDB entries (via `netgrip -restore-fdb`), storm control,
