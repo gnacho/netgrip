@@ -98,8 +98,11 @@ fi
 # Never downgrade a dev build: only heal when the asset matches the
 # running version.
 if [ -n "$ver" ]; then
+	# Release assets drop the leading v of the tag (netgrip-0.78.0-r1-...),
+	# while -version prints the tag verbatim (v0.78.0).
+	ver_num=${ver#v}
 	case "$url" in
-		*"netgrip-${ver}-"*|*"netgrip_${ver}-"*) ;;
+		*"netgrip-${ver_num}-"*|*"netgrip_${ver_num}-"*) ;;
 		*)
 			log "latest release does not match running $ver: skipping (reinstall manually)"
 			exit 0
