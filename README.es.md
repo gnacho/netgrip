@@ -245,13 +245,23 @@ El postinst añade el binario, el init y el enlace rc.d a
 firmware. El paquete opcional `luci-app-netgrip` incrusta el panel bajo LuCI
 > Servicios de la misma forma.
 
-El índice de paquetes también se publica como feed en
-`https://gnacho.github.io/netgrip/packages.adb`, firmado con
-`deploy/openwrt/keys/netgrip-feed.pub`. OpenWrt 25.12 solo verifica índices
-firmados con la clave oficial de compilación, así que instalar desde ahí
-sigue necesitando `apk add --allow-untrusted` y ASU/owut todavía no puede
-usarlo ([#296](https://github.com/gnacho/netgrip/issues/582)). Mientras eso
-no se resuelva, la vía de instalación son los assets de la release.
+El índice de paquetes también se publica como feed firmado, con un directorio
+por arquitectura de paquete:
+
+```sh
+wget -O /etc/apk/keys/netgrip-feed.pem https://gnacho.github.io/netgrip/netgrip-feed.pem
+echo "https://gnacho.github.io/netgrip/$(cat /etc/apk/arch)/packages.adb" > /etc/apk/repositories.d/netgrip.list
+apk update
+apk add netgrip
+```
+
+El índice va firmado con la clave de `deploy/openwrt/keys/netgrip-feed.pem`, así
+que nada de eso necesita `--allow-untrusted`: apk verifica el índice y comprueba
+cada paquete contra el hash que el índice registra. Si tu arquitectura todavía no
+tiene directorio en el feed, `apk update` la marca como no disponible y los
+assets de la release siguen siendo la vía de entrada. Usar el feed desde
+owut/ASU no está verificado aún
+([#582](https://github.com/gnacho/netgrip/issues/582)).
 
 </details>
 
