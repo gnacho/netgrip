@@ -309,6 +309,68 @@ ul { padding: 0; list-style: none; }
 .hero-ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 18px; }
 .hero-micro { color: var(--muted); font-size: 13.5px; }
 
+/* Dato objetivo del hero: el peso del binario, sin adornos. */
+.hero-fact {
+  display: inline-block;
+  margin: 0 auto 30px;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------- Peso vs funciones ---------- */
+.section--weight { padding-top: 24px; }
+.weight-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 20px;
+  align-items: start;
+}
+.weight-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 30px;
+  box-shadow: var(--shadow-sm);
+}
+.weight-card--inside { background: var(--surface-2); }
+.weight-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+.weight-number {
+  font-size: clamp(46px, 6vw, 70px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 6px;
+}
+.weight-number-note { color: var(--muted); font-size: 14.5px; margin-bottom: 24px; }
+.weight-rows { list-style: none; display: grid; gap: 14px; }
+.weight-rows li { display: grid; gap: 3px; padding-top: 12px; border-top: 1px solid var(--border); }
+.weight-rows strong { font-size: 14.5px; }
+.weight-rows span { color: var(--muted); font-size: 14px; }
+.weight-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+.weight-chips li {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.weight-note { color: var(--muted); font-size: 13px; line-height: 1.6; margin-top: 20px; }
+
 .hero-visual { position: relative; margin-top: 64px; }
 .hero-halo {
   position: absolute; inset: -8% 0; z-index: -1; border-radius: 50%;
@@ -470,6 +532,7 @@ html.js .reveal.in { opacity: 1; transform: translateY(0); }
 
 /* ---------- Nav hamburguesa < 860px ---------- */
 @media (max-width: 860px) {
+  .weight-grid { grid-template-columns: 1fr; }
   .hamburger { display: inline-flex; }
   .nav-github, .nav-demo { display: none; }
   .nav {
@@ -501,6 +564,10 @@ html.js .reveal.in { opacity: 1; transform: translateY(0); }
   .feat-grid { grid-template-columns: 1fr; }
   .hero-ctas .btn { width: 100%; }
   .header-inner { gap: 12px; }
+  /* El botón de estrella no cabe con el selector de idioma y el hamburguesa:
+     se oculta aquí y la sección de comunidad sigue ofreciendo el enlace. */
+  .nav-star { display: none; }
+  .header-actions { gap: 8px; }
   .lang-btn { padding: 4px 9px; }
   .browser-bar { padding: 9px 12px; }
   .browser-url { font-size: 10.5px; padding: 3px 9px; }

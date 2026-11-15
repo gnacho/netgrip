@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NetGrip - OpenWrt para todos</title>
-  <meta name="description" content="NetGrip es un panel amable y software libre (AGPL) para routers OpenWrt. Toda la potencia de tu router, al alcance de cualquiera.">
+  <title>NetGrip - el panel de 3,9 MB para OpenWrt</title>
+  <meta name="description" content="NetGrip es un panel de software libre (AGPL) para routers OpenWrt: WireGuard, WiFi de invitados, QoS, DNS, cortafuegos visual y Home Assistant en un solo binario estático de 3,9 MB. Sin PHP, sin Python, sin contenedor.">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F6F7F9">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0E1013">
   <link rel="canonical" href="https://netgrip.cloudless.club/">
@@ -13,8 +13,8 @@
   <link rel="alternate" hreflang="x-default" href="https://netgrip.cloudless.club/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="NetGrip">
-  <meta property="og:title" content="NetGrip - OpenWrt para todos">
-  <meta property="og:description" content="Un panel amable y software libre (AGPL) para routers OpenWrt. Toda la potencia de tu router, al alcance de cualquiera.">
+  <meta property="og:title" content="NetGrip - el panel de 3,9 MB para OpenWrt">
+  <meta property="og:description" content="WireGuard, WiFi de invitados, QoS, DNS, cortafuegos visual y Home Assistant en un solo binario estático de 3,9 MB. Software libre (AGPL), sin contenedor y sin caja aparte.">
   <meta property="og:url" content="https://netgrip.cloudless.club/">
   <meta property="og:image" content="https://netgrip.cloudless.club/og.png">
   <meta property="og:image:width" content="1200">
@@ -23,8 +23,8 @@
   <meta property="og:locale" content="es_ES">
   <meta property="og:locale:alternate" content="en_US">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="NetGrip - OpenWrt para todos">
-  <meta name="twitter:description" content="Un panel amable y software libre (AGPL) para routers OpenWrt. Toda la potencia de tu router, al alcance de cualquiera.">
+  <meta name="twitter:title" content="NetGrip - el panel de 3,9 MB para OpenWrt">
+  <meta name="twitter:description" content="WireGuard, WiFi de invitados, QoS, DNS, cortafuegos visual y Home Assistant en un solo binario estático de 3,9 MB. Software libre (AGPL).">
   <meta name="twitter:image" content="https://netgrip.cloudless.club/og.png">
   <script type="application/ld+json">
   {
@@ -46,7 +46,8 @@
         "downloadUrl": "https://github.com/gnacho/netgrip/releases",
         "codeRepository": "https://github.com/gnacho/netgrip",
         "license": "https://www.gnu.org/licenses/agpl-3.0.html",
-        "description": "Panel companion para routers OpenWrt: VPN, WiFi de invitados, SQM, cortafuegos y más, con textos claros y deshacer en cada cambio.",
+        "description": "Panel companion para routers OpenWrt: VPN, WiFi de invitados, SQM, cortafuegos y más, en un solo binario estático de 3,9 MB, con textos claros y deshacer en cada cambio.",
+        "fileSize": "3.9MB",
         "isAccessibleForFree": true,
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
       },
@@ -98,7 +99,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=11">
+  <link rel="stylesheet" href="styles.css?v=12">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232E6BE6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12a8 8 0 0 1 16 0'/%3E%3Cpath d='M7.5 12a4.5 4.5 0 0 1 9 0'/%3E%3Ccircle cx='12' cy='13' r='1.6' fill='%232E6BE6' stroke='none'/%3E%3Cpath d='M12 15v5'/%3E%3Cpath d='M9 20h6'/%3E%3C/svg%3E">
 </head>
 <body>
@@ -186,8 +187,9 @@
     <section class="hero" id="top">
       <div class="container hero-inner">
         <p class="eyebrow reveal" data-i18n="hero.eyebrow">Software libre · AGPL · Hecho por la comunidad</p>
-        <h1 class="hero-title reveal" data-i18n="hero.title">OpenWrt para todos.</h1>
-        <p class="hero-sub reveal" data-i18n="hero.sub">Tu router con OpenWrt puede hacer de todo: VPN, WiFi de invitados, priorizar videollamadas… NetGrip lo convierte en algo que cualquiera de casa puede usar: sin manuales, sin miedo a romper nada.</p>
+        <h1 class="hero-title reveal" data-i18n="hero.title">3,9 MB en el router. Todo esto dentro.</h1>
+        <p class="hero-sub reveal" data-i18n="hero.sub">Un solo binario estático para OpenWrt: WireGuard, WiFi de invitados, QoS, DNS, cortafuegos visual, Home Assistant y agente de flota. Sin PHP, sin Python, sin contenedor y sin caja aparte.</p>
+        <p class="hero-fact reveal" data-i18n="hero.fact">3,9 MB el binario instalado · cero runtimes · dos paquetes extra en OpenWrt</p>
         <div class="hero-ctas reveal">
           <a class="btn btn--primary btn--lg" href="https://demo.netgrip.cloudless.club/?demo=1" data-url="demo" target="_blank" rel="noopener">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.54.84l12-7.5a1 1 0 0 0 0-1.68l-12-7.5A1 1 0 0 0 7 4.5Z"/></svg>
@@ -290,6 +292,47 @@
           <p class="what-card-text" data-i18n="what.cardText">No inventa funciones: todo lo que ves ya lo puede hacer OpenWrt. NetGrip solo lo hace entendible: textos claros, ayudas en cada ajuste y gráficos que se entienden de un vistazo.</p>
           <p class="what-card-text" data-i18n="what.footprint">Ligero de verdad: unos 10 MB en disco y ~15 MB de RAM en uso, medidos en un router ARM64.</p>
         </aside>
+      </div>
+    </section>
+
+    <!-- ============ 4b. PESO VS FUNCIONES ============ -->
+    <section class="section section--weight" id="peso">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow" data-i18n="weight.eyebrow">Peso y funciones</p>
+          <h2 class="section-title" data-i18n="weight.title">Lo que ocupa, y todo lo que hace.</h2>
+          <p class="section-p section-p--center" data-i18n="weight.sub">El binario instalado ocupa 3,9 MB. Esto es lo que cuesta tenerlo y lo que llevas dentro, sin letra pequeña.</p>
+        </div>
+        <div class="weight-grid">
+          <div class="weight-card reveal">
+            <p class="weight-kicker" data-i18n="weight.costTitle">Lo que cuesta</p>
+            <p class="weight-number" data-i18n="weight.number">3,9 MB</p>
+            <p class="weight-number-note" data-i18n="weight.numberNote">el binario instalado, interfaz incluida</p>
+            <ul class="weight-rows">
+              <li><strong data-i18n="weight.cost2t">Cero runtimes</strong><span data-i18n="weight.cost2d">sin PHP, sin Python, sin Node, sin contenedor</span></li>
+              <li><strong data-i18n="weight.cost3t">Dos paquetes más</strong><span data-i18n="weight.cost3d">ethtool-full y rpcd-mod-rpcsys, nada más</span></li>
+              <li><strong data-i18n="weight.cost4t">Ninguna cuenta nueva</strong><span data-i18n="weight.cost4d">la sesión de LuCI, la misma que ya usas</span></li>
+            </ul>
+          </div>
+          <div class="weight-card weight-card--inside reveal">
+            <p class="weight-kicker" data-i18n="weight.insideTitle">Lo que llevas dentro</p>
+            <ul class="weight-chips">
+              <li data-i18n="weight.chip1">WireGuard y OpenVPN</li>
+              <li data-i18n="weight.chip2">WiFi de invitados e IoT</li>
+              <li data-i18n="weight.chip3">SQM con nota de bufferbloat</li>
+              <li data-i18n="weight.chip4">DNS con protección de rebind</li>
+              <li data-i18n="weight.chip5">Cortafuegos visual</li>
+              <li data-i18n="weight.chip6">VLANs y puertos reales</li>
+              <li data-i18n="weight.chip7">DDNS</li>
+              <li data-i18n="weight.chip8">Home Assistant por MQTT</li>
+              <li data-i18n="weight.chip9">banIP y bloqueo de anuncios</li>
+              <li data-i18n="weight.chip10">Firmware con owut/ASU</li>
+              <li data-i18n="weight.chip11">Autoactualización con rollback</li>
+              <li data-i18n="weight.chip12">Agente de NetPulse</li>
+            </ul>
+            <p class="weight-note" data-i18n="weight.note">La release publica también el mismo binario sin empaquetar (13,4 MB), por si quieres inspeccionarlo. Las cifras salen de medir el binario que se instala.</p>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -551,6 +594,6 @@
 
   <script data-goatcounter="https://stats.netgrip.cloudless.club/count" async src="https://stats.netgrip.cloudless.club/count.js"></script>
   <script defer src="https://stat.domatix.com/script.js" data-website-id="bdd62a39-252f-4c9e-886b-4804ce9873d9"></script>
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=12"></script>
 </body>
 </html>
