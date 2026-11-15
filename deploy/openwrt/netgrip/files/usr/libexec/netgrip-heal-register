@@ -47,7 +47,8 @@ log "registry entry lost (running ${ver:-unknown}): restoring"
 
 # Resolve the release asset for this flavor and architecture.
 if command -v apk >/dev/null 2>&1; then
-	arch=$(apk --print-arch 2>/dev/null)
+	arch=$(awk 'NF && $1 != "all" && $1 != "noarch" { print $1; exit }' /etc/apk/arch 2>/dev/null)
+	[ -n "$arch" ] || arch=$(apk --print-arch 2>/dev/null)
 	[ -n "$arch" ] || { log "cannot determine apk architecture"; exit 1; }
 	case "$arch" in
 		x86_64|amd64) asset_arch=amd64 ;;
@@ -59,7 +60,8 @@ if command -v apk >/dev/null 2>&1; then
 		mips|mips_*) asset_arch=mips ;;
 		*) log "no release asset for apk arch $arch"; exit 1 ;;
 	esac
-	pattern="netgrip-[^/]*-${asset_arch}\\.apk$"
+	pattern="netgrip-[^/]*-${arch}\\.apk$"
+	legacy_pattern="netgrip-[^/]*-${asset_arch}\\.apk$"
 	pkgfile=/tmp/netgrip-heal.apk
 else
 	# print-architecture lists pseudo-archs (all, noarch) first; the arch of
@@ -87,6 +89,10 @@ json=$(wget -q -O - -T 15 "$RELEASES_API" 2>/dev/null)
 [ -n "$json" ] || { log "cannot reach GitHub releases API"; exit 1; }
 
 url=$(printf '%s' "$json" | tr ',' '\n' | grep -o '"browser_download_url": *"[^"]*"' | cut -d'"' -f4 | grep -E "/${pattern}" | head -n1)
+# Older releases used a generic Go ABI suffix rather than the package target.
+if [ -z "$url" ] && [ -n "$legacy_pattern" ]; then
+	url=$(printf '%s' "$json" | tr ',' '\n' | grep -o '"browser_download_url": *"[^"]*"' | cut -d'"' -f4 | grep -E "/${legacy_pattern}" | head -n1)
+fi
 [ -n "$url" ] || { log "no release asset matching ${pattern}"; exit 1; }
 
 # Never downgrade a dev build: only heal when the asset matches the

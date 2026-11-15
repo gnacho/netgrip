@@ -28,7 +28,9 @@ die() { code=$1; shift; say "ERROR: $*" >&2; exit "$code"; }
 # ---------------------------------------------------------- pkg manager --
 if command -v apk >/dev/null 2>&1; then
   PKGR=apk
-  PKG_ARCH=$(apk --print-arch 2>/dev/null || true)
+  # --print-arch reports apk's generic build ABI, not OpenWrt's package target.
+  PKG_ARCH=$(awk 'NF && $1 != "all" && $1 != "noarch" { print $1; exit }' /etc/apk/arch 2>/dev/null || true)
+  [ -n "$PKG_ARCH" ] || PKG_ARCH=$(apk --print-arch 2>/dev/null || true)
 elif command -v opkg >/dev/null 2>&1; then
   PKGR=opkg
   # Select the installable native architecture with the highest priority.
@@ -113,7 +115,7 @@ if [ -z "$ASSET_BASE" ]; then
   ASSET_BASE="${RELEASES_URL}/download/${VERSION}"
 fi
 if [ "$PKGR" = apk ]; then
-  ASSET="netgrip-${VER_NUM}-r1-${ASSET_ARCH}.apk"
+  ASSET="netgrip-${VER_NUM}-r1-${PKG_ARCH}.apk"
 else
   ASSET="netgrip_${VER_NUM}-1_${PKG_ARCH}.ipk"
 fi
@@ -123,8 +125,12 @@ TMP=$(mktemp -d) || die 4 "mktemp failed"
 trap 'rm -rf "$TMP"' EXIT INT TERM
 
 say "downloading $URL"
-fetch "$URL" "$TMP/$ASSET" \
-  || die 4 "download failed; no asset for this combination? check $RELEASES_URL"
+if ! fetch "$URL" "$TMP/$ASSET"; then
+  # Releases predating native APK filenames used a generic Go ABI suffix.
+  if [ "$PKGR" != apk ] || ! fetch "${ASSET_BASE%/}/netgrip-${VER_NUM}-r1-${ASSET_ARCH}.apk" "$TMP/$ASSET"; then
+    die 4 "download failed; no asset for this combination? check $RELEASES_URL"
+  fi
+fi
 
 # --------------------------------------------------------------- install --
 case "$PKGR" in
