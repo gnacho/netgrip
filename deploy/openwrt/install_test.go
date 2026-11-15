@@ -107,6 +107,7 @@ func TestAPKReleaseNames(t *testing.T) {
 	if upload == "" {
 		t.Fatal("missing release upload step")
 	}
+	seen := map[string]bool{}
 	for _, row := range job.Strategy.Matrix.Include {
 		if row["format"] != "apk" {
 			continue
@@ -140,13 +141,14 @@ func TestAPKReleaseNames(t *testing.T) {
 			if out, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("%v: %s", err, out)
 			}
-			want := strings.TrimPrefix(row["binary"], "linux-")
-			if row["sdk-target"] == "bcm27xx/bcm2711" {
-				want = "aarch64_cortex-a72"
-			}
+			want := strings.TrimPrefix(suffix, "linux-")
 			if _, err := os.Stat(filepath.Join(packages, "netgrip-0.78.0-r1-"+want+".apk")); err != nil {
 				t.Fatal(err)
 			}
+			if seen[want] {
+				t.Errorf("two matrix rows publish the same asset name: netgrip-0.78.0-r1-%s.apk", want)
+			}
+			seen[want] = true
 		})
 	}
 }
