@@ -240,6 +240,14 @@ The postinst adds the binary, the init script and the rc.d link to
 optional `luci-app-netgrip` package embeds the panel under LuCI > Services
 in the same way.
 
+The package index is also published as a feed at
+`https://gnacho.github.io/netgrip/packages.adb`, signed with
+`deploy/openwrt/keys/netgrip-feed.pub`. OpenWrt 25.12 only verifies indexes
+signed with the official build key, so an install from it still needs
+`apk add --allow-untrusted`, and ASU/owut cannot use it yet
+([#296](https://github.com/gnacho/netgrip/issues/582)). Until that is
+settled, the release assets above are the install path.
+
 </details>
 
 <details>
@@ -306,9 +314,9 @@ Done recently: MQTT and Home Assistant integration (state, sensors and
 switches/buttons that act, auto-discovered), seven generic Go ABIs per
 release from amd64 to MIPS, and a bilingual UI whose document language
 follows the active language. Coming next:
-a custom packages feed so owut/ASU can keep NetGrip
-inside your firmware image ([#63](https://github.com/gnacho/netgrip/issues/63)),
-and keeping the public demo in step with the panel. Ideas and reports in the
+keeping the public demo in step with the panel, and settling the feed index
+trust so owut/ASU can keep NetGrip inside your firmware image
+([#296](https://github.com/gnacho/netgrip/issues/582)). Ideas and reports in the
 [issues](https://github.com/gnacho/netgrip/issues) steer what gets built.
 
 ## Development

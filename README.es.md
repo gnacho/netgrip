@@ -245,6 +245,14 @@ El postinst añade el binario, el init y el enlace rc.d a
 firmware. El paquete opcional `luci-app-netgrip` incrusta el panel bajo LuCI
 > Servicios de la misma forma.
 
+El índice de paquetes también se publica como feed en
+`https://gnacho.github.io/netgrip/packages.adb`, firmado con
+`deploy/openwrt/keys/netgrip-feed.pub`. OpenWrt 25.12 solo verifica índices
+firmados con la clave oficial de compilación, así que instalar desde ahí
+sigue necesitando `apk add --allow-untrusted` y ASU/owut todavía no puede
+usarlo ([#296](https://github.com/gnacho/netgrip/issues/582)). Mientras eso
+no se resuelva, la vía de instalación son los assets de la release.
+
 </details>
 
 <details>
@@ -311,10 +319,10 @@ Toda escritura exige cookie de sesión.
 Reciente: integración con Home Assistant sobre MQTT (estado, sensores e
 interruptores/botones que actúan, descubiertos automáticamente), siete ABI
 Go genéricos por release de amd64 a MIPS, e interfaz bilingüe cuyo idioma
-del documento sigue al idioma activo. Lo siguiente: un feed de paquetes propio para que owut/ASU conserve
-NetGrip dentro de tu imagen de firmware
-([#63](https://github.com/gnacho/netgrip/issues/63)) y mantener la demo
-pública al día del panel. Las ideas y reportes en los
+del documento sigue al idioma activo. Lo siguiente: mantener la demo
+pública al día del panel y resolver la confianza del índice del feed para
+que owut/ASU conserve NetGrip dentro de tu imagen de firmware
+([#296](https://github.com/gnacho/netgrip/issues/582)). Las ideas y reportes en los
 [issues](https://github.com/gnacho/netgrip/issues) dirigen qué se construye.
 
 ## Desarrollo
