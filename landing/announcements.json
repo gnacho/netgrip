@@ -1,6 +1,25 @@
 {
  "announcements": [
   {
+   "id": "v0790-2026-11",
+   "urgency": "info",
+   "title": {
+    "es": "Novedades de la v0.79.0",
+    "en": "What's new in v0.79.0"
+   },
+   "body": {
+    "es": "Los paquetes de OpenWrt 25.12 llevan ahora el nombre de la arquitectura real del destino, así que se instalan en Raspberry Pi 4, Pi 5, placas ARMv8 y routers Cortex-A9 que antes los rechazaban. El heal del registro tras un sysupgrade vuelve a funcionar (comparaba la versión con una `v` de más) y el cambio de contraseña en instalaciones nuevas pide el módulo RPC que necesitaba. Para estrenar el heal corregido hay que reinstalar el paquete, no basta con el self-update.",
+    "en": "OpenWrt 25.12 packages now carry the real target architecture in their names, so they install on Raspberry Pi 4, Pi 5, ARMv8 boards and Cortex-A9 routers that used to reject them. The registry heal after a sysupgrade works again (it compared the version with an extra `v`), and the password change on fresh installs pulls the RPC module it needs. To pick up the corrected heal, reinstall the package: the self-update alone does not replace it."
+   },
+   "url": "https://github.com/gnacho/netgrip/releases/tag/v0.79.0",
+   "urlLabel": {
+    "es": "Ver la release",
+    "en": "See the release"
+   },
+   "starts": "2026-11-15",
+   "expires": "2026-12-31"
+  },
+  {
    "id": "v0780-2026-11",
    "urgency": "info",
    "title": {
