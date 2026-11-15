@@ -220,6 +220,28 @@ jobs:
             binary: linux-armv7
             pkgarch: arm_cortex-a7_neon-vfpv4
           - sdk-version: 24.10.5
+            sdk-target: mvebu/cortexa9
+            format: ipk
+            binary: linux-armv7
+            pkgarch: arm_cortex-a9_vfpv3-d16
+          - sdk-version: 25.12.5
+            sdk-target: mvebu/cortexa9
+            format: apk
+            binary: linux-armv7
+            pkgarch: arm_cortex-a9_vfpv3-d16
+            asset-suffix: arm_cortex-a9_vfpv3-d16
+          - sdk-version: 24.10.5
+            sdk-target: bcm53xx/generic
+            format: ipk
+            binary: linux-armv7
+            pkgarch: arm_cortex-a9
+          - sdk-version: 25.12.5
+            sdk-target: bcm53xx/generic
+            format: apk
+            binary: linux-armv7
+            pkgarch: arm_cortex-a9
+            asset-suffix: arm_cortex-a9
+          - sdk-version: 24.10.5
             sdk-target: bcm27xx/bcm2708
             format: ipk
             binary: linux-armv6
