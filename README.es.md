@@ -363,6 +363,8 @@ Tamaño del binario (assets de release, con la UI embebida):
 | armv7 | 13,3 MB |
 | mips / mipsle | 15,1 MB |
 
+Esos son los tamaños sin empaquetar. Los assets de release salen **comprimidos con UPX al 29-33 % de esa cifra** (arm64: de 13,4 MB a 3,9 MB), así que lo que ocupa en el router es un tercio de la tabla. UPX comprime el ejecutable y su stub lo descomprime en memoria al arrancar: cambia flash por unos MB de RAM. El binario sin empaquetar se publica junto al comprimido con sufijo `.raw`, sin firmar y solo para depurar, porque `gdb` ve el stub y no el programa. Para descomprimir in situ: `upx -d /usr/sbin/netgrip`.
+
 El uso de RAM en ejecución es de ~16-18 MB RSS.
 
 Los 12-15 MB son el daemon autónomo entero, no la UI: el runtime de Go más
