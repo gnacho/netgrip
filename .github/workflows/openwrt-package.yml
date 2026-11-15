@@ -53,6 +53,7 @@ jobs:
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --generate-notes
 
   frontend:
+    needs: [create-release]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -69,6 +70,22 @@ jobs:
           name: frontend-dist
           path: internal/server/dist/
           if-no-files-found: error
+      # #592: el paquete del feed oficial de OpenWrt compila el Go desde el
+      # tarball de código y descarga el frontend como asset aparte, con hash
+      # fijado (mismo patrón que adguardhome, que no lleva Node en el
+      # buildroot). El empaquetado es determinista para que el hash del
+      # Makefile no cambie entre builds.
+      - name: Pack frontend for the feed package
+        env:
+          TAG: ${{ needs.create-release.outputs.tag }}
+        run: |
+          chmod +x deploy/pack-frontend.sh
+          deploy/pack-frontend.sh "${TAG#v}" "dist/netgrip-frontend-${TAG#v}.tar.gz"
+      - name: Upload frontend asset to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.create-release.outputs.tag }}
+        run: gh release upload "$TAG" "dist/netgrip-frontend-${TAG#v}.tar.gz" --clobber
 
   binaries:
     needs: [create-release, frontend]
