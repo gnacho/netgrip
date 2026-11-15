@@ -356,6 +356,8 @@ Binary size (release assets, UI embedded):
 | armv7 | 13.3 MB |
 | mips / mipsle | 15.1 MB |
 
+Those are the unpacked sizes. Release assets ship **UPX-packed at 29-33% of that** (arm64: 13.4 MB to 3.9 MB), so the footprint on the router is a third of the table. UPX compresses the executable and its stub decompresses it in memory at startup, which trades flash for a few MB of RAM. The unpacked binary is published next to the packed one with a `.raw` suffix, unsigned and for debugging only, since `gdb` sees the stub rather than the program. To unpack in place: `upx -d /usr/sbin/netgrip`.
+
 Runtime memory use is ~16-18 MB RSS.
 
 The 12-15 MB is the whole autonomous daemon, not the UI. It is the Go

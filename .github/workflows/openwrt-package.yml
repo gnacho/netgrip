@@ -98,6 +98,33 @@ jobs:
         env:
           VERSION: ${{ needs.create-release.outputs.tag }}
         run: sh deploy/build-binaries.sh "${{ matrix.target }}"
+      - name: Install UPX
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq upx-ucl
+          upx --version | head -2
+      # #586: el binario se publica empaquetado. UPX comprime el ejecutable y el
+      # stub lo descomprime en memoria al arrancar: 13.4 MB de flash pasan a 3.9
+      # en arm64, sin perder ninguna función. Va ANTES de firmar, porque la firma
+      # tiene que cubrir los bytes que se descarga el self-update. El crudo se
+      # conserva como asset -raw para depurar (gdb ve el stub, no el binario).
+      - name: Pack binary (UPX)
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -eu
+          bin="dist/netgrip-$TARGET"
+          cp "$bin" "$bin.raw"
+          if upx --best --lzma "$bin" && upx -t "$bin" >/dev/null; then
+            raw=$(stat -c %s "$bin.raw")
+            packed=$(stat -c %s "$bin")
+            echo "| netgrip-$TARGET | $raw | $packed | $((packed * 100 / raw))% |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            # UPX no cubre todas las arquitecturas ELF: sin soporte se publica
+            # el binario tal cual, que es lo que se hacía antes.
+            echo "netgrip-$TARGET: UPX no soporta esta arquitectura, se publica sin empaquetar" >&2
+            cp "$bin.raw" "$bin"
+          fi
       - name: Sign binary
         env:
           NETGRIP_RELEASE_KEY: ${{ secrets.NETGRIP_RELEASE_KEY }}
@@ -105,7 +132,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: netgrip-binary-${{ matrix.target }}
-          path: dist/netgrip-${{ matrix.target }}
+          path: |
+            dist/netgrip-${{ matrix.target }}
+            dist/netgrip-${{ matrix.target }}.raw
           if-no-files-found: error
       - name: Upload binary to release
         env:
@@ -114,6 +143,9 @@ jobs:
         run: |
           gh release upload "$TAG" "dist/netgrip-${{ matrix.target }}" --clobber
           gh release upload "$TAG" "dist/netgrip-${{ matrix.target }}.sha256" "dist/netgrip-${{ matrix.target }}.sha256.sig" --clobber
+          # Crudo sin firmar: no es una vía de actualización, es material de
+          # depuración. El self-update solo busca el nombre sin sufijo.
+          gh release upload "$TAG" "dist/netgrip-${{ matrix.target }}.raw" --clobber
 
   size-report:
     needs: [frontend, binaries]
@@ -138,10 +170,13 @@ jobs:
             echo "| Asset | Go/server | Frontend | Total |"
             echo "| --- | ---: | ---: | ---: |"
             for binary in binaries/netgrip-linux-*; do
+              case "$binary" in *.raw) continue;; esac
               total_bytes=$(stat -c %s "$binary")
               core_bytes=$((total_bytes - frontend_bytes))
               echo "| $(basename "$binary") | $(human "$core_bytes") | $(human "$frontend_bytes") | $(human "$total_bytes") |"
             done
+            echo
+            echo 'Sizes above are the unpacked build. Release assets ship UPX-packed at 29-33% of that, and the unpacked binary is also published with a .raw suffix for debugging.'
           } >> "$GITHUB_STEP_SUMMARY"
 
   package:
