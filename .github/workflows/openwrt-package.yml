@@ -167,6 +167,18 @@ jobs:
             binary: linux-arm64
             pkgarch: aarch64_cortex-a72
             asset-suffix: aarch64_cortex-a72
+          - sdk-version: 25.12.5
+            sdk-target: bcm27xx/bcm2712
+            format: apk
+            binary: linux-arm64
+            pkgarch: aarch64_cortex-a76
+            asset-suffix: aarch64_cortex-a76
+          - sdk-version: 25.12.5
+            sdk-target: armsr/armv8
+            format: apk
+            binary: linux-arm64
+            pkgarch: aarch64_generic
+            asset-suffix: aarch64_generic
           - sdk-version: 24.10.5
             sdk-target: x86/64
             format: ipk
