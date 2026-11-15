@@ -1,4 +1,5 @@
 #!/bin/sh
+# netgrip helper - managed
 # netgrip-heal-register: restore the package registry entry after an
 # attended sysupgrade (#296).
 #

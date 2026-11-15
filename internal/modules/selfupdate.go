@@ -393,8 +393,10 @@ func runSelfUpdate(target selfUpdateTarget, currentVersion string) {
 		true)
 
 	// Refresh the init script (best effort) before restarting, so the new
-	// binary is also launched by the current script (#433).
+	// binary is also launched by the current script (#433), and the helper
+	// scripts the package ships, which self-update never replaces (#577).
 	syncInitScript(currentVersion)
+	syncHelperScripts("self-update", currentVersion)
 
 	setUpdateStatus("restarting", 100, "")
 	reportSelfUpdateOutcome(true, "")

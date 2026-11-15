@@ -3,11 +3,8 @@ package modules
 import (
 	"bytes"
 	"embed"
-	"errors"
-	"fmt"
 	"log"
 	"os"
-	"strings"
 )
 
 // The canonical init script is embedded in the binary so a self-update can
@@ -78,24 +75,12 @@ func ensureInitScript(reason, currentVersion string) {
 		return
 	}
 
-	existing, err := os.ReadFile(initScriptPath)
-	switch {
-	case errors.Is(err, os.ErrNotExist):
-		if err := writeInitScript(desired); err != nil {
-			log.Printf("netgrip: %s: install init script: %v", reason, err)
-			return
-		}
-		log.Printf("netgrip: %s: installed missing init script %s", reason, initScriptPath)
-	case err != nil:
-		log.Printf("netgrip: %s: read init script: %v", reason, err)
-	case bytes.Equal(existing, desired):
-		// Already the current script; do not rewrite so the mtime stays.
-	case !strings.Contains(string(existing), initMarker) && !isPackagedLegacyScript(existing):
-		log.Printf("netgrip: %s: %s has no %q marker and matches no packaged variant, leaving the customized script untouched",
-			reason, initScriptPath, initMarker)
-	default:
-		rewriteInitScript(existing, desired, reason, currentVersion)
-	}
+	ensureManagedScript(managedScript{
+		path:        initScriptPath,
+		desired:     desired,
+		marker:      initMarker,
+		legacyMatch: isPackagedLegacyScript,
+	}, reason, currentVersion)
 }
 
 // isPackagedLegacyScript reports whether content byte-matches one of the
@@ -120,23 +105,4 @@ func isPackagedLegacyScript(content []byte) bool {
 		}
 	}
 	return false
-}
-
-// rewriteInitScript replaces the init script with the canonical one, keeping
-// a versioned backup of the previous content.
-func rewriteInitScript(existing, desired []byte, reason, currentVersion string) {
-	backup := fmt.Sprintf("%s.bak-%s", initScriptPath, strings.TrimPrefix(currentVersion, "v"))
-	if err := os.WriteFile(backup, existing, 0755); err != nil {
-		log.Printf("netgrip: %s: backup init script: %v", reason, err)
-		return
-	}
-	if err := writeInitScript(desired); err != nil {
-		log.Printf("netgrip: %s: update init script: %v", reason, err)
-		return
-	}
-	log.Printf("netgrip: %s: init script updated (backup at %s)", reason, backup)
-}
-
-func writeInitScript(content []byte) error {
-	return os.WriteFile(initScriptPath, content, 0755)
 }

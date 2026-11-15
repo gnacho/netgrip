@@ -47,6 +47,11 @@ func main() {
 	// (#544). No-op off-router (guarded by /etc/openwrt_release).
 	modules.SyncInitScriptAtBoot(version)
 
+	// Same for the helper scripts the package ships (the apk registry heal
+	// and the rule restorer): self-update never replaces them, so a fix in
+	// one of them could not reach a router that only self-updates (#577).
+	modules.SyncHelperScriptsAtBoot(version)
+
 	// The flag always has a value (its default), so only treat it as an
 	// explicit override when it differs from the default endpoint.
 	explicit := ""
