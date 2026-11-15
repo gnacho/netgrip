@@ -240,13 +240,23 @@ The postinst adds the binary, the init script and the rc.d link to
 optional `luci-app-netgrip` package embeds the panel under LuCI > Services
 in the same way.
 
-The package index is also published as a feed at
-`https://gnacho.github.io/netgrip/packages.adb`, signed with
-`deploy/openwrt/keys/netgrip-feed.pub`. OpenWrt 25.12 only verifies indexes
-signed with the official build key, so an install from it still needs
-`apk add --allow-untrusted`, and ASU/owut cannot use it yet
-([#296](https://github.com/gnacho/netgrip/issues/582)). Until that is
-settled, the release assets above are the install path.
+The package index is also published as a signed feed, one directory per
+package architecture:
+
+```sh
+wget -O /etc/apk/keys/netgrip-feed.pem https://gnacho.github.io/netgrip/netgrip-feed.pem
+echo "https://gnacho.github.io/netgrip/$(cat /etc/apk/arch)/packages.adb" > /etc/apk/repositories.d/netgrip.list
+apk update
+apk add netgrip
+```
+
+The index is signed with the key in `deploy/openwrt/keys/netgrip-feed.pem`, so
+none of that needs `--allow-untrusted`: apk verifies the index and checks every
+package against the hash the index records. If your package architecture has no
+directory in the feed yet, `apk update` reports it as unavailable and the release
+assets above remain the way in. Using the feed from owut/ASU is not verified yet
+([#582](https://github.com/gnacho/netgrip/issues/582)). This layout is published
+from the next release on: earlier feeds were a flat, unsigned index.
 
 </details>
 
