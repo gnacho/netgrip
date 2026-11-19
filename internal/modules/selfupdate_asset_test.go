@@ -124,6 +124,54 @@ func TestCheckSelfUpdateSameVersionNoPending(t *testing.T) {
 	}
 }
 
+func TestCheckSelfUpdateFallsBackToPages(t *testing.T) {
+	resetUpdateState(t)
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	t.Cleanup(api.Close)
+	pages := serveRelease(t, releaseWithAsset)
+
+	origAPI, origPages := githubAPIURL, githubPagesReleaseURL
+	githubAPIURL, githubPagesReleaseURL = api.URL, pages.URL
+	t.Cleanup(func() {
+		githubAPIURL, githubPagesReleaseURL = origAPI, origPages
+	})
+
+	ck := CheckSelfUpdate("0.62.0")
+	if ck.Latest != "v9.9.9" {
+		t.Fatalf("Latest = %q, want the Pages release", ck.Latest)
+	}
+	if !ck.Available {
+		t.Fatal("Available = false, want true from the Pages manifest")
+	}
+	if ck.AssetURL != "http://example.com/"+binaryAssetName() {
+		t.Fatalf("AssetURL = %q, want the Pages asset for this architecture", ck.AssetURL)
+	}
+}
+
+func TestCheckSelfUpdateReportsFailedCheck(t *testing.T) {
+	resetUpdateState(t)
+	unavailable := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	t.Cleanup(unavailable.Close)
+
+	origAPI, origPages := githubAPIURL, githubPagesReleaseURL
+	githubAPIURL, githubPagesReleaseURL = unavailable.URL, unavailable.URL
+	t.Cleanup(func() {
+		githubAPIURL, githubPagesReleaseURL = origAPI, origPages
+	})
+
+	ck := CheckSelfUpdate("0.62.0")
+	if ck.CheckError == "" {
+		t.Fatal("CheckError is empty, want an explicit release-check failure")
+	}
+	if ck.Available || ck.Latest != "" {
+		t.Fatalf("failed check must not advertise a release: %+v", ck)
+	}
+}
+
 func TestStartSelfUpdateRechecksEmptyCache(t *testing.T) {
 	withAPI(t, releaseWithAsset)
 	called, urls := stubUpdater(t)

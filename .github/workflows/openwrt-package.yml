@@ -408,7 +408,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          apk add --no-cache git nodejs npm openssl curl github-cli zstd tar bash
+          apk add --no-cache git nodejs npm openssl curl github-cli jq zstd tar bash
 
       - uses: actions/checkout@v4
 
@@ -423,16 +423,23 @@ jobs:
             echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Download APKs from release
+      - name: Download release assets for Pages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
           mkdir -p feed
           cd feed
-          gh release download "$TAG" --repo ${{ github.repository }} --pattern '*.apk'
+          gh release download "$TAG" --repo ${{ github.repository }} --pattern '*.apk' --pattern 'netgrip-linux-*'
+          rm -f ./*.raw
           cd ..
           ls -la feed/
+
+      - name: Generate self-update manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: sh deploy/openwrt/pages-manifest.sh "$TAG" feed/latest.json
 
       - name: Set up signing key
         env:
