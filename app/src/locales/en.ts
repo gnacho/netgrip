@@ -1515,6 +1515,7 @@ export default {
     legendFree: "Free",
     legendPoe: "PoE available",
     legendMgmt: "Management port (this panel is reached through it)",
+    legendHelp: "Green: link up. Amber: reduced speed. Grey: free. The bolt marks PoE and the lock marks the management port. Hover or select a port for details.",
     free: "Free",
     busy: "In use",
     unmanagedN: "Unmanaged sw. ({{count}})",

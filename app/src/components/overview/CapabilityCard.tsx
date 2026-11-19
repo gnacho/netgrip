@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Check, ListChecks, X } from "lucide-react";
-import { Card } from "../ui/Card";
+import { Card, HelpTip } from "../ui";
 import type { ModeProbe, StorageProbe, WirelessRadio } from "../../types";
 
 /**
@@ -50,8 +50,8 @@ export function CapabilityCard({ mode, wireless, storage }: {
             {c.label}
           </span>
         ))}
+        <HelpTip title={t("overview.detected")} body={t(`overview.roleLine.${role}`)} />
       </div>
-      <p className="mt-2.5 text-caption text-muted">{t(`overview.roleLine.${role}`)}</p>
     </Card>
   );
 }

@@ -1,5 +1,4 @@
 import { HealthHero, LiveTrafficCard } from "./cards";
-import { UplinkCard } from "./UplinkCard";
 import { VlansCard } from "./VlansCard";
 import { StpStatusCard } from "./StpStatusCard";
 import { EthPortsCard } from "../ports/EthPortsCard";
@@ -17,9 +16,8 @@ export function SwitchOverview(props: OverviewVariantProps) {
   const { board, system, health, ethports, onNavigate } = props;
   return (
     <>
-      <HealthHero health={health} board={board} system={system} onNavigate={onNavigate} />
-      {/* Cómo se conecta este equipo al resto de la red, a todo el ancho (#598). */}
-      <UplinkCard ports={ethports} ap={false} />
+      <HealthHero health={health} board={board} system={system} onNavigate={onNavigate}
+        ports={ethports} ap={false} />
       <LiveTrafficCard />
       {/* El protagonista del switch: el chasis de bocas, a ancho completo. */}
       <EthPortsCard ports={ethports} index={3} className="md:col-span-12 order-5 md:order-none" />

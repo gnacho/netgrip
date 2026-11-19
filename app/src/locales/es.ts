@@ -1515,6 +1515,7 @@ export default {
     legendFree: "Libre",
     legendPoe: "PoE disponible",
     legendMgmt: "Puerto de gestión (por aquí se alcanza este panel)",
+    legendHelp: "Verde: enlace activo. Ámbar: velocidad reducida. Gris: libre. El rayito indica PoE y el candado, el puerto de gestión. Pasa el ratón o pulsa una boca para ver el detalle.",
     free: "Libre",
     busy: "En uso",
     unmanagedN: "Switch no gest. ({{count}})",

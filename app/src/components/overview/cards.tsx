@@ -2,14 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
-  Activity, ArrowDown, ArrowUp, CloudOff, Cpu, Globe, HardDrive,
-  MemoryStick, ShieldCheck, Smartphone,
+  Activity, ArrowDown, ArrowUp, Cable, CloudOff, Cpu, Globe, HardDrive,
+  MemoryStick, ShieldCheck, Smartphone, Wifi,
 } from "lucide-react";
 import { api } from "../../api";
 import type {
-  Board, Client, DriftProbe,
+  Board, Client, DriftProbe, EthPort,
   HistoryEntry,
-  IfaceCounters, ModeProbe, SystemInfo, WanStatus,
+  IfaceCounters, ModeProbe, SystemInfo, WanStatus, WirelessRadio,
   CPUProbe,
 } from "../../types";
 import type { HealthScore } from "../../hooks/useHealthScore";
@@ -30,11 +30,23 @@ export function oneLine(text: string) {
 
 /* ══════════════ Fila 0 — Salud del router (héroe) §2 ══════════════ */
 
-export function HealthHero({ health, board, system, onNavigate }: {
+function portLabel(p: EthPort) {
+  return p.wan ? "WAN" : p.name.toUpperCase().replace(/^LAN(\d+)$/, "LAN $1");
+}
+
+function portSpeed(p: EthPort) {
+  if (p.speed_mbps <= 0) return "";
+  return p.speed_mbps >= 1000 ? `${p.speed_mbps / 1000} Gb/s` : `${p.speed_mbps} Mb/s`;
+}
+
+export function HealthHero({ health, board, system, onNavigate, wireless, ports, ap = false }: {
   health: HealthScore;
   board?: Board;
   system?: SystemInfo;
   onNavigate: (page: string, anchor?: string) => void;
+  wireless?: WirelessRadio[];
+  ports?: EthPort[];
+  ap?: boolean;
 }) {
   const { t } = useTranslation();
   const go = (page: string, anchor?: string) => {
@@ -44,10 +56,27 @@ export function HealthHero({ health, board, system, onNavigate }: {
       onNavigate(page, anchor);
     }
   };
+
+  const radios = (wireless ?? []).filter((r) => r.up);
+  const ifaces = radios.flatMap((r) => r.interfaces).filter((i) => !i.disabled);
+  const ssids = [...new Set(ifaces.map((i) => i.ssid))];
+  const wifiClients = ifaces.reduce((n, i) => n + (i.clients?.length ?? 0), 0);
+  const bands = [...new Set(radios.map((r) => t(r.band === "5g" ? "wifi.band5" : "wifi.band24")))];
+  const emitting = radios.length > 0 && ifaces.length > 0;
+  const uplink = !ports ? undefined : [...ports]
+    .filter((p) => p.up)
+    .sort((a, b) =>
+      (Number(b.wan) - Number(a.wan)) ||
+      (b.devices.length > 0 ? 1 : 0) - (a.devices.length > 0 ? 1 : 0) ||
+      b.speed_mbps - a.speed_mbps)[0];
+  const hasWifi = wireless !== undefined;
+  const hasUplink = ports !== undefined;
+  const columns = hasWifi && hasUplink ? "md:grid-cols-3" : hasWifi || hasUplink ? "md:grid-cols-2" : "";
+
   return (
     <Card index={0} id="salud" className="md:col-span-12 order-1 md:order-none">
-      <div className="flex flex-col md:flex-row md:items-center gap-5">
-        <div className="flex items-center gap-5 flex-1 min-w-0">
+      <div className={`grid gap-4 ${columns}`}>
+        <div className="flex items-center gap-4 min-w-0">
           <Gauge value={health.score} size="lg" mode="health" ariaLabel={`${t("health.title")}: ${health.score}`} />
           <div className="min-w-0">
             <p className="text-eyebrow text-faint mb-1">{t("health.title")}</p>
@@ -56,7 +85,7 @@ export function HealthHero({ health, board, system, onNavigate }: {
               {health.reasons.length === 0 ? t("health.allGood") : t("health.issues", { count: health.reasons.length })}
             </p>
             {health.reasons.length > 0 && (
-              <div className="mt-2.5 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
                 {health.reasons.slice(0, 3).map((r, i) => (
                   <button
                     key={r.key}
@@ -72,15 +101,63 @@ export function HealthHero({ health, board, system, onNavigate }: {
             )}
           </div>
         </div>
-        {/* micro-stats del sistema */}
-        <KeyValue
-          className="md:w-64 shrink-0"
-          items={[
-            { label: t("overview.model"), value: board?.model ?? "…" },
-            { label: t("overview.firmware"), value: board?.release ? `${board.release.distribution} ${board.release.version}` : "…" },
-            { label: t("system.uptime"), value: system ? fmtUptime(t, system.uptime) : "…" },
-          ]}
-        />
+
+        {hasWifi && (
+          <div className="min-w-0 border-t border-border pt-4 md:border-l md:border-t-0 md:pl-5 md:pt-0">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 text-small font-medium text-muted">
+                <Wifi size={15} aria-hidden="true" />
+                {t("overview.wifiStatus")}
+              </span>
+              <Pill tone={emitting ? "ok" : "muted"} live={emitting}>
+                {emitting ? t("wifi.broadcasting") : t("wifi.bandOff")}
+              </Pill>
+            </div>
+            <p className="stat-md mt-2 truncate">{ssids[0] ?? "—"}</p>
+            <p className="text-caption text-muted truncate">
+              {emitting ? t("overview.wifiBands", { bands: bands.join(" + ") }) : t("wifi.bandOffHint")}
+            </p>
+            <p className="mt-2 flex flex-wrap items-center gap-x-2 text-small">
+              <span>{t("wifi.devices", { count: wifiClients })}</span>
+              <button type="button" onClick={() => onNavigate("wifi")}
+                className="text-accent hover:text-accent-hover ring-focus rounded-sm">
+                {t("clients.open")} →
+              </button>
+            </p>
+          </div>
+        )}
+
+        {hasUplink && (
+          <div id="uplink" className="min-w-0 border-t border-border pt-4 md:border-l md:border-t-0 md:pl-5 md:pt-0">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 text-small font-medium text-muted">
+                <Cable size={15} aria-hidden="true" />
+                {t("overview.uplink")}
+              </span>
+              <Pill tone={uplink ? "ok" : "danger"} live={!!uplink}>
+                {uplink ? t("overview.connected") : t("overview.uplinkDown")}
+              </Pill>
+            </div>
+            <p className="stat-md mt-2 truncate">
+              {uplink ? `${portLabel(uplink)} · ${portSpeed(uplink) || "?"}` : "—"}
+            </p>
+            <p className="text-caption text-muted truncate">
+              {ap ? t("overview.apNoNat") : t("overview.switchRole")}
+            </p>
+            {uplink && uplink.devices.length > 0 && (
+              <p className="mt-2 truncate text-small">
+                <span className="text-muted">{t("overview.uplinkDevice")}: </span>
+                {uplink.devices[0].name || uplink.devices[0].mac}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-border pt-2.5 text-caption text-muted">
+        <span><span className="text-faint">{t("overview.model")}:</span> <span className="text-text">{board?.model ?? "…"}</span></span>
+        <span><span className="text-faint">{t("overview.firmware")}:</span> <span className="text-text">{board?.release ? `${board.release.distribution} ${board.release.version}` : "…"}</span></span>
+        <span><span className="text-faint">{t("system.uptime")}:</span> <span className="text-text">{system ? fmtUptime(t, system.uptime) : "…"}</span></span>
       </div>
     </Card>
   );
