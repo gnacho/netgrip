@@ -18,7 +18,7 @@ export function SwitchOverview(props: OverviewVariantProps) {
   return (
     <>
       <HealthHero health={health} board={board} system={system} onNavigate={onNavigate} />
-      {/* Cómo se conecta este equipo al resto de la red: 4 + 8 = una fila. */}
+      {/* Cómo se conecta este equipo al resto de la red, a todo el ancho (#598). */}
       <UplinkCard ports={ethports} ap={false} />
       <LiveTrafficCard />
       {/* El protagonista del switch: el chasis de bocas, a ancho completo. */}

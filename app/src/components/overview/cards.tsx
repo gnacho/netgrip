@@ -445,8 +445,8 @@ export function LiveTrafficCard() {
 /** Mini-grafo radial mesh §5: este router al centro, satélites alrededor. */
 export function ClientsCard({ onNavigate, className = "md:col-span-12" }: {
   onNavigate: (p: string) => void;
-  /** Ancho de la retícula: por defecto ancho completo; el Resumen de AP
-   *  (#487) lo pasa a 7/12 para emparejarlo con la tarjeta Wi-Fi. */
+  /** Clase de layout conservada para compatibilidad con las composiciones
+   *  anteriores; el Resumen actual apila todas las tarjetas (#598). */
   className?: string;
 }) {
   const { t } = useTranslation();

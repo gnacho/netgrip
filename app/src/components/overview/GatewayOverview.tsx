@@ -17,10 +17,10 @@ export function GatewayOverview(props: OverviewVariantProps) {
   return (
     <>
       <HealthHero health={health} board={board} system={system} onNavigate={onNavigate} />
-      {/* El enlace y su tráfico en vivo: 4 + 8 = una fila completa. */}
+      {/* El enlace y su tráfico en vivo, cada uno a todo el ancho (#598). */}
       <InternetCard wan={wan} mode={mode} />
       <LiveTrafficCard />
-      {/* Recursos del equipo, los tres juntos: 4 + 4 + 4. */}
+      {/* Recursos del equipo, uno por fila a todo el ancho (#598). */}
       <CpuCard />
       <MemoryCard system={system} />
       <FlashCard system={system} />

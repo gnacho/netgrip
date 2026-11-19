@@ -16,7 +16,7 @@ export function ApOverview(props: OverviewVariantProps) {
   return (
     <>
       <HealthHero health={health} board={board} system={system} onNavigate={onNavigate} />
-      {/* Cómo sale este equipo al resto de la red: 4 + 8 = una fila. */}
+      {/* Cómo sale este equipo al resto de la red, a todo el ancho (#598). */}
       <UplinkCard ports={ethports} ap />
       <LiveTrafficCard />
       {/* Lo que gestiona un AP: radios Wi-Fi, bocas y clientes asociados. */}
