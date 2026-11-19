@@ -2025,6 +2025,8 @@ export default {
     current: "Current version",
     latest: "Latest version",
     upToDate: "Up to date",
+    checkFailed: "Check failed",
+    checkFailedHint: "No release source could be checked. Select Check now to try again.",
     available: "Update available",
     newVersion: "New version {{version}}",
     update: "Update NetGrip",

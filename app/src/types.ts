@@ -628,6 +628,7 @@ export interface SelfUpdateCheck {
   latest: string;
   available: boolean;
   notes: string;
+  check_error?: string;
   asset_url?: string;
   asset_size?: number;
   /** Tag is newer but the downloadable asset is not published yet (CI window). */

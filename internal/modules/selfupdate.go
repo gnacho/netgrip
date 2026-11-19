@@ -74,8 +74,9 @@ func binaryAssetName() string {
 
 // Overridable in tests.
 var (
-	githubAPIURL   = "https://api.github.com/repos/" + githubRepo + "/releases/latest"
-	runSelfUpdateF = runSelfUpdate
+	githubAPIURL          = "https://api.github.com/repos/" + githubRepo + "/releases/latest"
+	githubPagesReleaseURL = "https://gnacho.github.io/netgrip/latest.json"
+	runSelfUpdateF        = runSelfUpdate
 )
 
 type ghRelease struct {
@@ -91,12 +92,13 @@ type ghAsset struct {
 }
 
 type SelfUpdateCheck struct {
-	Current   string `json:"current"`
-	Latest    string `json:"latest"`
-	Available bool   `json:"available"`
-	Notes     string `json:"notes"`
-	AssetURL  string `json:"asset_url,omitempty"`
-	AssetSize int64  `json:"asset_size,omitempty"`
+	Current    string `json:"current"`
+	Latest     string `json:"latest"`
+	Available  bool   `json:"available"`
+	Notes      string `json:"notes"`
+	CheckError string `json:"check_error,omitempty"`
+	AssetURL   string `json:"asset_url,omitempty"`
+	AssetSize  int64  `json:"asset_size,omitempty"`
 	// DigestURL and SigURL point at the signed sha256 manifest of the
 	// binary and its ed25519 signature, both published beside the asset.
 	DigestURL string `json:"digest_url,omitempty"`
@@ -184,6 +186,30 @@ func setUpdateStatus(phase string, progress int, msg string) {
 	updateMu.Unlock()
 }
 
+func fetchRelease(client *http.Client, url, currentVersion string) (*ghRelease, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "netgrip/"+currentVersion)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("release check returned HTTP %d", resp.StatusCode)
+	}
+
+	var release ghRelease
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return nil, err
+	}
+	return &release, nil
+}
+
 func CheckSelfUpdate(currentVersion string) *SelfUpdateCheck {
 	result := &SelfUpdateCheck{Current: currentVersion}
 	if currentVersion == "" || currentVersion == "dev" {
@@ -191,25 +217,15 @@ func CheckSelfUpdate(currentVersion string) *SelfUpdateCheck {
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("GET", githubAPIURL, nil)
-	if err != nil {
-		return result
-	}
-	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "netgrip/"+currentVersion)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return result
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return result
-	}
-
-	var release ghRelease
-	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		return result
+	release, apiErr := fetchRelease(client, githubAPIURL, currentVersion)
+	if apiErr != nil {
+		var pagesErr error
+		release, pagesErr = fetchRelease(client, githubPagesReleaseURL, currentVersion)
+		if pagesErr != nil {
+			log.Printf("netgrip: self-update check failed: api=%v pages=%v", apiErr, pagesErr)
+			result.CheckError = "release check failed"
+			return result
+		}
 	}
 
 	result.Latest = release.TagName
