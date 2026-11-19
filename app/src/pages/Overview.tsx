@@ -2,8 +2,7 @@ import { useMode } from "../hooks/useMode";
 import type { Board, DriftProbe, EthPort, ModeProbe, StorageProbe, SystemInfo, WanStatus, WirelessRadio } from "../types";
 import type { HealthScore } from "../hooks/useHealthScore";
 import {
-  ClientsCard, CpuCard, DriftSection, FlashCard, HealthHero, InternetCard,
-  LiveTrafficCard, MemoryCard,
+  ClientsCard, DriftSection, HealthHero, InternetCard, LiveTrafficCard, ResourcesCard,
 } from "../components/overview/cards";
 import { GatewayOverview } from "../components/overview/GatewayOverview";
 import { ApOverview } from "../components/overview/ApOverview";
@@ -41,15 +40,13 @@ export function Overview({ board, system, wan, drift, onDriftChange, isSwitch, h
   // Layout genérico (el histórico) mientras el rol no es fiable todavía.
   if (!modeReady) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-[var(--card-gap)]">
+      <div className="flex flex-col gap-[var(--card-gap)]">
         <HealthHero health={health} board={board} system={system} onNavigate={onNavigate} />
-        {/* El enlace y su tráfico en vivo: 4 + 8 = una fila completa. */}
+        {/* El enlace y su tráfico en vivo, cada uno a todo el ancho (#598). */}
         {!isSwitch && <InternetCard wan={wan} mode={mode} />}
         <LiveTrafficCard />
-        {/* Recursos del equipo, los tres juntos: 4 + 4 + 4. */}
-        <CpuCard />
-        <MemoryCard system={system} />
-        <FlashCard system={system} />
+        {/* CPU, memoria y almacenamiento comparten tarjeta (#601). */}
+        <ResourcesCard system={system} />
         {/* El consumo (quién gasta más) vive en la página Consumo (#385) y el
             chasis de puertos en Puertos ethernet (#384). */}
         <ClientsCard onNavigate={onNavigate} />
@@ -60,7 +57,7 @@ export function Overview({ board, system, wan, drift, onDriftChange, isSwitch, h
 
   const Variant = role === "switch" ? SwitchOverview : role === "ap" ? ApOverview : GatewayOverview;
   return (
-    <div className="grid grid-cols-1 md:grid-cols-12 gap-[var(--card-gap)]">
+    <div className="flex flex-col gap-[var(--card-gap)]">
       {/* #521: capacidades detectadas + frase de rol, arriba del todo y en
           cualquier rol (el mockup las repite por página; nos basta Resumen). */}
       <CapabilityCard mode={probe} wireless={wireless} storage={storage} />

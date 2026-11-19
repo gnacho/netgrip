@@ -4,7 +4,7 @@ import { Cable, Lock, Pencil, Zap } from "lucide-react";
 import { api } from "../../api";
 import type { EthPort, PhysPortsProbe, SwitchPort, SwitchProbe } from "../../types";
 import {
-  ActionBanner, Button, Card, ConfirmDialog, EmptyState, Input, Pill, SkeletonRows, Toggle,
+  ActionBanner, Button, Card, ConfirmDialog, EmptyState, HelpTip, Input, Pill, SkeletonRows, Toggle,
 } from "../ui";
 import { IlluPlug } from "../ui/illustrations";
 import { useActionCycle } from "../wifi/action";
@@ -141,6 +141,8 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
 
   const portLabel = (p: EthPort) =>
     p.wan ? "WAN" : p.name.toUpperCase().replace(/^LAN(\d+)$/, "LAN $1");
+  const portSpeed = (p: EthPort) =>
+    p.speed_mbps >= 1000 ? `${p.speed_mbps / 1000} Gb/s` : `${p.speed_mbps} Mb/s`;
 
   const macLine = (p: EthPort) =>
     `${p.devices[0]?.mac ?? ""}${p.up && p.speed_mbps > 0
@@ -158,12 +160,11 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
     return { tone: "danger", bars: 2, label: `${p.speed_mbps}M` };
   };
   const tierBar = { ok: "bg-ok", warn: "bg-warn", danger: "bg-danger", off: "bg-border" } as const;
-  // Leyenda: PoE solo si alguna boca lo soporta (#523).
-  const anyPoe = useMemo(() => sorted.some((p) => swByName.get(p.name)?.poe_supported), [sorted, swByName]);
 
   return (
     <Card index={index} className={className}
-      title={oneLine(t("overview.ports"))} icon={Cable} iconTone="teal">
+      title={oneLine(t("overview.ports"))} icon={Cable} iconTone="teal"
+      action={<HelpTip title={t("overview.ports")} body={t("ports.legendHelp")} />}>
       {!ports ? <SkeletonRows rows={3} /> : sorted.length === 0 ? (
         <EmptyState small illustration={<IlluPlug size={120} />} title={t("overview.portsEmpty")} />
       ) : (
@@ -190,8 +191,8 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
               return (
                 <button key={p.name} type="button"
                   onClick={() => setSelected(selected === p.name ? undefined : p.name)}
-                  title={`${label}${isMgmt ? ` · ${t("ports.legendMgmt")}` : ""}${p.up ? ` · ${p.speed_mbps >= 1000 ? `${p.speed_mbps / 1000} Gb/s` : `${p.speed_mbps} Mb/s`} · ${device}` : ""}`}
-                  className={`flex w-[68px] flex-col items-center gap-1 rounded-sm p-1 ring-focus transition-colors hover:bg-surface
+                  aria-label={`${label}${p.up ? ` · ${portSpeed(p)} · ${device}` : ` · ${t("ports.free")}`}${isMgmt ? ` · ${t("ports.legendMgmt")}` : ""}`}
+                  className={`group relative flex w-[68px] flex-col items-center gap-0.5 rounded-sm px-1 py-1 ring-focus transition-colors hover:bg-surface
                     ${selected === p.name ? "bg-surface shadow-card" : ""}`}>
                   {/* LEDs como en un RJ45 real: uno a cada extremo, alineados
                       con los bordes del icono (mismo w-10), no de la baldosa.
@@ -229,34 +230,28 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
                         className={`w-[3px] rounded-full ${i < tier.bars ? tierBar[tier.tone] : "bg-border/60"}`} />
                     ))}
                   </span>
-                  <span className={`text-[10px] font-semibold font-mono tracking-wide ${p.wan ? "text-accent" : "text-muted"}`}>
-                    {label}
-                  </span>
-                  {tier.label && (
-                    <span className={`-mt-0.5 text-[10px] font-bold font-mono ${
-                      tier.tone === "ok" ? "text-ok" : tier.tone === "warn" ? "text-warn" : "text-danger"
-                    }`}>
-                      {tier.label}
+                  <span className="flex items-baseline justify-center gap-1 whitespace-nowrap leading-none">
+                    <span className={`text-[10px] font-semibold font-mono tracking-wide ${p.wan ? "text-accent" : "text-muted"}`}>
+                      {label}
                     </span>
-                  )}
-                  <span className="w-full truncate text-center text-[11px] text-text">{device}</span>
+                    {tier.label && (
+                      <span className={`text-[10px] font-bold font-mono ${
+                        tier.tone === "ok" ? "text-ok" : tier.tone === "warn" ? "text-warn" : "text-danger"
+                      }`}>
+                        {tier.label}
+                      </span>
+                    )}
+                  </span>
+                  <span role="tooltip"
+                    className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 hidden w-max max-w-52 -translate-x-1/2 rounded-md border border-border bg-surface px-2.5 py-1.5 text-left text-caption shadow-elevated group-hover:block group-focus-visible:block">
+                    <span className="block font-semibold">{label}</span>
+                    <span className="block">{p.up ? `${portSpeed(p)} · ${device}` : t("ports.free")}</span>
+                    {isMgmt && <span className="block text-muted">{t("ports.legendMgmt")}</span>}
+                  </span>
                 </button>
               );
             })}
           </div>
-          {/* Leyenda del chasis (#523) */}
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-muted">
-            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-ok" />{t("ports.legendActive")}</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-warn" />{t("ports.legendReduced")}</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-border-strong" />{t("ports.legendFree")}</span>
-            {anyPoe && (
-              <span className="inline-flex items-center gap-1.5"><Zap size={11} strokeWidth={2.5} className="text-warn" />{t("ports.legendPoe")}</span>
-            )}
-            {mgmtPort && (
-              <span className="inline-flex items-center gap-1.5"><Lock size={11} strokeWidth={2.5} className="text-accent" />{t("ports.legendMgmt")}</span>
-            )}
-          </div>
-
           {/* Banda de detalle de la boca seleccionada (#484) */}
           {selectedPort && !selectedSw && (
             <div className="mt-3 flex items-center justify-between gap-2 text-small">
