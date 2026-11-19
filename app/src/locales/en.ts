@@ -1374,6 +1374,7 @@ export default {
   },
   overview: {
     detected: "Detected on this device",
+    resources: "Device resources",
     caps: {
       wan: "WAN active",
       noWan: "No WAN",

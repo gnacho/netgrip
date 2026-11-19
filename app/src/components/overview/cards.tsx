@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
   Activity, ArrowDown, ArrowUp, Cable, CloudOff, Cpu, Globe, HardDrive,
-  MemoryStick, ShieldCheck, Smartphone, Wifi,
+  Maximize2, MemoryStick, ShieldCheck, Smartphone, Wifi,
 } from "lucide-react";
 import { api } from "../../api";
 import type {
@@ -195,22 +195,22 @@ export function InternetCard({ wan, mode }: { wan?: WanStatus; mode?: ModeProbe 
   );
 }
 
-/* ══════════════ CPU: por núcleo, no en promedio ══════════════ */
+/* ══════════════ Recursos: CPU, memoria y flash en una tarjeta ══════════════ */
 
 /**
  * What the CPU is doing, core by core.
  *
  * A single average is the wrong number on a router: receive processing is
  * pinned to whichever core takes the NIC interrupt, so the box can be at
- * its routing ceiling with one core saturated and three idle. The card
- * leads with the busiest core, and shows the two counters that say whether
- * the network path is keeping up — packets dropped for lack of backlog,
- * and softirq budget exhaustions.
+ * its routing ceiling with one core saturated and three idle. The panel
+ * leads with the busiest core, and shows the counters that say whether the
+ * network path is keeping up. Memory and storage sit beside it because they
+ * describe the same device and belong to the same card.
  */
-export function CpuCard() {
+export function ResourcesCard({ system, index = 1 }: { system?: SystemInfo; index?: number }) {
   const { t } = useTranslation();
   const [cpu, setCpu] = useState<CPUProbe>();
-  const [detail, setDetail] = useState(false);
+  const [detail, setDetail] = useState<"cpu" | "memory" | "flash">();
 
   useEffect(() => {
     const load = () => api.cpu().then(setCpu).catch(() => {});
@@ -220,88 +220,101 @@ export function CpuCard() {
   }, []);
 
   const ready = cpu && !cpu.warming && cpu.cores.length > 0;
-  // Only worth surfacing on the card itself; everything else lives in the
-  // expand view so the three resource cards stay one line tall.
   const losing = (cpu?.cores ?? []).filter((c) => c.dropped_rate > 0 || c.squeezed_rate > 0);
+  const used = system ? system.memory.total - system.memory.available : 0;
+  const memPct = system ? Math.round((used / system.memory.total) * 100) : 0;
+  const freePct = system ? Math.round((system.root.free / system.root.total) * 100) : 0;
+  const flashTone = freePct <= 10 ? "danger" : freePct <= 20 ? "warn" : "ok";
+  const panelClass = "min-w-0 border-t border-border pt-4 first:border-t-0 first:pt-0 md:border-l md:border-t-0 md:pl-5 md:pt-0 md:first:border-l-0 md:first:pl-0";
 
   return (
-    <Card index={1} id="cpu" className="md:col-span-4 order-5 md:order-none"
-      title={oneLine(t("overview.cpu"))} icon={Cpu} iconTone="muted" help="cpu"
-      onExpand={() => setDetail(true)} expandLabel={t("overview.cpuExpand")}>
-      {!ready ? <SkeletonRows rows={1} /> : (
-        <>
-          <div className="flex items-center gap-4">
-            <Gauge value={Math.round(cpu!.busiest_pct)} size="sm" mode="consumption"
-              ariaLabel={`${t("overview.cpuBusiest")} ${cpu!.busiest_pct}%`} />
-            <div className="min-w-0">
-              <p className="stat-md">{cpu!.busiest_pct}%</p>
-              <p className="text-caption text-muted mt-1">
-                {t("overview.cpuBusiest")} · {t("overview.cpuAverage", { pct: cpu!.usage_pct })}
+    <Card index={index} id="recursos" title={oneLine(t("overview.resources"))} icon={Cpu} iconTone="muted">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className={panelClass}>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="inline-flex items-center gap-1.5 text-small font-medium text-muted">
+              <Cpu size={15} aria-hidden="true" />
+              {t("overview.cpu")}
+            </h3>
+            <button type="button" onClick={() => setDetail("cpu")} aria-label={t("overview.cpuExpand")}
+              className="text-muted hover:text-text ring-focus rounded-sm">
+              <Maximize2 size={14} />
+            </button>
+          </div>
+          {!ready ? <SkeletonRows rows={1} /> : (
+            <>
+              <div className="mt-2 flex items-center gap-4">
+                <Gauge value={Math.round(cpu!.busiest_pct)} size="sm" mode="consumption"
+                  ariaLabel={`${t("overview.cpuBusiest")} ${cpu!.busiest_pct}%`} />
+                <div className="min-w-0">
+                  <p className="stat-md">{cpu!.busiest_pct}%</p>
+                  <p className="text-caption text-muted mt-1">
+                    {t("overview.cpuBusiest")} · {t("overview.cpuAverage", { pct: cpu!.usage_pct })}
+                  </p>
+                </div>
+              </div>
+              {losing.length > 0 && (
+                <Banner tone="warn" className="mt-3">
+                  {t("overview.cpuDropping", {
+                    cores: losing.map((c) => c.idx).join(", "),
+                    pps: Math.round(losing.reduce((a, c) => a + c.dropped_rate, 0)),
+                  })}
+                </Banner>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className={panelClass}>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="inline-flex items-center gap-1.5 text-small font-medium text-muted">
+              <MemoryStick size={15} aria-hidden="true" />
+              {t("overview.memory")}
+            </h3>
+            <button type="button" onClick={() => setDetail("memory")} aria-label={t("overview.memExpand")}
+              className="text-muted hover:text-text ring-focus rounded-sm">
+              <Maximize2 size={14} />
+            </button>
+          </div>
+          {!system ? <SkeletonRows rows={1} /> : (
+            <div className="mt-2 flex items-center gap-4">
+              <Gauge value={memPct} size="sm" mode="consumption" ariaLabel={`${t("overview.memory")} ${memPct}%`} />
+              <div className="min-w-0">
+                <p className="stat-md">{fmtMB(used)} / {fmtMB(system.memory.total)}</p>
+                <p className="text-caption text-muted mt-1">{t("overview.memByProc")}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className={panelClass}>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="inline-flex items-center gap-1.5 text-small font-medium text-muted">
+              <HardDrive size={15} aria-hidden="true" />
+              {t("overview.flash")}
+            </h3>
+            <button type="button" onClick={() => setDetail("flash")} aria-label={t("overview.flashExpand")}
+              className="text-muted hover:text-text ring-focus rounded-sm">
+              <Maximize2 size={14} />
+            </button>
+          </div>
+          {!system ? <SkeletonRows rows={1} /> : (
+            <div className="mt-2 flex items-center gap-4">
+              <Gauge value={freePct} size="sm" tone={flashTone} ariaLabel={`${t("overview.flash")} ${freePct}%`} />
+              <p className="stat-md min-w-0">
+                {t("overview.flashFree", {
+                  free: fmtMB(system.root.free * 1024),
+                  total: fmtMB(system.root.total * 1024),
+                })}
               </p>
             </div>
-          </div>
-
-          {/* Packets the kernel threw away because a core could not keep
-              up. Shown only while it is happening. */}
-          {losing.length > 0 && (
-            <Banner tone="warn" className="mt-3">
-              {t("overview.cpuDropping", {
-                cores: losing.map((c) => c.idx).join(", "),
-                pps: Math.round(losing.reduce((a, c) => a + c.dropped_rate, 0)),
-              })}
-            </Banner>
           )}
-        </>
-      )}
-      <CpuDetailModal open={detail} onClose={() => setDetail(false)} />
-    </Card>
-  );
-}
-
-export function MemoryCard({ system }: { system?: SystemInfo }) {
-  const { t } = useTranslation();
-  const [detail, setDetail] = useState(false);
-  const used = system ? system.memory.total - system.memory.available : 0;
-  const pct = system ? Math.round((used / system.memory.total) * 100) : 0;
-  return (
-    <Card index={1} id="recursos" className="md:col-span-4 order-6 md:order-none"
-      title={oneLine(t("overview.memory"))} icon={MemoryStick} iconTone="muted" help="memory"
-      onExpand={() => setDetail(true)} expandLabel={t("overview.memExpand")}>
-      {!system ? <SkeletonRows rows={1} /> : (
-        <div className="flex items-center gap-4">
-          <Gauge value={pct} size="sm" mode="consumption" ariaLabel={`${t("overview.memory")} ${pct}%`} />
-          <div className="min-w-0">
-            <p className="stat-md">{fmtMB(used)} / {fmtMB(system.memory.total)}</p>
-            <p className="text-caption text-muted mt-1">{t("overview.memByProc")}</p>
-          </div>
         </div>
-      )}
-      <MemoryDetailModal system={system} open={detail} onClose={() => setDetail(false)} />
-    </Card>
-  );
-}
+      </div>
 
-export function FlashCard({ system }: { system?: SystemInfo }) {
-  const { t } = useTranslation();
-  const [detail, setDetail] = useState(false);
-  const freePct = system ? Math.round((system.root.free / system.root.total) * 100) : 0;
-  const tone = freePct <= 10 ? "danger" : freePct <= 20 ? "warn" : "ok";
-  return (
-    <Card index={1} className="md:col-span-4 order-7 md:order-none"
-      title={oneLine(t("overview.flash"))} icon={HardDrive} help="flash"
-      onExpand={() => setDetail(true)} expandLabel={t("overview.flashExpand")}>
-      {!system ? <SkeletonRows rows={1} /> : (
-        <div className="flex items-center gap-4">
-          <Gauge value={freePct} size="sm" tone={tone} ariaLabel={`${t("overview.flash")} ${freePct}%`} />
-          <p className="stat-md min-w-0">
-            {t("overview.flashFree", {
-              free: fmtMB(system.root.free * 1024),
-              total: fmtMB(system.root.total * 1024),
-            })}
-          </p>
-        </div>
-      )}
-      <FlashDetailModal system={system} open={detail} onClose={() => setDetail(false)} />
+      <CpuDetailModal open={detail === "cpu"} onClose={() => setDetail(undefined)} />
+      <MemoryDetailModal system={system} open={detail === "memory"} onClose={() => setDetail(undefined)} />
+      <FlashDetailModal system={system} open={detail === "flash"} onClose={() => setDetail(undefined)} />
     </Card>
   );
 }

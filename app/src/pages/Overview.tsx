@@ -2,8 +2,7 @@ import { useMode } from "../hooks/useMode";
 import type { Board, DriftProbe, EthPort, ModeProbe, StorageProbe, SystemInfo, WanStatus, WirelessRadio } from "../types";
 import type { HealthScore } from "../hooks/useHealthScore";
 import {
-  ClientsCard, CpuCard, DriftSection, FlashCard, HealthHero, InternetCard,
-  LiveTrafficCard, MemoryCard,
+  ClientsCard, DriftSection, HealthHero, InternetCard, LiveTrafficCard, ResourcesCard,
 } from "../components/overview/cards";
 import { GatewayOverview } from "../components/overview/GatewayOverview";
 import { ApOverview } from "../components/overview/ApOverview";
@@ -46,10 +45,8 @@ export function Overview({ board, system, wan, drift, onDriftChange, isSwitch, h
         {/* El enlace y su tráfico en vivo, cada uno a todo el ancho (#598). */}
         {!isSwitch && <InternetCard wan={wan} mode={mode} />}
         <LiveTrafficCard />
-        {/* Recursos del equipo, uno por fila a todo el ancho (#598). */}
-        <CpuCard />
-        <MemoryCard system={system} />
-        <FlashCard system={system} />
+        {/* CPU, memoria y almacenamiento comparten tarjeta (#601). */}
+        <ResourcesCard system={system} />
         {/* El consumo (quién gasta más) vive en la página Consumo (#385) y el
             chasis de puertos en Puertos ethernet (#384). */}
         <ClientsCard onNavigate={onNavigate} />

@@ -1374,6 +1374,7 @@ export default {
   },
   overview: {
     detected: "Detectado en este equipo",
+    resources: "Recursos del equipo",
     caps: {
       wan: "WAN activa",
       noWan: "Sin WAN",
