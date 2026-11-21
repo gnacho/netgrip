@@ -12,7 +12,7 @@ import { HelpTip } from "./HelpTip";
  * keep their detail in a modal, so the summary takes as little vertical
  * space as possible.
  */
-export function Card({ eyebrow, title, icon, iconTone = "accent", help, action, onExpand, expandLabel, variant = "default", index = 0, id, className = "", children, animate = true }: {
+export function Card({ eyebrow, title, icon, iconTone = "accent", help, action, onExpand, expandLabel, variant = "default", index = 0, id, className = "", children, animate = true, headerOnly = false }: {
   eyebrow?: string;
   title?: ReactNode;
   icon?: LucideIcon;
@@ -27,8 +27,10 @@ export function Card({ eyebrow, title, icon, iconTone = "accent", help, action, 
   index?: number;
   id?: string;
   className?: string;
-  children: ReactNode;
+  children?: ReactNode;
   animate?: boolean;
+  /** The header is the whole card: no body or header margin below it. */
+  headerOnly?: boolean;
 }) {
   const { t } = useTranslation();
   const style = { "--i": Math.min(index, 7) } as CSSProperties;
@@ -43,9 +45,9 @@ export function Card({ eyebrow, title, icon, iconTone = "accent", help, action, 
       } ${className}`}
     >
       {(title || action || eyebrow) && (
-        <header className="mb-3">
+        <header className={headerOnly ? "" : "mb-3"}>
           {eyebrow && <p className="text-eyebrow text-faint mb-1.5">{eyebrow}</p>}
-          <div className="flex items-center gap-2.5">
+          <div className={`flex items-center gap-2.5 ${headerOnly ? "flex-wrap" : ""}`}>
             {icon && <IconTile icon={icon} tone={iconTone} />}
             {title && <h2 className="text-h2 flex-1 min-w-0">{title}</h2>}
             {help && <HelpTip title={t(`help.${help}.title`)} body={t(`help.${help}.body`)} />}

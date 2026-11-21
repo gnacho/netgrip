@@ -1,6 +1,4 @@
 import { ClientsCard, HealthHero, LiveTrafficCard } from "./cards";
-import { UplinkCard } from "./UplinkCard";
-import { WifiStatusCard } from "./WifiStatusCard";
 import { EthPortsCard } from "../ports/EthPortsCard";
 import type { OverviewVariantProps } from "./props";
 
@@ -15,12 +13,10 @@ export function ApOverview(props: OverviewVariantProps) {
   const { board, system, health, wireless, ethports, onNavigate } = props;
   return (
     <>
-      <HealthHero health={health} board={board} system={system} onNavigate={onNavigate} />
-      {/* Cómo sale este equipo al resto de la red: 4 + 8 = una fila. */}
-      <UplinkCard ports={ethports} ap />
+      <HealthHero health={health} board={board} system={system} onNavigate={onNavigate}
+        wireless={wireless} ports={ethports} ap />
       <LiveTrafficCard />
-      {/* Lo que gestiona un AP: radios Wi-Fi, bocas y clientes asociados. */}
-      <WifiStatusCard wireless={wireless} onNavigate={onNavigate} />
+      {/* Lo que gestiona un AP: sus bocas y clientes asociados. */}
       <EthPortsCard ports={ethports} />
       <ClientsCard onNavigate={onNavigate} className="md:col-span-7" />
     </>

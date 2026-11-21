@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Check, ListChecks, X } from "lucide-react";
-import { Card } from "../ui/Card";
+import { Card, HelpTip } from "../ui";
 import type { ModeProbe, StorageProbe, WirelessRadio } from "../../types";
 
 /**
@@ -35,23 +35,25 @@ export function CapabilityCard({ mode, wireless, storage }: {
   if (storage?.applicable) chips.push({ ok: true, label: t("overview.caps.usb") });
 
   return (
-    <Card index={0} className="md:col-span-12" title={t("overview.detected")} icon={ListChecks} iconTone="muted">
-      <div className="flex flex-wrap items-center gap-2">
-        {chips.map((c) => (
-          <span
-            key={c.label}
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-caption font-medium border ${
-              c.ok
-                ? "bg-success-soft text-success border-success/20"
-                : "bg-surface-2 text-muted border-border"
-            }`}
-          >
-            {c.ok ? <Check size={13} strokeWidth={2.5} /> : <X size={13} strokeWidth={2.5} />}
-            {c.label}
-          </span>
-        ))}
-      </div>
-      <p className="mt-2.5 text-caption text-muted">{t(`overview.roleLine.${role}`)}</p>
-    </Card>
+    <Card index={0} className="md:col-span-12" title={t("overview.detected")} icon={ListChecks} iconTone="muted"
+      headerOnly
+      action={
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {chips.map((c) => (
+            <span
+              key={c.label}
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-caption font-medium border ${
+                c.ok
+                  ? "bg-success-soft text-success border-success/20"
+                  : "bg-surface-2 text-muted border-border"
+              }`}
+            >
+              {c.ok ? <Check size={13} strokeWidth={2.5} /> : <X size={13} strokeWidth={2.5} />}
+              {c.label}
+            </span>
+          ))}
+          <HelpTip title={t("overview.detected")} body={t(`overview.roleLine.${role}`)} />
+        </div>
+      } />
   );
 }

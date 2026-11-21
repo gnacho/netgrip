@@ -1,8 +1,7 @@
 import {
-  ClientsCard, CpuCard, DriftSection, FlashCard, HealthHero, InternetCard,
-  LiveTrafficCard, MemoryCard,
+  ClientsCard, DriftSection, HealthHero, InternetCard, LiveTrafficCard, ResourcesCard,
 } from "./cards";
-import { MiniChassis } from "./MiniChassis";
+import { EthPortsCard } from "../ports/EthPortsCard";
 import type { OverviewVariantProps } from "./props";
 
 /**
@@ -17,15 +16,13 @@ export function GatewayOverview(props: OverviewVariantProps) {
   return (
     <>
       <HealthHero health={health} board={board} system={system} onNavigate={onNavigate} />
-      {/* El enlace y su tráfico en vivo: 4 + 8 = una fila completa. */}
+      {/* El enlace y su tráfico en vivo, cada uno a todo el ancho (#598). */}
       <InternetCard wan={wan} mode={mode} />
       <LiveTrafficCard />
-      {/* Recursos del equipo, los tres juntos: 4 + 4 + 4. */}
-      <CpuCard />
-      <MemoryCard system={system} />
-      <FlashCard system={system} />
-      {/* Cómo está cableado este equipo, de un vistazo (mockup #487). */}
-      <MiniChassis ports={ethports} onNavigate={onNavigate} />
+      {/* CPU, memoria y almacenamiento comparten tarjeta (#601). */}
+      <ResourcesCard system={system} />
+      {/* Las bocas usan el mismo modelo que el Resumen de AP (#602). */}
+      <EthPortsCard ports={ethports} index={3} />
       <ClientsCard onNavigate={onNavigate} />
       <DriftSection drift={drift} onChange={onDriftChange} />
     </>

@@ -2,14 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
-  Activity, ArrowDown, ArrowUp, CloudOff, Cpu, Globe, HardDrive,
-  MemoryStick, ShieldCheck, Smartphone,
+  Activity, ArrowDown, ArrowUp, Cable, CloudOff, Cpu, Globe, HardDrive,
+  Maximize2, MemoryStick, ShieldCheck, Smartphone, Wifi,
 } from "lucide-react";
 import { api } from "../../api";
 import type {
-  Board, Client, DriftProbe,
+  Board, Client, DriftProbe, EthPort,
   HistoryEntry,
-  IfaceCounters, ModeProbe, SystemInfo, WanStatus,
+  IfaceCounters, ModeProbe, SystemInfo, WanStatus, WirelessRadio,
   CPUProbe,
 } from "../../types";
 import type { HealthScore } from "../../hooks/useHealthScore";
@@ -30,11 +30,23 @@ export function oneLine(text: string) {
 
 /* ══════════════ Fila 0 — Salud del router (héroe) §2 ══════════════ */
 
-export function HealthHero({ health, board, system, onNavigate }: {
+function portLabel(p: EthPort) {
+  return p.wan ? "WAN" : p.name.toUpperCase().replace(/^LAN(\d+)$/, "LAN $1");
+}
+
+function portSpeed(p: EthPort) {
+  if (p.speed_mbps <= 0) return "";
+  return p.speed_mbps >= 1000 ? `${p.speed_mbps / 1000} Gb/s` : `${p.speed_mbps} Mb/s`;
+}
+
+export function HealthHero({ health, board, system, onNavigate, wireless, ports, ap = false }: {
   health: HealthScore;
   board?: Board;
   system?: SystemInfo;
   onNavigate: (page: string, anchor?: string) => void;
+  wireless?: WirelessRadio[];
+  ports?: EthPort[];
+  ap?: boolean;
 }) {
   const { t } = useTranslation();
   const go = (page: string, anchor?: string) => {
@@ -44,10 +56,27 @@ export function HealthHero({ health, board, system, onNavigate }: {
       onNavigate(page, anchor);
     }
   };
+
+  const radios = (wireless ?? []).filter((r) => r.up);
+  const ifaces = radios.flatMap((r) => r.interfaces).filter((i) => !i.disabled);
+  const ssids = [...new Set(ifaces.map((i) => i.ssid))];
+  const wifiClients = ifaces.reduce((n, i) => n + (i.clients?.length ?? 0), 0);
+  const bands = [...new Set(radios.map((r) => t(r.band === "5g" ? "wifi.band5" : "wifi.band24")))];
+  const emitting = radios.length > 0 && ifaces.length > 0;
+  const uplink = !ports ? undefined : [...ports]
+    .filter((p) => p.up)
+    .sort((a, b) =>
+      (Number(b.wan) - Number(a.wan)) ||
+      (b.devices.length > 0 ? 1 : 0) - (a.devices.length > 0 ? 1 : 0) ||
+      b.speed_mbps - a.speed_mbps)[0];
+  const hasWifi = wireless !== undefined;
+  const hasUplink = ports !== undefined;
+  const columns = hasWifi && hasUplink ? "md:grid-cols-3" : hasWifi || hasUplink ? "md:grid-cols-2" : "";
+
   return (
     <Card index={0} id="salud" className="md:col-span-12 order-1 md:order-none">
-      <div className="flex flex-col md:flex-row md:items-center gap-5">
-        <div className="flex items-center gap-5 flex-1 min-w-0">
+      <div className={`grid gap-4 ${columns}`}>
+        <div className="flex items-center gap-4 min-w-0">
           <Gauge value={health.score} size="lg" mode="health" ariaLabel={`${t("health.title")}: ${health.score}`} />
           <div className="min-w-0">
             <p className="text-eyebrow text-faint mb-1">{t("health.title")}</p>
@@ -56,7 +85,7 @@ export function HealthHero({ health, board, system, onNavigate }: {
               {health.reasons.length === 0 ? t("health.allGood") : t("health.issues", { count: health.reasons.length })}
             </p>
             {health.reasons.length > 0 && (
-              <div className="mt-2.5 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
                 {health.reasons.slice(0, 3).map((r, i) => (
                   <button
                     key={r.key}
@@ -72,15 +101,63 @@ export function HealthHero({ health, board, system, onNavigate }: {
             )}
           </div>
         </div>
-        {/* micro-stats del sistema */}
-        <KeyValue
-          className="md:w-64 shrink-0"
-          items={[
-            { label: t("overview.model"), value: board?.model ?? "…" },
-            { label: t("overview.firmware"), value: board?.release ? `${board.release.distribution} ${board.release.version}` : "…" },
-            { label: t("system.uptime"), value: system ? fmtUptime(t, system.uptime) : "…" },
-          ]}
-        />
+
+        {hasWifi && (
+          <div className="min-w-0 border-t border-border pt-4 md:border-l md:border-t-0 md:pl-5 md:pt-0">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 text-small font-medium text-muted">
+                <Wifi size={15} aria-hidden="true" />
+                {t("overview.wifiStatus")}
+              </span>
+              <Pill tone={emitting ? "ok" : "muted"} live={emitting}>
+                {emitting ? t("wifi.broadcasting") : t("wifi.bandOff")}
+              </Pill>
+            </div>
+            <p className="stat-md mt-2 truncate">{ssids[0] ?? "—"}</p>
+            <p className="text-caption text-muted truncate">
+              {emitting ? t("overview.wifiBands", { bands: bands.join(" + ") }) : t("wifi.bandOffHint")}
+            </p>
+            <p className="mt-2 flex flex-wrap items-center gap-x-2 text-small">
+              <span>{t("wifi.devices", { count: wifiClients })}</span>
+              <button type="button" onClick={() => onNavigate("wifi")}
+                className="text-accent hover:text-accent-hover ring-focus rounded-sm">
+                {t("clients.open")} →
+              </button>
+            </p>
+          </div>
+        )}
+
+        {hasUplink && (
+          <div id="uplink" className="min-w-0 border-t border-border pt-4 md:border-l md:border-t-0 md:pl-5 md:pt-0">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 text-small font-medium text-muted">
+                <Cable size={15} aria-hidden="true" />
+                {t("overview.uplink")}
+              </span>
+              <Pill tone={uplink ? "ok" : "danger"} live={!!uplink}>
+                {uplink ? t("overview.connected") : t("overview.uplinkDown")}
+              </Pill>
+            </div>
+            <p className="stat-md mt-2 truncate">
+              {uplink ? `${portLabel(uplink)} · ${portSpeed(uplink) || "?"}` : "—"}
+            </p>
+            <p className="text-caption text-muted truncate">
+              {ap ? t("overview.apNoNat") : t("overview.switchRole")}
+            </p>
+            {uplink && uplink.devices.length > 0 && (
+              <p className="mt-2 truncate text-small">
+                <span className="text-muted">{t("overview.uplinkDevice")}: </span>
+                {uplink.devices[0].name || uplink.devices[0].mac}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-border pt-2.5 text-caption text-muted">
+        <span><span className="text-faint">{t("overview.model")}:</span> <span className="text-text">{board?.model ?? "…"}</span></span>
+        <span><span className="text-faint">{t("overview.firmware")}:</span> <span className="text-text">{board?.release ? `${board.release.distribution} ${board.release.version}` : "…"}</span></span>
+        <span><span className="text-faint">{t("system.uptime")}:</span> <span className="text-text">{system ? fmtUptime(t, system.uptime) : "…"}</span></span>
       </div>
     </Card>
   );
@@ -118,22 +195,22 @@ export function InternetCard({ wan, mode }: { wan?: WanStatus; mode?: ModeProbe 
   );
 }
 
-/* ══════════════ CPU: por núcleo, no en promedio ══════════════ */
+/* ══════════════ Recursos: CPU, memoria y flash en una tarjeta ══════════════ */
 
 /**
  * What the CPU is doing, core by core.
  *
  * A single average is the wrong number on a router: receive processing is
  * pinned to whichever core takes the NIC interrupt, so the box can be at
- * its routing ceiling with one core saturated and three idle. The card
- * leads with the busiest core, and shows the two counters that say whether
- * the network path is keeping up — packets dropped for lack of backlog,
- * and softirq budget exhaustions.
+ * its routing ceiling with one core saturated and three idle. The panel
+ * leads with the busiest core, and shows the counters that say whether the
+ * network path is keeping up. Memory and storage sit beside it because they
+ * describe the same device and belong to the same card.
  */
-export function CpuCard() {
+export function ResourcesCard({ system, index = 1 }: { system?: SystemInfo; index?: number }) {
   const { t } = useTranslation();
   const [cpu, setCpu] = useState<CPUProbe>();
-  const [detail, setDetail] = useState(false);
+  const [detail, setDetail] = useState<"cpu" | "memory" | "flash">();
 
   useEffect(() => {
     const load = () => api.cpu().then(setCpu).catch(() => {});
@@ -143,88 +220,101 @@ export function CpuCard() {
   }, []);
 
   const ready = cpu && !cpu.warming && cpu.cores.length > 0;
-  // Only worth surfacing on the card itself; everything else lives in the
-  // expand view so the three resource cards stay one line tall.
   const losing = (cpu?.cores ?? []).filter((c) => c.dropped_rate > 0 || c.squeezed_rate > 0);
+  const used = system ? system.memory.total - system.memory.available : 0;
+  const memPct = system ? Math.round((used / system.memory.total) * 100) : 0;
+  const freePct = system ? Math.round((system.root.free / system.root.total) * 100) : 0;
+  const flashTone = freePct <= 10 ? "danger" : freePct <= 20 ? "warn" : "ok";
+  const panelClass = "min-w-0 border-t border-border pt-4 first:border-t-0 first:pt-0 md:border-l md:border-t-0 md:pl-5 md:pt-0 md:first:border-l-0 md:first:pl-0";
 
   return (
-    <Card index={1} id="cpu" className="md:col-span-4 order-5 md:order-none"
-      title={oneLine(t("overview.cpu"))} icon={Cpu} iconTone="muted" help="cpu"
-      onExpand={() => setDetail(true)} expandLabel={t("overview.cpuExpand")}>
-      {!ready ? <SkeletonRows rows={1} /> : (
-        <>
-          <div className="flex items-center gap-4">
-            <Gauge value={Math.round(cpu!.busiest_pct)} size="sm" mode="consumption"
-              ariaLabel={`${t("overview.cpuBusiest")} ${cpu!.busiest_pct}%`} />
-            <div className="min-w-0">
-              <p className="stat-md">{cpu!.busiest_pct}%</p>
-              <p className="text-caption text-muted mt-1">
-                {t("overview.cpuBusiest")} · {t("overview.cpuAverage", { pct: cpu!.usage_pct })}
+    <Card index={index} id="recursos" title={oneLine(t("overview.resources"))} icon={Cpu} iconTone="muted">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className={panelClass}>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="inline-flex items-center gap-1.5 text-small font-medium text-muted">
+              <Cpu size={15} aria-hidden="true" />
+              {t("overview.cpu")}
+            </h3>
+            <button type="button" onClick={() => setDetail("cpu")} aria-label={t("overview.cpuExpand")}
+              className="text-muted hover:text-text ring-focus rounded-sm">
+              <Maximize2 size={14} />
+            </button>
+          </div>
+          {!ready ? <SkeletonRows rows={1} /> : (
+            <>
+              <div className="mt-2 flex items-center gap-4">
+                <Gauge value={Math.round(cpu!.busiest_pct)} size="sm" mode="consumption"
+                  ariaLabel={`${t("overview.cpuBusiest")} ${cpu!.busiest_pct}%`} />
+                <div className="min-w-0">
+                  <p className="stat-md">{cpu!.busiest_pct}%</p>
+                  <p className="text-caption text-muted mt-1">
+                    {t("overview.cpuBusiest")} · {t("overview.cpuAverage", { pct: cpu!.usage_pct })}
+                  </p>
+                </div>
+              </div>
+              {losing.length > 0 && (
+                <Banner tone="warn" className="mt-3">
+                  {t("overview.cpuDropping", {
+                    cores: losing.map((c) => c.idx).join(", "),
+                    pps: Math.round(losing.reduce((a, c) => a + c.dropped_rate, 0)),
+                  })}
+                </Banner>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className={panelClass}>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="inline-flex items-center gap-1.5 text-small font-medium text-muted">
+              <MemoryStick size={15} aria-hidden="true" />
+              {t("overview.memory")}
+            </h3>
+            <button type="button" onClick={() => setDetail("memory")} aria-label={t("overview.memExpand")}
+              className="text-muted hover:text-text ring-focus rounded-sm">
+              <Maximize2 size={14} />
+            </button>
+          </div>
+          {!system ? <SkeletonRows rows={1} /> : (
+            <div className="mt-2 flex items-center gap-4">
+              <Gauge value={memPct} size="sm" mode="consumption" ariaLabel={`${t("overview.memory")} ${memPct}%`} />
+              <div className="min-w-0">
+                <p className="stat-md">{fmtMB(used)} / {fmtMB(system.memory.total)}</p>
+                <p className="text-caption text-muted mt-1">{t("overview.memByProc")}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className={panelClass}>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="inline-flex items-center gap-1.5 text-small font-medium text-muted">
+              <HardDrive size={15} aria-hidden="true" />
+              {t("overview.flash")}
+            </h3>
+            <button type="button" onClick={() => setDetail("flash")} aria-label={t("overview.flashExpand")}
+              className="text-muted hover:text-text ring-focus rounded-sm">
+              <Maximize2 size={14} />
+            </button>
+          </div>
+          {!system ? <SkeletonRows rows={1} /> : (
+            <div className="mt-2 flex items-center gap-4">
+              <Gauge value={freePct} size="sm" tone={flashTone} ariaLabel={`${t("overview.flash")} ${freePct}%`} />
+              <p className="stat-md min-w-0">
+                {t("overview.flashFree", {
+                  free: fmtMB(system.root.free * 1024),
+                  total: fmtMB(system.root.total * 1024),
+                })}
               </p>
             </div>
-          </div>
-
-          {/* Packets the kernel threw away because a core could not keep
-              up. Shown only while it is happening. */}
-          {losing.length > 0 && (
-            <Banner tone="warn" className="mt-3">
-              {t("overview.cpuDropping", {
-                cores: losing.map((c) => c.idx).join(", "),
-                pps: Math.round(losing.reduce((a, c) => a + c.dropped_rate, 0)),
-              })}
-            </Banner>
           )}
-        </>
-      )}
-      <CpuDetailModal open={detail} onClose={() => setDetail(false)} />
-    </Card>
-  );
-}
-
-export function MemoryCard({ system }: { system?: SystemInfo }) {
-  const { t } = useTranslation();
-  const [detail, setDetail] = useState(false);
-  const used = system ? system.memory.total - system.memory.available : 0;
-  const pct = system ? Math.round((used / system.memory.total) * 100) : 0;
-  return (
-    <Card index={1} id="recursos" className="md:col-span-4 order-6 md:order-none"
-      title={oneLine(t("overview.memory"))} icon={MemoryStick} iconTone="muted" help="memory"
-      onExpand={() => setDetail(true)} expandLabel={t("overview.memExpand")}>
-      {!system ? <SkeletonRows rows={1} /> : (
-        <div className="flex items-center gap-4">
-          <Gauge value={pct} size="sm" mode="consumption" ariaLabel={`${t("overview.memory")} ${pct}%`} />
-          <div className="min-w-0">
-            <p className="stat-md">{fmtMB(used)} / {fmtMB(system.memory.total)}</p>
-            <p className="text-caption text-muted mt-1">{t("overview.memByProc")}</p>
-          </div>
         </div>
-      )}
-      <MemoryDetailModal system={system} open={detail} onClose={() => setDetail(false)} />
-    </Card>
-  );
-}
+      </div>
 
-export function FlashCard({ system }: { system?: SystemInfo }) {
-  const { t } = useTranslation();
-  const [detail, setDetail] = useState(false);
-  const freePct = system ? Math.round((system.root.free / system.root.total) * 100) : 0;
-  const tone = freePct <= 10 ? "danger" : freePct <= 20 ? "warn" : "ok";
-  return (
-    <Card index={1} className="md:col-span-4 order-7 md:order-none"
-      title={oneLine(t("overview.flash"))} icon={HardDrive} help="flash"
-      onExpand={() => setDetail(true)} expandLabel={t("overview.flashExpand")}>
-      {!system ? <SkeletonRows rows={1} /> : (
-        <div className="flex items-center gap-4">
-          <Gauge value={freePct} size="sm" tone={tone} ariaLabel={`${t("overview.flash")} ${freePct}%`} />
-          <p className="stat-md min-w-0">
-            {t("overview.flashFree", {
-              free: fmtMB(system.root.free * 1024),
-              total: fmtMB(system.root.total * 1024),
-            })}
-          </p>
-        </div>
-      )}
-      <FlashDetailModal system={system} open={detail} onClose={() => setDetail(false)} />
+      <CpuDetailModal open={detail === "cpu"} onClose={() => setDetail(undefined)} />
+      <MemoryDetailModal system={system} open={detail === "memory"} onClose={() => setDetail(undefined)} />
+      <FlashDetailModal system={system} open={detail === "flash"} onClose={() => setDetail(undefined)} />
     </Card>
   );
 }
@@ -445,8 +535,8 @@ export function LiveTrafficCard() {
 /** Mini-grafo radial mesh §5: este router al centro, satélites alrededor. */
 export function ClientsCard({ onNavigate, className = "md:col-span-12" }: {
   onNavigate: (p: string) => void;
-  /** Ancho de la retícula: por defecto ancho completo; el Resumen de AP
-   *  (#487) lo pasa a 7/12 para emparejarlo con la tarjeta Wi-Fi. */
+  /** Clase de layout conservada para compatibilidad con las composiciones
+   *  anteriores; el Resumen actual apila todas las tarjetas (#598). */
   className?: string;
 }) {
   const { t } = useTranslation();
