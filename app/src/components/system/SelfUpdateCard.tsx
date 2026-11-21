@@ -48,9 +48,11 @@ export function SelfUpdateCard({ index = 2 }: { index?: number }) {
 
   return (
     <Card index={index} title={t("selfupdate.title")} icon={Sparkles}
-      action={check && (check.available
-        ? <Pill tone="warn">{t("selfupdate.available")}</Pill>
-        : <Pill tone="ok">{t("selfupdate.upToDate")}</Pill>)}>
+      action={check && (check.check_error
+        ? <Pill tone="danger">{t("selfupdate.checkFailed")}</Pill>
+        : check.available
+          ? <Pill tone="warn">{t("selfupdate.available")}</Pill>
+          : <Pill tone="ok">{t("selfupdate.upToDate")}</Pill>)}>
       {!check ? (
         <SkeletonRows rows={3} />
       ) : (
@@ -59,6 +61,10 @@ export function SelfUpdateCard({ index = 2 }: { index?: number }) {
             <span className="text-small text-muted">{t("selfupdate.current")}</span>
             <span className="font-mono text-small font-medium">{check.current}</span>
           </div>
+
+          {check.check_error && (
+            <p className="text-small text-danger">{t("selfupdate.checkFailedHint")}</p>
+          )}
 
           {check.available && (
             <div className="flex items-baseline justify-between gap-4">
