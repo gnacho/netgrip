@@ -79,6 +79,44 @@ printf 'package' > "$dest"
 	}
 }
 
+func TestInstallerDownloadFailureSuggestsHTTPSDownloader(t *testing.T) {
+	bin := t.TempDir()
+	tools := map[string]string{
+		"id": "echo 0\n",
+		"awk": `if [ "$2" = /etc/apk/arch ]; then
+  echo aarch64_cortex-a53
+else
+  exec /usr/bin/awk "$@"
+fi
+`,
+		"apk": `case "$1" in
+  --print-arch) echo aarch64 ;;
+esac
+`,
+		"wget": "echo 'HTTPS support not compiled in' >&2\nexit 1\n",
+		"curl": "exit 1\n",
+	}
+	for name, body := range tools {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+body), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cmd := exec.Command("sh", "../../install.sh")
+	cmd.Env = append(os.Environ(), "PATH="+bin+":/usr/bin:/bin",
+		"NETGRIP_VERSION=v0.79.0", "NETGRIP_ASSET_BASE=https://example.test/release")
+	out, err := cmd.CombinedOutput()
+	exit, ok := err.(*exec.ExitError)
+	if !ok || exit.ExitCode() != 4 {
+		t.Fatalf("expected download failure, got %v:\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "HTTPS-capable") {
+		t.Errorf("expected an HTTPS downloader hint, got:\n%s", out)
+	}
+	if strings.Contains(string(out), "no asset for this combination?") {
+		t.Errorf("error points to a missing asset despite the TLS failure:\n%s", out)
+	}
+}
+
 // Execute the release upload step with local packages and a stubbed GitHub CLI.
 // Existing heal scripts require the generic suffix even in new releases.
 func TestAPKReleaseNames(t *testing.T) {
