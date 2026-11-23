@@ -78,14 +78,17 @@ export function HealthHero({ health, board, system, onNavigate, wireless, ports,
   return (
     <Card index={0} id="salud" className="md:col-span-12 order-1 md:order-none">
       <div className={`grid gap-4 ${columns}`}>
-        <div className="flex items-center gap-4 min-w-0">
+        <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
           <Gauge value={health.score} size="lg" mode="health" ariaLabel={`${t(`health.title.${role}`)}: ${health.score}`} />
           <div className="min-w-0">
             <p className="text-eyebrow text-faint mb-1">{t(`health.title.${role}`)}</p>
-            <Pill tone={health.tone}>{t(health.labelKey)}</Pill>
-            <p className="text-body mt-2">
-              {health.reasons.length === 0 ? t("health.allGood") : t("health.issues", { count: health.reasons.length })}
-            </p>
+            {/* Estado y resumen en la misma fila (#610). */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <Pill tone={health.tone}>{t(health.labelKey)}</Pill>
+              <p className="text-body">
+                {health.reasons.length === 0 ? t("health.allGood") : t("health.issues", { count: health.reasons.length })}
+              </p>
+            </div>
             {health.reasons.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {health.reasons.slice(0, 3).map((r, i) => (

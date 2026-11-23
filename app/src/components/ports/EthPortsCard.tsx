@@ -164,14 +164,21 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
   return (
     <Card index={index} className={className}
       title={oneLine(t("overview.ports"))} icon={Cable} iconTone="teal"
-      action={<HelpTip title={t("overview.ports")} body={t("ports.legendHelp")} />}>
+      action={
+        <span className="flex items-center gap-2">
+          {/* Uso del chasis en la misma fila del título (#610). */}
+          {sorted.length > 0 && (
+            <span className="text-caption text-muted">
+              {t("ports.inUse", { used: sorted.filter((p) => p.up).length, total: sorted.length })}
+            </span>
+          )}
+          <HelpTip title={t("overview.ports")} body={t("ports.legendHelp")} />
+        </span>
+      }>
       {!ports ? <SkeletonRows rows={3} /> : sorted.length === 0 ? (
         <EmptyState small illustration={<IlluPlug size={120} />} title={t("overview.portsEmpty")} />
       ) : (
         <>
-          <p className="text-caption text-muted mb-3">
-            {t("ports.inUse", { used: sorted.filter((p) => p.up).length, total: sorted.length })}
-          </p>
           {/* chasis (#523): boca + barras de velocidad + badge PoE +
               etiqueta + dispositivo; bajo el chasis, leyenda de estados. */}
           <div className="flex flex-wrap gap-x-3 gap-y-4 rounded-md border border-border bg-surface-2 px-3 py-3">
