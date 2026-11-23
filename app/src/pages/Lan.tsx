@@ -7,7 +7,6 @@ import { Button, Card, EmptyState, SkeletonRows } from "../components/ui";
 import { LanConfigCard } from "../components/lan/LanConfigCard";
 import { ReservationsCard } from "../components/lan/ReservationsCard";
 import { DnsCard } from "../components/lan/DnsCard";
-import { Ipv6Card } from "../components/services/Ipv6Card";
 
 /**
  * Red local (lan.md): "las direcciones de tu casa", DNS y "direcciones que
@@ -54,10 +53,9 @@ export function LanPage({ ipv6, onIpv6Change }: {
         </>
       ) : (
         <>
-          <LanConfigCard cfg={cfg} onChange={setCfg} index={0} />
+          <LanConfigCard cfg={cfg} ipv6={ipv6} onChange={setCfg} onIpv6Change={onIpv6Change} index={0} />
           <DnsCard index={1} />
           <ReservationsCard cfg={cfg} onChange={setCfg} index={2} />
-          <Ipv6Card probe={ipv6} onChange={onIpv6Change} index={3} />
         </>
       )}
     </div>
