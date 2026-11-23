@@ -796,6 +796,13 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role_id: roleId, port }),
     }),
+  speedtest: () => request<import("./types").SpeedTestResult>("/api/speedtest"),
+  startSpeedtest: () =>
+    request<import("./types").SpeedTestResult>("/api/speedtest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    }),
   dpi: () =>
     request<import("./types").DPIProbe>("/api/dpi"),
   netifyd: () =>

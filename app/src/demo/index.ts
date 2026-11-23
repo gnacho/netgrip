@@ -528,6 +528,8 @@ export const demoApi: typeof api = {
     state.firewall.rules = state.firewall.rules.filter((r) => r.section !== section);
     return write(state.firewall);
   },
+  speedtest: () => get({ state: "idle", down_mbps: 0, up_mbps: 0 } as const),
+  startSpeedtest: async () => get({ state: "running", phase: "download", down_mbps: 0, up_mbps: 0 } as const),
   dpi: () => get(D.demoDpi),
   netifyd: () => get(state.netifyd),
   setNetifyd: async (enabled) => {

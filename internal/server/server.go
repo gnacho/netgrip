@@ -322,6 +322,8 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("GET /api/cable-test", s.requireAuth(s.handleCableTestGet))
 	s.mux.HandleFunc("GET /api/diagnostics/selftest", s.requireAuth(s.handleDiagnosticsSelfTest))
 	s.mux.HandleFunc("POST /api/diagnostics", s.requireAuth(s.handleDiagnosticsRun))
+	s.mux.HandleFunc("GET /api/speedtest", s.requireAuth(s.handleSpeedTestStatus))
+	s.mux.HandleFunc("POST /api/speedtest", s.requireAuth(s.handleSpeedTestStart))
 	s.mux.HandleFunc("GET /api/storm", s.requireAuth(s.handleStormGet))
 	s.mux.HandleFunc("POST /api/storm", s.requireAuth(s.handleStormSet))
 	s.mux.HandleFunc("GET /api/mirror", s.requireAuth(s.handleMirrorGet))
@@ -2976,6 +2978,14 @@ func (s *Server) handleDPIGet(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) handleDPIAppsGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, map[string]any{"apps": modules.NetifydApps()})
 }
+func (s *Server) handleSpeedTestStatus(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.SpeedTestStatus())
+}
+
+func (s *Server) handleSpeedTestStart(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.StartSpeedTest())
+}
+
 func (s *Server) handleDPITimelineGet(w http.ResponseWriter, _ *http.Request) {
 	tl := modules.NetifydTimeline()
 	// Una grafica vacia con datos en la tabla era indistinguible de "no hay

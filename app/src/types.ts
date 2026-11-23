@@ -1267,6 +1267,19 @@ export interface DPIProtocol {
   category: string;
 }
 
+/** Medición M-Lab NDT7 ejecutada en el propio router. */
+export interface SpeedTestResult {
+  state: "idle" | "running" | "done" | "error";
+  phase?: "download" | "upload";
+  down_mbps: number;
+  up_mbps: number;
+  ping_ms?: number;
+  server?: string;
+  error?: string;
+  started_at?: number;
+  finished_at?: number;
+}
+
 export interface DPIProbe {
   applicable: boolean;
   total_bytes: number;
