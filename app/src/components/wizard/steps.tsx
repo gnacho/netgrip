@@ -599,10 +599,10 @@ export function PackagesStep({ items, onSaved, onSkip, onBack }: {
 }) {
   const { t } = useTranslation();
   const { job, running, begin } = useInstallJob();
-  // Por defecto recomendamos instalar todo ya: los checkboxes nacen marcados.
+  // Opt-in by default: never install optional packages the user did not choose.
   const installableIds = () => items.filter((p) => !p.installed).map((p) => p.id);
-  const [mode, setMode] = useState<PkgMode>("all");
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(installableIds()));
+  const [mode, setMode] = useState<PkgMode>("demand");
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [fatal, setFatal] = useState<string>();
   const [fails, setFails] = useState(0);
 
@@ -639,8 +639,8 @@ export function PackagesStep({ items, onSaved, onSkip, onBack }: {
   };
 
   const MODES: { id: "all" | "demand"; icon: typeof Shield; title: string; desc: string; recommended?: boolean }[] = [
-    { id: "all", icon: Package, title: t("wizard.packages.modeAll"), desc: t("wizard.packages.modeAllDesc"), recommended: true },
-    { id: "demand", icon: Clock, title: t("wizard.packages.modeDemand"), desc: t("wizard.packages.modeDemandDesc") },
+    { id: "all", icon: Package, title: t("wizard.packages.modeAll"), desc: t("wizard.packages.modeAllDesc") },
+    { id: "demand", icon: Clock, title: t("wizard.packages.modeDemand"), desc: t("wizard.packages.modeDemandDesc"), recommended: true },
   ];
 
   return (
