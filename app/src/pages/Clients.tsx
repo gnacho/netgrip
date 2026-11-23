@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, ArrowUpDown, Ban, MoreVertical, Pencil, Pin, Search, Smartphone, Wifi, Cable, Eye, Clock, Pause, Play, Gauge } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Ban, MoreVertical, Pencil, Pin, Search, Wifi, Cable, Eye, Clock, Pause, Play, Gauge } from "lucide-react";
 import { api } from "../api";
 import type { BlockedClient, Client, DeviceType, NftQoSProbe, ParentalProbe, ParentalRule, Quota, QuotaProbe, QuotaUsage } from "../types";
 import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Modal, Pill, SegmentedControl, SkeletonRows, Toggle } from "../components/ui";
@@ -253,15 +253,6 @@ export function ClientsPage() {
 
   const toggleSort = (key: SortKey) => setSort((s) => s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" });
 
-  const typeSummary = useMemo(() => {
-    const byType = new Map<string, number>();
-    for (const c of clients ?? []) {
-      const key = c.device_type || "other";
-      byType.set(key, (byType.get(key) ?? 0) + 1);
-    }
-    return [...byType.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
-  }, [clients]);
-
   const pin = async (c: Client) => {
     setBusyMac(c.mac); setActionError(undefined);
     try {
@@ -403,28 +394,9 @@ export function ClientsPage() {
 
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
-      <Card index={0} title={t("clients.summaryTitle")} icon={Smartphone} iconTone="teal">
-        {typeSummary.length === 0 ? (
-          <EmptyState small title={t("overview.devicesEmpty")} />
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {typeSummary.map(([type, count]) => {
-              const Icon = deviceTypeIcon(type);
-              return (
-                <span key={type} className="inline-flex items-center gap-2 rounded-full bg-surface-2 border border-border/60 px-3 py-1.5 text-small">
-                  <Icon size={14} className="text-teal" aria-hidden="true" />
-                  <span className="font-medium">{t(DEVICE_TYPES[type as DeviceType]?.labelKey ?? "clients.type.other")}</span>
-                  <span className="text-muted" style={{ fontVariantNumeric: "tabular-nums" }}>{count}</span>
-                </span>
-              );
-            })}
-          </div>
-        )}
-      </Card>
-
-      <Card index={1} title={t("clients.quotaOverview")} icon={Gauge} iconTone="teal">
+      <Card index={0} title={t("clients.quotaOverview")} icon={Gauge} iconTone="teal">
         {Object.keys(quota?.quotas ?? {}).length === 0 ? (
-          <EmptyState small title={t("clients.quotaOverviewEmpty")} />
+          <EmptyState small title={t("clients.quotaOverviewEmpty")} body={t("clients.quotaOverviewHint")} />
         ) : (
           <ul className="flex flex-col divide-y divide-border/60">
             {Object.entries(quota?.quotas ?? {}).map(([mac, q]) => {
@@ -449,7 +421,7 @@ export function ClientsPage() {
         )}
       </Card>
 
-      <Card index={2} title={t("clients.title")} icon={Cable} iconTone="teal"
+      <Card index={1} title={t("clients.title")} icon={Cable} iconTone="teal"
         action={<div className="flex items-center gap-1">
           <button type="button" onClick={() => setBlockedTarget(true)}
             title={t("clients.blockedCount", { count: blockedList.length })}

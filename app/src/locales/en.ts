@@ -575,7 +575,6 @@ export default {
   },
   clients: {
     title: "Clients",
-    summaryTitle: "Your devices",
     search: "Search by name, IP or MAC",
     edit: "Edit",
     details: "View details",
@@ -665,6 +664,7 @@ export default {
     day6: "Sa",
     quotaOverview: "Data quotas",
     quotaOverviewEmpty: "No data quotas configured",
+    quotaOverviewHint: "Set it per device: open one and switch on its data quota.",
     quotaTitle: "Data quota",
     quotaUsed: "Used",
     quotaPeriod: "Period",

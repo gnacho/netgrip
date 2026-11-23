@@ -575,7 +575,6 @@ export default {
   },
   clients: {
     title: "Clientes",
-    summaryTitle: "Tus dispositivos",
     search: "Buscar por nombre, IP o MAC",
     edit: "Modificar",
     details: "Ver detalles",
@@ -665,6 +664,7 @@ export default {
     day6: "Sa",
     quotaOverview: "Cuotas de datos",
     quotaOverviewEmpty: "Sin cuotas de datos configuradas",
+    quotaOverviewHint: "Se activa por dispositivo: abre uno y enciende su cuota de datos.",
     quotaTitle: "Cuota de datos",
     quotaUsed: "Consumido",
     quotaPeriod: "Periodo",
