@@ -1136,6 +1136,8 @@ export interface PhysPort {
   speed_mbps: number;
   duplex: string;
   supported: LinkMode[];
+  /** Techo que anuncia el otro extremo (0 si el driver no lo reporta). */
+  partner_max_mbps?: number;
   eee_supported: boolean;
   eee_enabled: boolean;
   /** False en Realtek DSA (rtl83xx/rtl93xx): escribir EEE reinicia el SoC (#485). */
