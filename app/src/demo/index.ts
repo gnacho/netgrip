@@ -294,6 +294,11 @@ export const demoApi: typeof api = {
     }
     return { status: "applied" as const, rolled_back: false, state: state.ddns };
   },
+  updateDdns: async (section, cfg) => {
+    state.ddns.entries = state.ddns.entries.map((e) =>
+      e.section === section ? { ...e, ...cfg, domain: cfg.domain ?? e.domain } : e);
+    return write(state.ddns);
+  },
   deleteDdns: async (section) => {
     await wait(800, 1500);
     state.ddns.entries = state.ddns.entries.filter((e) => e.section !== section);

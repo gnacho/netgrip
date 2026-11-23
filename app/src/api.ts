@@ -511,6 +511,15 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg),
     }),
+  updateDdns: (section: string, cfg: {
+    enabled: boolean; service_name?: string; domain?: string; lookup_host?: string;
+    username?: string; password?: string;
+  }) =>
+    request<import("./types").ModuleResult<import("./types").DDNSProbe>>("/api/ddns", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ section, ...cfg }),
+    }),
   deleteDdns: (section: string) =>
     request<import("./types").ModuleResult<import("./types").DDNSProbe>>("/api/ddns", {
       method: "DELETE",

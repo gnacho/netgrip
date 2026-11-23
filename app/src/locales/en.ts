@@ -1034,6 +1034,9 @@ export default {
     doneOff: "Done. The name is off.",
     empty: "No DDNS entries yet.",
     addEntry: "Add DDNS entry",
+    editEntry: "Edit",
+    editTitle: "Edit DDNS entry",
+    editSaved: "Entry updated.",
   },
   mdns: {
     title: "Local name",

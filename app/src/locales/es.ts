@@ -1034,6 +1034,9 @@ export default {
     doneOff: "Listo. El nombre está apagado.",
     empty: "Aún no hay entradas DDNS.",
     addEntry: "Añadir entrada DDNS",
+    editEntry: "Editar",
+    editTitle: "Editar entrada DDNS",
+    editSaved: "Entrada actualizada.",
   },
   mdns: {
     title: "Nombre local",

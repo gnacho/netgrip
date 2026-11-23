@@ -137,6 +137,7 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("POST /api/wireguard/peers/delete", s.requireAuth(s.handleWGPeerDelete))
 	s.mux.HandleFunc("GET /api/ddns", s.requireAuth(s.handleDDNSGet))
 	s.mux.HandleFunc("POST /api/ddns", s.requireAuth(s.handleDDNSSet))
+	s.mux.HandleFunc("PUT /api/ddns", s.requireAuth(s.handleDDNSUpdate))
 	s.mux.HandleFunc("DELETE /api/ddns", s.requireAuth(s.handleDDNSDelete))
 	s.mux.HandleFunc("POST /api/ddns/force", s.requireAuth(s.handleDDNSForce))
 	s.mux.HandleFunc("GET /api/banip", s.requireAuth(s.handleBanipGet))
@@ -983,6 +984,21 @@ func (s *Server) handleDDNSSet(w http.ResponseWriter, r *http.Request) {
 type ddnsDeleteRequest struct {
 	Section string `json:"section"`
 	Domain  string `json:"domain"`
+}
+
+type ddnsUpdateRequest struct {
+	Section string `json:"section"`
+	modules.DDNSConfig
+}
+
+func (s *Server) handleDDNSUpdate(w http.ResponseWriter, r *http.Request) {
+	var req ddnsUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Section == "" {
+		writeError(w, http.StatusBadRequest, "section required")
+		return
+	}
+	probe, rolledBack, err := modules.UpdateDDNS(req.Section, req.DDNSConfig)
+	writeModuleResult(w, probe, rolledBack, err)
 }
 
 func (s *Server) handleDDNSDelete(w http.ResponseWriter, r *http.Request) {

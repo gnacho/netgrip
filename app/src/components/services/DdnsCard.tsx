@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AtSign, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { AtSign, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { api } from "../../api";
 import type { DDNSProbe, DDNSEntry } from "../../types";
 import {
-  ActionBanner, AdvancedDisclosure, Button, Card, Field, Pill,
+  ActionBanner, AdvancedDisclosure, Button, Card, Field, Modal, Pill,
   SkeletonRows, Toggle,
 } from "../ui";
 import { useActionCycle } from "../wifi/action";
@@ -23,13 +23,14 @@ function useRelativeUpdate(iso: string | undefined): { text: string; valid: bool
   return { text: t("ddns.agoDays", { count: Math.floor(hours / 24) }), valid: true };
 }
 
-function EntryRow({ entry, wanIp, busySection, onToggle, onDelete, onForce }: {
+function EntryRow({ entry, wanIp, busySection, onToggle, onDelete, onForce, onEdit }: {
   entry: DDNSEntry;
   wanIp: string;
   busySection: string | null;
   onToggle: (domain: string, enabled: boolean) => void;
   onDelete: (section: string) => void;
   onForce: (section: string) => void;
+  onEdit: (entry: DDNSEntry) => void;
 }) {
   const { t } = useTranslation();
   const lastUpdate = useRelativeUpdate(entry.last_update);
@@ -68,6 +69,15 @@ function EntryRow({ entry, wanIp, busySection, onToggle, onDelete, onForce }: {
         <Button
           variant="ghost"
           size="sm"
+          onClick={() => onEdit(entry)}
+          disabled={busy}
+          aria-label={`${t("ddns.editEntry")} ${entry.domain}`}
+        >
+          <Pencil size={16} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => onForce(entry.section)}
           disabled={busy}
           aria-label={t("ddns.force")}
@@ -102,6 +112,12 @@ export function DdnsCard({ probe, onChange, index = 0 }: {
   const { phase, detail, busy: actionBusy, run, clear } = useActionCycle();
   const [doneMsg, setDoneMsg] = useState<string>();
   const [busyDomain, setBusyDomain] = useState<string | null>(null);
+  const [editing, setEditing] = useState<DDNSEntry>();
+  const [eService, setEService] = useState("");
+  const [eDomain, setEDomain] = useState("");
+  const [eLookup, setELookup] = useState("");
+  const [eUser, setEUser] = useState("");
+  const [ePass, setEPass] = useState("");
 
   const [serviceName, setServiceName] = useState("");
   const [domain, setDomain] = useState("");
@@ -152,6 +168,32 @@ export function DdnsCard({ probe, onChange, index = 0 }: {
     handleResult(res, t("ddns.doneOn"));
   };
 
+  const openEdit = (entry: DDNSEntry) => {
+    setEditing(entry);
+    setEService(entry.service_name);
+    setEDomain(entry.domain);
+    setELookup(entry.lookup_host);
+    setEUser(entry.username);
+    setEPass("");
+  };
+
+  const saveEdit = async () => {
+    if (!editing || !eService.trim() || !eDomain.trim()) return;
+    setBusyDomain(editing.section);
+    const res = await run(() => api.updateDdns(editing.section, {
+      // Editar no cambia el estado: se conserva el que tenía la entrada.
+      enabled: editing.enabled,
+      service_name: eService.trim(),
+      domain: eDomain.trim(),
+      lookup_host: eLookup.trim(),
+      username: eUser.trim(),
+      password: ePass.trim(),
+    }));
+    setBusyDomain(null);
+    handleResult(res, t("ddns.editSaved"));
+    if (res?.status === "applied") setEditing(undefined);
+  };
+
   const remove = async (section: string) => {
     setBusyDomain(section);
     const res = await run(() => api.deleteDdns(section));
@@ -195,10 +237,37 @@ export function DdnsCard({ probe, onChange, index = 0 }: {
                   onToggle={toggle}
                   onDelete={remove}
                   onForce={force}
+                  onEdit={openEdit}
                 />
               ))}
             </div>
           )}
+
+          <Modal
+            open={!!editing}
+            onClose={() => setEditing(undefined)}
+            title={t("ddns.editTitle")}
+            footer={
+              <>
+                <Button variant="ghost" onClick={() => setEditing(undefined)}>{t("common.cancel")}</Button>
+                <Button onClick={saveEdit} loading={busyDomain === editing?.section}
+                  disabled={!eService.trim() || !eDomain.trim()}>{t("common.save")}</Button>
+              </>
+            }
+          >
+            <div className="flex flex-col gap-3">
+              <Field label={t("ddns.providerLabel")} mono
+                inputProps={{ value: eService, onChange: (e) => setEService(e.target.value), placeholder: "duckdns.org" }} />
+              <Field label={t("ddns.domainLabel")} mono
+                inputProps={{ value: eDomain, onChange: (e) => setEDomain(e.target.value), placeholder: "casa.duckdns.org" }} />
+              <Field label={t("ddns.lookupHostLabel")} mono
+                inputProps={{ value: eLookup, onChange: (e) => setELookup(e.target.value) }} />
+              <Field label={t("ddns.username")}
+                inputProps={{ value: eUser, onChange: (e) => setEUser(e.target.value), autoComplete: "off" }} />
+              <Field label={t("ddns.password")} hint={t("ddns.passwordKeep")}
+                inputProps={{ type: "password", value: ePass, onChange: (e) => setEPass(e.target.value), autoComplete: "new-password" }} />
+            </div>
+          </Modal>
 
           <AdvancedDisclosure label={t("ddns.addEntry")} className="mt-2">
             <div className="flex flex-col gap-3">
