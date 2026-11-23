@@ -1211,7 +1211,7 @@ export default {
   fwd: {
     thisRouter: "este router",
     external: "externa",
-    externalHint: "Creada fuera de NetGrip (LuCI o a mano). Aquí se ve, allí se edita.",
+    externalHint: "Creada fuera de NetGrip (LuCI o a mano). Aquí puedes cambiar sus puertos y su destino; borrarla, no.",
     title: "Reenvío de puertos",
     noWan: "Solo aplica en el gateway (requiere WAN y firewall)",
     empty: "Sin reglas todavía",
@@ -1234,6 +1234,8 @@ export default {
     deleteTitle: "¿Borrar «{{name}}»?",
     deleteConsequence: "Desde fuera ya no se podrá acceder a «{{name}}».",
     deleteConfirm: "Borrar regla",
+    editTitle: "Editar regla",
+    edit: "Editar",
     modalTitle: "Abrir un puerto a Internet",
     stepWhat: "¿Qué quieres abrir?",
     stepWhere: "¿A qué equipo?",

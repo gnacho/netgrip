@@ -174,6 +174,7 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("POST /api/iotwifi", s.requireAuth(s.handleIoTSet))
 	s.mux.HandleFunc("GET /api/portforward", s.requireAuth(s.handleFwdGet))
 	s.mux.HandleFunc("POST /api/portforward", s.requireAuth(s.handleFwdAdd))
+	s.mux.HandleFunc("POST /api/portforward/update", s.requireAuth(s.handleFwdUpdate))
 	s.mux.HandleFunc("POST /api/portforward/delete", s.requireAuth(s.handleFwdDelete))
 	s.mux.HandleFunc("GET /api/tailscale", s.requireAuth(s.handleTSGet))
 	s.mux.HandleFunc("POST /api/tailscale", s.requireAuth(s.handleTSSet))
@@ -1460,6 +1461,24 @@ func (s *Server) handleFwdAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	probe, rolledBack, err := modules.AddFwdRule(req.SrcDport, req.DestIP, req.DestPort, req.Proto)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+type fwdUpdateRequest struct {
+	Section  string `json:"section"`
+	SrcDport string `json:"src_dport"`
+	DestIP   string `json:"dest_ip"`
+	DestPort string `json:"dest_port"`
+	Proto    string `json:"proto"`
+}
+
+func (s *Server) handleFwdUpdate(w http.ResponseWriter, r *http.Request) {
+	var req fwdUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.UpdateFwdRule(req.Section, req.SrcDport, req.DestIP, req.DestPort, req.Proto)
 	writeModuleResult(w, probe, rolledBack, err)
 }
 

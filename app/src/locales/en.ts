@@ -1211,7 +1211,7 @@ export default {
   fwd: {
     thisRouter: "this router",
     external: "external",
-    externalHint: "Created outside NetGrip (LuCI or by hand). Shown here, edited there.",
+    externalHint: "Created outside NetGrip (LuCI or by hand). You can change its ports and destination here, not delete it.",
     title: "Port forwarding",
     noWan: "Only applies on the gateway (needs WAN and firewall)",
     empty: "No rules yet",
@@ -1234,6 +1234,8 @@ export default {
     deleteTitle: "Delete \"{{name}}\"?",
     deleteConsequence: "\"{{name}}\" will no longer be reachable from outside.",
     deleteConfirm: "Delete rule",
+    editTitle: "Edit rule",
+    edit: "Edit",
     modalTitle: "Open a port to the Internet",
     stepWhat: "What do you want to open?",
     stepWhere: "Which device?",

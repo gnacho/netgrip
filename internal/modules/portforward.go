@@ -290,7 +290,7 @@ func AddFwdRule(srcDport, destIP, destPort, proto string) (*FwdProbe, bool, erro
 		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"firewall", "reload"}})
 	}
 
-	section := fwdPrefix + srcDport + "_" + strings.ReplaceAll(destIP, ".", "_")
+	section := fwdSection(srcDport, destIP)
 	base := "firewall." + section
 	proto = strings.ReplaceAll(proto, "tcpudp", "tcp udp")
 	ops := []executor.Op{
@@ -316,6 +316,110 @@ func AddFwdRule(srcDport, destIP, destPort, proto string) (*FwdProbe, bool, erro
 	}
 	rollback()
 	return ProbeFwd(), true, fmt.Errorf("rule not present after reload, rolled back")
+}
+
+// fwdSection is the UCI section name a redirect created by NetGrip gets for
+// an external port and a destination: the name encodes both, so an edit of
+// one of those rules that changes either moves the section instead of leaving
+// a stale name behind (a later rule for the old port would then collide).
+func fwdSection(srcDport, destIP string) string {
+	return fwdPrefix + srcDport + "_" + strings.ReplaceAll(destIP, ".", "_")
+}
+
+// fwdUpdateOps builds the batch that writes the rule at target. A rule that
+// moves to a new section is rewritten whole; one that stays (same external
+// port and destination, or a rule created in LuCI, which keeps its name and
+// zones) only has its routing fields written.
+func fwdUpdateOps(section, target, srcDport, destIP, destPort, proto string) []executor.Op {
+	base := "firewall." + target
+	ops := []executor.Op{}
+	if target != section {
+		ops = append(ops,
+			executor.Op{Kind: "uci_delete", Args: []string{"firewall." + section}},
+			executor.Op{Kind: "uci_set", Args: []string{base, "redirect"}},
+			executor.Op{Kind: "uci_set", Args: []string{base + ".name", "netgrip-fwd-" + srcDport}},
+			executor.Op{Kind: "uci_set", Args: []string{base + ".src", internetZone()}},
+			executor.Op{Kind: "uci_set", Args: []string{base + ".dest", "lan"}},
+		)
+	}
+	ops = append(ops,
+		executor.Op{Kind: "uci_set", Args: []string{base + ".src_dport", srcDport}},
+		executor.Op{Kind: "uci_set", Args: []string{base + ".dest_ip", destIP}},
+		executor.Op{Kind: "uci_set", Args: []string{base + ".dest_port", destPort}},
+		executor.Op{Kind: "uci_set", Args: []string{base + ".proto", proto}},
+		executor.Op{Kind: "uci_commit", Args: []string{"firewall"}},
+		executor.Op{Kind: "initd", Args: []string{"firewall", "reload"}},
+	)
+	return ops
+}
+
+// UpdateFwdRule edits a forward: new external port, destination or protocol,
+// with the same guarantees as adding one (snapshot, reload and rollback).
+//
+// Any forward the panel lists can be edited, including the ones created in
+// LuCI or by hand: refusing to touch them left an existing rule impossible to
+// change from here. Those keep their section name and zones (only the routing
+// fields are written), so nothing that points at the section breaks and no
+// part of the firewall the panel does not own is rewritten. Deleting still
+// stays limited to NetGrip's own rules.
+func UpdateFwdRule(section, srcDport, destIP, destPort, proto string) (*FwdProbe, bool, error) {
+	InvalidateKey("ucishow|firewall")
+	InvalidateKey("portforward")
+	if err := fwdApplicable(); err != nil {
+		return ProbeFwd(), false, err
+	}
+	if !validPort(srcDport) || !validPort(destPort) || !reIPv4.MatchString(destIP) || !validProto(proto) {
+		return ProbeFwd(), false, fmt.Errorf("invalid rule data (ports 1-65535, IPv4 dest, proto tcp/udp)")
+	}
+
+	var current *FwdRule
+	for _, r := range ProbeFwd().Rules {
+		if r.Section == section {
+			rule := r
+			current = &rule
+			break
+		}
+	}
+	if current == nil {
+		return ProbeFwd(), false, fmt.Errorf("rule not found")
+	}
+	if current.Kind != "forward" {
+		return ProbeFwd(), false, fmt.Errorf("only port forwards can be edited")
+	}
+	for _, r := range ProbeFwd().Rules {
+		if r.Section == section || r.SrcDport != srcDport {
+			continue
+		}
+		if proto == "tcpudp" || r.Proto == proto || r.Proto == "tcpudp" || r.Proto == "tcp udp" {
+			return ProbeFwd(), false, fmt.Errorf("a rule for external port %s already exists", srcDport)
+		}
+	}
+
+	snap, err := executor.Snapshot("firewall")
+	if err != nil {
+		return nil, false, err
+	}
+	rollback := func() {
+		_ = executor.Restore("firewall", snap)
+		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"firewall", "reload"}})
+	}
+
+	target := section
+	if reFwdSection.MatchString(section) {
+		target = fwdSection(srcDport, destIP)
+	}
+	ops := fwdUpdateOps(section, target, srcDport, destIP, destPort, strings.ReplaceAll(proto, "tcpudp", "tcp udp"))
+	if err := executor.Apply(ops, nil); err != nil {
+		rollback()
+		return ProbeFwd(), true, err
+	}
+	for _, r := range ProbeFwd().Rules {
+		if r.Section == target && r.SrcDport == srcDport && r.DestIP == destIP && r.DestPort == destPort {
+			return ProbeFwd(), false, nil
+		}
+	}
+	rollback()
+	return ProbeFwd(), true, fmt.Errorf("rule not present after edit, rolled back")
 }
 
 // RemoveFwdRule deletes a redirect rule by section.

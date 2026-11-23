@@ -45,6 +45,7 @@ export function PortForwardCard({ probe, onChange }: {
   const { t } = useTranslation();
   const { phase, detail, busy, run, clear } = useActionCycle();
   const [modal, setModal] = useState<FwdTemplate>();
+  const [editing, setEditing] = useState<FwdRule>();
   const [toDelete, setToDelete] = useState<FwdRule>();
 
   const applicable = !!probe?.has_wan && !!probe?.firewall;
@@ -54,6 +55,15 @@ export function PortForwardCard({ probe, onChange }: {
       if (res?.status === "applied") {
         onChange(res.state);
         setModal(undefined);
+      }
+    });
+  };
+
+  const updateRule = (section: string, srcDport: string, destIP: string, destPort: string, proto: string) => {
+    run(() => api.updateFwdRule(section, srcDport, destIP, destPort, proto)).then((res) => {
+      if (res?.status === "applied") {
+        onChange(res.state);
+        setEditing(undefined);
       }
     });
   };
@@ -118,6 +128,20 @@ export function PortForwardCard({ probe, onChange }: {
                     <Pill tone="ok">{t("fwd.active")}</Pill>
                     {/* Only what NetGrip created is removable from here;
                         anything set up elsewhere is shown, not touched. */}
+                    {/* Cualquier reenvío se puede editar, también los que
+                        vienen de LuCI; borrar sigue siendo solo de los
+                        nuestros (#613). */}
+                    {r.kind === "forward" && (
+                      <button
+                        type="button"
+                        onClick={() => setEditing(r)}
+                        disabled={busy}
+                        aria-label={`${t("fwd.edit")} ${ruleName(t, r)}`}
+                        className="text-faint hover:text-accent transition-colors duration-[var(--dur-fast)] ring-focus rounded-sm p-1"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                    )}
                     {r.managed === false ? (
                       <span title={t("fwd.externalHint")}>
                         <Pill tone="muted">{t("fwd.external")}</Pill>
@@ -180,10 +204,13 @@ export function PortForwardCard({ probe, onChange }: {
 
       <NewRuleModal
         template={modal}
+        rule={editing}
         probe={probe}
         busy={busy}
-        onClose={() => setModal(undefined)}
-        onConfirm={addRule}
+        onClose={() => { setModal(undefined); setEditing(undefined); }}
+        onConfirm={editing
+          ? (srcDport, destIP, destPort, proto) => updateRule(editing.section, srcDport, destIP, destPort, proto)
+          : addRule}
       />
 
       <ConfirmDialog
@@ -201,8 +228,10 @@ export function PortForwardCard({ probe, onChange }: {
 
 /* ══════════ Modal "Nueva regla" (ports.md §2) ══════════ */
 
-function NewRuleModal({ template, probe, busy, onClose, onConfirm }: {
+function NewRuleModal({ template, rule, probe, busy, onClose, onConfirm }: {
   template: FwdTemplate | undefined;
+  /** Regla existente que se está editando (solo forwards propios). */
+  rule?: FwdRule;
   probe: FwdProbe | undefined;
   busy: boolean;
   onClose: () => void;
@@ -216,38 +245,49 @@ function NewRuleModal({ template, probe, busy, onClose, onConfirm }: {
   const [proto, setProto] = useState("tcp");
   const [clients, setClients] = useState<Client[]>([]);
 
-  // Pre-relleno al abrir con una plantilla.
+  // Pre-relleno: los datos de la regla que se edita, o la plantilla elegida.
   useEffect(() => {
+    if (rule) {
+      setSrcDport(rule.src_dport);
+      setDestPort(rule.dest_port);
+      setDestIP(rule.dest_ip);
+      setProto(rule.proto === "tcp udp" ? "tcpudp" : rule.proto);
+      return;
+    }
     if (!template) return;
     setSel(template);
     setSrcDport(template.port);
     setDestPort(template.port);
     setProto(template.proto);
     setDestIP("");
-  }, [template]);
+  }, [template, rule]);
 
   // Inventario de clientes para "¿A qué equipo?".
   useEffect(() => {
-    if (!template) return;
+    if (!template && !rule) return;
     api.clients().then((r) => setClients(r.clients.filter((c) => !!c.ip && !c.self))).catch(() => {});
-  }, [template]);
+  }, [template, rule]);
 
   const portOk = (p: string) => /^\d+$/.test(p) && Number(p) >= 1 && Number(p) <= 65535;
-  const duplicate = probe?.rules.some((r) => r.src_dport === srcDport && srcDport !== "");
+  const duplicate = probe?.rules.some((r) =>
+    r.section !== rule?.section && r.src_dport === srcDport && srcDport !== "");
   const valid = portOk(srcDport) && portOk(destPort) && isValidIp(destIP) && !duplicate;
 
   return (
-    <Modal open={!!template} onClose={onClose} title={t("fwd.modalTitle")}
+    <Modal open={!!template || !!rule} onClose={onClose}
+      title={rule ? t("fwd.editTitle") : t("fwd.modalTitle")}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
           <Button onClick={() => onConfirm(srcDport, destIP, destPort, proto)} disabled={!valid} loading={busy}>
-            {t("fwd.open")}
+            {rule ? t("common.save") : t("fwd.open")}
           </Button>
         </>
       }
     >
-      {/* 1. ¿Qué quieres abrir? */}
+      {/* 1. ¿Qué quieres abrir? (al editar ya está decidido) */}
+      {!rule && (
+        <>
       <p className="text-small font-medium mb-2">{t("fwd.stepWhat")}</p>
       <div className="grid grid-cols-2 gap-2">
         {TEMPLATES.map((tpl) => (
@@ -270,6 +310,8 @@ function NewRuleModal({ template, probe, busy, onClose, onConfirm }: {
           </button>
         ))}
       </div>
+        </>
+      )}
 
       {/* 2. ¿A qué equipo? */}
       <p className="text-small font-medium mt-4 mb-2">{t("fwd.stepWhere")}</p>
