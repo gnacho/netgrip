@@ -131,6 +131,7 @@ export default {
     escToClose: "Press Esc to close",
     copyDetail: "Copy detail",
     advanced: "Advanced options",
+    remove: "Remove",
     delete: "Delete",
     rollbackTitle: "Did the change stick?",
     rollbackBody: "If this page still responds, keep it. Otherwise it reverts on its own in {{seconds}}s.",

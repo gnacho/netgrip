@@ -131,6 +131,7 @@ export default {
     escToClose: "Pulsa Esc para cerrar",
     copyDetail: "Copiar detalle",
     advanced: "Opciones avanzadas",
+    remove: "Quitar",
     delete: "Borrar",
     rollbackTitle: "¿Se guardaron los cambios?",
     rollbackBody: "Si esta página sigue respondiendo, mantenlos. Si no puedes confirmar, se revertirán solos en {{seconds}} s.",
