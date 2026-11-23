@@ -216,8 +216,11 @@ wget -qO- https://raw.githubusercontent.com/gnacho/netgrip/main/install.sh | sh
 
 El script elige el paquete correcto para la arquitectura y el gestor del
 router (`apk` en OpenWrt 25.12+, `opkg` en 24.10), instala la última
-release, habilita y arranca el servicio, e imprime la URL del panel.
-¿Prefieres revisarlo antes? Lee [install.sh](install.sh). Para fijar
+release, habilita y arranca el servicio, e imprime la URL del panel. El
+instalador necesita un `wget` o `curl` compatible con HTTPS. En OpenWrt 25.12,
+si `wget` no puede descargar los assets de GitHub, instala `wget-ssl` con
+`apk add wget-ssl` y vuelve a intentarlo. ¿Prefieres revisarlo antes? Lee
+[install.sh](install.sh). Para fijar
 versión: `NETGRIP_VERSION=vX.Y.Z sh install.sh`.
 
 Abre `http://<ip-del-router>:8090` y entra con el mismo usuario y contraseña

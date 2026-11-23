@@ -128,7 +128,7 @@ say "downloading $URL"
 if ! fetch "$URL" "$TMP/$ASSET"; then
   # Releases predating native APK filenames used a generic Go ABI suffix.
   if [ "$PKGR" != apk ] || ! fetch "${ASSET_BASE%/}/netgrip-${VER_NUM}-r1-${ASSET_ARCH}.apk" "$TMP/$ASSET"; then
-    die 4 "download failed; no asset for this combination? check $RELEASES_URL"
+    die 4 "download failed; check network/DNS/TLS and asset availability; use an HTTPS-capable wget or curl: $RELEASES_URL"
   fi
 fi
 
