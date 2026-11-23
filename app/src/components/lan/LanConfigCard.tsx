@@ -174,7 +174,6 @@ export function LanConfigCard({ cfg, onChange, index = 0 }: {
       <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
           <p className="stat-lg font-mono">{cfg.ipaddr}</p>
-          <p className="text-caption text-muted mt-0.5">{t("lan.heroCaption")}</p>
         </div>
         {!editingIp && (
           <Button variant="secondary" size="sm" icon={Pencil} onClick={() => setEditingIp(true)}>
@@ -200,7 +199,6 @@ export function LanConfigCard({ cfg, onChange, index = 0 }: {
           <div className="flex items-center gap-3 flex-wrap py-2.5">
             <SettingRow
               title={t("lan.dhcpRow")}
-              description={t("lan.dhcpRowDesc")}
               help={t("help.dhcp.body")}
               helpTitle={t("help.dhcp.title")}
               checked={dhcpOn}
