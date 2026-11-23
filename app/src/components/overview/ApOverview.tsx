@@ -14,11 +14,11 @@ export function ApOverview(props: OverviewVariantProps) {
   return (
     <>
       <HealthHero health={health} board={board} system={system} onNavigate={onNavigate}
-        wireless={wireless} ports={ethports} ap />
+        wireless={wireless} ports={ethports} ap role="ap" />
       <LiveTrafficCard />
       {/* Lo que gestiona un AP: sus bocas y clientes asociados. */}
       <EthPortsCard ports={ethports} />
-      <ClientsCard onNavigate={onNavigate} className="md:col-span-7" />
+      <ClientsCard onNavigate={onNavigate} wireless={wireless} role="ap" className="md:col-span-7" />
     </>
   );
 }

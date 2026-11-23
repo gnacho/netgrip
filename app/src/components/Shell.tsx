@@ -436,7 +436,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
           board={board} system={system} wan={wan}
           drift={drift} onDriftChange={setDrift}
           isSwitch={role === "switch"} health={health} mode={mode}
-          wireless={wireless} ethports={ethports} storage={storage} onNavigate={navigate}
+          wireless={wireless} ethports={ethports} onNavigate={navigate}
         />
       )}
       {activePage === "traffic" && <TrafficPage onNavigate={navigate} />}

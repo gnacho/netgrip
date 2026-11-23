@@ -17,7 +17,7 @@ export function SwitchOverview(props: OverviewVariantProps) {
   return (
     <>
       <HealthHero health={health} board={board} system={system} onNavigate={onNavigate}
-        ports={ethports} ap={false} />
+        ports={ethports} ap={false} role="switch" />
       <LiveTrafficCard />
       {/* El protagonista del switch: el chasis de bocas, a ancho completo. */}
       <EthPortsCard ports={ethports} index={3} className="md:col-span-12 order-5 md:order-none" />
