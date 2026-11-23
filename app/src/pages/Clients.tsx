@@ -685,54 +685,26 @@ function DetailClientModal({ client, rate, qos, onUpdateQos, parental, onUpdateP
     }
   };
 
-  const connLabel = client.type === "wifi5" ? t("overview.band5") : client.type === "wifi24" ? t("overview.band24") : t("overview.cable");
-  const connTone = client.type === "cable" ? "muted" : client.type === "wifi5" ? "accent" : "ok";
-  const ConnIcon = client.type === "cable" ? Cable : Wifi;
   const DevIcon = deviceTypeIcon(client.device_type, client.name);
   return (
-    <Modal open onClose={onClose} title={t("clients.detailTitle")}
-      footer={<Button onClick={onClose}>{t("common.close")}</Button>}>
+    <Modal open onClose={onClose} title={t("clients.detailTitle")}>
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-teal-soft text-teal" aria-hidden="true">
             <DevIcon size={18} />
           </span>
-          <div className="min-w-0 flex-1">
-            <span className="block truncate text-h2">{client.name || client.mac}</span>
-            <span className="inline-flex items-center gap-1.5 text-caption text-muted">
-              <span className="h-1.5 w-1.5 rounded-full bg-ok" aria-hidden="true" />
-              {connLabel}
-            </span>
-          </div>
+          <span className="min-w-0 flex-1 truncate text-h2">{client.name || client.mac}</span>
         </div>
+        {/* Solo lo que no se ve ya en el listado: identidad, velocidad en
+            vivo, tráfico desglosado y el estado de bloqueo cuando es parcial
+            (#613). IP, tipo, conexión, reserva y caducidad viven en la tabla. */}
         <div className="rounded-md border border-border/60 px-3 divide-y divide-border/60">
-          <DetailRow label={t("clients.host")} value={client.name || client.mac} />
-          <DetailRow label={t("clients.typeLabel")}
-            value={<span className="inline-flex items-center gap-1.5"><span className="text-teal"><DevIcon size={14} aria-hidden="true" /></span>{t(DEVICE_TYPES[client.device_type as DeviceType]?.labelKey ?? "clients.type.other")}</span>} />
-          <DetailRow label={t("clients.connection")}
-            value={<span className="inline-flex items-center gap-1.5"><Pill tone={connTone as "muted" | "accent" | "ok"}>{connLabel}</Pill><ConnIcon size={13} className="text-muted" aria-hidden="true" /></span>} />
           <DetailRow label={t("clients.mac")} value={client.mac} mono />
           <DetailRow label={t("clients.speed")}
             value={rate ? <RatePair down={rate.rx} up={rate.tx} /> : <span className="text-muted">—</span>} />
           <DetailRow label={t("clients.traffic")}
             value={<RatePair down={client.rx_bytes} up={client.tx_bytes} downColor="var(--color-ok)" upColor="var(--color-text)" />} />
-          <DetailRow label={t("clients.reserved")}
-            value={client.reserved ? t("clients.on") : t("clients.off")} />
-          <DetailRow label={t("clients.block")}
-            value={blockedDetail(client, t)} />
-          <DetailRow label={t("clients.ip")}
-            value={client.ip ? (
-              <>
-                {client.ip}
-                {client.ip_source === "arp" && <span className="text-muted"> ({t("clients.ipArp")})</span>}
-              </>
-            ) : "—"} mono />
-          {client.lease_expiry && (
-            <DetailRow label={t("clients.leaseExpiry")} value={fmtDateTime(client.lease_expiry)} mono />
-          )}
-          {client.lease_source && (
-            <DetailRow label={t("clients.leaseSource")} value={t(`clients.leaseSource_${client.lease_source}`)} />
-          )}
+          <DetailRow label={t("clients.block")} value={blockedDetail(client, t)} />
         </div>
 
         {canLimit && (
@@ -1076,8 +1048,7 @@ function BlockedListModal({ open, blocked, clients, busyMac, onUnblock, onClose 
   const { t } = useTranslation();
   const nameFor = (mac: string) => clients.find((c) => c.mac === mac)?.name;
   return (
-    <Modal open={open} onClose={onClose} title={t("clients.blockedTitle", { count: blocked.length })}
-      footer={<Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}>
+    <Modal open={open} onClose={onClose} title={t("clients.blockedTitle", { count: blocked.length })}>
       {blocked.length === 0 ? (
         <EmptyState small title={t("clients.blockedEmpty")} />
       ) : (
