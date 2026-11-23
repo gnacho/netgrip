@@ -1601,6 +1601,8 @@ export interface StorageService {
 
 export interface StorageProbe {
   applicable: boolean;
+  /** El equipo tiene buses USB aunque no haya ningún disco conectado. */
+  supported: boolean;
   devices: StorageDevice[];
   services: StorageService[];
 }

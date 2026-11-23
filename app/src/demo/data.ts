@@ -725,6 +725,7 @@ export const demoPhysPorts: T.PhysPortsProbe = {
 
 export const demoStorage: T.StorageProbe = {
   applicable: true,
+  supported: true,
   devices: [{
     name: "sda1", path: "/dev/sda1", fs_type: "ext4",
     size_bytes: 120 * 1024 * MIB,
