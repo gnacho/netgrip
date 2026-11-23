@@ -188,7 +188,7 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
         </div>
       ) : (
         <>
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             {protection ? (
               <Pill tone="ok" live>{t("adguard.protectionOn")}</Pill>
             ) : cfg.adguard_running ? (
@@ -207,6 +207,66 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
                 <ExternalLink size={12} aria-hidden="true" />
               </a>
             )}
+          </div>
+
+          {/* Las tres acciones en una sola fila: proteger, contraseña y parar
+              (#630). */}
+          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+            <span className="flex items-center gap-2">
+              <Toggle
+                checked={protection}
+                busy={busy || dohBusy}
+                onChange={(on) => (on ? setConfirmEnable(true) : setConfirmDisable(true))}
+                label={t("adguard.protectionSwitch")}
+              />
+              <span className="text-small text-secondary">{t("adguard.protectionSwitch")}</span>
+              <HelpTip
+                title={t("adguard.protectionSwitch")}
+                body={protection
+                  ? t("adguard.protectionOnDesc")
+                  : cfg.adguard_has_backup
+                    ? t("adguard.protectionOffBackupDesc")
+                    : t("adguard.protectionOffDesc")}
+              />
+            </span>
+
+            {credState === "managed" && (
+              <span className="flex flex-wrap items-center gap-1.5">
+                <HelpTip title={t("adguard.credTitle")} body={t("adguard.credHint")} />
+                <code className="rounded-sm bg-fill px-1.5 py-0.5 font-mono text-small">{cred?.username ?? "admin"}</code>
+                <code className="rounded-sm bg-fill px-1.5 py-0.5 font-mono text-small">
+                  {showPass ? cred?.password ?? "…" : "••••••••••••"}
+                </code>
+                <button
+                  type="button"
+                  aria-label={showPass ? t("adguard.credHide") : t("adguard.credShow")}
+                  title={showPass ? t("adguard.credHide") : t("adguard.credShow")}
+                  onClick={() => setShowPass((v) => !v)}
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-muted hover:text-text hover:bg-surface-2 ring-focus transition-colors duration-[var(--dur-fast)]"
+                >
+                  {showPass ? <EyeOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
+                </button>
+                {cred?.password && <CopyButton text={cred.password} label={t("adguard.credCopy")} />}
+                <Button variant="ghost" size="sm" disabled={busy || credBusy} loading={credBusy} onClick={() => setConfirmRegen(true)}>
+                  <RefreshCw size={14} aria-hidden="true" /> {t("adguard.credRegenerate")}
+                </Button>
+              </span>
+            )}
+            {credState === "external" && (
+              <span className="inline-flex items-center gap-1.5 text-small text-secondary">
+                {t("adguard.credTitle")}
+                <HelpTip title={t("adguard.credTitle")} body={t("adguard.credExternal")} />
+              </span>
+            )}
+            {credState === "none" && (
+              <span className="inline-flex items-center gap-1.5">
+                <Button variant="secondary" size="sm" loading={credBusy} disabled={busy} onClick={doRegenerate}>
+                  {t("adguard.credCreate")}
+                </Button>
+                <HelpTip title={t("adguard.credTitle")} body={t("adguard.credNoneHint")} />
+              </span>
+            )}
+
             {cfg.adguard_running && !protection && (
               <Button variant="ghost" size="sm" className="text-danger hover:text-danger" disabled={busy} onClick={stopService}>
                 <Square size={14} aria-hidden="true" /> {t("adguard.stop")}
@@ -214,23 +274,6 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
             )}
           </div>
 
-          <div className="mt-3 flex items-center gap-2">
-            <Toggle
-              checked={protection}
-              busy={busy || dohBusy}
-              onChange={(on) => (on ? setConfirmEnable(true) : setConfirmDisable(true))}
-              label={t("adguard.protectionSwitch")}
-            />
-            <span className="text-small text-secondary">{t("adguard.protectionSwitch")}</span>
-            <HelpTip
-              title={t("adguard.protectionSwitch")}
-              body={protection
-                ? t("adguard.protectionOnDesc")
-                : cfg.adguard_has_backup
-                  ? t("adguard.protectionOffBackupDesc")
-                  : t("adguard.protectionOffDesc")}
-            />
-          </div>
           {busyWith && (
             <div className="mt-3 flex flex-col gap-1.5" role="status">
               <span className="text-small text-muted">
@@ -239,54 +282,6 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
               <div aria-hidden="true" className="h-1.5 w-full overflow-hidden rounded-full bg-border">
                 <div className="h-full w-1/3 rounded-full bg-accent" style={{ animation: "progress-slide 1.1s ease-in-out infinite" }} />
               </div>
-            </div>
-          )}
-
-          {credState && credState !== "" && (
-            <div className="mt-4 border-t border-border pt-3">
-              <span className="flex items-center gap-1.5 text-small font-medium text-secondary">
-                {t("adguard.credTitle")}
-                <HelpTip
-                  title={t("adguard.credTitle")}
-                  body={credState === "managed"
-                    ? t("adguard.credHint")
-                    : credState === "external"
-                      ? t("adguard.credExternal")
-                      : t("adguard.credNoneHint")}
-                />
-              </span>
-              {credState === "managed" && (
-                <>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <code className="rounded-sm bg-fill px-1.5 py-0.5 font-mono text-small">{cred?.username ?? "admin"}</code>
-                    <code className="rounded-sm bg-fill px-1.5 py-0.5 font-mono text-small">
-                      {showPass ? cred?.password ?? "…" : "••••••••••••"}
-                    </code>
-                    <button
-                      type="button"
-                      aria-label={showPass ? t("adguard.credHide") : t("adguard.credShow")}
-                      title={showPass ? t("adguard.credHide") : t("adguard.credShow")}
-                      onClick={() => setShowPass((v) => !v)}
-                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-muted hover:text-text hover:bg-surface-2 ring-focus transition-colors duration-[var(--dur-fast)]"
-                    >
-                      {showPass ? <EyeOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
-                    </button>
-                    {cred?.password && <CopyButton text={cred.password} label={t("adguard.credCopy")} />}
-                    <Button variant="ghost" size="sm" disabled={busy || credBusy} loading={credBusy} onClick={() => setConfirmRegen(true)}>
-                      <RefreshCw size={14} aria-hidden="true" /> {t("adguard.credRegenerate")}
-                    </Button>
-                  </div>
-                </>
-              )}
-              {credState === "none" && (
-                <>
-                  <div className="mt-2">
-                    <Button variant="secondary" size="sm" loading={credBusy} disabled={busy} onClick={doRegenerate}>
-                      {t("adguard.credCreate")}
-                    </Button>
-                  </div>
-                </>
-              )}
             </div>
           )}
 
