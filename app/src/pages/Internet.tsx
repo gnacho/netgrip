@@ -23,11 +23,13 @@ export function InternetPage({ mwan, onMwanChange, fwd, onFwdChange }: {
     <div className="flex flex-col gap-[var(--card-gap)]">
       {/* La tarjeta de modo del dispositivo no se repite aquí: ya vive en
           Sistema. */}
-      <WanPage mwan={mwan} onMwanChange={onMwanChange} hideMode />
-      <ForwardsPage fwd={fwd} onFwdChange={onFwdChange} />
-      <UpnpPage />
-      <DpiPage />
-      <BanipPage />
+      {/* Cada bloque lleva id para que las tarjetas de otras páginas puedan
+          enlazar a su sección concreta (#628). */}
+      <div id="page-wan"><WanPage mwan={mwan} onMwanChange={onMwanChange} hideMode /></div>
+      <div id="page-forwards"><ForwardsPage fwd={fwd} onFwdChange={onFwdChange} /></div>
+      <div id="page-upnp"><UpnpPage /></div>
+      <div id="page-dpi"><DpiPage /></div>
+      <div id="page-banip"><BanipPage /></div>
     </div>
   );
 }
