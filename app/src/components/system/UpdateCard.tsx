@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CircleCheck, Download } from "lucide-react";
 import { api } from "../../api";
-import type { Board, UpdateCheck } from "../../types";
-import { Banner, Button, Card, ConfirmDialog, IconTile, SkeletonRows, useToast } from "../ui";
+import type { Board, SysUpdateSchedule, UpdateCheck } from "../../types";
+import { Banner, Button, Card, ConfirmDialog, HelpTip, IconTile, SkeletonRows, Toggle, useToast } from "../ui";
 import { WaitOverlay, useMeBack } from "./WaitOverlay";
 import { InstallProgress, useInstallJob } from "../wizard/common";
 
@@ -31,9 +31,22 @@ export function UpdateCard({ board, update, onChange }: {
   /** fase del flujo de actualización con overlay a pantalla completa */
   const [phase, setPhase] = useState<"idle" | "overlay" | "background">("idle");
   const [step, setStep] = useState(0);
+  const [sched, setSched] = useState<SysUpdateSchedule>();
+  const [schedSaving, setSchedSaving] = useState(false);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => () => timersRef.current.forEach(clearTimeout), []);
+
+  useEffect(() => { api.sysUpdateSchedule().then(setSched).catch(() => {}); }, []);
+
+  const saveSched = async (patch: { enabled?: boolean; intervalHours?: number; windowStart?: number; windowEnd?: number }) => {
+    setSchedSaving(true);
+    try {
+      setSched(await api.sysUpdateScheduleSave(patch));
+    } catch { /* se conserva lo anterior */ } finally {
+      setSchedSaving(false);
+    }
+  };
 
   const recheck = async () => {
     setChecking(true);
@@ -147,6 +160,51 @@ export function UpdateCard({ board, update, onChange }: {
             </Button>
             <Button variant="ghost" size="sm" onClick={recheck} loading={checking}>{t("update.checkNow")}</Button>
           </div>
+        </div>
+      )}
+
+      {/* Programación del firmware (#640): solo tiene sentido con owut. */}
+      {update?.owut_present !== false && sched && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="text-small font-medium">{t("update.scheduleTitle")}</span>
+            <HelpTip title={t("update.scheduleTitle")} body={t("update.scheduleHint")} />
+          </span>
+          {sched.config.enabled && (
+            <>
+              <select
+                className="rounded-lg border bg-elevated px-2 py-1 text-small"
+                aria-label={t("selfupdate.interval")}
+                value={sched.config.intervalHours <= 24 ? 24 : 168}
+                disabled={schedSaving}
+                onChange={(e) => saveSched({ intervalHours: Number(e.target.value) })}
+              >
+                <option value={24}>{t("selfupdate.daily")}</option>
+                <option value={168}>{t("selfupdate.weekly")}</option>
+              </select>
+              <select
+                className="rounded-lg border bg-elevated px-2 py-1 text-small"
+                aria-label={t("selfupdate.window")}
+                value={sched.config.windowStart}
+                disabled={schedSaving}
+                onChange={(e) => {
+                  const start = Number(e.target.value);
+                  const end = start + 2 <= 24 ? start + 2 : start + 2 - 24;
+                  saveSched({ windowStart: start, windowEnd: end });
+                }}
+              >
+                {Array.from({ length: 24 }, (_, h) => (
+                  <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+                ))}
+              </select>
+            </>
+          )}
+          <Toggle
+            checked={sched.config.enabled}
+            busy={schedSaving}
+            onChange={(v) => saveSched({ enabled: v })}
+            label={t("update.scheduleTitle")}
+          />
         </div>
       )}
 

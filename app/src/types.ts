@@ -69,6 +69,12 @@ export interface IPv6SetResult {
   error?: string;
 }
 
+/** Programación de la actualización de firmware (owut). */
+export interface SysUpdateSchedule {
+  config: { enabled: boolean; intervalHours: number; windowStart: number; windowEnd: number };
+  state: { lastCheck: number; lastResult: string; lastApply: number; lastVersion: string };
+}
+
 export interface UpdateCheck {
   available: boolean;
   same_version: boolean;

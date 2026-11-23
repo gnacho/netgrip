@@ -1719,6 +1719,8 @@ export default {
     upToDate: "Todo al día",
     heroUpToDate: "Tu router está al día",
     checkNow: "Buscar actualizaciones",
+    scheduleTitle: "Actualizar sola",
+    scheduleHint: "Se comprueba y se aplica dentro de esa franja: el router se reinicia solo y NetGrip vuelve después (sus ficheros se conservan). Si faltan paquetes que no se pueden conservar, no se aplica y queda anotado.",
     availableTitle: "Disponible: OpenWrt {{version}}",
     updateNow: "Actualizar ahora",
     newVersion: "Nueva versión de firmware",

@@ -1719,6 +1719,8 @@ export default {
     upToDate: "Everything up to date",
     heroUpToDate: "Your router is up to date",
     checkNow: "Check for updates",
+    scheduleTitle: "Update on its own",
+    scheduleHint: "Checked and applied inside that window: the router reboots by itself and NetGrip comes back (its files are preserved). If packages that cannot be kept are missing, it does not run and the reason is recorded.",
     availableTitle: "Available: OpenWrt {{version}}",
     updateNow: "Update now",
     newVersion: "New firmware version",

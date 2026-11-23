@@ -162,6 +162,13 @@ const realApi = {
       body: JSON.stringify({ current, next }),
     }),
   updateCheck: () => request<import("./types").UpdateCheck>("/api/update"),
+  sysUpdateSchedule: () => request<import("./types").SysUpdateSchedule>("/api/update/schedule"),
+  sysUpdateScheduleSave: (patch: { enabled?: boolean; intervalHours?: number; windowStart?: number; windowEnd?: number }) =>
+    request<import("./types").SysUpdateSchedule>("/api/update/schedule", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    }),
   startUpdate: () =>
     request<{ started: boolean; reboot_pending: boolean }>("/api/update", {
       method: "POST",

@@ -530,6 +530,13 @@ export const demoApi: typeof api = {
   },
   speedtest: () => get({ state: "idle", down_mbps: 0, up_mbps: 0 } as const),
   startSpeedtest: async () => get({ state: "running", phase: "download", down_mbps: 0, up_mbps: 0 } as const),
+  sysUpdateSchedule: () => get({ config: { enabled: false, intervalHours: 168, windowStart: 3, windowEnd: 5 },
+    state: { lastCheck: 0, lastResult: "", lastApply: 0, lastVersion: "" } }),
+  sysUpdateScheduleSave: async (patch) => {
+    const cur = await get({ config: { enabled: false, intervalHours: 168, windowStart: 3, windowEnd: 5 },
+      state: { lastCheck: 0, lastResult: "", lastApply: 0, lastVersion: "" } });
+    return get({ ...cur, config: { ...cur.config, ...patch } });
+  },
   dpi: () => get(D.demoDpi),
   netifyd: () => get(state.netifyd),
   setNetifyd: async (enabled) => {

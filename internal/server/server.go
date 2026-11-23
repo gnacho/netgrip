@@ -127,6 +127,8 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("POST /api/password", s.requireAuth(s.handlePasswordSet))
 	s.mux.HandleFunc("GET /api/update", s.requireAuth(s.handleUpdateCheck))
 	s.mux.HandleFunc("POST /api/update", s.requireAuth(s.handleUpdateStart))
+	s.mux.HandleFunc("GET /api/update/schedule", s.requireAuth(s.handleSysUpdateSchedule))
+	s.mux.HandleFunc("PUT /api/update/schedule", s.requireAuth(s.handleSysUpdateSchedulePut))
 	s.mux.HandleFunc("GET /api/wireguard", s.requireAuth(s.handleWGGet))
 	s.mux.HandleFunc("POST /api/wireguard", s.requireAuth(s.handleWGSet))
 	s.mux.HandleFunc("POST /api/wireguard/endpoint", s.requireAuth(s.handleWGEndpointSet))
@@ -2414,6 +2416,43 @@ func (s *Server) handleSelfUpdateSchedulePut(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	writeJSON(w, cfg)
+}
+
+func (s *Server) handleSysUpdateSchedule(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.SysUpdateScheduleOf())
+}
+
+type sysUpdateScheduleRequest struct {
+	Enabled     *bool `json:"enabled"`
+	IntervalH   *int  `json:"intervalHours"`
+	WindowStart *int  `json:"windowStart"`
+	WindowEnd   *int  `json:"windowEnd"`
+}
+
+func (s *Server) handleSysUpdateSchedulePut(w http.ResponseWriter, r *http.Request) {
+	var req sysUpdateScheduleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_body")
+		return
+	}
+	cfg := modules.ReadSysUpdateConfig()
+	if req.Enabled != nil {
+		cfg.Enabled = *req.Enabled
+	}
+	if req.IntervalH != nil {
+		cfg.IntervalH = *req.IntervalH
+	}
+	if req.WindowStart != nil {
+		cfg.WindowStart = *req.WindowStart
+	}
+	if req.WindowEnd != nil {
+		cfg.WindowEnd = *req.WindowEnd
+	}
+	if _, err := modules.WriteSysUpdateConfig(cfg); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, modules.SysUpdateScheduleOf())
 }
 
 func (s *Server) handleWizardGet(w http.ResponseWriter, _ *http.Request) {
