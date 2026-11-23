@@ -337,6 +337,62 @@ func SetReservation(mac, ip, name string, reserved bool) (*LANConfig, bool, erro
 	return ProbeLAN(), false, nil
 }
 
+// UpdateReservation edits an existing reservation in place: destination IP,
+// name and even the MAC. The section keeps its name, so nothing that points at
+// it breaks; only the options change (#622).
+func UpdateReservation(oldMAC, mac, ip, name string) (*LANConfig, bool, error) {
+	if !lanApplicable() {
+		return ProbeLAN(), false, fmt.Errorf("reservations only apply on the gateway (static IP + dnsmasq)")
+	}
+	oldMAC = strings.ToLower(strings.TrimSpace(oldMAC))
+	mac = strings.ToLower(strings.TrimSpace(mac))
+	if !reMac.MatchString(mac) || !reIPv4.MatchString(ip) || !reMac.MatchString(oldMAC) {
+		return ProbeLAN(), false, fmt.Errorf("invalid mac/ip")
+	}
+	section := reservationSectionForMAC(oldMAC)
+	if section == "" {
+		return ProbeLAN(), false, fmt.Errorf("reservation not found")
+	}
+	if mac != oldMAC && reservationSectionForMAC(mac) != "" {
+		return ProbeLAN(), false, fmt.Errorf("that device already has a reservation")
+	}
+
+	snap, err := executor.Snapshot("dhcp")
+	if err != nil {
+		return ProbeLAN(), false, err
+	}
+	rollback := func() {
+		_ = executor.Restore("dhcp", snap)
+		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"dnsmasq", "reload"}})
+	}
+
+	base := "dhcp." + section
+	ops := []executor.Op{
+		{Kind: "uci_set", Args: []string{base + ".mac", mac}},
+		{Kind: "uci_set", Args: []string{base + ".ip", ip}},
+	}
+	if strings.TrimSpace(name) == "" {
+		ops = append(ops, executor.Op{Kind: "uci_delete", Args: []string{base + ".name"}})
+	} else {
+		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{base + ".name", strings.TrimSpace(name)}})
+	}
+	ops = append(ops,
+		executor.Op{Kind: "uci_commit", Args: []string{"dhcp"}},
+		executor.Op{Kind: "initd", Args: []string{"dnsmasq", "reload"}},
+	)
+	if err := executor.Apply(ops, nil); err != nil {
+		rollback()
+		return ProbeLAN(), true, err
+	}
+	for _, r := range probeReservations() {
+		if r.MAC == mac && r.IP == ip {
+			return ProbeLAN(), false, nil
+		}
+	}
+	rollback()
+	return ProbeLAN(), true, fmt.Errorf("reservation not present after edit, rolled back")
+}
+
 // ClearReservations removes every netgrip_* reservation (gateway only).
 func ClearReservations() (*LANConfig, bool, error) {
 	if !lanApplicable() {

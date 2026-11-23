@@ -300,6 +300,12 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mac, ip, name, reserved }),
     }),
+  updateReservation: (old_mac: string, mac: string, ip: string, name: string) =>
+    request<import("./types").ModuleResult<import("./types").LANConfig>>("/api/lan/reservation/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ old_mac, mac, ip, name }),
+    }),
   clearReservations: () =>
     request<import("./types").ModuleResult<import("./types").LANConfig>>("/api/lan/reservations/clear", {
       method: "POST",

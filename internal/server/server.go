@@ -207,6 +207,7 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("POST /api/lan", s.requireAuth(s.handleLANSet))
 	s.mux.HandleFunc("POST /api/lan/dhcp", s.requireAuth(s.handleDHCPSet))
 	s.mux.HandleFunc("POST /api/lan/reservation", s.requireAuth(s.handleReservationSet))
+	s.mux.HandleFunc("POST /api/lan/reservation/update", s.requireAuth(s.handleReservationUpdate))
 	s.mux.HandleFunc("POST /api/lan/reservations/clear", s.requireAuth(s.handleReservationsClear))
 	s.mux.HandleFunc("GET /api/dns", s.requireAuth(s.handleDNSGet))
 	s.mux.HandleFunc("POST /api/dns", s.requireAuth(s.handleDNSSet))
@@ -1852,6 +1853,23 @@ type reservationSetRequest struct {
 	IP       string `json:"ip"`
 	Name     string `json:"name,omitempty"`
 	Reserved bool   `json:"reserved"`
+}
+
+type reservationUpdateRequest struct {
+	OldMAC string `json:"old_mac"`
+	MAC    string `json:"mac"`
+	IP     string `json:"ip"`
+	Name   string `json:"name"`
+}
+
+func (s *Server) handleReservationUpdate(w http.ResponseWriter, r *http.Request) {
+	var req reservationUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.UpdateReservation(req.OldMAC, req.MAC, req.IP, req.Name)
+	writeModuleResult(w, probe, rolledBack, err)
 }
 
 func (s *Server) handleReservationSet(w http.ResponseWriter, r *http.Request) {

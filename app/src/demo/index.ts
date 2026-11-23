@@ -533,6 +533,11 @@ export const demoApi: typeof api = {
   lan: () => get(state.lan),
   setLan: async (opts) => { Object.assign(state.lan, opts); return write(state.lan); },
   setDhcp: async (cfg) => { state.lan.dhcp = { ...cfg }; return write(state.lan); },
+  updateReservation: async (old_mac, mac, ip, name) => {
+    state.lan.reservations = state.lan.reservations.map((r) =>
+      r.mac === old_mac ? { ...r, mac, ip, name } : r);
+    return write(state.lan);
+  },
   setReservation: async (mac, ip, name, reserved) => {
     state.lan.reservations = reserved
       ? [...state.lan.reservations.filter((r) => r.mac !== mac), { mac, ip, name, managed: true }]
