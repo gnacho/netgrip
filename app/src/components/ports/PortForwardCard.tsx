@@ -125,12 +125,10 @@ export function PortForwardCard({ probe, onChange }: {
                       {r.proto}
                     </span>
                     <span className="flex-1" />
-                    <Pill tone="ok">{t("fwd.active")}</Pill>
-                    {/* Only what NetGrip created is removable from here;
-                        anything set up elsewhere is shown, not touched. */}
-                    {/* Cualquier reenvío se puede editar, también los que
-                        vienen de LuCI; borrar sigue siendo solo de los
-                        nuestros (#613). */}
+                    {/* Editar va antes del estado (#617): es la accion, y asi
+                        no queda escondida detras de las pildoras. Cualquier
+                        reenvio se puede editar, tambien los de LuCI; borrar
+                        sigue siendo solo de los nuestros (#613). */}
                     {r.kind === "forward" && (
                       <button
                         type="button"
@@ -142,6 +140,9 @@ export function PortForwardCard({ probe, onChange }: {
                         <Pencil size={16} />
                       </button>
                     )}
+                    <Pill tone="ok">{t("fwd.active")}</Pill>
+                    {/* Only what NetGrip created is removable from here;
+                        anything set up elsewhere is shown, not touched. */}
                     {r.managed === false ? (
                       <span title={t("fwd.externalHint")}>
                         <Pill tone="muted">{t("fwd.external")}</Pill>
