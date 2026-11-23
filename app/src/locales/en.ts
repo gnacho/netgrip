@@ -2115,6 +2115,8 @@ export default {
     deleteConsequence: "The traffic this rule restricted will be unrestricted.",
     deleteConfirm: "Delete rule",
     modalTitle: "New traffic rule",
+    edit: "Edit",
+    editTitle: "Edit rule",
     save: "Save",
     description: "Description",
     descriptionPlaceholder: "e.g. Block the TV at night",

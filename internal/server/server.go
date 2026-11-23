@@ -261,6 +261,7 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("GET /api/firewall", s.requireAuth(s.handleFirewallGet))
 	s.mux.HandleFunc("POST /api/firewall", s.requireAuth(s.handleFirewallAddRule))
 	s.mux.HandleFunc("DELETE /api/firewall", s.requireAuth(s.handleFirewallDelRule))
+	s.mux.HandleFunc("POST /api/firewall/update", s.requireAuth(s.handleFirewallUpdateRule))
 	s.mux.HandleFunc("GET /api/templates", s.requireAuth(s.handleTemplatesGet))
 	s.mux.HandleFunc("POST /api/templates", s.requireAuth(s.handleTemplatesApply))
 	s.mux.HandleFunc("GET /api/switch", s.requireAuth(s.handleSwitchGet))
@@ -2736,6 +2737,24 @@ func (s *Server) handleFirewallAddRule(w http.ResponseWriter, r *http.Request) {
 		snapshots = snapshotConfigs("firewall")
 	}
 	probe, rolledBack, err := modules.AddFirewallRule(req.FirewallRuleAdd)
+	s.finishRiskyApply(w, probe, rolledBack, err, req.Confirm, snapshots, []string{"firewall"})
+}
+
+func (s *Server) handleFirewallUpdateRule(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Section string `json:"section"`
+		modules.FirewallRuleAdd
+		Confirm bool `json:"confirm,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Section == "" {
+		writeError(w, http.StatusBadRequest, "section required")
+		return
+	}
+	var snapshots map[string]string
+	if req.Confirm {
+		snapshots = snapshotConfigs("firewall")
+	}
+	probe, rolledBack, err := modules.UpdateFirewallRule(req.Section, req.FirewallRuleAdd)
 	s.finishRiskyApply(w, probe, rolledBack, err, req.Confirm, snapshots, []string{"firewall"})
 }
 

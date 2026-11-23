@@ -686,6 +686,12 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...rule, confirm }),
     }),
+  updateFirewallRule: (section: string, rule: import("./types").FirewallRuleAdd, confirm?: boolean) =>
+    request<import("./types").ModuleResult<import("./types").FirewallProbe>>("/api/firewall/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ section, ...rule, confirm }),
+    }),
   deleteFirewallRule: (section: string, confirm?: boolean) =>
     request<import("./types").ModuleResult<import("./types").FirewallProbe>>("/api/firewall", {
       method: "DELETE",

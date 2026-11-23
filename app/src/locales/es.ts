@@ -2115,6 +2115,8 @@ export default {
     deleteConsequence: "El tráfico que regulaba esta regla quedará sin restricción.",
     deleteConfirm: "Borrar regla",
     modalTitle: "Nueva regla de tráfico",
+    edit: "Editar",
+    editTitle: "Editar regla",
     save: "Guardar",
     description: "Descripción",
     descriptionPlaceholder: "p. ej. Bloquear la tele por la noche",
