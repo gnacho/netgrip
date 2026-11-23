@@ -664,7 +664,7 @@ export default {
     day6: "Sa",
     quotaOverview: "Cuotas de datos",
     quotaOverviewEmpty: "Sin cuotas de datos configuradas",
-    quotaOverviewHint: "Se activa por dispositivo: abre uno y enciende su cuota de datos.",
+    quotaOverviewHint: "Se activa en la ficha de cada dispositivo: pulsa su nombre y enciende la cuota.",
     quotaTitle: "Cuota de datos",
     quotaUsed: "Consumido",
     quotaPeriod: "Periodo",

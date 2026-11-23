@@ -319,7 +319,11 @@ export function ClientsPage() {
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
-            <span className="truncate text-body font-medium">{c.name || <span className="font-mono text-small">{c.mac}</span>}</span>
+            <button type="button" onClick={() => setDetailTarget(c)}
+              title={t("clients.details")} aria-label={`${t("clients.details")}: ${c.name || c.mac}`}
+              className="truncate text-body font-medium text-left ring-focus rounded-sm hover:text-accent transition-colors">
+              {c.name || <span className="font-mono text-small">{c.mac}</span>}
+            </button>
             {c.self && <Pill tone="accent">{t("overview.thisDevice")}</Pill>}
             <BlockedPill c={c} />
             <ParentalPill c={c} />
@@ -394,34 +398,7 @@ export function ClientsPage() {
 
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
-      <Card index={0} title={t("clients.quotaOverview")} icon={Gauge} iconTone="teal">
-        {Object.keys(quota?.quotas ?? {}).length === 0 ? (
-          <EmptyState small title={t("clients.quotaOverviewEmpty")} body={t("clients.quotaOverviewHint")} />
-        ) : (
-          <ul className="flex flex-col divide-y divide-border/60">
-            {Object.entries(quota?.quotas ?? {}).map(([mac, q]) => {
-              const u = quota?.usage?.[mac];
-              const name = clients?.find((c) => c.mac === mac)?.name ?? mac;
-              return (
-                <li key={mac} className="flex items-center gap-3 py-2.5">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-small font-medium">{name}</p>
-                    <p className="text-caption text-muted">{t(q.period === "monthly" ? "clients.quotaPeriodMonthly" : "clients.quotaPeriodDaily")}</p>
-                  </div>
-                  <span className="text-caption font-mono text-muted whitespace-nowrap" style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {u ? `${fmtBytes(u.remaining)} / ${fmtBytes(u.limit)}` : fmtBytes(q.limit)}
-                  </span>
-                  {u?.throttled ? <Pill tone="danger">{t("clients.quotaThrottled")}</Pill>
-                    : u?.exceeded ? <Pill tone="warn">{t("clients.quotaExceeded")}</Pill>
-                    : null}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Card>
-
-      <Card index={1} title={t("clients.title")} icon={Cable} iconTone="teal"
+      <Card index={0} title={t("clients.title")} icon={Cable} iconTone="teal"
         action={<div className="flex items-center gap-1">
           <button type="button" onClick={() => setBlockedTarget(true)}
             title={t("clients.blockedCount", { count: blockedList.length })}
@@ -510,6 +487,33 @@ export function ClientsPage() {
           </>
         )}
         {actionError && <Banner tone="danger" className="mt-3">{actionError}</Banner>}
+      </Card>
+
+      <Card index={1} title={t("clients.quotaOverview")} icon={Gauge} iconTone="teal">
+        {Object.keys(quota?.quotas ?? {}).length === 0 ? (
+          <EmptyState small title={t("clients.quotaOverviewEmpty")} body={t("clients.quotaOverviewHint")} />
+        ) : (
+          <ul className="flex flex-col divide-y divide-border/60">
+            {Object.entries(quota?.quotas ?? {}).map(([mac, q]) => {
+              const u = quota?.usage?.[mac];
+              const name = clients?.find((c) => c.mac === mac)?.name ?? mac;
+              return (
+                <li key={mac} className="flex items-center gap-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-small font-medium">{name}</p>
+                    <p className="text-caption text-muted">{t(q.period === "monthly" ? "clients.quotaPeriodMonthly" : "clients.quotaPeriodDaily")}</p>
+                  </div>
+                  <span className="text-caption font-mono text-muted whitespace-nowrap" style={{ fontVariantNumeric: "tabular-nums" }}>
+                    {u ? `${fmtBytes(u.remaining)} / ${fmtBytes(u.limit)}` : fmtBytes(q.limit)}
+                  </span>
+                  {u?.throttled ? <Pill tone="danger">{t("clients.quotaThrottled")}</Pill>
+                    : u?.exceeded ? <Pill tone="warn">{t("clients.quotaExceeded")}</Pill>
+                    : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </Card>
 
       <DetailClientModal

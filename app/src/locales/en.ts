@@ -664,7 +664,7 @@ export default {
     day6: "Sa",
     quotaOverview: "Data quotas",
     quotaOverviewEmpty: "No data quotas configured",
-    quotaOverviewHint: "Set it per device: open one and switch on its data quota.",
+    quotaOverviewHint: "Set it from the device sheet: tap its name and switch the quota on.",
     quotaTitle: "Data quota",
     quotaUsed: "Used",
     quotaPeriod: "Period",
