@@ -25,7 +25,10 @@ type SQMConfig struct {
 
 // SQMProbe is the read-only SQM state.
 type SQMProbe struct {
-	Installed bool   `json:"installed"`
+	Installed bool `json:"installed"`
+	// LuciApp: la pagina de ajustes de SQM en LuCI solo existe si esta
+	// instalado luci-app-sqm; enlazarla a ciegas daba un 404 (#626).
+	LuciApp   bool   `json:"luci_app"`
 	HasWan    bool   `json:"has_wan"`
 	Active    bool   `json:"active"`
 	Running   bool   `json:"running"`
@@ -131,7 +134,7 @@ func sqmCakePresent(dev string) bool {
 
 // ProbeSQM reads the SQM state.
 func ProbeSQM() *SQMProbe {
-	p := &SQMProbe{Installed: sqmInstalled()}
+	p := &SQMProbe{Installed: sqmInstalled(), LuciApp: pkgInstalled("luci-app-sqm")}
 	dev := wanDevice()
 	p.HasWan = dev != ""
 	base := "sqm." + sqmSection

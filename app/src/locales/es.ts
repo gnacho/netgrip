@@ -1074,6 +1074,8 @@ export default {
     statusTitle: "Cola actual",
     queue: "Cola",
     luciLink: "Ajustes avanzados en LuCI",
+    luciMissing: "Ajustes de LuCI no instalados",
+    luciMissingHint: "La página de ajustes de SQM en LuCI solo existe con el paquete luci-app-sqm (LuCI → Sistema → Software).",
     speedTest: "Test de velocidad",
     bandwidthHint: "¿No sabes tu velocidad real? Haz un test de velocidad y pon aquí el 90-95 %.",
   },

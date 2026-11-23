@@ -4,7 +4,7 @@ import { Clapperboard, ExternalLink, Gamepad2, Gauge, Play, Scale, SlidersHorizo
 import { api } from "../../api";
 import type { BufferbloatResult, SQMProbe } from "../../types";
 import {
-  ActionBanner, Button, Card, Field, KeyValue, Pill, SegmentedControl, SettingRow, SkeletonRows, Toggle,
+  ActionBanner, Button, Card, Field, HelpTip, Pill, SegmentedControl, SettingRow, SkeletonRows, Toggle,
 } from "../ui";
 import { useActionCycle } from "../wifi/action";
 import { TechName } from "./shared";
@@ -156,81 +156,85 @@ export function SqmCard({ probe, onChange, index = 0 }: {
           )}
 
           {hasWan && (
-            // Los campos de tasas también se muestran apagado: hacen falta
-            // para poder activar (el toggle exige tasas válidas).
-            <div className="pt-2 flex flex-col gap-3">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-eyebrow text-faint">{t("sqm.profileLabel")}</span>
-                  <span className="text-caption text-muted">{profileName(profile)}</span>
+            // Dos columnas en escritorio: perfil y tasas a la izquierda,
+            // bufferbloat a la derecha. Todo el texto largo vive en los (i)
+            // (#626).
+            <div className="pt-2 grid gap-4 sm:grid-cols-2">
+              <div className="flex min-w-0 flex-col gap-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="inline-flex items-center gap-1.5 text-eyebrow text-faint">
+                      {t("sqm.profileLabel")}
+                      <HelpTip title={t("sqm.profileLabel")} body={profileDesc(profile)} />
+                    </span>
+                    <span className="text-caption text-muted">{profileName(profile)}</span>
+                  </div>
+                  <SegmentedControl
+                    options={SQM_PROFILES.map((o) => ({
+                      value: o.value,
+                      label: <o.icon size={16} aria-hidden="true" />,
+                      title: t(o.label),
+                    }))}
+                    value={profile}
+                    onChange={handleProfileChange}
+                    ariaLabel={t("sqm.profileLabel")}
+                  />
                 </div>
-                <SegmentedControl
-                  options={SQM_PROFILES.map((o) => ({
-                    value: o.value,
-                    label: <o.icon size={16} aria-hidden="true" />,
-                    title: t(o.label),
-                  }))}
-                  value={profile}
-                  onChange={handleProfileChange}
-                  ariaLabel={t("sqm.profileLabel")}
-                />
-                <p className="text-caption text-muted mt-1">{profileDesc(profile)}</p>
-              </div>
 
-              <div>
-                <span className="text-eyebrow text-faint">{t("sqm.statusTitle")}</span>
-                <KeyValue className="mt-1" items={[
-                  { label: t("sqm.queue"), value: probe.qdisc && probe.script ? `${probe.qdisc} · ${probe.script}` : "-", mono: true },
-                  { label: t("sqm.profileLabel"), value: profileName(probe.profile || "balanced") },
-                ]} />
-                <a
-                  href={luciSqmUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-small text-accent hover:text-accent-hover ring-focus rounded-sm"
-                >
-                  {t("sqm.luciLink")}
-                  <ExternalLink size={12} aria-hidden="true" />
-                </a>
-              </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label={t("sqm.download")} mono
+                    inputProps={{ value: download, onChange: (e) => setDownload(e.target.value), inputMode: "numeric", disabled: active }} />
+                  <Field label={t("sqm.upload")} mono
+                    inputProps={{ value: upload, onChange: (e) => setUpload(e.target.value), inputMode: "numeric", disabled: active }} />
+                </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Field label={t("sqm.download")} mono
-                  inputProps={{ value: download, onChange: (e) => setDownload(e.target.value), inputMode: "numeric", disabled: active }} />
-                <Field label={t("sqm.upload")} mono
-                  inputProps={{ value: upload, onChange: (e) => setUpload(e.target.value), inputMode: "numeric", disabled: active }} />
-              </div>
-              <div>
-                <p className="text-caption text-muted">{t("sqm.rateHelp")}</p>
-                <p className="text-caption text-faint mt-0.5 font-mono">{t("sqm.rateExample")}</p>
-                <p className="text-caption text-muted mt-1">
-                  {t("sqm.bandwidthHint")}{" "}
-                  <a href="https://fast.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-accent hover:text-accent-hover">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="font-mono">{probe.qdisc && probe.script ? `${probe.qdisc} · ${probe.script}` : "—"}</span>
+                    <HelpTip
+                      title={t("sqm.statusTitle")}
+                      body={`${t("sqm.rateHelp")} ${t("sqm.rateExample")} ${t("sqm.bandwidthHint")}`}
+                    />
+                  </span>
+                  <a href="https://fast.com" target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-0.5 text-accent hover:text-accent-hover">
                     {t("sqm.speedTest")}
                     <ExternalLink size={12} aria-hidden="true" />
                   </a>
-                </p>
+                  {probe.luci_app ? (
+                    <a href={luciSqmUrl} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-0.5 text-accent hover:text-accent-hover">
+                      {t("sqm.luciLink")}
+                      <ExternalLink size={12} aria-hidden="true" />
+                    </a>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-faint">
+                      {t("sqm.luciMissing")}
+                      <HelpTip title={t("sqm.luciLink")} body={t("sqm.luciMissingHint")} />
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="pt-2 border-t border-border/60">
-                <div className="flex items-center justify-between mb-1">
+
+              <div className="flex min-w-0 flex-col gap-2 sm:border-l sm:border-border/60 sm:pl-4">
+                <div className="flex items-center justify-between">
                   <span className="text-eyebrow text-faint">{t("sqm.bufferbloat")}</span>
                   {latest ? <GradePill grade={latest.grade} /> : <span className="text-caption text-muted">{t("sqm.notTested")}</span>}
                 </div>
                 {latest && (
-                  <div className="grid grid-cols-3 gap-2 text-caption mb-1.5">
-                    <div><span className="text-muted">{t("sqm.baseline")}:</span> {latest.baseline_ms} ms</div>
-                    <div><span className="text-muted">{t("sqm.loaded")}:</span> {latest.loaded_ms} ms</div>
-                    <div><span className="text-muted">{t("sqm.delta")}:</span> {latest.delta_ms} ms</div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-caption">
+                    <span><span className="text-muted">{t("sqm.baseline")}:</span> {latest.baseline_ms} ms</span>
+                    <span><span className="text-muted">{t("sqm.loaded")}:</span> {latest.loaded_ms} ms</span>
+                    <span><span className="text-muted">{t("sqm.delta")}:</span> {latest.delta_ms} ms</span>
                   </div>
                 )}
-                <Button variant="secondary" size="sm" onClick={runTest} loading={testing} icon={Play}>
-                  {testing ? t("sqm.testing") : t("sqm.runTest")}
-                </Button>
+                <div>
+                  <Button variant="secondary" size="sm" onClick={runTest} loading={testing} icon={Play}>
+                    {testing ? t("sqm.testing") : t("sqm.runTest")}
+                  </Button>
+                </div>
                 {history.length >= 2 && (
-                  <div className="mt-2">
-                    <span className="text-[10px] text-muted">{t("sqm.lastTests")}</span>
-                    <Sparkline values={history.slice(-10).map((h) => h.delta_ms)} />
-                  </div>
+                  <Sparkline values={history.slice(-10).map((h) => h.delta_ms)} />
                 )}
               </div>
             </div>

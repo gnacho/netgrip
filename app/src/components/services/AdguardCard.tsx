@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Download, ExternalLink, Eye, EyeOff, RefreshCw, Shield, Square } from "lucide-react";
 import { api } from "../../api";
 import type { AdGuardCredentials, DNSConfig } from "../../types";
-import { Button, Card, ConfirmDialog, Field, Input, Pill, SkeletonRows, Toggle, useToast } from "../ui";
+import { Button, Card, ConfirmDialog, Field, HelpTip, Input, Pill, SkeletonRows, Toggle, useToast } from "../ui";
 import { InstallProgress, useInstallJob } from "../wizard/common";
 import { CopyButton, TechName } from "./shared";
 
@@ -178,11 +178,11 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
 
       {!cfg.adguard_installed ? (
         <div className="mt-3 flex flex-col gap-2">
-          <p className="text-caption text-muted">{t("adguard.notInstalledDesc")}</p>
-          <div>
+          <div className="flex items-center gap-2">
             <Button variant="secondary" size="sm" loading={installing} onClick={() => setConfirmEnable(true)}>
               <Download size={14} aria-hidden="true" /> {t("adguard.install")}
             </Button>
+            <HelpTip title={t("adguard.title")} body={t("adguard.notInstalledDesc")} />
           </div>
           <InstallProgress job={installing ? job : null} />
         </div>
@@ -222,14 +222,15 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
               label={t("adguard.protectionSwitch")}
             />
             <span className="text-small text-secondary">{t("adguard.protectionSwitch")}</span>
+            <HelpTip
+              title={t("adguard.protectionSwitch")}
+              body={protection
+                ? t("adguard.protectionOnDesc")
+                : cfg.adguard_has_backup
+                  ? t("adguard.protectionOffBackupDesc")
+                  : t("adguard.protectionOffDesc")}
+            />
           </div>
-          <p className="mt-2 text-caption text-muted">
-            {protection
-              ? t("adguard.protectionOnDesc")
-              : cfg.adguard_has_backup
-                ? t("adguard.protectionOffBackupDesc")
-                : t("adguard.protectionOffDesc")}
-          </p>
           {busyWith && (
             <div className="mt-3 flex flex-col gap-1.5" role="status">
               <span className="text-small text-muted">
@@ -243,10 +244,19 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
 
           {credState && credState !== "" && (
             <div className="mt-4 border-t border-border pt-3">
-              <span className="text-small font-medium text-secondary">{t("adguard.credTitle")}</span>
+              <span className="flex items-center gap-1.5 text-small font-medium text-secondary">
+                {t("adguard.credTitle")}
+                <HelpTip
+                  title={t("adguard.credTitle")}
+                  body={credState === "managed"
+                    ? t("adguard.credHint")
+                    : credState === "external"
+                      ? t("adguard.credExternal")
+                      : t("adguard.credNoneHint")}
+                />
+              </span>
               {credState === "managed" && (
                 <>
-                  <p className="mt-1.5 text-caption text-muted">{t("adguard.credHint")}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     <code className="rounded-sm bg-fill px-1.5 py-0.5 font-mono text-small">{cred?.username ?? "admin"}</code>
                     <code className="rounded-sm bg-fill px-1.5 py-0.5 font-mono text-small">
@@ -268,12 +278,8 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
                   </div>
                 </>
               )}
-              {credState === "external" && (
-                <p className="mt-1.5 text-caption text-muted">{t("adguard.credExternal")}</p>
-              )}
               {credState === "none" && (
                 <>
-                  <p className="mt-1.5 text-caption text-muted">{t("adguard.credNoneHint")}</p>
                   <div className="mt-2">
                     <Button variant="secondary" size="sm" loading={credBusy} disabled={busy} onClick={doRegenerate}>
                       {t("adguard.credCreate")}
@@ -286,14 +292,16 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
 
           <div className="mt-4 border-t border-border pt-3">
             <div className="flex items-center gap-2">
-              <span className="text-small font-medium text-secondary">{t("adguard.dohTitle")}</span>
+              <span className="flex items-center gap-1.5 text-small font-medium text-secondary">
+                {t("adguard.dohTitle")}
+                <HelpTip title={t("adguard.dohTitle")} body={t("adguard.dohHint")} />
+              </span>
               {cfg.doh_enabled ? (
                 <Pill tone="ok">{t("adguard.dohActive", { count: dohUpstreamCount })}</Pill>
               ) : (
                 <Pill tone="muted">{t("adguard.dohInactive")}</Pill>
               )}
             </div>
-            <p className="mt-1.5 text-caption text-muted">{t("adguard.dohHint")}</p>
 
             {cfg.doh_enabled ? (
               <div className="mt-2">

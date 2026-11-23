@@ -149,6 +149,8 @@ export interface MDNSProbe {
 
 export interface SQMProbe {
   installed: boolean;
+  /** Página de ajustes de SQM en LuCI (luci-app-sqm). */
+  luci_app: boolean;
   has_wan: boolean;
   active: boolean;
   running: boolean;

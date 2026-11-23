@@ -1074,6 +1074,8 @@ export default {
     statusTitle: "Current queue",
     queue: "Queue",
     luciLink: "Advanced settings in LuCI",
+    luciMissing: "LuCI settings not installed",
+    luciMissingHint: "The SQM settings page in LuCI only exists with the luci-app-sqm package (LuCI → System → Software).",
     speedTest: "Speed test",
     bandwidthHint: "Not sure of your real speed? Run a speed test and set 90-95 % of it here.",
   },

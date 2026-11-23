@@ -149,6 +149,7 @@ export const demoMdns: T.MDNSProbe = {
 
 export const demoSqm: T.SQMProbe = {
   installed: true,
+  luci_app: true,
   has_wan: true,
   active: true,
   running: true,
