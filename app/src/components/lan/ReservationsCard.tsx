@@ -30,7 +30,7 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
     api.clients().then((r) => setClients(r.clients)).catch(() => {});
   }, []);
 
-  const reservations = cfg.reservations;
+  const reservations = cfg.reservations ?? [];
 
   // Primera IP libre del rango DHCP (start..start+limit-1) no reservada.
   const defaultIp = () => {
@@ -80,7 +80,8 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
       action={
         <span className="flex items-center gap-2">
           {reservations.length > 0 && <Pill tone="accent">{t("lan.fixedCount", { count: reservations.length })}</Pill>}
-          {reservations.length > 0 && (
+          {/* Solo si hay alguna creada aquí: las de LuCI no se borran en bloque. */}
+          {reservations.some((r) => r.managed) && (
             <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setConfirmClear(true)}>
               {t("lan.clearAll")}
             </Button>
@@ -88,6 +89,8 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
         </span>
       }
     >
+      {/* Un router migrado puede traer mas de cien reservas: la tabla
+          scrollea en vez de estirar la pagina entera (#621). */}
       {reservations.length === 0 ? (
         <EmptyState
           small
@@ -96,9 +99,9 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
           body={t("lan.resEmptyBody")}
         />
       ) : (
-        <div className="overflow-x-auto">
+        <div className="max-h-[26rem] overflow-auto">
           <table className="w-full">
-            <thead>
+            <thead className="sticky top-0 bg-surface">
               <tr className="text-caption text-muted border-b border-border">
                 <th className="text-left font-medium py-1.5 pr-2">{t("lan.name")}</th>
                 <th className="text-left font-medium py-1.5 pr-2">{t("lan.mac")}</th>

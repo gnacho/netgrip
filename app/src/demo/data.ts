@@ -355,7 +355,7 @@ export const demoLan: T.LANConfig = {
   netmask: "255.255.255.0",
   ap_isolation: false,
   dhcp: { enabled: true, start: 100, limit: 150, lease_time: 43200, gateway: "192.168.8.1", dns1: "1.1.1.1", dns2: "9.9.9.9" },
-  reservations: [{ mac: "00:11:32:9A:BC:10", ip: "192.168.8.10", name: "NAS" }],
+  reservations: [{ mac: "00:11:32:9A:BC:10", ip: "192.168.8.10", name: "NAS", managed: true }],
 };
 
 export const demoDns: T.DNSConfig = {

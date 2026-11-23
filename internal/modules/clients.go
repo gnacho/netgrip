@@ -519,11 +519,53 @@ func blockedEverywhere(set, avail map[string]bool) bool {
 }
 
 func hostSections() []string {
-	out, err := exec.Command("sh", "-c", "uci show dhcp | grep '=host' | cut -d. -f2 | cut -d= -f1 | grep '^netgrip_host_'").Output()
+	out, err := exec.Command("uci", "show", "dhcp").Output()
 	if err != nil {
 		return []string{}
 	}
-	return strings.Fields(string(out))
+	return parseHostSections(string(out))
+}
+
+// parseHostSections returns every section declared as a dhcp host, whoever
+// created it. NetGrip used to list only its own (netgrip_host_*) and a router
+// with reservations made in LuCI or by a migration showed an empty card
+// (#621).
+func parseHostSections(uciShow string) []string {
+	var sections []string
+	for _, line := range strings.Split(uciShow, "\n") {
+		head, kind, ok := strings.Cut(strings.TrimSpace(line), "=")
+		if !ok || kind != "host" {
+			continue
+		}
+		pkg, section, ok := strings.Cut(head, ".")
+		if !ok || pkg != "dhcp" || section == "" {
+			continue
+		}
+		sections = append(sections, section)
+	}
+	return sections
+}
+
+// macInList reports whether mac appears in a dnsmasq mac option, which can
+// list several addresses separated by spaces.
+func macInList(list, mac string) bool {
+	for _, m := range strings.Fields(strings.ToLower(list)) {
+		if m == mac {
+			return true
+		}
+	}
+	return false
+}
+
+// reservationSectionForMAC finds the host section that already reserves mac,
+// so an edit updates it in place instead of adding a second entry.
+func reservationSectionForMAC(mac string) string {
+	for _, section := range hostSections() {
+		if macInList(uciGet("dhcp."+section+".mac"), mac) {
+			return section
+		}
+	}
+	return ""
 }
 
 // gatewaySSHExec runs a command on the gateway and returns an error if it fails.

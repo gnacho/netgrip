@@ -535,7 +535,7 @@ export const demoApi: typeof api = {
   setDhcp: async (cfg) => { state.lan.dhcp = { ...cfg }; return write(state.lan); },
   setReservation: async (mac, ip, name, reserved) => {
     state.lan.reservations = reserved
-      ? [...state.lan.reservations.filter((r) => r.mac !== mac), { mac, ip, name }]
+      ? [...state.lan.reservations.filter((r) => r.mac !== mac), { mac, ip, name, managed: true }]
       : state.lan.reservations.filter((r) => r.mac !== mac);
     const c = state.clients.find((x) => x.mac === mac);
     if (c) c.reserved = reserved;

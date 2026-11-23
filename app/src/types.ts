@@ -398,6 +398,8 @@ export interface Reservation {
   mac: string;
   ip: string;
   name?: string;
+  /** Creada por NetGrip: es la unica que borra el boton de vaciar. */
+  managed: boolean;
 }
 
 export interface DHCPConfig {

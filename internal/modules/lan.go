@@ -35,6 +35,10 @@ type Reservation struct {
 	MAC  string `json:"mac"`
 	IP   string `json:"ip"`
 	Name string `json:"name,omitempty"`
+	// Managed: la creó NetGrip y por tanto el botón de vaciar la toca. Las
+	// que vienen de LuCI o de una migración se ven y se editan, pero no se
+	// borran en bloque (#621).
+	Managed bool `json:"managed"`
 }
 
 func lanApplicable() bool {
@@ -82,17 +86,19 @@ func probeApIsolation() bool {
 }
 
 func probeReservations() []Reservation {
-	var list []Reservation
+	list := []Reservation{}
 	for _, section := range hostSections() {
-		mac := strings.ToLower(uciGet("dhcp." + section + ".mac"))
+		mac := strings.ToLower(strings.TrimSpace(uciGet("dhcp." + section + ".mac")))
 		ip := uciGet("dhcp." + section + ".ip")
-		if mac == "" {
+		if mac == "" || ip == "" {
 			continue
 		}
-		list = append(list, Reservation{MAC: mac, IP: ip, Name: uciGet("dhcp." + section + ".name")})
-	}
-	if list == nil {
-		return []Reservation{}
+		list = append(list, Reservation{
+			MAC:     mac,
+			IP:      ip,
+			Name:    uciGet("dhcp." + section + ".name"),
+			Managed: strings.HasPrefix(section, "netgrip_host_"),
+		})
 	}
 	return list
 }
@@ -300,7 +306,12 @@ func SetReservation(mac, ip, name string, reserved bool) (*LANConfig, bool, erro
 		_ = executor.Restore("dhcp", snap)
 		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"dnsmasq", "reload"}})
 	}
-	section := "netgrip_host_" + strings.ReplaceAll(mac, ":", "")
+	// Si esa MAC ya tiene reserva (en LuCI o de otra herramienta) se edita la
+	// suya: crear otra dejaria dos entradas para el mismo aparato (#621).
+	section := reservationSectionForMAC(mac)
+	if section == "" {
+		section = "netgrip_host_" + strings.ReplaceAll(mac, ":", "")
+	}
 	base := "dhcp." + section
 	var ops []executor.Op
 	if reserved {
@@ -331,7 +342,13 @@ func ClearReservations() (*LANConfig, bool, error) {
 	if !lanApplicable() {
 		return ProbeLAN(), false, fmt.Errorf("reservations only apply on the gateway (static IP + dnsmasq)")
 	}
-	sections := hostSections()
+	// Solo las que creó NetGrip: el resto son configuracion del usuario.
+	var sections []string
+	for _, s := range hostSections() {
+		if strings.HasPrefix(s, "netgrip_host_") {
+			sections = append(sections, s)
+		}
+	}
 	if len(sections) == 0 {
 		return ProbeLAN(), false, nil
 	}
