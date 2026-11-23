@@ -2,11 +2,14 @@ package modules
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -201,6 +204,70 @@ func CheckAllFleet() ([]FleetNodeStatus, error) {
 	return nodes, nil
 }
 
+// fleetHost strips any scheme the user typed: the address is host[:port].
+func fleetHost(address string) string {
+	address = strings.TrimSpace(address)
+	address = strings.TrimPrefix(address, "https://")
+	address = strings.TrimPrefix(address, "http://")
+	return strings.TrimSuffix(address, "/")
+}
+
+// fleetLogin opens a session against a peer panel and returns a client that
+// carries it.
+//
+// El panel NO responde con un token: valida la contraseña contra el router y
+// contesta 204 con una cookie de sesión. Esperar un 200 con {"token"} hacía
+// que cualquier adopción fallara con "login failed" aunque la contraseña
+// fuera correcta (#636). Se prueba HTTPS primero porque muchos equipos solo
+// sirven ahí y el certificado es autofirmado por diseño; si no hay TLS, HTTP.
+func fleetLogin(address, password string, timeout time.Duration) (*http.Client, string, error) {
+	host := fleetHost(address)
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, "", err
+	}
+	insecureTLS := &http.Client{
+		Timeout: timeout,
+		Jar:     jar,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // autofirmado por diseño
+		},
+	}
+	plain := &http.Client{Timeout: timeout, Jar: jar}
+
+	attempts := []struct {
+		base   string
+		client *http.Client
+	}{
+		{"https://" + host, insecureTLS},
+		{"http://" + host, plain},
+	}
+	var lastErr error
+	for _, a := range attempts {
+		body, _ := json.Marshal(map[string]string{"password": password})
+		resp, err := a.client.Post(a.base+"/api/login", "application/json", bytes.NewReader(body))
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		switch resp.StatusCode {
+		case http.StatusOK, http.StatusNoContent:
+			return a.client, a.base, nil
+		case http.StatusUnauthorized:
+			return nil, "", fmt.Errorf("login failed: wrong root password")
+		case http.StatusBadGateway:
+			return nil, "", fmt.Errorf("login failed: the peer cannot validate passwords (rpcd unreachable)")
+		}
+		lastErr = fmt.Errorf("%s answered HTTP %d on login", a.base, resp.StatusCode)
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("unreachable")
+	}
+	return nil, "", lastErr
+}
+
 func checkNodeUpdate(node FleetNode) FleetNodeStatus {
 	status := FleetNodeStatus{
 		ID:      node.ID,
@@ -208,33 +275,13 @@ func checkNodeUpdate(node FleetNode) FleetNodeStatus {
 		Address: node.Address,
 	}
 
-	client := &http.Client{Timeout: 5 * time.Second}
-
-	loginReq := map[string]string{"password": node.Password}
-	loginBody, _ := json.Marshal(loginReq)
-	loginResp, err := client.Post(fmt.Sprintf("http://%s/api/login", node.Address), "application/json", bytes.NewReader(loginBody))
+	client, base, err := fleetLogin(node.Address, node.Password, 5*time.Second)
 	if err != nil {
-		status.Error = fmt.Sprintf("login: %v", err)
-		return status
-	}
-	defer loginResp.Body.Close()
-
-	if loginResp.StatusCode != 200 {
-		status.Error = "login failed"
+		status.Error = err.Error()
 		return status
 	}
 
-	var loginResult struct {
-		Token string `json:"token"`
-	}
-	if err := json.NewDecoder(loginResp.Body).Decode(&loginResult); err != nil {
-		status.Error = "login decode"
-		return status
-	}
-
-	checkReq, _ := http.NewRequest("GET", fmt.Sprintf("http://%s/api/selfupdate", node.Address), nil)
-	checkReq.Header.Set("Authorization", "Bearer "+loginResult.Token)
-	checkResp, err := client.Do(checkReq)
+	checkResp, err := client.Get(base + "/api/selfupdate")
 	if err != nil {
 		status.Error = fmt.Sprintf("check: %v", err)
 		return status
@@ -277,31 +324,12 @@ func UpdateFleetNode(id string) error {
 		return fmt.Errorf("node not found")
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
-
-	loginReq := map[string]string{"password": node.Password}
-	loginBody, _ := json.Marshal(loginReq)
-	loginResp, err := client.Post(fmt.Sprintf("http://%s/api/login", node.Address), "application/json", bytes.NewReader(loginBody))
+	client, base, err := fleetLogin(node.Address, node.Password, 10*time.Second)
 	if err != nil {
-		return fmt.Errorf("login: %v", err)
-	}
-	defer loginResp.Body.Close()
-
-	if loginResp.StatusCode != 200 {
-		return fmt.Errorf("login failed")
+		return err
 	}
 
-	var loginResult struct {
-		Token string `json:"token"`
-	}
-	body, _ := io.ReadAll(loginResp.Body)
-	if err := json.Unmarshal(body, &loginResult); err != nil {
-		return fmt.Errorf("login decode")
-	}
-
-	updateReq, _ := http.NewRequest("POST", fmt.Sprintf("http://%s/api/selfupdate", node.Address), nil)
-	updateReq.Header.Set("Authorization", "Bearer "+loginResult.Token)
-	updateResp, err := client.Do(updateReq)
+	updateResp, err := client.Post(base+"/api/selfupdate", "application/json", nil)
 	if err != nil {
 		return fmt.Errorf("update: %v", err)
 	}

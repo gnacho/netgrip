@@ -542,6 +542,7 @@ export default {
     nameAppliesTo: "Este nombre se aplica a {{bands}}",
     netSettings: "Ajustes de la red",
     scheduleCardTitle: "Horarios",
+    scheduleEntry: "Programar horarios de emisión",
     chanCardTitle: "Canal recomendado",
     chanCurrent: "actual: ch{{channel}} ({{width}} MHz)",
     chanUsage: "uso {{pct}}%",
