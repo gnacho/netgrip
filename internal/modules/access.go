@@ -38,6 +38,10 @@ type LuciAccess struct {
 	HTTPSPort  int  `json:"https_port"`
 	ForceHTTPS bool `json:"force_https"`
 	Enabled    bool `json:"enabled"`
+	// Installed: la aplicación web de LuCI está en el router. Sin ella los
+	// puertos de uhttpd no llevan a ningún panel y la tarjeta no debe
+	// ofrecerlos (#638).
+	Installed bool `json:"installed"`
 }
 
 // SSHAccess covers dropbear.
@@ -100,7 +104,10 @@ func SetPanelSessionTTL(minutes int) error {
 }
 
 func probeLuciAccess() LuciAccess {
-	l := LuciAccess{Enabled: executor.ServiceEnabled("uhttpd")}
+	l := LuciAccess{
+		Enabled:   executor.ServiceEnabled("uhttpd"),
+		Installed: luciInstalled(),
+	}
 	l.HTTPPort = parseListenPort(uciGet("uhttpd.main.listen_http"))
 	if l.HTTPPort == 0 {
 		l.HTTPPort = 80
@@ -111,6 +118,18 @@ func probeLuciAccess() LuciAccess {
 	}
 	l.ForceHTTPS = uciGet("uhttpd.main.redirect_https") == "1"
 	return l
+}
+
+// luciInstalled reports whether the LuCI web application is present: the
+// package is the reliable signal (a build can ship uhttpd without LuCI).
+func luciInstalled() bool {
+	if pkgInstalled("luci-base") {
+		return true
+	}
+	if _, err := os.Stat("/www/luci-static"); err == nil {
+		return true
+	}
+	return false
 }
 
 func probeSSHAccess() SSHAccess {

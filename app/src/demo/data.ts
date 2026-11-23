@@ -290,7 +290,7 @@ export const demoMode: T.ModeProbe = {
 
 export const demoAccess: T.AccessProbe = {
   panel: { http_port: 8090, https_enabled: true, force_https: false, session_ttl: "60m" },
-  luci: { http_port: 80, https_port: 443, force_https: false, enabled: true },
+  luci: { installed: true, http_port: 80, https_port: 443, force_https: false, enabled: true },
   ssh: { enabled: true, port: "22" },
 };
 

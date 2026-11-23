@@ -376,6 +376,9 @@ export interface PanelAccess {
 }
 
 export interface LuciAccess {
+  /** La aplicación web de LuCI está instalada en el router (lo pone el
+   *  servidor; el cliente no lo envía al guardar). */
+  installed?: boolean;
   http_port: number;
   https_port: number;
   force_https: boolean;

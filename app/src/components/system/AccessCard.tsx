@@ -286,7 +286,8 @@ export function AccessCard({ index = 2 }: { index?: number }) {
             savePanel, panel, ttlMin <= 0,
           )}
 
-          {sectionRow(
+          {/* Sin LuCI instalado esos puertos no llevan a ningún panel (#638). */}
+          {probe?.luci?.installed && sectionRow(
             t("access.luciSection"),
             <>
               <span className="text-small text-muted whitespace-nowrap">{t("access.luciPorts")}</span>
