@@ -4,8 +4,8 @@ import { Plus, QrCode, ShieldCheck, Trash2 } from "lucide-react";
 import { api } from "../../api";
 import type { WGPeer, WGProbe } from "../../types";
 import {
-  ActionBanner, AdvancedDisclosure, Button, Card, ConfirmDialog,
-  Input, Modal, Pill, SettingRow, SkeletonRows, Toggle, useToast,
+  ActionBanner, AdvancedDisclosure, Banner, Button, Card, ConfirmDialog,
+  Field, HelpTip, Input, Modal, Pill, SettingRow, SkeletonRows, Toggle, useToast,
 } from "../ui";
 import { ServiceRow } from "./ServiceRow";
 import { QrBox } from "../wifi/qr";
@@ -26,12 +26,15 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
 }) {
   const { t } = useTranslation();
   const { phase, detail, busy, run, clear } = useActionCycle();
+  const { push } = useToast();
   const [doneMsg, setDoneMsg] = useState<string>();
   const [addOpen, setAddOpen] = useState(false);
   const [peerName, setPeerName] = useState("");
   const [peerKey, setPeerKey] = useState("");
   const [peerAdmin, setPeerAdmin] = useState(false);
   const [qrConfig, setQrConfig] = useState<string>();
+  const [endpointOpen, setEndpointOpen] = useState(false);
+  const [endpointDraft, setEndpointDraft] = useState("");
   const [delTarget, setDelTarget] = useState<WGPeer>();
 
   const apply = async (fn: () => Promise<{ state: WGProbe; status: string; error?: string }>, okText?: string) => {
@@ -72,6 +75,16 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
         setPeerName(""); setPeerKey(""); setPeerAdmin(false);
       }
     });
+
+  const saveEndpoint = async (value: string) => {
+    setDoneMsg(undefined);
+    try {
+      onChange(await api.setWgEndpoint(value.trim()));
+      setEndpointOpen(false);
+    } catch (e) {
+      push({ tone: "danger", text: t("wg.endpointFailed"), detail: e instanceof Error ? e.message : String(e) });
+    }
+  };
 
   const active = probe?.active ?? false;
   const glManaged = probe?.managed_by === "gl_firmware";
@@ -198,6 +211,36 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
                 </div>
               </div>
 
+              {/* El nombre externo es lo que hace que la VPN sobreviva a un
+                  cambio de IP del operador (#629). */}
+              <div className="rounded-md border border-border/60 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="inline-flex items-center gap-1 text-small font-medium">
+                    {t("wg.endpointTitle")}
+                    <HelpTip title={t("wg.endpointTitle")} body={t("wg.endpointHelp")} />
+                  </span>
+                  <span className="ml-auto flex items-center gap-2">
+                    <span className="font-mono text-body">{probe.endpoint || t("wg.endpointWanIp")}</span>
+                    <Button variant="ghost" size="sm" disabled={glManaged || busy}
+                      onClick={() => { setEndpointDraft(probe.endpoint); setEndpointOpen(true); }}>
+                      {t("wg.endpointEdit")}
+                    </Button>
+                  </span>
+                </div>
+                {!probe.endpoint && (
+                  <div className="mt-2">
+                    <Banner tone="warn"
+                      action={probe.suggested_endpoint ? (
+                        <Button size="sm" variant="secondary" onClick={() => saveEndpoint(probe.suggested_endpoint!)}>
+                          {t("wg.endpointUseSuggested", { host: probe.suggested_endpoint })}
+                        </Button>
+                      ) : undefined}>
+                      {t("wg.endpointRecommend")}
+                    </Banner>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <p className="text-small font-medium mb-1">{t("wg.yourDevices")}</p>
                 {probe.peers.length === 0 && (
@@ -236,11 +279,42 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
             </div>
           </Reveal>
 
+          <Modal
+            open={endpointOpen}
+            onClose={() => setEndpointOpen(false)}
+            title={t("wg.endpointTitle")}
+            footer={
+              <>
+                <Button variant="ghost" onClick={() => setEndpointOpen(false)}>{t("common.cancel")}</Button>
+                <Button onClick={() => saveEndpoint(endpointDraft)}>{t("common.save")}</Button>
+              </>
+            }
+          >
+            <Field label={t("wg.endpointLabel")} mono
+              inputProps={{
+                value: endpointDraft,
+                onChange: (e) => setEndpointDraft(e.target.value),
+                placeholder: "casa.midominio.net",
+              }} />
+            <p className="mt-2 text-caption text-muted">{t("wg.endpointHelp")}</p>
+            <p className="mt-1 text-caption text-faint">{t("wg.endpointBlank")}</p>
+            {probe.suggested_endpoint && (
+              <div className="mt-3">
+                <Button variant="secondary" size="sm" onClick={() => setEndpointDraft(probe.suggested_endpoint!)}>
+                  {t("wg.endpointUseSuggested", { host: probe.suggested_endpoint })}
+                </Button>
+              </div>
+            )}
+          </Modal>
+
           {/* Modal: añadir dispositivo (QR por defecto, clave pública avanzada) */}
           <Modal open={addOpen} onClose={() => setAddOpen(false)} title={t("wg.addDevice")}>
             <div className="flex flex-col gap-3">
               <Input value={peerName} onChange={(e) => setPeerName(e.target.value)}
                 placeholder={t("wg.peerName")} maxLength={40} />
+              <p className="text-caption text-muted">
+                {t("wg.qrUses", { host: probe.endpoint || t("wg.endpointWanIp") })}
+              </p>
               <Button icon={QrCode} loading={busy} onClick={addWithQr}>
                 {t("wg.generateQr")}
               </Button>

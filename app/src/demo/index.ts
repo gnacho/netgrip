@@ -255,6 +255,10 @@ export const demoApi: typeof api = {
     state.wg.peers.push({ section: `peer_${state.wg.peers.length}`, name, public_key: publicKey, allowed_ips: [], admin });
     return write(state.wg);
   },
+  setWgEndpoint: async (endpoint) => {
+    state.wg.endpoint = endpoint;
+    return state.wg;
+  },
   addWgPeerQr: async (name, admin) => {
     await wait(800, 1500);
     state.wg.peers.push({ section: `peer_${state.wg.peers.length}`, name, public_key: "DEMO" + "x".repeat(39) + "=", allowed_ips: [], admin });

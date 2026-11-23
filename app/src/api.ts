@@ -181,6 +181,12 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, public_key: publicKey, admin }),
     }),
+  setWgEndpoint: (endpoint: string) =>
+    request<import("./types").WGProbe>("/api/wireguard/endpoint", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint }),
+    }),
   addWgPeerQr: (name: string, admin: boolean) =>
     request<{ config: string; state: import("./types").WGProbe }>("/api/wireguard/peers/qr", {
       method: "POST",

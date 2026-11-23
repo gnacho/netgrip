@@ -102,6 +102,10 @@ export interface GLTunnel {
 
 export interface WGProbe {
   installed: boolean;
+  /** Nombre externo configurado (dominio o IP) para las configs de cliente. */
+  endpoint: string;
+  /** DDNS ya configurado, propuesto como nombre externo. */
+  suggested_endpoint?: string;
   active: boolean;
   running: boolean;
   port: string;

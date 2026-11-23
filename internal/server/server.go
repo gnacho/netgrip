@@ -129,6 +129,7 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("POST /api/update", s.requireAuth(s.handleUpdateStart))
 	s.mux.HandleFunc("GET /api/wireguard", s.requireAuth(s.handleWGGet))
 	s.mux.HandleFunc("POST /api/wireguard", s.requireAuth(s.handleWGSet))
+	s.mux.HandleFunc("POST /api/wireguard/endpoint", s.requireAuth(s.handleWGEndpointSet))
 	s.mux.HandleFunc("POST /api/wireguard/peers", s.requireAuth(s.handleWGPeerAdd))
 	s.mux.HandleFunc("POST /api/wireguard/peers/qr", s.requireAuth(s.handleWGPeerQR))
 	s.mux.HandleFunc("POST /api/wireguard/peers/delete", s.requireAuth(s.handleWGPeerDelete))
@@ -865,6 +866,24 @@ func (s *Server) handleUpdateStart(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleWGGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, modules.ProbeWG())
+}
+
+type wgEndpointRequest struct {
+	Endpoint string `json:"endpoint"`
+}
+
+func (s *Server) handleWGEndpointSet(w http.ResponseWriter, r *http.Request) {
+	var req wgEndpointRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, err := modules.SetWGEndpoint(req.Endpoint)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, probe)
 }
 
 type wgSetRequest struct {

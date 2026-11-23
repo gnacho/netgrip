@@ -110,6 +110,7 @@ export const demoUpdate: T.UpdateCheck = {
 
 export const demoWg: T.WGProbe = {
   installed: true,
+  endpoint: "casa.midominio.net",
   active: true,
   running: true,
   port: "51820",
