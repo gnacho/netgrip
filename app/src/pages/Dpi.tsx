@@ -337,7 +337,7 @@ function DpiNetifydView({
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
       <Card index={1} title={oneLine(timelineTitle)} icon={Activity} iconTone="accent">
-        {chartData.length > 0 ? (
+        {chartData.some((serie) => serie.points.some((v) => v > 0)) ? (
           <MultiSeriesChart series={chartData} xLabels={xLabels} height={260} ariaLabel={t("dpi.timeline")} />
         ) : (
           <EmptyState small title={t("dpi.noData")} />

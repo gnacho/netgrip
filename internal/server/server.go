@@ -2977,7 +2977,18 @@ func (s *Server) handleDPIAppsGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, map[string]any{"apps": modules.NetifydApps()})
 }
 func (s *Server) handleDPITimelineGet(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, modules.NetifydTimeline())
+	tl := modules.NetifydTimeline()
+	// Una grafica vacia con datos en la tabla era indistinguible de "no hay
+	// nada": dejamos en el registro lo que se esta sirviendo (#632).
+	points := 0
+	for i, b := range tl.Buckets {
+		if i == 0 {
+			points = len(b.Apps)
+		}
+	}
+	log.Printf("dpi timeline: buckets=%d apps_in_first=%d top=%d total_bytes=%d",
+		len(tl.Buckets), points, len(tl.Top), tl.Totals.Total)
+	writeJSON(w, tl)
 }
 
 func (s *Server) handleNetifydGet(w http.ResponseWriter, _ *http.Request) {
