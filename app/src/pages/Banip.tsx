@@ -325,7 +325,7 @@ export function BanipPage() {
             hint={t("banip.statPacketsHint")} />
         )}
         <StatCard index={2} label={t("banip.statFeeds")} value={`${enabledFeeds.length}`}
-          hint={t("banip.statFeedsHint", { total: probe.feeds.length })} />
+          hint={t("banip.statFeedsHint", { total: (probe.feeds ?? []).length })} />
         {dosAvailable && (
           <StatCard index={3} label={t("banip.statAutobans")} value={fmtInt.format(report.auto_block)}
             hint={t("banip.statAutobansHint", { allow: fmtInt.format(report.auto_allow) })} />
@@ -371,11 +371,13 @@ function FeedDirectionControl({ feed, onChange }: { feed: BanipFeed; onChange: (
 
 function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: boolean; onSaved: (p: BanipProbe) => void; onError: (msg: string) => void }) {
   const { t } = useTranslation();
-  const [draft, setDraft] = useState<BanipFeed[]>(probe.feeds);
+  // Defensivo: una version vieja del backend puede mandar null (#616).
+  const feeds = probe.feeds ?? [];
+  const [draft, setDraft] = useState<BanipFeed[]>(feeds);
   const [saving, setSaving] = useState(false);
-  useEffect(() => setDraft(probe.feeds), [probe.feeds]);
+  useEffect(() => setDraft(feeds), [feeds]);
 
-  const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(probe.feeds), [draft, probe.feeds]);
+  const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(feeds), [draft, feeds]);
   const setFeed = (name: string, patch: Partial<BanipFeed>) =>
     setDraft((d) => d.map((f) => (f.name === name ? { ...f, ...patch } : f)));
 
@@ -632,10 +634,12 @@ function ListCard({ list, entries, busy, onChanged, onError }: {
 }
 
 function ListsTab({ probe, busy, onChanged, onError }: { probe: BanipProbe; busy: boolean; onChanged: (p: BanipProbe) => void; onError: (msg: string) => void }) {
+  // null en JSON tumbaba la pagina entera (#616): el backend ya no lo manda,
+  // pero un binario viejo puede seguir haciendolo.
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-[var(--card-gap)]">
-      <ListCard list="allowlist" entries={probe.allowlist} busy={busy} onChanged={onChanged} onError={onError} />
-      <ListCard list="blocklist" entries={probe.blocklist} busy={busy} onChanged={onChanged} onError={onError} />
+      <ListCard list="allowlist" entries={probe.allowlist ?? []} busy={busy} onChanged={onChanged} onError={onError} />
+      <ListCard list="blocklist" entries={probe.blocklist ?? []} busy={busy} onChanged={onChanged} onError={onError} />
     </div>
   );
 }
