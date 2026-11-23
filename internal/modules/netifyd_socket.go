@@ -356,6 +356,9 @@ func (c *netifydSocketClient) readLoop(ctx context.Context) error {
 		return fmt.Errorf("dial %s: %w", c.socketPath, err)
 	}
 	defer conn.Close()
+	// Una conexión viva y sin datos se parece demasiado a una que nunca se
+	// abrió: sin esta línea no hay forma de distinguirlas desde el registro.
+	c.logf("netifyd client: connected to %s", c.socketPath)
 
 	// Closing the connection will unblock the reader when we are stopped.
 	go func() {

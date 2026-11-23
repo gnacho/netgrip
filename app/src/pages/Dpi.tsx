@@ -147,6 +147,11 @@ export function DpiPage() {
   }, [timeline, byCategory, probe]);
 
   const showNetifyd = netifyd?.installed && netifyd?.enabled && netifyd?.running;
+  // La vista de netifyd y la cabecera deben contar lo mismo: el probe de
+  // conntrack mide otra cosa (flujos activos ahora) y descuadraba (#615).
+  const netifydView = !!showNetifyd && !!timeline;
+  const headerBytes = netifydView ? (timeline?.totals.total ?? 0) : probe?.total_bytes ?? 0;
+  const headerCount = netifydView ? (timeline?.top.length ?? 0) : probe?.total_flows ?? 0;
 
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
@@ -178,11 +183,15 @@ export function DpiPage() {
             <div className="flex flex-wrap items-center gap-4 mb-4">
               <div>
                 <p className="text-caption text-muted">{t("dpi.total")}</p>
-                <p className="text-h2 font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>{fmtBytes(probe.total_bytes)}</p>
+                <p className="text-h2 font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>
+                  {fmtBytes(headerBytes)}
+                </p>
               </div>
               <div>
-                <p className="text-caption text-muted">{t("dpi.flows")}</p>
-                <p className="text-h2 font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>{probe.total_flows.toLocaleString()}</p>
+                <p className="text-caption text-muted">{netifydView ? t("dpi.apps") : t("dpi.flows")}</p>
+                <p className="text-h2 font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>
+                  {headerCount.toLocaleString()}
+                </p>
               </div>
               <div className="ml-auto flex items-center gap-4">
                 <div className="flex items-center gap-2">
@@ -300,6 +309,17 @@ function DpiNetifydView({
   const totalLocal = timeline.totals.local || 1;
   const totalOther = timeline.totals.other || 1;
 
+  // La ventana es de 24 h como mucho: el agregado vive en memoria y empieza
+  // con el panel, asi que el titulo dice desde cuando hay datos (#615).
+  const timelineTitle = useMemo(() => {
+    const first = timeline.buckets[0]?.time;
+    if (!first) return t("dpi.timeline");
+    const start = new Date(first);
+    const hours = (Date.now() - start.getTime()) / 3_600_000;
+    if (!Number.isFinite(hours) || hours >= 23) return t("dpi.timeline");
+    return t("dpi.timelineSince", { time: start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) });
+  }, [timeline, t]);
+
   const sortHeader = (key: typeof sort.key) => {
     const nextDir = sort.key === key && sort.dir === "desc" ? "asc" : "desc";
     return (
@@ -316,8 +336,8 @@ function DpiNetifydView({
 
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
-      <Card index={1} title={oneLine(t("dpi.timeline"))} icon={Activity} iconTone="accent">
-        {chartData.length > 1 ? (
+      <Card index={1} title={oneLine(timelineTitle)} icon={Activity} iconTone="accent">
+        {chartData.length > 0 ? (
           <MultiSeriesChart series={chartData} xLabels={xLabels} height={260} ariaLabel={t("dpi.timeline")} />
         ) : (
           <EmptyState small title={t("dpi.noData")} />
