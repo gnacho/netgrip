@@ -9,7 +9,7 @@ import { api } from "../../api";
 import type { Client, FwdProbe, FwdRule } from "../../types";
 import {
   ActionBanner, Banner, Button, Card, ConfirmDialog, EmptyState,
-  Field, IconTile, Input, Modal, Pill, SegmentedControl, SkeletonRows,
+  Field, Input, Modal, Pill, SegmentedControl, SkeletonRows,
 } from "../ui";
 import { IlluPlug } from "../ui/illustrations";
 import { useActionCycle } from "../wifi/action";
@@ -28,7 +28,7 @@ interface FwdTemplate {
 const TEMPLATES: FwdTemplate[] = [
   { id: "nas", icon: HardDrive, port: "443", proto: "tcp", nameKey: "fwd.tplNas", descKey: "fwd.tplNasDesc" },
   { id: "minecraft", icon: Gamepad2, port: "25565", proto: "tcp", nameKey: "fwd.tplMinecraft", descKey: "fwd.tplMinecraftDesc" },
-  { id: "plex", icon: Clapperboard, port: "32400", proto: "tcp", nameKey: "fwd.tplPlex", descKey: "fwd.tplPlexDesc" },
+  { id: "jellyfin", icon: Clapperboard, port: "8096", proto: "tcp", nameKey: "fwd.tplJellyfin", descKey: "fwd.tplJellyfinDesc" },
   { id: "camera", icon: Video, port: "554", proto: "tcpudp", nameKey: "fwd.tplCamera", descKey: "fwd.tplCameraDesc" },
   { id: "custom", icon: Pencil, port: "", proto: "tcp", nameKey: "fwd.tplCustom", descKey: "fwd.tplCustomDesc" },
 ];
@@ -176,32 +176,6 @@ export function PortForwardCard({ probe, onChange }: {
           </>
         )}
       </Card>
-
-      {/* Plantillas rápidas §3: chips grandes que abren el modal pre-rellenado */}
-      {probe && applicable && (
-        <div className="mt-4">
-          <p className="text-eyebrow text-faint mb-2">{t("fwd.tplTitle")}</p>
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-            {TEMPLATES.map((tpl) => (
-              <button
-                key={tpl.id}
-                type="button"
-                onClick={() => setModal(tpl)}
-                className="flex items-center gap-2.5 h-12 shrink-0 rounded-md bg-surface border border-border px-3
-                  hover:bg-surface-2 hover:border-accent transition-colors duration-[var(--dur-fast)] ring-focus"
-              >
-                <IconTile icon={tpl.icon} tone="violet" size={32} />
-                <span className="text-left">
-                  <span className="block text-small font-medium whitespace-nowrap">{t(tpl.nameKey)}</span>
-                  <span className="block text-caption text-muted font-mono">
-                    {tpl.port ? `:${tpl.port}` : "·"} {tpl.port ? tpl.proto.toUpperCase() : ""}
-                  </span>
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       <NewRuleModal
         template={modal}
