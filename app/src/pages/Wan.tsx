@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CloudOff, Globe, KeyRound, Pencil, Save } from "lucide-react";
+import { CloudOff, Globe, KeyRound, Pencil } from "lucide-react";
 import { api } from "../api";
 import type { PublicIP, WANConfig } from "../api";
 import type { MultiWanProbe, WanStatus } from "../types";
 import {
-  Banner, Button, Card, Field, Pill, SegmentedControl, SkeletonRows, useToast,
+  Banner, Button, Card, Field, Modal, Pill, SegmentedControl, SkeletonRows, useToast,
 } from "../components/ui";
 import { MultiWanCard } from "../components/wan/MultiWanCard";
 import { ModeCard } from "../components/system/ModeCard";
@@ -78,7 +78,7 @@ export function WanPage({ mwan, onMwanChange, hideMode = false }: {
   const [status, setStatus] = useState<WanStatus>();
   const [cfg, setCfg] = useState<WANConfig>();
   const [form, setForm] = useState<WANConfig>({ proto: "dhcp" });
-  const [editing, setEditing] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
   const [publicIp, setPublicIp] = useState<PublicIP>();
@@ -115,11 +115,12 @@ export function WanPage({ mwan, onMwanChange, hideMode = false }: {
       if (res.confirm) {
         rc.arm(res.confirm);
         setSavedState(res);
+        setEditOpen(false);
         return;
       }
       setCfg(res);
       setForm(res);
-      setEditing(false);
+      setEditOpen(false);
       push({ tone: "ok", text: t("wan.saved") });
     } catch (e) {
       push({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
@@ -135,7 +136,6 @@ export function WanPage({ mwan, onMwanChange, hideMode = false }: {
     if (saved) {
       setCfg(saved);
       setForm(saved);
-      setEditing(false);
       push({ tone: "ok", text: t("wan.saved") });
     }
   };
@@ -143,7 +143,6 @@ export function WanPage({ mwan, onMwanChange, hideMode = false }: {
   const revert = () => {
     rc.revert();
     setSavedState(null);
-    setEditing(false);
   };
 
   const stats = useMemo(() => ({
@@ -153,26 +152,16 @@ export function WanPage({ mwan, onMwanChange, hideMode = false }: {
     uptime: status?.uptime ? fmtDur(status.uptime) : "—",
   }), [status, t]);
 
-  // Datos de configuración mostrados en la vista de lectura.
-  const cfgRows: [string, string][] = [];
-  if (cfg) {
-    cfgRows.push([t("wan.proto"), protoLabel(cfg.proto)]);
-    if (cfg.proto === "static") {
-      if (cfg.ipaddr) cfgRows.push([t("wan.ip"), cfg.ipaddr]);
-      if (cfg.netmask) cfgRows.push([t("wan.netmask"), cfg.netmask]);
-      if (cfg.gateway) cfgRows.push([t("lan.gateway"), cfg.gateway]);
-      if (cfg.dns) cfgRows.push([t("wan.dns"), cfg.dns]);
-    }
-    if (cfg.proto === "pppoe" && cfg.username) cfgRows.push([t("wan.username"), cfg.username]);
-    if (cfg.device) cfgRows.push([t("wan.device"), cfg.device]);
-    if (cfg.mtu) cfgRows.push(["MTU", cfg.mtu]);
-    if (cfg.vlanid) cfgRows.push(["VLAN ID", cfg.vlanid]);
-  }
-
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
       {!hideMode && <ModeCard index={0} />}
-      <Card index={1} icon={Globe} title={t("wan.title")}>
+      <Card index={1} icon={Globe} title={t("wan.title")}
+        action={cfg !== undefined ? (
+          <Button variant="secondary" size="sm" icon={Pencil}
+            onClick={() => { setForm(cfg); setEditOpen(true); }}>
+            {t("wan.edit")}
+          </Button>
+        ) : undefined}>
         {error ? (
           <Banner tone="danger">{t("common.loadError")}</Banner>
         ) : !status ? (
@@ -229,67 +218,55 @@ export function WanPage({ mwan, onMwanChange, hideMode = false }: {
         )}
       </Card>
 
-      <Card index={2} icon={Save} title={t("wan.configTitle")}
-        action={
-          !editing && cfg !== undefined ? (
-            <Button variant="secondary" size="sm" icon={Pencil} onClick={() => setEditing(true)}>{t("wan.edit")}</Button>
-          ) : undefined
-        }>
-        {cfg === undefined ? (
-          <SkeletonRows rows={4} />
-        ) : editing ? (
+      {/* Los ajustes de la conexión viven en un modal: la tarjeta de arriba
+          ya cuenta cómo va Internet y el detalle se abre al editar (#619). */}
+      <Modal
+        open={editOpen}
+        onClose={() => { setForm(cfg ?? { proto: "dhcp" }); setEditOpen(false); }}
+        title={t("wan.configTitle")}
+        footer={
           <>
+            <Button variant="ghost" onClick={() => { setForm(cfg ?? { proto: "dhcp" }); setEditOpen(false); }}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={save} loading={saving}>{t("lan.save")}</Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <span className="text-caption text-muted block">{t("wan.proto")}</span>
+          <SegmentedControl
+            ariaLabel={t("wan.proto")}
+            value={form.proto}
+            onChange={(v) => set({ proto: v as WANConfig["proto"] })}
+            options={PROTO.map((p) => ({ value: p, label: protoLabel(p) }))}
+          />
+
+          {form.proto === "pppoe" && (
             <div className="space-y-3">
-              <span className="text-caption text-muted block">{t("wan.proto")}</span>
-              <SegmentedControl
-                ariaLabel={t("wan.proto")}
-                value={form.proto}
-                onChange={(v) => set({ proto: v as WANConfig["proto"] })}
-                options={PROTO.map((p) => ({ value: p, label: protoLabel(p) }))}
-              />
-
-              {form.proto === "pppoe" && (
-                <div className="space-y-3">
-                  <Field label={t("wan.username")} mono inputProps={{ value: form.username ?? "", onChange: (e) => set({ username: e.target.value }) }} />
-                  <Field label={t("wan.password")} icon={KeyRound} inputProps={{ type: "password", value: form.password ?? "", onChange: (e) => set({ password: e.target.value }), placeholder: t("wan.passwordKeep") }} />
-                </div>
-              )}
-
-              {form.proto === "static" && (
-                <div className="space-y-3">
-                  <Field label={t("wan.ip")} mono inputProps={{ value: form.ipaddr ?? "", onChange: (e) => set({ ipaddr: e.target.value }) }} />
-                  <Field label={t("wan.netmask")} mono inputProps={{ value: form.netmask ?? "", onChange: (e) => set({ netmask: e.target.value }) }} />
-                  <Field label={t("lan.gateway")} mono inputProps={{ value: form.gateway ?? "", onChange: (e) => set({ gateway: e.target.value }) }} />
-                  <Field label={t("wan.dns")} mono inputProps={{ value: form.dns ?? "", onChange: (e) => set({ dns: e.target.value }) }} />
-                </div>
-              )}
-
-              <div className="grid sm:grid-cols-3 gap-3">
-                <Field label="VLAN ID" mono inputProps={{ value: form.vlanid ?? "", onChange: (e) => set({ vlanid: e.target.value }), inputMode: "numeric" }} />
-                <Field label="MTU" mono inputProps={{ value: form.mtu ?? "", onChange: (e) => set({ mtu: e.target.value }), inputMode: "numeric" }} />
-                <Field label={t("wan.device")} mono inputProps={{ value: form.device ?? "", onChange: (e) => set({ device: e.target.value }) }} />
-              </div>
+              <Field label={t("wan.username")} mono inputProps={{ value: form.username ?? "", onChange: (e) => set({ username: e.target.value }) }} />
+              <Field label={t("wan.password")} icon={KeyRound} inputProps={{ type: "password", value: form.password ?? "", onChange: (e) => set({ password: e.target.value }), placeholder: t("wan.passwordKeep") }} />
             </div>
+          )}
 
-            <div className="mt-4 flex gap-2">
-              <Button onClick={save} loading={saving}>{t("lan.save")}</Button>
-              <Button variant="ghost" onClick={() => { setForm(cfg); setEditing(false); }}>{t("common.cancel")}</Button>
+          {form.proto === "static" && (
+            <div className="space-y-3">
+              <Field label={t("wan.ip")} mono inputProps={{ value: form.ipaddr ?? "", onChange: (e) => set({ ipaddr: e.target.value }) }} />
+              <Field label={t("wan.netmask")} mono inputProps={{ value: form.netmask ?? "", onChange: (e) => set({ netmask: e.target.value }) }} />
+              <Field label={t("lan.gateway")} mono inputProps={{ value: form.gateway ?? "", onChange: (e) => set({ gateway: e.target.value }) }} />
+              <Field label={t("wan.dns")} mono inputProps={{ value: form.dns ?? "", onChange: (e) => set({ dns: e.target.value }) }} />
             </div>
-          </>
-        ) : (
-          <>
-            <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-small">
-              {cfgRows.map(([k, v]) => (
-                <div key={k} className="flex justify-between gap-3">
-                  <dt className="text-muted">{k}</dt>
-                  <dd className="font-mono text-right break-all">{v}</dd>
-                </div>
-              ))}
-            </dl>
-            {cfg.proto === "pppoe" && <p className="text-caption text-muted mt-2">{t("wan.passwordHidden")}</p>}
-          </>
-        )}
-      </Card>
+          )}
+
+          <div className="grid sm:grid-cols-3 gap-3">
+            <Field label="VLAN ID" mono inputProps={{ value: form.vlanid ?? "", onChange: (e) => set({ vlanid: e.target.value }), inputMode: "numeric" }} />
+            <Field label="MTU" mono inputProps={{ value: form.mtu ?? "", onChange: (e) => set({ mtu: e.target.value }), inputMode: "numeric" }} />
+            <Field label={t("wan.device")} mono inputProps={{ value: form.device ?? "", onChange: (e) => set({ device: e.target.value }) }} />
+          </div>
+
+          {cfg?.proto === "pppoe" && <p className="text-caption text-muted">{t("wan.passwordHidden")}</p>}
+        </div>
+      </Modal>
 
       {/* MultiWAN es funcionalidad labs: solo se dibuja con Labs activado
           (Sistema > Opciones). */}
