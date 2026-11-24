@@ -1793,7 +1793,7 @@ export default {
     mask: "Network size (netmask)",
     maskOther: "Other",
     ipChangeHint: "If you change it, you'll have to sign back in using the new address.",
-    dhcpRow: "Automatic address lending",
+    dhcpRow: "Automatic IP assignment",
     rangeFrom: "from",
     rangeTo: "to",
     lease: "Expires after",
