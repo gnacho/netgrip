@@ -279,16 +279,6 @@ export function LanConfigCard({ cfg, ipv6, onChange, onIpv6Change, index = 0 }: 
               {t("lan.save")}
             </Button>
           </div>
-          {ipv6 && ipv6.state !== "disabled" && (
-            <p className="pb-2 text-caption text-faint font-mono">
-              {ipv6.lan_ipv6 ? `${ipv6.lan_ipv6} · ` : ""}
-              {t("ipv6.modes", {
-                odhcpd: ipv6.odhcpd_enabled ? t("ipv6.on") : t("ipv6.off"),
-                ra: ipv6.ra_mode || "-",
-                dhcpv6: ipv6.dhcpv6_mode || "-",
-              })}
-            </p>
-          )}
         </div>
       </div>
 
