@@ -39,13 +39,18 @@ type SFPInfo struct {
 }
 
 type PhysPort struct {
-	Name         string     `json:"name"`
-	Autoneg      bool       `json:"autoneg"`
-	SpeedMbps    int        `json:"speed_mbps"`
-	Duplex       string     `json:"duplex"`
-	Supported    []LinkMode `json:"supported"`
-	EeeSupported bool       `json:"eee_supported"`
-	EeeEnabled   bool       `json:"eee_enabled"`
+	Name      string     `json:"name"`
+	Autoneg   bool       `json:"autoneg"`
+	SpeedMbps int        `json:"speed_mbps"`
+	Duplex    string     `json:"duplex"`
+	Supported []LinkMode `json:"supported"`
+	// PartnerMaxMbps es el techo que anuncia el otro extremo
+	// ("Link partner advertised link modes"): 0 si el driver no lo reporta.
+	// Una boca de 1 G con un aparato de 100 Mb negocia a 100 y no tiene
+	// nada que arreglar (#612).
+	PartnerMaxMbps int  `json:"partner_max_mbps,omitempty"`
+	EeeSupported   bool `json:"eee_supported"`
+	EeeEnabled     bool `json:"eee_enabled"`
 	// EeeWritable es false en switches Realtek DSA (rtl83xx/rtl93xx):
 	// `ethtool --set-eee` reinicia el SoC (bug del driver, verificado en un
 	// rtl9311, #485), asi que la UI muestra el estado en solo lectura.
@@ -82,7 +87,7 @@ func ProbePhysPorts() *PhysPortsProbe {
 		if data, err := os.ReadFile("/sys/class/net/" + name + "/mtu"); err == nil {
 			p.MTU, _ = strconv.Atoi(strings.TrimSpace(string(data)))
 		}
-		p.Autoneg, p.SpeedMbps, p.Duplex, p.Supported = ethtoolPort(name)
+		p.Autoneg, p.SpeedMbps, p.Duplex, p.Supported, p.PartnerMaxMbps = ethtoolPort(name)
 		p.EeeSupported, p.EeeEnabled = ethtoolEEE(name)
 		if sfp := ethtoolModule(name); sfp != nil {
 			p.SFP = sfp
@@ -103,16 +108,55 @@ var linkModeRe = regexp.MustCompile(`^(\d+)base[TFX]/([A-Za-z]+)`)
 // entero. Pasa en cualquier target sin ethtool instalado (rt-lab) y en un
 // puerto cuyo bloque "Supported link modes" viene vacio, asi que la garantia
 // vive aqui, en el unico borde que produce el valor.
-func ethtoolPort(dev string) (autoneg bool, speedMbps int, duplex string, supported []LinkMode) {
+func ethtoolPort(dev string) (autoneg bool, speedMbps int, duplex string, supported []LinkMode, partnerMax int) {
 	out, err := ethtoolOutputFn(dev)
 	if err != nil {
-		return false, 0, "", []LinkMode{}
+		return false, 0, "", []LinkMode{}, 0
 	}
 	autoneg, speedMbps, duplex, supported = parseEtoolOutput(string(out))
 	if supported == nil {
 		supported = []LinkMode{}
 	}
-	return autoneg, speedMbps, duplex, supported
+	return autoneg, speedMbps, duplex, supported, parsePartnerMax(string(out))
+}
+
+// parsePartnerMax lee "Link partner advertised link modes" y devuelve la
+// velocidad maxima que anuncia el otro extremo, o 0 cuando el driver no lo
+// reporta (o contesta "Not reported"). Sirve para no marcar como degradada
+// una boca de 1 G conectada a un aparato de 100 Mb (#612): ahi 100 es lo
+// maximo posible, no un cable malo.
+func parsePartnerMax(output string) int {
+	inPartner := false
+	max := 0
+	for _, raw := range strings.Split(output, "\n") {
+		line := strings.TrimSpace(raw)
+		// Algunas versiones de ethtool usan el singular "link mode".
+		if strings.HasPrefix(line, "Link partner advertised link mode") {
+			inPartner = true
+			if i := strings.Index(line, ":"); i >= 0 {
+				max = maxLinkModeSpeed(max, parseLinkModes(line[i+1:]))
+			}
+			continue
+		}
+		if !inPartner {
+			continue
+		}
+		if linkModeRe.MatchString(line) {
+			max = maxLinkModeSpeed(max, parseLinkModes(line))
+			continue
+		}
+		inPartner = false
+	}
+	return max
+}
+
+func maxLinkModeSpeed(max int, modes []LinkMode) int {
+	for _, m := range modes {
+		if m.SpeedMbps > max {
+			max = m.SpeedMbps
+		}
+	}
+	return max
 }
 
 // ethtoolOutputFn aisla la ejecucion de ethtool para que los tests puedan

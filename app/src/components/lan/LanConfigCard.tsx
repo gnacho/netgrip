@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Clock, Network, Pencil } from "lucide-react";
+import { Clock, Globe, Network, Pencil } from "lucide-react";
 import { api } from "../../api";
-import type { LANConfig } from "../../types";
+import type { IPv6Probe, LANConfig } from "../../types";
 import {
   ActionBanner, AdvancedDisclosure, Button, Card, ConfirmDialog,
-  Field, IconTile, Input, Modal, SegmentedControl, SettingRow,
+  Field, IconTile, Input, Modal, SegmentedControl, SettingRow, Toggle,
 } from "../ui";
 import { useActionCycle } from "../wifi/action";
 
@@ -35,9 +35,12 @@ function fmtLease(t: TFunction, secs: number): string {
 }
 
 /** Card "Las direcciones de tu casa" (lan.md §2): héroe IP + LAN + DHCP en un solo guardado. */
-export function LanConfigCard({ cfg, onChange, index = 0 }: {
+export function LanConfigCard({ cfg, ipv6, onChange, onIpv6Change, index = 0 }: {
   cfg: LANConfig;
+  /** IPv6 vive aquí desde #635: su tarjeta propia desapareció. */
+  ipv6?: IPv6Probe;
   onChange: (c: LANConfig) => void;
+  onIpv6Change: (p: IPv6Probe) => void;
   index?: number;
 }) {
   const { t } = useTranslation();
@@ -58,6 +61,7 @@ export function LanConfigCard({ cfg, onChange, index = 0 }: {
   const [dns1, setDns1] = useState(cfg.dhcp.dns1 ?? "");
   const [dns2, setDns2] = useState(cfg.dhcp.dns2 ?? "");
   const [confirmIp, setConfirmIp] = useState(false);
+  const [ipv6Busy, setIpv6Busy] = useState(false);
   const [editingIp, setEditingIp] = useState(false);
 
   // Re-sincroniza el formulario cuando el padre recarga la config.
@@ -168,13 +172,21 @@ export function LanConfigCard({ cfg, onChange, index = 0 }: {
 
   const leaseKnown = LEASES.some((l) => l.value === lease);
 
+  const toggleIpv6 = async (enabled: boolean) => {
+    setIpv6Busy(true);
+    try {
+      const res = await api.setIpv6(enabled);
+      onIpv6Change(res.state);
+    } catch { /* el probe del padre refresca */ }
+    finally { setIpv6Busy(false); }
+  };
+
   return (
     <Card index={index} icon={Network} iconTone="teal" title={t("lan.homeTitle")} help="lan">
       {/* Héroe: IP del router */}
       <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
           <p className="stat-lg font-mono">{cfg.ipaddr}</p>
-          <p className="text-caption text-muted mt-0.5">{t("lan.heroCaption")}</p>
         </div>
         {!editingIp && (
           <Button variant="secondary" size="sm" icon={Pencil} onClick={() => setEditingIp(true)}>
@@ -200,30 +212,26 @@ export function LanConfigCard({ cfg, onChange, index = 0 }: {
           <div className="flex items-center gap-3 flex-wrap py-2.5">
             <SettingRow
               title={t("lan.dhcpRow")}
-              description={t("lan.dhcpRowDesc")}
               help={t("help.dhcp.body")}
               helpTitle={t("help.dhcp.title")}
               checked={dhcpOn}
               onChange={setDhcpOn}
             />
             {dhcpOn && (
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-small text-muted">{t("lan.rangeFrom")}</span>
-                <span className="text-small text-muted font-mono">.</span>
-                <Input mono className="!w-16" inputMode="numeric" value={start}
-                  onChange={(e) => setStart(e.target.value)} aria-label={t("lan.dhcpStart")} />
-                <span className="text-small text-muted">{t("lan.rangeTo")}</span>
-                <span className="text-small text-muted font-mono">.</span>
-                <Input mono className="!w-16" inputMode="numeric" value={end}
-                  onChange={(e) => setEnd(e.target.value)} aria-label={t("lan.dhcpEnd")} />
-                {errors.range && <span className="text-caption text-danger">{errors.range}</span>}
-              </div>
-            )}
-          </div>
-          {dhcpOn && (
-            <div className="pb-3 flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2">
+              <>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-small text-muted">{t("lan.rangeFrom")}</span>
+                  <span className="text-small text-muted font-mono">.</span>
+                  <Input mono className="!w-16" inputMode="numeric" value={start}
+                    onChange={(e) => setStart(e.target.value)} aria-label={t("lan.dhcpStart")} />
+                  <span className="text-small text-muted">{t("lan.rangeTo")}</span>
+                  <span className="text-small text-muted font-mono">.</span>
+                  <Input mono className="!w-16" inputMode="numeric" value={end}
+                    onChange={(e) => setEnd(e.target.value)} aria-label={t("lan.dhcpEnd")} />
+                  {errors.range && <span className="text-caption text-danger">{errors.range}</span>}
+                </div>
+                {/* Caducidad en la misma fila del reparto (#635). */}
+                <div className="flex items-center gap-2 shrink-0">
                   <span className="text-small text-muted">{t("lan.lease")}</span>
                   <SegmentedControl
                     size="sm"
@@ -236,14 +244,55 @@ export function LanConfigCard({ cfg, onChange, index = 0 }: {
                          { value: lease, label: fmtLease(t, Number(lease)) }]}
                   />
                 </div>
-                <AdvancedDisclosure label={t("lan.advancedDhcp")}>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <Field label={t("lan.gateway")} mono hint={t("lan.gatewayHint")}
-                      inputProps={{ value: gateway, onChange: (e) => setGateway(e.target.value), placeholder: t("lan.optional") }} />
-                  </div>
-                </AdvancedDisclosure>
-              </div>
+              </>
+            )}
+          </div>
+          {dhcpOn && (
+            <div className="pb-3">
+              <AdvancedDisclosure label={t("lan.advancedDhcp")}>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Field label={t("lan.gateway")} mono hint={t("lan.gatewayHint")}
+                    inputProps={{ value: gateway, onChange: (e) => setGateway(e.target.value), placeholder: t("lan.optional") }} />
+                </div>
+              </AdvancedDisclosure>
             </div>
+          )}
+        </div>
+
+        {/* IPv6 (#635): activación aquí, sin tarjeta propia. */}
+        <div>
+          <div className="flex items-center gap-3 flex-wrap py-2.5">
+            <SettingRow
+              icon={Globe}
+              title="IPv6"
+              help={t("help.ipv6.body")}
+              helpTitle={t("help.ipv6.title")}
+              checked={ipv6?.state === "enabled"}
+              busy={busy || ipv6Busy}
+              control={
+                <span className="flex items-center gap-2">
+                  {ipv6 && (
+                    <span className="text-caption text-muted">{t(`ipv6.${ipv6.state}`)}</span>
+                  )}
+                  <Toggle
+                    checked={ipv6?.state === "enabled"}
+                    busy={busy || ipv6Busy}
+                    onChange={toggleIpv6}
+                    label="IPv6"
+                  />
+                </span>
+              }
+            />
+          </div>
+          {ipv6 && ipv6.state !== "disabled" && (
+            <p className="pb-2 text-caption text-faint font-mono">
+              {ipv6.lan_ipv6 ? `${ipv6.lan_ipv6} · ` : ""}
+              {t("ipv6.modes", {
+                odhcpd: ipv6.odhcpd_enabled ? t("ipv6.on") : t("ipv6.off"),
+                ra: ipv6.ra_mode || "-",
+                dhcpv6: ipv6.dhcpv6_mode || "-",
+              })}
+            </p>
           )}
         </div>
       </div>

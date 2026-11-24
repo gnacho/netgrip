@@ -512,6 +512,118 @@ func AddFirewallRule(rule FirewallRuleAdd) (*FirewallProbe, bool, error) {
 	return ProbeFirewall(), true, fmt.Errorf("rule not present after reload, rolled back")
 }
 
+// trafficRuleUpdateOps rewrites the options of an existing rule. Only the
+// options that change are touched, and one that must go empty is deleted:
+// trafficRuleOps writes only non-empty values, so clearing a source or a
+// schedule would otherwise leave the old one in place.
+func trafficRuleUpdateOps(section string, current FWRule, rule FirewallRuleAdd) []executor.Op {
+	base := "firewall." + section
+	want := map[string]string{
+		"name":       rule.Name,
+		"proto":      rule.Proto,
+		"src_ip":     rule.SrcIP,
+		"dest_ip":    rule.DestIP,
+		"src_port":   rule.SrcPort,
+		"dest_port":  rule.DestPort,
+		"target":     rule.Target,
+		"start_time": rule.StartTime,
+		"stop_time":  rule.StopTime,
+		"weekdays":   rule.Weekdays,
+		"utc_time":   "",
+	}
+	if rule.UTCTime {
+		want["utc_time"] = "1"
+	}
+	have := map[string]string{
+		"name":       current.Name,
+		"proto":      current.Proto,
+		"src_ip":     current.SrcIP,
+		"dest_ip":    current.DestIP,
+		"src_port":   current.SrcPort,
+		"dest_port":  current.DestPort,
+		"target":     current.Target,
+		"start_time": current.StartTime,
+		"stop_time":  current.StopTime,
+		"weekdays":   current.Weekdays,
+		"utc_time":   "",
+	}
+	if current.UTCTime {
+		have["utc_time"] = "1"
+	}
+
+	var ops []executor.Op
+	for _, opt := range []string{
+		"name", "proto", "src_ip", "dest_ip", "src_port", "dest_port",
+		"target", "start_time", "stop_time", "weekdays", "utc_time",
+	} {
+		w, h := want[opt], have[opt]
+		if w == h {
+			continue
+		}
+		if w == "" {
+			ops = append(ops, executor.Op{Kind: "uci_delete", Args: []string{base + "." + opt}})
+			continue
+		}
+		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{base + "." + opt, w}})
+	}
+	return append(ops,
+		executor.Op{Kind: "uci_commit", Args: []string{"firewall"}},
+		executor.Op{Kind: "initd", Args: []string{"firewall", "reload"}},
+	)
+}
+
+// UpdateFirewallRule edits a traffic rule created by NetGrip in place, with
+// the same validation, snapshot, reload and rollback as adding one. Rules
+// from the firmware or from LuCI stay read-only, like delete.
+func UpdateFirewallRule(section string, rule FirewallRuleAdd) (*FirewallProbe, bool, error) {
+	InvalidateKey("ucishow|firewall")
+	if !executor.ServiceEnabled("firewall") {
+		return ProbeFirewall(), false, fmt.Errorf("firewall not enabled")
+	}
+	if !reFwRuleSection.MatchString(section) {
+		return ProbeFirewall(), false, fmt.Errorf("only NetGrip traffic rules can be edited")
+	}
+	if err := validateTrafficRule(rule); err != nil {
+		return ProbeFirewall(), false, err
+	}
+
+	var current *FWRule
+	for _, r := range ProbeFirewall().Rules {
+		if r.Section == section {
+			got := r
+			current = &got
+			break
+		}
+	}
+	if current == nil {
+		return ProbeFirewall(), false, fmt.Errorf("rule not found")
+	}
+
+	snap, err := executor.Snapshot("firewall")
+	if err != nil {
+		return nil, false, fmt.Errorf("snapshot firewall: %w", err)
+	}
+	rollback := func() {
+		_ = executor.Restore("firewall", snap)
+		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"firewall", "reload"}})
+		InvalidateKey("ucishow|firewall")
+	}
+	if err := executor.Apply(trafficRuleUpdateOps(section, *current, rule), nil); err != nil {
+		rollback()
+		return ProbeFirewall(), true, err
+	}
+	// La comprobacion lee la cache poblada antes del cambio: hay que
+	// invalidarla o el healthcheck compara con la foto vieja (#444).
+	InvalidateKey("ucishow|firewall")
+	for _, r := range ProbeFirewall().Rules {
+		if r.Section == section && r.Target == rule.Target && r.Name == rule.Name {
+			return ProbeFirewall(), false, nil
+		}
+	}
+	rollback()
+	return ProbeFirewall(), true, fmt.Errorf("rule not updated after reload, rolled back")
+}
+
 // DeleteFirewallRule deletes one managed traffic rule by section.
 func DeleteFirewallRule(section string) (*FirewallProbe, bool, error) {
 	InvalidateKey("ucishow|firewall")

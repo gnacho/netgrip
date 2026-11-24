@@ -127,13 +127,17 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("POST /api/password", s.requireAuth(s.handlePasswordSet))
 	s.mux.HandleFunc("GET /api/update", s.requireAuth(s.handleUpdateCheck))
 	s.mux.HandleFunc("POST /api/update", s.requireAuth(s.handleUpdateStart))
+	s.mux.HandleFunc("GET /api/update/schedule", s.requireAuth(s.handleSysUpdateSchedule))
+	s.mux.HandleFunc("PUT /api/update/schedule", s.requireAuth(s.handleSysUpdateSchedulePut))
 	s.mux.HandleFunc("GET /api/wireguard", s.requireAuth(s.handleWGGet))
 	s.mux.HandleFunc("POST /api/wireguard", s.requireAuth(s.handleWGSet))
+	s.mux.HandleFunc("POST /api/wireguard/endpoint", s.requireAuth(s.handleWGEndpointSet))
 	s.mux.HandleFunc("POST /api/wireguard/peers", s.requireAuth(s.handleWGPeerAdd))
 	s.mux.HandleFunc("POST /api/wireguard/peers/qr", s.requireAuth(s.handleWGPeerQR))
 	s.mux.HandleFunc("POST /api/wireguard/peers/delete", s.requireAuth(s.handleWGPeerDelete))
 	s.mux.HandleFunc("GET /api/ddns", s.requireAuth(s.handleDDNSGet))
 	s.mux.HandleFunc("POST /api/ddns", s.requireAuth(s.handleDDNSSet))
+	s.mux.HandleFunc("PUT /api/ddns", s.requireAuth(s.handleDDNSUpdate))
 	s.mux.HandleFunc("DELETE /api/ddns", s.requireAuth(s.handleDDNSDelete))
 	s.mux.HandleFunc("POST /api/ddns/force", s.requireAuth(s.handleDDNSForce))
 	s.mux.HandleFunc("GET /api/banip", s.requireAuth(s.handleBanipGet))
@@ -174,6 +178,7 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("POST /api/iotwifi", s.requireAuth(s.handleIoTSet))
 	s.mux.HandleFunc("GET /api/portforward", s.requireAuth(s.handleFwdGet))
 	s.mux.HandleFunc("POST /api/portforward", s.requireAuth(s.handleFwdAdd))
+	s.mux.HandleFunc("POST /api/portforward/update", s.requireAuth(s.handleFwdUpdate))
 	s.mux.HandleFunc("POST /api/portforward/delete", s.requireAuth(s.handleFwdDelete))
 	s.mux.HandleFunc("GET /api/tailscale", s.requireAuth(s.handleTSGet))
 	s.mux.HandleFunc("POST /api/tailscale", s.requireAuth(s.handleTSSet))
@@ -206,6 +211,7 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("POST /api/lan", s.requireAuth(s.handleLANSet))
 	s.mux.HandleFunc("POST /api/lan/dhcp", s.requireAuth(s.handleDHCPSet))
 	s.mux.HandleFunc("POST /api/lan/reservation", s.requireAuth(s.handleReservationSet))
+	s.mux.HandleFunc("POST /api/lan/reservation/update", s.requireAuth(s.handleReservationUpdate))
 	s.mux.HandleFunc("POST /api/lan/reservations/clear", s.requireAuth(s.handleReservationsClear))
 	s.mux.HandleFunc("GET /api/dns", s.requireAuth(s.handleDNSGet))
 	s.mux.HandleFunc("POST /api/dns", s.requireAuth(s.handleDNSSet))
@@ -259,6 +265,7 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("GET /api/firewall", s.requireAuth(s.handleFirewallGet))
 	s.mux.HandleFunc("POST /api/firewall", s.requireAuth(s.handleFirewallAddRule))
 	s.mux.HandleFunc("DELETE /api/firewall", s.requireAuth(s.handleFirewallDelRule))
+	s.mux.HandleFunc("POST /api/firewall/update", s.requireAuth(s.handleFirewallUpdateRule))
 	s.mux.HandleFunc("GET /api/templates", s.requireAuth(s.handleTemplatesGet))
 	s.mux.HandleFunc("POST /api/templates", s.requireAuth(s.handleTemplatesApply))
 	s.mux.HandleFunc("GET /api/switch", s.requireAuth(s.handleSwitchGet))
@@ -318,6 +325,8 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("GET /api/cable-test", s.requireAuth(s.handleCableTestGet))
 	s.mux.HandleFunc("GET /api/diagnostics/selftest", s.requireAuth(s.handleDiagnosticsSelfTest))
 	s.mux.HandleFunc("POST /api/diagnostics", s.requireAuth(s.handleDiagnosticsRun))
+	s.mux.HandleFunc("GET /api/speedtest", s.requireAuth(s.handleSpeedTestStatus))
+	s.mux.HandleFunc("POST /api/speedtest", s.requireAuth(s.handleSpeedTestStart))
 	s.mux.HandleFunc("GET /api/storm", s.requireAuth(s.handleStormGet))
 	s.mux.HandleFunc("POST /api/storm", s.requireAuth(s.handleStormSet))
 	s.mux.HandleFunc("GET /api/mirror", s.requireAuth(s.handleMirrorGet))
@@ -864,6 +873,24 @@ func (s *Server) handleWGGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, modules.ProbeWG())
 }
 
+type wgEndpointRequest struct {
+	Endpoint string `json:"endpoint"`
+}
+
+func (s *Server) handleWGEndpointSet(w http.ResponseWriter, r *http.Request) {
+	var req wgEndpointRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, err := modules.SetWGEndpoint(req.Endpoint)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, probe)
+}
+
 type wgSetRequest struct {
 	Action string `json:"action"` // enable | disable
 }
@@ -957,6 +984,21 @@ func (s *Server) handleDDNSSet(w http.ResponseWriter, r *http.Request) {
 type ddnsDeleteRequest struct {
 	Section string `json:"section"`
 	Domain  string `json:"domain"`
+}
+
+type ddnsUpdateRequest struct {
+	Section string `json:"section"`
+	modules.DDNSConfig
+}
+
+func (s *Server) handleDDNSUpdate(w http.ResponseWriter, r *http.Request) {
+	var req ddnsUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Section == "" {
+		writeError(w, http.StatusBadRequest, "section required")
+		return
+	}
+	probe, rolledBack, err := modules.UpdateDDNS(req.Section, req.DDNSConfig)
+	writeModuleResult(w, probe, rolledBack, err)
 }
 
 func (s *Server) handleDDNSDelete(w http.ResponseWriter, r *http.Request) {
@@ -1463,6 +1505,24 @@ func (s *Server) handleFwdAdd(w http.ResponseWriter, r *http.Request) {
 	writeModuleResult(w, probe, rolledBack, err)
 }
 
+type fwdUpdateRequest struct {
+	Section  string `json:"section"`
+	SrcDport string `json:"src_dport"`
+	DestIP   string `json:"dest_ip"`
+	DestPort string `json:"dest_port"`
+	Proto    string `json:"proto"`
+}
+
+func (s *Server) handleFwdUpdate(w http.ResponseWriter, r *http.Request) {
+	var req fwdUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.UpdateFwdRule(req.Section, req.SrcDport, req.DestIP, req.DestPort, req.Proto)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
 type fwdDeleteRequest struct {
 	Section string `json:"section"`
 }
@@ -1833,6 +1893,23 @@ type reservationSetRequest struct {
 	IP       string `json:"ip"`
 	Name     string `json:"name,omitempty"`
 	Reserved bool   `json:"reserved"`
+}
+
+type reservationUpdateRequest struct {
+	OldMAC string `json:"old_mac"`
+	MAC    string `json:"mac"`
+	IP     string `json:"ip"`
+	Name   string `json:"name"`
+}
+
+func (s *Server) handleReservationUpdate(w http.ResponseWriter, r *http.Request) {
+	var req reservationUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.UpdateReservation(req.OldMAC, req.MAC, req.IP, req.Name)
+	writeModuleResult(w, probe, rolledBack, err)
 }
 
 func (s *Server) handleReservationSet(w http.ResponseWriter, r *http.Request) {
@@ -2357,6 +2434,43 @@ func (s *Server) handleSelfUpdateSchedulePut(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, cfg)
 }
 
+func (s *Server) handleSysUpdateSchedule(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.SysUpdateScheduleOf())
+}
+
+type sysUpdateScheduleRequest struct {
+	Enabled     *bool `json:"enabled"`
+	IntervalH   *int  `json:"intervalHours"`
+	WindowStart *int  `json:"windowStart"`
+	WindowEnd   *int  `json:"windowEnd"`
+}
+
+func (s *Server) handleSysUpdateSchedulePut(w http.ResponseWriter, r *http.Request) {
+	var req sysUpdateScheduleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_body")
+		return
+	}
+	cfg := modules.ReadSysUpdateConfig()
+	if req.Enabled != nil {
+		cfg.Enabled = *req.Enabled
+	}
+	if req.IntervalH != nil {
+		cfg.IntervalH = *req.IntervalH
+	}
+	if req.WindowStart != nil {
+		cfg.WindowStart = *req.WindowStart
+	}
+	if req.WindowEnd != nil {
+		cfg.WindowEnd = *req.WindowEnd
+	}
+	if _, err := modules.WriteSysUpdateConfig(cfg); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, modules.SysUpdateScheduleOf())
+}
+
 func (s *Server) handleWizardGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, modules.ProbeWizard())
 }
@@ -2702,6 +2816,24 @@ func (s *Server) handleFirewallAddRule(w http.ResponseWriter, r *http.Request) {
 	s.finishRiskyApply(w, probe, rolledBack, err, req.Confirm, snapshots, []string{"firewall"})
 }
 
+func (s *Server) handleFirewallUpdateRule(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Section string `json:"section"`
+		modules.FirewallRuleAdd
+		Confirm bool `json:"confirm,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Section == "" {
+		writeError(w, http.StatusBadRequest, "section required")
+		return
+	}
+	var snapshots map[string]string
+	if req.Confirm {
+		snapshots = snapshotConfigs("firewall")
+	}
+	probe, rolledBack, err := modules.UpdateFirewallRule(req.Section, req.FirewallRuleAdd)
+	s.finishRiskyApply(w, probe, rolledBack, err, req.Confirm, snapshots, []string{"firewall"})
+}
+
 type fwDeleteRequest struct {
 	Section string `json:"section"`
 	Confirm bool   `json:"confirm,omitempty"`
@@ -2901,8 +3033,27 @@ func (s *Server) handleDPIGet(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) handleDPIAppsGet(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, map[string]any{"apps": modules.NetifydApps()})
 }
+func (s *Server) handleSpeedTestStatus(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.SpeedTestStatus())
+}
+
+func (s *Server) handleSpeedTestStart(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.StartSpeedTest())
+}
+
 func (s *Server) handleDPITimelineGet(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, modules.NetifydTimeline())
+	tl := modules.NetifydTimeline()
+	// Una grafica vacia con datos en la tabla era indistinguible de "no hay
+	// nada": dejamos en el registro lo que se esta sirviendo (#632).
+	points := 0
+	for i, b := range tl.Buckets {
+		if i == 0 {
+			points = len(b.Apps)
+		}
+	}
+	log.Printf("dpi timeline: buckets=%d apps_in_first=%d top=%d total_bytes=%d",
+		len(tl.Buckets), points, len(tl.Top), tl.Totals.Total)
+	writeJSON(w, tl)
 }
 
 func (s *Server) handleNetifydGet(w http.ResponseWriter, _ *http.Request) {

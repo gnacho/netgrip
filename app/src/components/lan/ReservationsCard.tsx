@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pin, Trash2 } from "lucide-react";
+import { Pencil, Pin, Trash2 } from "lucide-react";
 import { api } from "../../api";
-import type { Client, LANConfig } from "../../types";
+import type { Client, LANConfig, Reservation } from "../../types";
 import {
-  ActionBanner, Button, Card, ConfirmDialog, EmptyState, Field, Pill,
+  ActionBanner, Button, Card, ConfirmDialog, EmptyState, Field, Modal, Pill,
 } from "../ui";
 import { IlluDevices } from "../ui/illustrations";
 import { useActionCycle } from "../wifi/action";
@@ -24,13 +24,17 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
   const [rMac, setRMac] = useState("");
   const [rIp, setRIp] = useState("");
   const [confirmClear, setConfirmClear] = useState(false);
+  const [editing, setEditing] = useState<Reservation>();
+  const [eName, setEName] = useState("");
+  const [eMac, setEMac] = useState("");
+  const [eIp, setEIp] = useState("");
   const [clients, setClients] = useState<Client[]>([]);
 
   useEffect(() => {
     api.clients().then((r) => setClients(r.clients)).catch(() => {});
   }, []);
 
-  const reservations = cfg.reservations;
+  const reservations = cfg.reservations ?? [];
 
   // Primera IP libre del rango DHCP (start..start+limit-1) no reservada.
   const defaultIp = () => {
@@ -59,6 +63,32 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
     return undefined;
   }, [rMac, rIp, t]);
 
+  const editError = useMemo(() => {
+    if (!editing) return undefined;
+    if (!MAC_RE.test(eMac.trim())) return t("lan.invalidMac");
+    if (!isValidIp(eIp)) return t("lan.invalidIp");
+    const clash = reservations.some((r) => r.mac !== editing.mac && r.mac === eMac.trim().toLowerCase());
+    if (clash) return t("lan.editClash");
+    return undefined;
+  }, [editing, eMac, eIp, reservations, t]);
+
+  const openEdit = (r: Reservation) => {
+    setEditing(r);
+    setEName(r.name ?? "");
+    setEMac(r.mac);
+    setEIp(r.ip);
+  };
+
+  const saveEdit = () => {
+    if (!editing || editError) return;
+    const old = editing.mac;
+    const [name, mac, ip] = [eName.trim(), eMac.trim().toLowerCase(), eIp.trim()];
+    setEditing(undefined);
+    run(() => api.updateReservation(old, mac, ip, name)).then((res) => {
+      if (res?.status === "applied") onChange(res.state);
+    });
+  };
+
   const apply = (fn: () => Promise<Awaited<ReturnType<typeof api.setReservation>>>) => {
     run(fn).then((res) => {
       if (res?.status === "applied") onChange(res.state);
@@ -80,7 +110,8 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
       action={
         <span className="flex items-center gap-2">
           {reservations.length > 0 && <Pill tone="accent">{t("lan.fixedCount", { count: reservations.length })}</Pill>}
-          {reservations.length > 0 && (
+          {/* Solo si hay alguna creada aquí: las de LuCI no se borran en bloque. */}
+          {reservations.some((r) => r.managed) && (
             <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setConfirmClear(true)}>
               {t("lan.clearAll")}
             </Button>
@@ -88,6 +119,8 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
         </span>
       }
     >
+      {/* Un router migrado puede traer mas de cien reservas: la tabla
+          scrollea en vez de estirar la pagina entera (#621). */}
       {reservations.length === 0 ? (
         <EmptyState
           small
@@ -96,9 +129,9 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
           body={t("lan.resEmptyBody")}
         />
       ) : (
-        <div className="overflow-x-auto">
+        <div className="max-h-[26rem] overflow-auto">
           <table className="w-full">
-            <thead>
+            <thead className="sticky top-0 bg-surface">
               <tr className="text-caption text-muted border-b border-border">
                 <th className="text-left font-medium py-1.5 pr-2">{t("lan.name")}</th>
                 <th className="text-left font-medium py-1.5 pr-2">{t("lan.mac")}</th>
@@ -112,7 +145,16 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
                   <td title={r.name || undefined} className="py-2 pr-2 text-body font-medium max-w-40 truncate">{r.name || "—"}</td>
                   <td title={r.mac} className="py-2 pr-2 font-mono text-small text-muted max-w-44 truncate">{r.mac}</td>
                   <td className="py-2 pr-2 font-mono text-small whitespace-nowrap">{r.ip}</td>
-                  <td className="py-2 text-right">
+                  <td className="py-2 text-right whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(r)}
+                      disabled={busy}
+                      aria-label={`${t("lan.edit")} ${r.name || r.mac}`}
+                      className="text-faint hover:text-accent transition-colors duration-[var(--dur-fast)] ring-focus rounded-sm p-1"
+                    >
+                      <Pencil size={16} />
+                    </button>
                     <button
                       type="button"
                       onClick={() => apply(() => api.setReservation(r.mac, r.ip, r.name ?? "", false))}
@@ -162,6 +204,28 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
           />
         </div>
       )}
+
+      <Modal
+        open={!!editing}
+        onClose={() => setEditing(undefined)}
+        title={t("lan.editTitle")}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setEditing(undefined)}>{t("common.cancel")}</Button>
+            <Button onClick={saveEdit} disabled={!!editError} loading={busy}>{t("common.save")}</Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <Field label={t("lan.name")}
+            inputProps={{ value: eName, onChange: (e) => setEName(e.target.value), placeholder: t("lan.namePlaceholder") }} />
+          <Field label={t("lan.mac")} mono error={eMac && !MAC_RE.test(eMac.trim()) ? t("lan.invalidMac") : undefined}
+            inputProps={{ value: eMac, onChange: (e) => setEMac(e.target.value), placeholder: "00:11:22:33:44:55" }} />
+          <Field label="IP" mono error={eIp && !isValidIp(eIp) ? t("lan.invalidIp") : undefined}
+            inputProps={{ value: eIp, onChange: (e) => setEIp(e.target.value), placeholder: "192.168.1.50" }} />
+          {editError && <p className="text-caption text-danger">{editError}</p>}
+        </div>
+      </Modal>
 
       <ConfirmDialog
         open={confirmClear}

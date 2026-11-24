@@ -15,7 +15,7 @@ import type {
 import type { HealthScore } from "../../hooks/useHealthScore";
 import {
   AreaChart, Banner, Button, Card, EmptyState, Gauge,
-  KeyValue, Modal, Pill, SegmentedControl, SkeletonChart, SkeletonRows,
+  Modal, Pill, SegmentedControl, SkeletonChart, SkeletonRows,
 } from "../ui";
 import { IlluDevices } from "../ui/illustrations";
 import { CpuDetailModal } from "../CpuDetailModal";
@@ -39,7 +39,7 @@ function portSpeed(p: EthPort) {
   return p.speed_mbps >= 1000 ? `${p.speed_mbps / 1000} Gb/s` : `${p.speed_mbps} Mb/s`;
 }
 
-export function HealthHero({ health, board, system, onNavigate, wireless, ports, ap = false }: {
+export function HealthHero({ health, board, system, onNavigate, wireless, ports, ap = false, role = "router" }: {
   health: HealthScore;
   board?: Board;
   system?: SystemInfo;
@@ -47,6 +47,8 @@ export function HealthHero({ health, board, system, onNavigate, wireless, ports,
   wireless?: WirelessRadio[];
   ports?: EthPort[];
   ap?: boolean;
+  /** Rol detectado (#610): el título dice router, punto de acceso o switch. */
+  role?: "router" | "ap" | "switch";
 }) {
   const { t } = useTranslation();
   const go = (page: string, anchor?: string) => {
@@ -76,14 +78,17 @@ export function HealthHero({ health, board, system, onNavigate, wireless, ports,
   return (
     <Card index={0} id="salud" className="md:col-span-12 order-1 md:order-none">
       <div className={`grid gap-4 ${columns}`}>
-        <div className="flex items-center gap-4 min-w-0">
-          <Gauge value={health.score} size="lg" mode="health" ariaLabel={`${t("health.title")}: ${health.score}`} />
+        <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <Gauge value={health.score} size="lg" mode="health" ariaLabel={`${t(`health.title.${role}`)}: ${health.score}`} />
           <div className="min-w-0">
-            <p className="text-eyebrow text-faint mb-1">{t("health.title")}</p>
-            <Pill tone={health.tone}>{t(health.labelKey)}</Pill>
-            <p className="text-body mt-2">
-              {health.reasons.length === 0 ? t("health.allGood") : t("health.issues", { count: health.reasons.length })}
-            </p>
+            <p className="text-eyebrow text-faint mb-1">{t(`health.title.${role}`)}</p>
+            {/* Estado y resumen en la misma fila (#610). */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <Pill tone={health.tone}>{t(health.labelKey)}</Pill>
+              <p className="text-body">
+                {health.reasons.length === 0 ? t("health.allGood") : t("health.issues", { count: health.reasons.length })}
+              </p>
+            </div>
             {health.reasons.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {health.reasons.slice(0, 3).map((r, i) => (
@@ -165,6 +170,16 @@ export function HealthHero({ health, board, system, onNavigate, wireless, ports,
 
 /* ══════════════ Fila 1 — Internet / Memoria / Espacio §3 ══════════════ */
 
+/** Etiqueta pequeña sobre el dato, dentro de la fila del enlace (#610). */
+function WanItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-eyebrow text-faint">{label}</p>
+      <p className="text-body font-mono break-all">{value}</p>
+    </div>
+  );
+}
+
 export function InternetCard({ wan, mode }: { wan?: WanStatus; mode?: ModeProbe }) {
   const { t } = useTranslation();
   const ap = mode?.mode === "ap" || !wan?.present;
@@ -176,19 +191,25 @@ export function InternetCard({ wan, mode }: { wan?: WanStatus; mode?: ModeProbe 
           ? <Pill tone="muted">{t("overview.apMode")}</Pill>
           : <Pill tone={wan.up ? "ok" : "danger"}>{wan.up ? t("overview.connected") : t("overview.down")}</Pill>
       )}>
-      {!wan ? <SkeletonRows rows={2} /> : ap ? (
+      {!wan ? <SkeletonRows rows={1} /> : ap ? (
         <p className="text-small text-muted">{t("wan.absent")}</p>
       ) : (
         <>
-          {wan.up && wan.ipv4.length > 0 && (
-            <p className="stat-lg font-mono mb-2">{wan.ipv4[0]}</p>
-          )}
-          {!wan.up && <Banner tone="danger" className="mb-2">{t("overview.wanDown")}</Banner>}
-          <KeyValue items={[
-            { label: t("wan.gateway"), value: wan.gateway ?? "—", mono: true },
-            { label: t("wan.dns"), value: (wan.dns ?? []).join("  ") || "—", mono: true },
-            ...(wan.up ? [{ label: t("system.uptime"), value: t("overview.wanSince", { time: fmtUptime(t, wan.uptime) }) }] : []),
-          ]} />
+          {!wan.up && <Banner tone="danger" className="mb-3">{t("overview.wanDown")}</Banner>}
+          {/* Una sola fila con todo lo del enlace (#610). En móvil envuelve. */}
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+            {wan.up && wan.ipv4.length > 0 && (
+              <div className="min-w-0">
+                <p className="text-eyebrow text-faint">{t("wan.ip")}</p>
+                <p className="stat-lg font-mono">{wan.ipv4[0]}</p>
+              </div>
+            )}
+            <WanItem label={t("wan.gateway")} value={wan.gateway ?? "—"} />
+            <WanItem label={t("wan.dns")} value={(wan.dns ?? []).join("  ") || "—"} />
+            {wan.up && (
+              <WanItem label={t("wan.uptimeLabel")} value={fmtUptime(t, wan.uptime)} />
+            )}
+          </div>
         </>
       )}
     </Card>
@@ -450,7 +471,8 @@ export function LiveTrafficCard() {
           <SkeletonChart height={200} />
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-3 mb-2">
+            {/* Controles y cifras en una sola fila; debajo, la gráfica (#610). */}
+            <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-2">
               <SegmentedControl size="sm" ariaLabel={t("overview.trafficRange")}
                 options={[
                   { value: "live" as const, label: t("overview.trafficModeLive") },
@@ -458,12 +480,15 @@ export function LiveTrafficCard() {
                   { value: "24h" as const, label: t("history.range24h") },
                 ]}
                 value={mode} onChange={setMode} />
-              <div className="ml-auto flex items-center gap-4">
+              <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1">
                 <span className="stat-md inline-flex items-center gap-1 text-ok">
                   <ArrowDown size={16} aria-hidden="true" /> {fmtBytes(historyModel.totalDown)}
                 </span>
                 <span className="stat-md inline-flex items-center gap-1 text-accent">
                   <ArrowUp size={16} aria-hidden="true" /> {fmtBytes(historyModel.totalUp)}
+                </span>
+                <span className="text-caption text-muted">
+                  {t("history.peakAt", { rate: fmtRate(historyModel.peak.rx), time: fmtTime(historyModel.peak.ts) })}
                 </span>
               </div>
             </div>
@@ -474,9 +499,6 @@ export function LiveTrafficCard() {
               xLabels={historyModel.deltas.map((d) => fmtTime(d.ts))}
               ariaLabel={`${t("overview.trafficLive")}: ${fmtBytes(historyModel.totalDown)} ↓, ${fmtBytes(historyModel.totalUp)} ↑`}
             />
-            <p className="text-caption text-muted mt-2">
-              {t("history.peakAt", { rate: fmtRate(historyModel.peak.rx), time: fmtTime(historyModel.peak.ts) })}
-            </p>
           </>
         )
       ) : failed ? (
@@ -485,7 +507,8 @@ export function LiveTrafficCard() {
           action={<Button variant="secondary" size="sm" onClick={poll}>{t("common.retry")}</Button>} />
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-3 mb-2">
+          {/* Controles, tasas y resumen en una sola fila; debajo, la gráfica (#610). */}
+          <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2">
             <SegmentedControl size="sm" ariaLabel={t("overview.trafficRange")}
               options={[
                 { value: "live" as const, label: t("overview.trafficModeLive") },
@@ -501,12 +524,15 @@ export function LiveTrafficCard() {
                   value={active}
                   onChange={setSelected}
                 />
-                <div className="ml-auto flex items-center gap-4">
+                <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1">
                   <span className="stat-md inline-flex items-center gap-1 text-ok">
                     <ArrowDown size={16} aria-hidden="true" /> {fmtRate(rxNow)}
                   </span>
                   <span className="stat-md inline-flex items-center gap-1 text-accent">
                     <ArrowUp size={16} aria-hidden="true" /> {fmtRate(txNow)}
+                  </span>
+                  <span className="text-caption text-muted">
+                    {t("traffic.peak")} {fmtRate(peak)} · {t("traffic.avg")} {fmtRate(avg)} · {t("traffic.total")} {fmtBytes(total)}
                   </span>
                 </div>
               </>
@@ -518,13 +544,8 @@ export function LiveTrafficCard() {
               <span className="text-caption">{t("overview.liveCollecting")}</span>
             </div>
           ) : (
-            <>
-              <AreaChart rx={rxSeries} tx={txSeries} height={200} live
-                ariaLabel={`${t("overview.trafficLive")}: ${fmtRate(rxNow)} ↓, ${t("traffic.peak")} ${fmtRate(peak)}`} />
-              <p className="text-caption text-muted mt-2">
-                {t("traffic.peak")} {fmtRate(peak)} · {t("traffic.avg")} {fmtRate(avg)} · {t("traffic.total")} {fmtBytes(total)}
-              </p>
-            </>
+            <AreaChart rx={rxSeries} tx={txSeries} height={200} live
+              ariaLabel={`${t("overview.trafficLive")}: ${fmtRate(rxNow)} ↓, ${t("traffic.peak")} ${fmtRate(peak)}`} />
           )}
         </>
       )}
@@ -532,9 +553,60 @@ export function LiveTrafficCard() {
   );
 }
 
-/** Mini-grafo radial mesh §5: este router al centro, satélites alrededor. */
-export function ClientsCard({ onNavigate, className = "md:col-span-12" }: {
+/** Orden estable de las bandas; las desconocidas van al final. */
+const BAND_ORDER = ["2g", "5g", "6g", "60g"];
+
+function bandName(t: TFunction, band: string): string {
+  if (band === "2g") return t("wifi.band24");
+  if (band === "5g") return t("wifi.band5");
+  if (band === "6g") return t("clients.band6g");
+  if (band === "other") return t("overview.unknownBand");
+  return band;
+}
+
+/**
+ * Cuántos equipos hay por cada forma de llegar a la red (#610): cableados y
+ * una cuenta por banda de radio. La banda de un cliente Wi-Fi se resuelve
+ * por su interfaz contra el probe de radios, así que un 6 GHz o un 60 GHz
+ * no se confunden con 2,4 GHz como hacía el tipo genérico del cliente.
+ */
+function countByBand(clients: Client[], wireless?: WirelessRadio[]): { wired: number; bands: { band: string; count: number }[] } {
+  const bandOfIface = new Map<string, string>();
+  const present = new Set<string>();
+  for (const radio of wireless ?? []) {
+    for (const iface of radio.interfaces) {
+      bandOfIface.set(iface.ifname, radio.band);
+      if (radio.up && !iface.disabled) present.add(radio.band);
+    }
+  }
+
+  let wired = 0;
+  const counts = new Map<string, number>();
+  for (const c of clients) {
+    if (c.type === "cable") {
+      wired++;
+      continue;
+    }
+    const band = (c.iface && bandOfIface.get(c.iface))
+      || (c.type === "wifi5" ? "5g" : c.type === "wifi24" ? "2g" : "other");
+    counts.set(band, (counts.get(band) ?? 0) + 1);
+    present.add(band);
+  }
+
+  const bands = [...present].sort((a, b) => {
+    const ia = BAND_ORDER.indexOf(a);
+    const ib = BAND_ORDER.indexOf(b);
+    if (ia !== -1 || ib !== -1) return (ia === -1 ? BAND_ORDER.length : ia) - (ib === -1 ? BAND_ORDER.length : ib);
+    return a.localeCompare(b);
+  });
+  return { wired, bands: bands.map((band) => ({ band, count: counts.get(band) ?? 0 })) };
+}
+
+export function ClientsCard({ onNavigate, wireless, role = "router", className = "md:col-span-12" }: {
   onNavigate: (p: string) => void;
+  wireless?: WirelessRadio[];
+  /** Un AP no lista cableados (su FDB no es la del gateway): sin chip. */
+  role?: "router" | "ap" | "switch";
   /** Clase de layout conservada para compatibilidad con las composiciones
    *  anteriores; el Resumen actual apila todas las tarjetas (#598). */
   className?: string;
@@ -554,11 +626,12 @@ export function ClientsCard({ onNavigate, className = "md:col-span-12" }: {
   }, [load]);
 
   const online = clients?.length ?? 0;
+  const counts = useMemo(() => countByBand(clients ?? [], wireless), [clients, wireless]);
   return (
     <Card index={4} className={`${className} order-4 md:order-none`}
       title={oneLine(t("overview.devices"))} icon={Smartphone} iconTone="teal"
       action={clients && (
-        <span className="flex items-center gap-3">
+        <span className="hidden items-center gap-3 sm:flex">
           <Pill tone="muted" live>{t("overview.online", { count: online })}</Pill>
           <button type="button" onClick={() => onNavigate("clients")}
             className="text-small text-accent hover:text-accent-hover ring-focus rounded-sm">
@@ -569,14 +642,23 @@ export function ClientsCard({ onNavigate, className = "md:col-span-12" }: {
       {!clients ? <SkeletonRows rows={2} /> : clients.length === 0 ? (
         <EmptyState small illustration={<IlluDevices size={120} />} title={t("overview.devicesEmpty")} />
       ) : (
-        <div className="flex flex-wrap gap-x-4 gap-y-1">
-          {clients.slice(0, 8).map((c) => (
-            <span key={c.mac} className="inline-flex items-center gap-1.5 text-small">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-ok" />
-              <span className="max-w-32 truncate">{c.name || c.mac}</span>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          {role !== "ap" && (
+            <span className="inline-flex items-center gap-2">
+              <Cable size={15} className="text-muted" aria-hidden="true" />
+              <span className="stat-md">{counts.wired}</span>
+              <span className="text-caption text-muted">{t("overview.wired", { count: counts.wired })}</span>
+            </span>
+          )}
+          {counts.bands.map(({ band, count }) => (
+            <span key={band} className="inline-flex items-center gap-2">
+              <Wifi size={15} className="text-muted" aria-hidden="true" />
+              <span className="stat-md">{count}</span>
+              <span className="text-caption text-muted">
+                {t("overview.onBand", { band: bandName(t, band) })}
+              </span>
             </span>
           ))}
-          {clients.length > 8 && <span className="text-small text-muted">+{clients.length - 8}</span>}
         </div>
       )}
     </Card>
@@ -610,31 +692,35 @@ export function DriftSection({ drift, onChange }: { drift?: DriftProbe; onChange
   }
 
   return (
-    <Card index={5} id="drift" className="md:col-span-12 order-11 md:order-none" help="drift"
+    <Card index={5} id="drift" className="md:col-span-12 order-11 md:order-none" help="drift" headerOnly
       title={oneLine(t("overview.drift"))} icon={ShieldCheck}
-      iconTone={!drift.has_baseline ? "muted" : drift.changes === 0 ? "ok" : "warn"}>
-      {!drift.has_baseline ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="text-small text-muted flex-1 min-w-52">{t("drift.noBaseline")}</p>
-          <Button variant="secondary" size="sm" loading={loading} onClick={takeBaseline}>
-            {t("drift.createFirst")}
-          </Button>
+      iconTone={!drift.has_baseline ? "muted" : drift.changes === 0 ? "ok" : "warn"}
+      action={
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+          {!drift.has_baseline ? (
+            <>
+              <span className="text-small text-muted">{t("drift.noBaseline")}</span>
+              <Button variant="secondary" size="sm" loading={loading} onClick={takeBaseline}>
+                {t("drift.createFirst")}
+              </Button>
+            </>
+          ) : drift.changes === 0 ? (
+            <>
+              <span className="text-small text-muted">{t("drift.clean")}</span>
+              <span className="text-caption text-faint">{t("drift.sinceDate", { date: fmtDate(drift.snapshot_ts) })}</span>
+              <Button variant="ghost" size="sm" loading={loading} onClick={takeBaseline}>{t("drift.createNow")}</Button>
+            </>
+          ) : (
+            <>
+              <span className="text-small">
+                {t("drift.changes", { count: drift.changes, date: fmtDate(drift.snapshot_ts) })}
+              </span>
+              <Button variant="secondary" size="sm" onClick={() => setDiffOpen(true)}>{t("drift.viewChanges")}</Button>
+              <Button variant="ghost" size="sm" loading={loading} onClick={takeBaseline}>{t("drift.createNow")}</Button>
+            </>
+          )}
         </div>
-      ) : drift.changes === 0 ? (
-        <div>
-          <p className="text-body">{t("drift.clean")}</p>
-          <p className="text-caption text-muted mt-0.5">{t("drift.sinceDate", { date: fmtDate(drift.snapshot_ts) })}</p>
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="text-body flex-1 min-w-52">
-            {t("drift.changes", { count: drift.changes, date: fmtDate(drift.snapshot_ts) })}
-          </p>
-          <Button variant="secondary" size="sm" onClick={() => setDiffOpen(true)}>{t("drift.viewChanges")}</Button>
-          <Button variant="ghost" size="sm" loading={loading} onClick={takeBaseline}>{t("drift.createNow")}</Button>
-        </div>
-      )}
-
+      }>
       <Modal open={diffOpen} onClose={() => setDiffOpen(false)} title={t("drift.viewChanges")} wide>
         {(drift.configs ?? []).map((cfg) => (
           <div key={cfg.config} className="mb-3 last:mb-0">

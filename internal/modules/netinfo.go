@@ -122,10 +122,37 @@ func wanPortName() string {
 	return "wan"
 }
 
+// linkMasters returns the netdevs that are the master of a physical port:
+// on DSA switches the user ports show up as lanX@<master>, where <master>
+// is the SoC uplink rather than a user port, so EthPorts skips it.
+//
+// The master is only taken from an '@' link whose left side is itself a
+// physical port. A VLAN riding on a user port (wan.20@wan on a PPPoE
+// gateway) names that port too, and treating it as an uplink removed the
+// WAN port from the chassis entirely (#609).
+func linkMasters(ipLink string, physical func(string) bool) map[string]bool {
+	masters := map[string]bool{}
+	for _, line := range strings.Split(ipLink, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+		n := strings.TrimSuffix(fields[1], ":")
+		i := strings.LastIndexByte(n, '@')
+		if i < 0 {
+			continue
+		}
+		if physical(n[:i]) {
+			masters[n[i+1:]] = true
+		}
+	}
+	return masters
+}
+
 // EthPorts lists the physical ports with link state, speed and the
 // devices learned on each (names resolved from DHCP leases when present).
-// On DSA switches the ports show up as lanX@<master> (master = the SoC
-// uplink, not a user port), so the uplink is excluded.
+// The link that only exists to carry a DSA port to the SoC is excluded
+// (see linkMasters).
 func EthPorts() []EthPort {
 	out, err := exec.Command("ip", "-o", "link").Output()
 	if err != nil {
@@ -135,17 +162,7 @@ func EthPorts() []EthPort {
 	names := leaseNames()
 	wanBase := wanPortName()
 
-	masters := map[string]bool{}
-	for _, line := range strings.Split(string(out), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 3 {
-			continue
-		}
-		n := strings.TrimSuffix(fields[1], ":")
-		if i := strings.LastIndexByte(n, '@'); i >= 0 {
-			masters[n[i+1:]] = true
-		}
-	}
+	masters := linkMasters(string(out), isPhysicalEthPort)
 
 	var ports []EthPort
 	for _, line := range strings.Split(string(out), "\n") {

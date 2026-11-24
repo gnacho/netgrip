@@ -70,6 +70,7 @@ func main() {
 	modules.StartNetPulseAgent(version)
 	modules.StartMQTT(version)
 	modules.StartSelfUpdateScheduler(version)
+	modules.StartSysUpdateScheduler()
 	modules.StartParentalScheduler()
 	modules.StartQuotaScheduler()
 	modules.StartFleetDiscovery(version, *port)

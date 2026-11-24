@@ -468,7 +468,7 @@ func optHas(opts map[string][]string, key, val string) bool {
 // banipFeeds builds the feed list from the global UCI options.
 func banipFeeds(opts map[string][]string) []BanipFeed {
 	seen := map[string]bool{}
-	var feeds []BanipFeed
+	feeds := []BanipFeed{} // nunca nil: null en JSON tumba la pagina (#616)
 	add := func(name, direction string, enabled bool) {
 		name = strings.TrimSpace(name)
 		if name == "" || seen[name] {
@@ -646,7 +646,9 @@ func banipReadList(path string) []string {
 	if err != nil {
 		return []string{}
 	}
-	var out []string
+	// Nunca nil (#616): un slice nil se serializa como null y la pagina de
+	// banIP hace entries.length sobre el, tirando el panel entero.
+	out := []string{}
 	for _, line := range strings.Split(string(data), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {

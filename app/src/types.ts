@@ -69,6 +69,12 @@ export interface IPv6SetResult {
   error?: string;
 }
 
+/** Programación de la actualización de firmware (owut). */
+export interface SysUpdateSchedule {
+  config: { enabled: boolean; intervalHours: number; windowStart: number; windowEnd: number };
+  state: { lastCheck: number; lastResult: string; lastApply: number; lastVersion: string };
+}
+
 export interface UpdateCheck {
   available: boolean;
   same_version: boolean;
@@ -102,6 +108,10 @@ export interface GLTunnel {
 
 export interface WGProbe {
   installed: boolean;
+  /** Nombre externo configurado (dominio o IP) para las configs de cliente. */
+  endpoint: string;
+  /** DDNS ya configurado, propuesto como nombre externo. */
+  suggested_endpoint?: string;
   active: boolean;
   running: boolean;
   port: string;
@@ -149,6 +159,8 @@ export interface MDNSProbe {
 
 export interface SQMProbe {
   installed: boolean;
+  /** Página de ajustes de SQM en LuCI (luci-app-sqm). */
+  luci_app: boolean;
   has_wan: boolean;
   active: boolean;
   running: boolean;
@@ -370,6 +382,9 @@ export interface PanelAccess {
 }
 
 export interface LuciAccess {
+  /** La aplicación web de LuCI está instalada en el router (lo pone el
+   *  servidor; el cliente no lo envía al guardar). */
+  installed?: boolean;
   http_port: number;
   https_port: number;
   force_https: boolean;
@@ -398,6 +413,8 @@ export interface Reservation {
   mac: string;
   ip: string;
   name?: string;
+  /** Creada por NetGrip: es la unica que borra el boton de vaciar. */
+  managed: boolean;
 }
 
 export interface DHCPConfig {
@@ -1136,6 +1153,8 @@ export interface PhysPort {
   speed_mbps: number;
   duplex: string;
   supported: LinkMode[];
+  /** Techo que anuncia el otro extremo (0 si el driver no lo reporta). */
+  partner_max_mbps?: number;
   eee_supported: boolean;
   eee_enabled: boolean;
   /** False en Realtek DSA (rtl83xx/rtl93xx): escribir EEE reinicia el SoC (#485). */
@@ -1255,6 +1274,19 @@ export interface DPIProtocol {
   bytes: number;
   flows: number;
   category: string;
+}
+
+/** Medición M-Lab NDT7 ejecutada en el propio router. */
+export interface SpeedTestResult {
+  state: "idle" | "running" | "done" | "error";
+  phase?: "download" | "upload";
+  down_mbps: number;
+  up_mbps: number;
+  ping_ms?: number;
+  server?: string;
+  error?: string;
+  started_at?: number;
+  finished_at?: number;
 }
 
 export interface DPIProbe {
@@ -1591,6 +1623,8 @@ export interface StorageService {
 
 export interface StorageProbe {
   applicable: boolean;
+  /** El equipo tiene buses USB aunque no haya ningún disco conectado. */
+  supported: boolean;
   devices: StorageDevice[];
   services: StorageService[];
 }

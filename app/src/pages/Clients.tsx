@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, ArrowUpDown, Ban, MoreVertical, Pencil, Pin, Search, Smartphone, Wifi, Cable, Eye, Clock, Pause, Play, Gauge } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Ban, MoreVertical, Pencil, Pin, Search, Wifi, Cable, Eye, Clock, Pause, Play, Gauge } from "lucide-react";
 import { api } from "../api";
 import type { BlockedClient, Client, DeviceType, NftQoSProbe, ParentalProbe, ParentalRule, Quota, QuotaProbe, QuotaUsage } from "../types";
 import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Modal, Pill, SegmentedControl, SkeletonRows, Toggle } from "../components/ui";
@@ -253,15 +253,6 @@ export function ClientsPage() {
 
   const toggleSort = (key: SortKey) => setSort((s) => s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" });
 
-  const typeSummary = useMemo(() => {
-    const byType = new Map<string, number>();
-    for (const c of clients ?? []) {
-      const key = c.device_type || "other";
-      byType.set(key, (byType.get(key) ?? 0) + 1);
-    }
-    return [...byType.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
-  }, [clients]);
-
   const pin = async (c: Client) => {
     setBusyMac(c.mac); setActionError(undefined);
     try {
@@ -328,7 +319,11 @@ export function ClientsPage() {
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
-            <span className="truncate text-body font-medium">{c.name || <span className="font-mono text-small">{c.mac}</span>}</span>
+            <button type="button" onClick={() => setDetailTarget(c)}
+              title={t("clients.details")} aria-label={`${t("clients.details")}: ${c.name || c.mac}`}
+              className="truncate text-body font-medium text-left ring-focus rounded-sm hover:text-accent transition-colors">
+              {c.name || <span className="font-mono text-small">{c.mac}</span>}
+            </button>
             {c.self && <Pill tone="accent">{t("overview.thisDevice")}</Pill>}
             <BlockedPill c={c} />
             <ParentalPill c={c} />
@@ -403,53 +398,7 @@ export function ClientsPage() {
 
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
-      <Card index={0} title={t("clients.summaryTitle")} icon={Smartphone} iconTone="teal">
-        {typeSummary.length === 0 ? (
-          <EmptyState small title={t("overview.devicesEmpty")} />
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {typeSummary.map(([type, count]) => {
-              const Icon = deviceTypeIcon(type);
-              return (
-                <span key={type} className="inline-flex items-center gap-2 rounded-full bg-surface-2 border border-border/60 px-3 py-1.5 text-small">
-                  <Icon size={14} className="text-teal" aria-hidden="true" />
-                  <span className="font-medium">{t(DEVICE_TYPES[type as DeviceType]?.labelKey ?? "clients.type.other")}</span>
-                  <span className="text-muted" style={{ fontVariantNumeric: "tabular-nums" }}>{count}</span>
-                </span>
-              );
-            })}
-          </div>
-        )}
-      </Card>
-
-      <Card index={1} title={t("clients.quotaOverview")} icon={Gauge} iconTone="teal">
-        {Object.keys(quota?.quotas ?? {}).length === 0 ? (
-          <EmptyState small title={t("clients.quotaOverviewEmpty")} />
-        ) : (
-          <ul className="flex flex-col divide-y divide-border/60">
-            {Object.entries(quota?.quotas ?? {}).map(([mac, q]) => {
-              const u = quota?.usage?.[mac];
-              const name = clients?.find((c) => c.mac === mac)?.name ?? mac;
-              return (
-                <li key={mac} className="flex items-center gap-3 py-2.5">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-small font-medium">{name}</p>
-                    <p className="text-caption text-muted">{t(q.period === "monthly" ? "clients.quotaPeriodMonthly" : "clients.quotaPeriodDaily")}</p>
-                  </div>
-                  <span className="text-caption font-mono text-muted whitespace-nowrap" style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {u ? `${fmtBytes(u.remaining)} / ${fmtBytes(u.limit)}` : fmtBytes(q.limit)}
-                  </span>
-                  {u?.throttled ? <Pill tone="danger">{t("clients.quotaThrottled")}</Pill>
-                    : u?.exceeded ? <Pill tone="warn">{t("clients.quotaExceeded")}</Pill>
-                    : null}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Card>
-
-      <Card index={2} title={t("clients.title")} icon={Cable} iconTone="teal"
+      <Card index={0} title={t("clients.title")} icon={Cable} iconTone="teal"
         action={<div className="flex items-center gap-1">
           <button type="button" onClick={() => setBlockedTarget(true)}
             title={t("clients.blockedCount", { count: blockedList.length })}
@@ -538,6 +487,33 @@ export function ClientsPage() {
           </>
         )}
         {actionError && <Banner tone="danger" className="mt-3">{actionError}</Banner>}
+      </Card>
+
+      <Card index={1} title={t("clients.quotaOverview")} icon={Gauge} iconTone="teal">
+        {Object.keys(quota?.quotas ?? {}).length === 0 ? (
+          <EmptyState small title={t("clients.quotaOverviewEmpty")} body={t("clients.quotaOverviewHint")} />
+        ) : (
+          <ul className="flex flex-col divide-y divide-border/60">
+            {Object.entries(quota?.quotas ?? {}).map(([mac, q]) => {
+              const u = quota?.usage?.[mac];
+              const name = clients?.find((c) => c.mac === mac)?.name ?? mac;
+              return (
+                <li key={mac} className="flex items-center gap-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-small font-medium">{name}</p>
+                    <p className="text-caption text-muted">{t(q.period === "monthly" ? "clients.quotaPeriodMonthly" : "clients.quotaPeriodDaily")}</p>
+                  </div>
+                  <span className="text-caption font-mono text-muted whitespace-nowrap" style={{ fontVariantNumeric: "tabular-nums" }}>
+                    {u ? `${fmtBytes(u.remaining)} / ${fmtBytes(u.limit)}` : fmtBytes(q.limit)}
+                  </span>
+                  {u?.throttled ? <Pill tone="danger">{t("clients.quotaThrottled")}</Pill>
+                    : u?.exceeded ? <Pill tone="warn">{t("clients.quotaExceeded")}</Pill>
+                    : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </Card>
 
       <DetailClientModal
@@ -709,54 +685,26 @@ function DetailClientModal({ client, rate, qos, onUpdateQos, parental, onUpdateP
     }
   };
 
-  const connLabel = client.type === "wifi5" ? t("overview.band5") : client.type === "wifi24" ? t("overview.band24") : t("overview.cable");
-  const connTone = client.type === "cable" ? "muted" : client.type === "wifi5" ? "accent" : "ok";
-  const ConnIcon = client.type === "cable" ? Cable : Wifi;
   const DevIcon = deviceTypeIcon(client.device_type, client.name);
   return (
-    <Modal open onClose={onClose} title={t("clients.detailTitle")}
-      footer={<Button onClick={onClose}>{t("common.close")}</Button>}>
+    <Modal open onClose={onClose} title={t("clients.detailTitle")}>
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-teal-soft text-teal" aria-hidden="true">
             <DevIcon size={18} />
           </span>
-          <div className="min-w-0 flex-1">
-            <span className="block truncate text-h2">{client.name || client.mac}</span>
-            <span className="inline-flex items-center gap-1.5 text-caption text-muted">
-              <span className="h-1.5 w-1.5 rounded-full bg-ok" aria-hidden="true" />
-              {connLabel}
-            </span>
-          </div>
+          <span className="min-w-0 flex-1 truncate text-h2">{client.name || client.mac}</span>
         </div>
+        {/* Solo lo que no se ve ya en el listado: identidad, velocidad en
+            vivo, tráfico desglosado y el estado de bloqueo cuando es parcial
+            (#613). IP, tipo, conexión, reserva y caducidad viven en la tabla. */}
         <div className="rounded-md border border-border/60 px-3 divide-y divide-border/60">
-          <DetailRow label={t("clients.host")} value={client.name || client.mac} />
-          <DetailRow label={t("clients.typeLabel")}
-            value={<span className="inline-flex items-center gap-1.5"><span className="text-teal"><DevIcon size={14} aria-hidden="true" /></span>{t(DEVICE_TYPES[client.device_type as DeviceType]?.labelKey ?? "clients.type.other")}</span>} />
-          <DetailRow label={t("clients.connection")}
-            value={<span className="inline-flex items-center gap-1.5"><Pill tone={connTone as "muted" | "accent" | "ok"}>{connLabel}</Pill><ConnIcon size={13} className="text-muted" aria-hidden="true" /></span>} />
           <DetailRow label={t("clients.mac")} value={client.mac} mono />
           <DetailRow label={t("clients.speed")}
             value={rate ? <RatePair down={rate.rx} up={rate.tx} /> : <span className="text-muted">—</span>} />
           <DetailRow label={t("clients.traffic")}
             value={<RatePair down={client.rx_bytes} up={client.tx_bytes} downColor="var(--color-ok)" upColor="var(--color-text)" />} />
-          <DetailRow label={t("clients.reserved")}
-            value={client.reserved ? t("clients.on") : t("clients.off")} />
-          <DetailRow label={t("clients.block")}
-            value={blockedDetail(client, t)} />
-          <DetailRow label={t("clients.ip")}
-            value={client.ip ? (
-              <>
-                {client.ip}
-                {client.ip_source === "arp" && <span className="text-muted"> ({t("clients.ipArp")})</span>}
-              </>
-            ) : "—"} mono />
-          {client.lease_expiry && (
-            <DetailRow label={t("clients.leaseExpiry")} value={fmtDateTime(client.lease_expiry)} mono />
-          )}
-          {client.lease_source && (
-            <DetailRow label={t("clients.leaseSource")} value={t(`clients.leaseSource_${client.lease_source}`)} />
-          )}
+          <DetailRow label={t("clients.block")} value={blockedDetail(client, t)} />
         </div>
 
         {canLimit && (
@@ -1100,8 +1048,7 @@ function BlockedListModal({ open, blocked, clients, busyMac, onUnblock, onClose 
   const { t } = useTranslation();
   const nameFor = (mac: string) => clients.find((c) => c.mac === mac)?.name;
   return (
-    <Modal open={open} onClose={onClose} title={t("clients.blockedTitle", { count: blocked.length })}
-      footer={<Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}>
+    <Modal open={open} onClose={onClose} title={t("clients.blockedTitle", { count: blocked.length })}>
       {blocked.length === 0 ? (
         <EmptyState small title={t("clients.blockedEmpty")} />
       ) : (

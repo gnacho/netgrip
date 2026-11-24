@@ -1,5 +1,5 @@
 import { useMode } from "../hooks/useMode";
-import type { Board, DriftProbe, EthPort, ModeProbe, StorageProbe, SystemInfo, WanStatus, WirelessRadio } from "../types";
+import type { Board, DriftProbe, EthPort, ModeProbe, SystemInfo, WanStatus, WirelessRadio } from "../types";
 import type { HealthScore } from "../hooks/useHealthScore";
 import {
   ClientsCard, DriftSection, HealthHero, InternetCard, LiveTrafficCard, ResourcesCard,
@@ -7,7 +7,6 @@ import {
 import { GatewayOverview } from "../components/overview/GatewayOverview";
 import { ApOverview } from "../components/overview/ApOverview";
 import { SwitchOverview } from "../components/overview/SwitchOverview";
-import { CapabilityCard } from "../components/overview/CapabilityCard";
 
 /**
  * Resumen (#487): composición distinta según el rol del equipo, como en el
@@ -16,7 +15,7 @@ import { CapabilityCard } from "../components/overview/CapabilityCard";
  * confirma el rol (hidrata desde caché, #484) se pinta el layout genérico
  * histórico, sin parpadeo entre composiciones.
  */
-export function Overview({ board, system, wan, drift, onDriftChange, isSwitch, health, mode, wireless, ethports, storage, onNavigate }: {
+export function Overview({ board, system, wan, drift, onDriftChange, isSwitch, health, mode, wireless, ethports, onNavigate }: {
   board?: Board;
   system?: SystemInfo;
   wan?: WanStatus;
@@ -27,7 +26,6 @@ export function Overview({ board, system, wan, drift, onDriftChange, isSwitch, h
   mode?: ModeProbe;
   wireless?: WirelessRadio[];
   ethports?: EthPort[];
-  storage?: StorageProbe;
   onNavigate: (page: string) => void;
 }) {
   const { mode: probe, modeReady } = useMode();
@@ -41,7 +39,8 @@ export function Overview({ board, system, wan, drift, onDriftChange, isSwitch, h
   if (!modeReady) {
     return (
       <div className="flex flex-col gap-[var(--card-gap)]">
-        <HealthHero health={health} board={board} system={system} onNavigate={onNavigate} />
+        <HealthHero health={health} board={board} system={system} onNavigate={onNavigate}
+          role={isSwitch ? "switch" : "router"} />
         {/* El enlace y su tráfico en vivo, cada uno a todo el ancho (#598). */}
         {!isSwitch && <InternetCard wan={wan} mode={mode} />}
         <LiveTrafficCard />
@@ -49,7 +48,7 @@ export function Overview({ board, system, wan, drift, onDriftChange, isSwitch, h
         <ResourcesCard system={system} />
         {/* El consumo (quién gasta más) vive en la página Consumo (#385) y el
             chasis de puertos en Puertos ethernet (#384). */}
-        <ClientsCard onNavigate={onNavigate} />
+        <ClientsCard onNavigate={onNavigate} wireless={wireless} />
         <DriftSection drift={drift} onChange={onDriftChange} />
       </div>
     );
@@ -58,9 +57,6 @@ export function Overview({ board, system, wan, drift, onDriftChange, isSwitch, h
   const Variant = role === "switch" ? SwitchOverview : role === "ap" ? ApOverview : GatewayOverview;
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
-      {/* #521: capacidades detectadas + frase de rol, arriba del todo y en
-          cualquier rol (el mockup las repite por página; nos basta Resumen). */}
-      <CapabilityCard mode={probe} wireless={wireless} storage={storage} />
       <Variant {...props} />
     </div>
   );

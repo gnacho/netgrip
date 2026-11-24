@@ -52,10 +52,44 @@ type NetifydApp struct {
 	Flows       int    `json:"flows"`
 }
 
-// netifydFlow keeps the latest application name seen for a digest.
+// netifydFlow is what the table knows about one live flow.
+//
+// Netifyd reports byte counters CUMULATIVELY per flow (every flow_stats and
+// the final flow_purge repeat the running total), so only the delta between
+// messages is real traffic. And nDPI usually names the protocol first and
+// the application a moment later, so the deltas seen before the application
+// is known are held per bucket and moved to the application when it appears:
+// crediting them straight away is what filled the table with protocols
+// (#620).
 type netifydFlow struct {
-	appName string
+	appName   string
+	protoName string
+	lastLocal int64
+	lastOther int64
+	lastTotal int64
+	lastPkts  int64
+	// pending holds deltas keyed by timeline bucket while appName is empty.
+	pending   map[int64]*NetifydBucket
+	pendingAt time.Time
+	sawBytes  bool
+	countedAs string
 }
+
+// label is what a flow's bytes are credited to right now.
+func (f *netifydFlow) label() string {
+	if f.appName != "" {
+		return f.appName
+	}
+	if f.protoName != "" {
+		return f.protoName
+	}
+	return "Unknown"
+}
+
+// pendingFlushAfter bounds how long bytes can wait for an application name:
+// a flow that never gets one (local traffic, unknown protocols) lands on its
+// protocol label instead of staying invisible.
+const pendingFlushAfter = 90 * time.Second
 
 // netifydAppTable holds the live aggregation. It is safe for concurrent use.
 type netifydAppTable struct {
@@ -111,67 +145,49 @@ func (t *netifydAppTable) Apps() []NetifydApp {
 	return out
 }
 
-func (t *netifydAppTable) appNameForDigest(digest string) string {
-	if f, ok := t.flows[digest]; ok {
-		return f.appName
-	}
-	return ""
-}
-
-// setFlowApp remembers which application a digest belongs to.
-func (t *netifydAppTable) setFlowApp(digest, appName string) {
-	if digest == "" {
-		return
-	}
-	if appName == "" {
-		appName = "Unknown"
-	}
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.flows[digest] = &netifydFlow{appName: appName}
-	if len(t.flows) > t.maxFlows {
-		t.evictOldestFlow()
-	}
-}
-
-// addStats increments counters for the application associated with digest.
-func (t *netifydAppTable) addStats(digest string, local, other, total, packets int64) {
-	if digest == "" {
-		return
-	}
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	appName := "Unknown"
-	if f, ok := t.flows[digest]; ok {
-		appName = f.appName
-	}
-
-	app, ok := t.apps[appName]
+// flowLocked returns the flow entry for digest, creating it if needed.
+func (t *netifydAppTable) flowLocked(digest string) *netifydFlow {
+	f, ok := t.flows[digest]
 	if !ok {
-		app = &NetifydApp{Name: appName}
-		t.apps[appName] = app
+		f = &netifydFlow{}
+		t.flows[digest] = f
+		if len(t.flows) > t.maxFlows {
+			t.evictOldestFlow()
+		}
+	}
+	return f
+}
+
+// bucketNow is the current 5-minute bucket key.
+func bucketNow() int64 {
+	step := int64(timelineBucketDuration.Seconds())
+	return time.Now().Unix() / step * step
+}
+
+// creditLocked writes counters to one label and one bucket.
+func (t *netifydAppTable) creditLocked(label string, bucket, local, other, total, packets int64) {
+	app, ok := t.apps[label]
+	if !ok {
+		app = &NetifydApp{Name: label}
+		t.apps[label] = app
+		if len(t.apps) > t.maxApps {
+			t.evictSmallestApp()
+		}
 	}
 	app.Bytes += total
 	app.LocalBytes += local
 	app.OtherBytes += other
 	app.Packets += packets
-	app.Flows++
 
-	if len(t.apps) > t.maxApps {
-		t.evictSmallestApp()
-	}
-
-	bucket := time.Now().Unix() / int64(timelineBucketDuration.Seconds()) * int64(timelineBucketDuration.Seconds())
 	b, ok := t.buckets[bucket]
 	if !ok {
 		b = make(map[string]*NetifydBucket)
 		t.buckets[bucket] = b
 	}
-	entry, ok := b[appName]
+	entry, ok := b[label]
 	if !ok {
 		entry = &NetifydBucket{}
-		b[appName] = entry
+		b[label] = entry
 	}
 	entry.Local += local
 	entry.Other += other
@@ -180,6 +196,126 @@ func (t *netifydAppTable) addStats(digest string, local, other, total, packets i
 	if len(t.buckets) > t.maxBuckets {
 		t.evictOldestBucket()
 	}
+}
+
+// countFlowLocked counts the flow once under label, moving the count if the
+// label improves later (protocol first, application a moment after).
+func (t *netifydAppTable) countFlowLocked(f *netifydFlow, label string) {
+	if f.countedAs == label {
+		return
+	}
+	if f.countedAs != "" {
+		if old, ok := t.apps[f.countedAs]; ok && old.Flows > 0 {
+			old.Flows--
+		}
+	}
+	app, ok := t.apps[label]
+	if !ok {
+		app = &NetifydApp{Name: label}
+		t.apps[label] = app
+		if len(t.apps) > t.maxApps {
+			t.evictSmallestApp()
+		}
+	}
+	app.Flows++
+	f.countedAs = label
+}
+
+// flushLocked credits whatever is pending for the flow and counts it once.
+func (t *netifydAppTable) flushLocked(f *netifydFlow) {
+	label := f.label()
+	for bucket, b := range f.pending {
+		t.creditLocked(label, bucket, b.Local, b.Other, b.Total, 0)
+	}
+	f.pending = nil
+	if f.sawBytes {
+		t.countFlowLocked(f, label)
+	}
+}
+
+// setFlowApp records what nDPI knows about a digest. The application is kept
+// apart from the protocol so the protocol is only used as a fallback, and the
+// bytes held while waiting are moved to the application as soon as it is
+// named.
+func (t *netifydAppTable) setFlowApp(digest, appName, protoName string) {
+	if digest == "" {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	f := t.flowLocked(digest)
+	if protoName != "" {
+		f.protoName = protoName
+	}
+	if appName == "" || appName == "Unknown" || appName == f.appName {
+		return
+	}
+	f.appName = appName
+	t.flushLocked(f)
+}
+
+// addStats credits the delta since the last message for digest.
+func (t *netifydAppTable) addStats(digest string, local, other, total, packets int64) {
+	if digest == "" {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.creditDeltaLocked(t.flowLocked(digest), local, other, total, packets)
+}
+
+// creditDeltaLocked turns cumulative counters into a delta and credits it.
+func (t *netifydAppTable) creditDeltaLocked(f *netifydFlow, local, other, total, packets int64) {
+	if local < f.lastLocal || other < f.lastOther || total < f.lastTotal || packets < f.lastPkts {
+		// Counters went backwards: the digest is being reused by a new flow,
+		// so what arrived is the whole traffic of the new one.
+		f.lastLocal, f.lastOther, f.lastTotal, f.lastPkts = 0, 0, 0, 0
+	}
+	dLocal := local - f.lastLocal
+	dOther := other - f.lastOther
+	dTotal := total - f.lastTotal
+	dPkts := packets - f.lastPkts
+	f.lastLocal, f.lastOther, f.lastTotal, f.lastPkts = local, other, total, packets
+	if dLocal <= 0 && dOther <= 0 && dTotal <= 0 {
+		return
+	}
+	f.sawBytes = true
+	bucket := bucketNow()
+
+	if f.appName != "" {
+		t.creditLocked(f.appName, bucket, dLocal, dOther, dTotal, dPkts)
+		t.countFlowLocked(f, f.appName)
+		return
+	}
+	if f.pending == nil {
+		f.pending = map[int64]*NetifydBucket{}
+		f.pendingAt = time.Now()
+	}
+	b, ok := f.pending[bucket]
+	if !ok {
+		b = &NetifydBucket{}
+		f.pending[bucket] = b
+	}
+	b.Local += dLocal
+	b.Other += dOther
+	b.Total += dTotal
+	if time.Since(f.pendingAt) > pendingFlushAfter {
+		t.flushLocked(f)
+	}
+}
+
+// purgeFlow applies the final counters of a finished flow, credits whatever
+// is still pending and forgets the digest.
+func (t *netifydAppTable) purgeFlow(digest string, local, other, total, packets int64) {
+	if digest == "" {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	f := t.flowLocked(digest)
+	t.creditDeltaLocked(f, local, other, total, packets)
+	t.flushLocked(f)
+	delete(t.flows, digest)
 }
 
 func (t *netifydAppTable) evictOldestBucket() {
@@ -356,6 +492,9 @@ func (c *netifydSocketClient) readLoop(ctx context.Context) error {
 		return fmt.Errorf("dial %s: %w", c.socketPath, err)
 	}
 	defer conn.Close()
+	// Una conexión viva y sin datos se parece demasiado a una que nunca se
+	// abrió: sin esta línea no hay forma de distinguirlas desde el registro.
+	c.logf("netifyd client: connected to %s", c.socketPath)
 
 	// Closing the connection will unblock the reader when we are stopped.
 	go func() {
@@ -422,17 +561,30 @@ func (m *flowMsg) digest() string {
 	return ""
 }
 
+func (m *flowMsg) protoName() string {
+	if m.Flow == nil {
+		return ""
+	}
+	return m.Flow.DetectedProtocolName
+}
+
 func (m *flowMsg) appName() string {
 	if m.Flow == nil {
 		return ""
 	}
 	if m.Flow.DetectedApplicationName != "" && m.Flow.DetectedApplicationName != "Unknown" {
-		return m.Flow.DetectedApplicationName
-	}
-	if m.Flow.DetectedProtocolName != "" {
-		return m.Flow.DetectedProtocolName
+		return appLabel(m.Flow.DetectedApplicationName)
 	}
 	return ""
+}
+
+// appLabel hides netify's application namespace: "netify.youtube" reads
+// "youtube" in the table.
+func appLabel(name string) string {
+	if rest, ok := strings.CutPrefix(name, "netify."); ok && rest != "" {
+		return rest
+	}
+	return name
 }
 
 // statsMsg carries byte counters inside a nested flow object.
@@ -473,13 +625,20 @@ func (c *netifydSocketClient) handleMessage(line string) {
 		if err := json.Unmarshal([]byte(line), &msg); err != nil {
 			return
 		}
-		c.table.setFlowApp(msg.digest(), msg.appName())
-	case "flow_stats", "flow_purge":
+		c.table.setFlowApp(msg.digest(), msg.appName(), msg.protoName())
+	case "flow_stats":
 		var msg statsMsg
 		if err := json.Unmarshal([]byte(line), &msg); err != nil {
 			return
 		}
 		local, other, total, packets := msg.counters()
 		c.table.addStats(msg.digest(), local, other, total, packets)
+	case "flow_purge":
+		var msg statsMsg
+		if err := json.Unmarshal([]byte(line), &msg); err != nil {
+			return
+		}
+		local, other, total, packets := msg.counters()
+		c.table.purgeFlow(msg.digest(), local, other, total, packets)
 	}
 }

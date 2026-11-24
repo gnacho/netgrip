@@ -256,13 +256,37 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   // refleja la vista y cada navegación entra en el historial). El estado se
   // actualiza aquí para respuesta inmediata; el listener hashchange cubre
   // atrás/adelante y enlaces pegados a mano.
+  // Páginas que ya no son entradas de menú y viven dentro de otra: navegar a
+  // ellas es abrir su contenedor y bajar hasta su bloque (#628). Sin esto,
+  // "Gestionar" de banIP caía en Resumen porque activePage no las conoce.
+  const COMPOSED_PAGE: Partial<Record<Page, { page: Page; anchor?: string }>> = {
+    wan: { page: "internet", anchor: "page-wan" },
+    forwards: { page: "internet", anchor: "page-forwards" },
+    upnp: { page: "internet", anchor: "page-upnp" },
+    dpi: { page: "internet", anchor: "page-dpi" },
+    banip: { page: "internet", anchor: "page-banip" },
+  };
+  const [pendingAnchor, setPendingAnchor] = useState<string>();
+
   const navigateTo = useCallback((p: Page) => {
-    setPage(p);
-    const target = `#/${p}`;
+    const composed = COMPOSED_PAGE[p];
+    const dest = composed?.page ?? p;
+    setPage(dest);
+    if (composed?.anchor) setPendingAnchor(composed.anchor);
+    const target = `#/${dest}`;
     if (window.location.hash !== target) {
       window.location.hash = target;
     }
   }, []);
+
+  // El bloque destino ya está en el DOM cuando corre este efecto: la página se
+  // acaba de pintar con el cambio de estado.
+  useEffect(() => {
+    if (!pendingAnchor) return;
+    const el = document.getElementById(pendingAnchor);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    setPendingAnchor(undefined);
+  }, [pendingAnchor]);
 
   // Atrás/adelante del navegador y deep links escritos a mano.
   useEffect(() => {
@@ -436,7 +460,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
           board={board} system={system} wan={wan}
           drift={drift} onDriftChange={setDrift}
           isSwitch={role === "switch"} health={health} mode={mode}
-          wireless={wireless} ethports={ethports} storage={storage} onNavigate={navigate}
+          wireless={wireless} ethports={ethports} onNavigate={navigate}
         />
       )}
       {activePage === "traffic" && <TrafficPage onNavigate={navigate} />}

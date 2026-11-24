@@ -162,6 +162,13 @@ const realApi = {
       body: JSON.stringify({ current, next }),
     }),
   updateCheck: () => request<import("./types").UpdateCheck>("/api/update"),
+  sysUpdateSchedule: () => request<import("./types").SysUpdateSchedule>("/api/update/schedule"),
+  sysUpdateScheduleSave: (patch: { enabled?: boolean; intervalHours?: number; windowStart?: number; windowEnd?: number }) =>
+    request<import("./types").SysUpdateSchedule>("/api/update/schedule", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    }),
   startUpdate: () =>
     request<{ started: boolean; reboot_pending: boolean }>("/api/update", {
       method: "POST",
@@ -180,6 +187,12 @@ const realApi = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, public_key: publicKey, admin }),
+    }),
+  setWgEndpoint: (endpoint: string) =>
+    request<import("./types").WGProbe>("/api/wireguard/endpoint", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint }),
     }),
   addWgPeerQr: (name: string, admin: boolean) =>
     request<{ config: string; state: import("./types").WGProbe }>("/api/wireguard/peers/qr", {
@@ -300,6 +313,12 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mac, ip, name, reserved }),
     }),
+  updateReservation: (old_mac: string, mac: string, ip: string, name: string) =>
+    request<import("./types").ModuleResult<import("./types").LANConfig>>("/api/lan/reservation/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ old_mac, mac, ip, name }),
+    }),
   clearReservations: () =>
     request<import("./types").ModuleResult<import("./types").LANConfig>>("/api/lan/reservations/clear", {
       method: "POST",
@@ -403,6 +422,12 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ src_dport, dest_ip, dest_port, proto }),
     }),
+  updateFwdRule: (section: string, src_dport: string, dest_ip: string, dest_port: string, proto: string) =>
+    request<import("./types").ModuleResult<import("./types").FwdProbe>>("/api/portforward/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ section, src_dport, dest_ip, dest_port, proto }),
+    }),
   deleteFwdRule: (section: string) =>
     request<import("./types").ModuleResult<import("./types").FwdProbe>>("/api/portforward/delete", {
       method: "POST",
@@ -485,6 +510,15 @@ const realApi = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg),
+    }),
+  updateDdns: (section: string, cfg: {
+    enabled: boolean; service_name?: string; domain?: string; lookup_host?: string;
+    username?: string; password?: string;
+  }) =>
+    request<import("./types").ModuleResult<import("./types").DDNSProbe>>("/api/ddns", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ section, ...cfg }),
     }),
   deleteDdns: (section: string) =>
     request<import("./types").ModuleResult<import("./types").DDNSProbe>>("/api/ddns", {
@@ -674,6 +708,12 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...rule, confirm }),
     }),
+  updateFirewallRule: (section: string, rule: import("./types").FirewallRuleAdd, confirm?: boolean) =>
+    request<import("./types").ModuleResult<import("./types").FirewallProbe>>("/api/firewall/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ section, ...rule, confirm }),
+    }),
   deleteFirewallRule: (section: string, confirm?: boolean) =>
     request<import("./types").ModuleResult<import("./types").FirewallProbe>>("/api/firewall", {
       method: "DELETE",
@@ -771,6 +811,13 @@ const realApi = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role_id: roleId, port }),
+    }),
+  speedtest: () => request<import("./types").SpeedTestResult>("/api/speedtest"),
+  startSpeedtest: () =>
+    request<import("./types").SpeedTestResult>("/api/speedtest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
     }),
   dpi: () =>
     request<import("./types").DPIProbe>("/api/dpi"),

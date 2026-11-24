@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Copy, ListChecks, Wrench } from "lucide-react";
 import { DnsCard, PingCard, SelfTestCard, TcpCard, TracerouteCard } from "../components/diagnostics/cards";
+import { SpeedTestCard } from "../components/diagnostics/SpeedTestCard";
 import { buildShareText } from "../components/diagnostics/share";
 import { CableTestTool, BounceTool, LoopsTool } from "../components/tools/diagnostics";
 import { Button, Card, useToast } from "../components/ui";
@@ -56,6 +57,9 @@ export function DiagnosticsPage({ ethports = [] }: { ethports?: EthPort[] }) {
           <TracerouteCard onResult={setTraceroute} />
           <DnsCard onResult={setDns} />
           <TcpCard onResult={setTcp} />
+          <div className="md:col-span-2">
+            <SpeedTestCard />
+          </div>
         </div>
       </Card>
 

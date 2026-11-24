@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, Clock, Globe, Home, Plus, Router, ShieldAlert, Trash2 } from "lucide-react";
+import { ArrowRight, Clock, Globe, Home, Pencil, Plus, Router, ShieldAlert, Trash2 } from "lucide-react";
 import { api } from "../../api";
 import type { FirewallProbe, FWRule, FirewallRuleAdd, FWZone } from "../../types";
 import {
@@ -126,6 +126,7 @@ export function TrafficRulesCard() {
   const { phase, detail, busy, run, clear } = useActionCycle();
   const rc = useRollbackConfirm();
   const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<FWRule>();
   const [toDelete, setToDelete] = useState<FWRule>();
 
   useEffect(() => { api.firewall().then(setProbe).catch(() => {}); }, []);
@@ -138,6 +139,19 @@ export function TrafficRulesCard() {
     run(() => api.addFirewallRule(rule, risk)).then((res) => {
       if (res?.status !== "applied") return;
       setModal(false);
+      if (res.confirm) {
+        rc.arm(res.confirm);
+        return;
+      }
+      setProbe(res.state);
+    });
+  };
+
+  const updateRule = (section: string, rule: FirewallRuleAdd) => {
+    const risk = lockoutRisk(rule, probe?.mgmt_cidr);
+    run(() => api.updateFirewallRule(section, rule, risk)).then((res) => {
+      if (res?.status !== "applied") return;
+      setEditing(undefined);
       if (res.confirm) {
         rc.arm(res.confirm);
         return;
@@ -211,7 +225,9 @@ export function TrafficRulesCard() {
                 />
               ) : (
                 <ul className="divide-y divide-border/50">
-                  {managed.map((r) => <RuleRow key={r.section} r={r} onDelete={() => setToDelete(r)} busy={busy} />)}
+                  {managed.map((r) => (
+                    <RuleRow key={r.section} r={r} onDelete={() => setToDelete(r)} onEdit={() => setEditing(r)} busy={busy} />
+                  ))}
                   {systemRules.length > 0 && (
                     <li className="pt-3 mt-1">
                       <p className="text-caption text-muted">{t("trafficRules.systemRules")}</p>
@@ -228,11 +244,12 @@ export function TrafficRulesCard() {
       </Card>
 
       <NewTrafficRuleModal
-        open={modal}
+        open={modal || !!editing}
+        editing={editing}
         mgmtCidr={probe?.mgmt_cidr}
         busy={busy}
-        onClose={() => setModal(false)}
-        onConfirm={addRule}
+        onClose={() => { setModal(false); setEditing(undefined); }}
+        onConfirm={editing ? (rule) => updateRule(editing.section, rule) : addRule}
       />
 
       <ConfirmDialog
@@ -250,10 +267,11 @@ export function TrafficRulesCard() {
   );
 }
 
-function RuleRow({ r, readOnly = false, onDelete, busy }: {
+function RuleRow({ r, readOnly = false, onDelete, onEdit, busy }: {
   r: FWRule;
   readOnly?: boolean;
   onDelete?: () => void;
+  onEdit?: () => void;
   busy: boolean;
 }) {
   const { t } = useTranslation();
@@ -282,6 +300,16 @@ function RuleRow({ r, readOnly = false, onDelete, busy }: {
       {readOnly ? (
         <span title={t("trafficRules.externalHint")}><Pill tone="muted">{t("trafficRules.system")}</Pill></span>
       ) : (
+        <>
+        <button
+          type="button"
+          onClick={onEdit}
+          disabled={busy}
+          aria-label={`${t("trafficRules.edit")} ${r.name}`}
+          className="text-faint hover:text-accent transition-colors duration-[var(--dur-fast)] ring-focus rounded-sm p-1"
+        >
+          <Pencil size={16} />
+        </button>
         <button
           type="button"
           onClick={onDelete}
@@ -291,6 +319,7 @@ function RuleRow({ r, readOnly = false, onDelete, busy }: {
         >
           <Trash2 size={16} />
         </button>
+        </>
       )}
     </li>
   );
@@ -300,8 +329,10 @@ function RuleRow({ r, readOnly = false, onDelete, busy }: {
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-function NewTrafficRuleModal({ open, mgmtCidr, busy, onClose, onConfirm }: {
+function NewTrafficRuleModal({ open, editing, mgmtCidr, busy, onClose, onConfirm }: {
   open: boolean;
+  /** Regla que se está editando; sin ella el modal crea una nueva. */
+  editing?: FWRule;
   mgmtCidr?: string;
   busy: boolean;
   onClose: () => void;
@@ -319,6 +350,29 @@ function NewTrafficRuleModal({ open, mgmtCidr, busy, onClose, onConfirm }: {
   const [stopTime, setStopTime] = useState("");
   const [days, setDays] = useState<Set<string>>(new Set());
   const [utc, setUtc] = useState(false);
+
+  // Cada apertura parte de cero o de la regla que se edita: el modal vive
+  // montado y conservaba lo de la vez anterior.
+  useEffect(() => {
+    if (!open) return;
+    if (editing) {
+      setName(editing.name);
+      setTarget(editing.target);
+      setSrcMode(editing.src_ip ? "ip" : "any");
+      setSrcIp(editing.src_ip ?? "");
+      setDestIp(editing.dest_ip ?? "");
+      setDestPort(editing.dest_port ?? "");
+      setProto(editing.proto ?? "");
+      setStartTime(editing.start_time ?? "");
+      setStopTime(editing.stop_time ?? "");
+      setDays(new Set((editing.weekdays ?? "").split(" ").filter(Boolean)));
+      setUtc(!!editing.utc_time);
+      return;
+    }
+    setName(""); setTarget("ACCEPT"); setSrcMode("any"); setSrcIp("");
+    setDestIp(""); setDestPort(""); setProto(""); setStartTime(""); setStopTime("");
+    setDays(new Set()); setUtc(false);
+  }, [open, editing]);
 
   const rule: FirewallRuleAdd = {
     name,
@@ -352,7 +406,7 @@ function NewTrafficRuleModal({ open, mgmtCidr, busy, onClose, onConfirm }: {
     <Modal
       open={open}
       onClose={onClose}
-      title={t("trafficRules.modalTitle")}
+      title={editing ? t("trafficRules.editTitle") : t("trafficRules.modalTitle")}
       wide
       footer={
         <>

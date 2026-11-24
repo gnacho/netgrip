@@ -254,7 +254,9 @@ export function GuestWifiCard({ probe, mainSsid, onChange }: {
             </div>
           )}
 
-          {probe.gateway && <CaptivePortalPanel gateway={probe.gateway} />}
+          {/* La página de bienvenida solo tiene sentido con el WiFi de
+              visitas encendido (#631). */}
+          {probe.gateway && probe.active && <CaptivePortalPanel gateway={probe.gateway} />}
         </>
       )}
     </Card>

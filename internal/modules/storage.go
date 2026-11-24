@@ -26,15 +26,40 @@ type StorageService struct {
 }
 
 type StorageProbe struct {
-	Applicable bool             `json:"applicable"`
-	Devices    []StorageDevice  `json:"devices"`
-	Services   []StorageService `json:"services"`
+	Applicable bool `json:"applicable"`
+	// Supported: el equipo tiene buses USB, aunque no haya nada enchufado.
+	// Antes Applicable exigía un disco y la página decía "no gestionable" en
+	// un router con puerto USB, sin llegar a invitar a conectar nada (#636).
+	Supported bool             `json:"supported"`
+	Devices   []StorageDevice  `json:"devices"`
+	Services  []StorageService `json:"services"`
+}
+
+// usbHostPresent reports whether the kernel registered any USB bus: un router
+// con puerto USB los tiene aunque esté vacío.
+func usbHostPresent() bool {
+	entries, err := os.ReadDir("/sys/bus/usb/devices")
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "usb") {
+			return true
+		}
+	}
+	return false
 }
 
 func ProbeStorage() StorageProbe {
 	devices := detectUSBStorage()
+	supported := usbHostPresent()
 	if len(devices) == 0 {
-		return StorageProbe{Applicable: false, Devices: []StorageDevice{}, Services: []StorageService{}}
+		return StorageProbe{
+			Applicable: supported, // con puerto USB la página se muestra e invita a conectar
+			Supported:  supported,
+			Devices:    []StorageDevice{},
+			Services:   []StorageService{},
+		}
 	}
 
 	services := []StorageService{
@@ -44,6 +69,7 @@ func ProbeStorage() StorageProbe {
 
 	return StorageProbe{
 		Applicable: true,
+		Supported:  true,
 		Devices:    devices,
 		Services:   services,
 	}

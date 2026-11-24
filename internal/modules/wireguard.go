@@ -2,7 +2,9 @@ package modules
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -53,8 +55,71 @@ type WGProbe struct {
 	Address    string       `json:"address"`
 	PublicKey  string       `json:"public_key"`
 	Peers      []WGPeer     `json:"peers"`
+	// Endpoint es el nombre (dominio DDNS recomendado, o IP) que va en el
+	// "Endpoint =" de las configs de cliente. Sin él se usa la IP WAN, que
+	// cambia con el operador y deja la VPN muerta (#629).
+	Endpoint  string `json:"endpoint"`
+	// SuggestedEndpoint propone el primer dominio DDNS ya configurado.
+	SuggestedEndpoint string       `json:"suggested_endpoint,omitempty"`
 	ManagedBy  string       `json:"managed_by,omitempty"` // "gl_firmware" when GL.iNet tunnels exist
 	GLTunnels  []WGGLTunnel `json:"gl_tunnels"`
+}
+
+// wgEndpointFile guarda el nombre externo elegido (una linea, sin adorno).
+var wgEndpointFile = "/etc/netgrip/wg_endpoint"
+
+// reWGHost acepta un nombre de host o una IPv4: nada de esquema ni puerto.
+var reWGHost = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$`)
+
+// storedWGEndpoint lee el nombre externo configurado.
+func storedWGEndpoint() string {
+	data, err := os.ReadFile(wgEndpointFile)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+// suggestedWGEndpoint propone el dominio de un DDNS ya configurado en el
+// router: es justo el nombre que sobrevive a un cambio de IP.
+func suggestedWGEndpoint() string {
+	for _, e := range ProbeDDNS().Entries {
+		if e.Enabled && e.Domain != "" {
+			return e.Domain
+		}
+	}
+	return ""
+}
+
+// SetWGEndpoint guarda el nombre externo de la VPN. Vacio vuelve a usar la IP
+// WAN de cada momento.
+func SetWGEndpoint(endpoint string) (*WGProbe, error) {
+	endpoint = strings.TrimSpace(endpoint)
+	endpoint = strings.TrimPrefix(strings.TrimPrefix(endpoint, "https://"), "http://")
+	endpoint = strings.TrimSuffix(endpoint, "/")
+	// Un puerto pegado al nombre se descarta: el puerto lo pone el panel.
+	if i := strings.LastIndexByte(endpoint, ':'); i >= 0 {
+		if _, err := strconv.Atoi(endpoint[i+1:]); err == nil {
+			endpoint = endpoint[:i]
+		}
+	}
+	if strings.ContainsAny(endpoint, " /\\") {
+		return ProbeWG(), fmt.Errorf("invalid endpoint: use a domain name or an IPv4 address")
+	}
+	if endpoint != "" && !reWGHost.MatchString(endpoint) {
+		return ProbeWG(), fmt.Errorf("invalid endpoint: use a domain name or an IPv4 address")
+	}
+	if endpoint == "" {
+		_ = os.Remove(wgEndpointFile)
+		return ProbeWG(), nil
+	}
+	if err := os.MkdirAll(filepath.Dir(wgEndpointFile), 0o755); err != nil {
+		return ProbeWG(), err
+	}
+	if err := os.WriteFile(wgEndpointFile, []byte(endpoint+"\n"), 0o644); err != nil {
+		return ProbeWG(), err
+	}
+	return ProbeWG(), nil
 }
 
 // wgManagedGL marks a router whose WireGuard is governed by the GL.iNet
@@ -105,6 +170,10 @@ func ProbeWG() *WGProbe {
 	p.GLTunnels = probeWGGLTunnels()
 	if len(p.GLTunnels) > 0 {
 		p.ManagedBy = wgManagedGL
+	}
+	p.Endpoint = storedWGEndpoint()
+	if p.Endpoint == "" {
+		p.SuggestedEndpoint = suggestedWGEndpoint()
 	}
 	return p
 }
@@ -614,6 +683,9 @@ func AddWGPeerGenerated(name string, admin bool, endpoint string) (string, *WGPr
 			}
 			psk = uciGet("network." + p.Section + ".preshared_key")
 		}
+	}
+	if endpoint == "" {
+		endpoint = storedWGEndpoint()
 	}
 	if endpoint == "" {
 		endpoint = wanIPv4()

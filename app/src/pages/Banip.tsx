@@ -3,7 +3,9 @@ import { useTranslation } from "react-i18next";
 import { ArrowDownToLine, ArrowUpDown, ArrowUpFromLine, Ban, Info, Play, Plus, RefreshCw, Search, ShieldBan, ShieldCheck, Square, Trash2, TriangleAlert } from "lucide-react";
 import { api } from "../api";
 import type { BanipCatalogFeed, BanipFeed, BanipProbe, BanipSearchResult, BanipStatus } from "../types";
-import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Pill, SegmentedControl, SkeletonRows, useToast } from "../components/ui";
+import {
+  Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Modal, Pill, SegmentedControl, SkeletonRows, useToast,
+} from "../components/ui";
 
 type Tab = "feeds" | "search" | "lists" | "dos";
 
@@ -325,7 +327,7 @@ export function BanipPage() {
             hint={t("banip.statPacketsHint")} />
         )}
         <StatCard index={2} label={t("banip.statFeeds")} value={`${enabledFeeds.length}`}
-          hint={t("banip.statFeedsHint", { total: probe.feeds.length })} />
+          hint={t("banip.statFeedsHint", { total: (probe.feeds ?? []).length })} />
         {dosAvailable && (
           <StatCard index={3} label={t("banip.statAutobans")} value={fmtInt.format(report.auto_block)}
             hint={t("banip.statAutobansHint", { allow: fmtInt.format(report.auto_allow) })} />
@@ -371,11 +373,14 @@ function FeedDirectionControl({ feed, onChange }: { feed: BanipFeed; onChange: (
 
 function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: boolean; onSaved: (p: BanipProbe) => void; onError: (msg: string) => void }) {
   const { t } = useTranslation();
-  const [draft, setDraft] = useState<BanipFeed[]>(probe.feeds);
+  // Defensivo: una version vieja del backend puede mandar null (#616).
+  const feeds = probe.feeds ?? [];
+  const [draft, setDraft] = useState<BanipFeed[]>(feeds);
+  const [addOpen, setAddOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  useEffect(() => setDraft(probe.feeds), [probe.feeds]);
+  useEffect(() => setDraft(feeds), [feeds]);
 
-  const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(probe.feeds), [draft, probe.feeds]);
+  const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(feeds), [draft, feeds]);
   const setFeed = (name: string, patch: Partial<BanipFeed>) =>
     setDraft((d) => d.map((f) => (f.name === name ? { ...f, ...patch } : f)));
 
@@ -427,7 +432,14 @@ function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: 
         </Banner>
       )}
       <Card icon={ShieldCheck} iconTone="success" title={t("banip.feedsTitle")}
-        action={<Button variant="primary" size="sm" disabled={!dirty || busy || saving} onClick={save}>{t("common.save")}</Button>}>
+        action={
+          <span className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" icon={Plus} disabled={busy || saving} onClick={() => setAddOpen(true)}>
+              {t("banip.addList")}
+            </Button>
+            <Button variant="primary" size="sm" disabled={!dirty || busy || saving} onClick={save}>{t("common.save")}</Button>
+          </span>
+        }>
         {draft.length === 0 ? (
           <EmptyState small title={t("banip.feedsEmpty")} />
         ) : (
@@ -477,8 +489,19 @@ function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: 
         <p className="text-caption text-faint mt-3">{t("banip.feedsNote")}</p>
       </Card>
 
-      {available.length > 0 && (
-        <Card icon={Plus} iconTone="accent" title={t("banip.catalogTitle")}>
+      {/* Las listas disponibles viven tras el botón: la tarjeta se queda con
+          lo que está configurado (#633). */}
+      <Modal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        title={t("banip.catalogTitle")}
+        wide
+        footer={<Button variant="ghost" onClick={() => setAddOpen(false)}>{t("common.close")}</Button>}
+      >
+        <p className="text-caption text-muted mb-3">{t("banip.addListHint")}</p>
+        {available.length === 0 ? (
+          <EmptyState small title={t("banip.catalogEmpty")} />
+        ) : (
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-border/60 text-left">
@@ -515,8 +538,8 @@ function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: 
               ))}
             </tbody>
           </table>
-        </Card>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }
@@ -632,10 +655,12 @@ function ListCard({ list, entries, busy, onChanged, onError }: {
 }
 
 function ListsTab({ probe, busy, onChanged, onError }: { probe: BanipProbe; busy: boolean; onChanged: (p: BanipProbe) => void; onError: (msg: string) => void }) {
+  // null en JSON tumbaba la pagina entera (#616): el backend ya no lo manda,
+  // pero un binario viejo puede seguir haciendolo.
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-[var(--card-gap)]">
-      <ListCard list="allowlist" entries={probe.allowlist} busy={busy} onChanged={onChanged} onError={onError} />
-      <ListCard list="blocklist" entries={probe.blocklist} busy={busy} onChanged={onChanged} onError={onError} />
+      <ListCard list="allowlist" entries={probe.allowlist ?? []} busy={busy} onChanged={onChanged} onError={onError} />
+      <ListCard list="blocklist" entries={probe.blocklist ?? []} busy={busy} onChanged={onChanged} onError={onError} />
     </div>
   );
 }

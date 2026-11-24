@@ -54,109 +54,84 @@ export function SelfUpdateCard({ index = 2 }: { index?: number }) {
           ? <Pill tone="warn">{t("selfupdate.available")}</Pill>
           : <Pill tone="ok">{t("selfupdate.upToDate")}</Pill>)}>
       {!check ? (
-        <SkeletonRows rows={3} />
+        <SkeletonRows rows={1} />
       ) : (
-        <div className="flex flex-col gap-2.5">
-          <div className="flex items-baseline justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {/* Versión, comprobación y actualización */}
+          <span className="inline-flex items-center gap-2">
             <span className="text-small text-muted">{t("selfupdate.current")}</span>
             <span className="font-mono text-small font-medium">{check.current}</span>
-          </div>
+            {check.available && (
+              <>
+                <span className="text-faint" aria-hidden="true">→</span>
+                <span className="font-mono text-small font-semibold text-warn">{check.latest}</span>
+              </>
+            )}
+          </span>
 
-          {check.check_error && (
-            <p className="text-small text-danger">{t("selfupdate.checkFailedHint")}</p>
-          )}
-
-          {check.available && (
-            <div className="flex items-baseline justify-between gap-4">
-              <span className="text-small text-muted">{t("selfupdate.latest")}</span>
-              <span className="font-mono text-small font-semibold text-warn">{check.latest}</span>
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-2">
             {check.available && (
               <Button size="sm" onClick={() => setDialogOpen(true)}>{t("selfupdate.update")}</Button>
             )}
             <Button size="sm" variant="secondary" loading={checking} onClick={recheck}>
               {t("selfupdate.checkNow")}
             </Button>
-          </div>
+          </span>
 
-          {!cfg ? (
-            <SkeletonRows rows={2} />
-          ) : (
-            <div className="mt-1 flex flex-col gap-2.5 border-t pt-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="text-small font-medium">{t("selfupdate.auto")}</span>
-                  <HelpTip title={t("selfupdate.auto")} body={t("selfupdate.autoHint")} />
-                </div>
-                <Toggle
-                  checked={cfg.enabled}
-                  disabled={saving}
-                  onChange={(v) => save({ enabled: v })}
+          {check.check_error && (
+            <span className="text-small text-danger">{t("selfupdate.checkFailedHint")}</span>
+          )}
+
+          {/* Actualización automática, en la misma línea (#639) */}
+          {cfg && (
+            <span className="ml-auto inline-flex flex-wrap items-center gap-x-3 gap-y-2">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-small">{t("selfupdate.auto")}</span>
+                <HelpTip
+                  title={t("selfupdate.auto")}
+                  body={`${t("selfupdate.autoHint")}${st ? ` · ${t("selfupdate.lastCheck")}: ${fmtTime(st.lastCheck)} · ${t("selfupdate.lastResult")}: ${st.lastResult ? t(`selfupdate.result_${st.lastResult.split(" ")[0]}`, { version: st.lastResult.split(" ")[1] ?? "" }) : "-"}` : ""}`}
                 />
-              </div>
-
+              </span>
               {cfg.enabled && (
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <label className="flex items-center gap-2">
-                    <span className="text-small text-muted">{t("selfupdate.interval")}</span>
-                    <select
-                      className="rounded-lg border bg-elevated px-2 py-1 text-small"
-                      value={cfg.intervalHours <= 24 ? 24 : 168}
-                      disabled={saving}
-                      onChange={(e) => save({ intervalHours: Number(e.target.value) })}
-                    >
-                      <option value={24}>{t("selfupdate.daily")}</option>
-                      <option value={168}>{t("selfupdate.weekly")}</option>
-                    </select>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <span className="text-small text-muted">{t("selfupdate.window")}</span>
-                    <select
-                      className="rounded-lg border bg-elevated px-2 py-1 text-small"
-                      value={cfg.windowStart}
-                      disabled={saving}
-                      onChange={(e) => {
-                        const start = Number(e.target.value);
-                        const end = start + 2 <= 24 ? start + 2 : start + 2 - 24;
-                        save({ windowStart: start, windowEnd: end });
-                      }}
-                    >
-                      {Array.from({ length: 24 }, (_, h) => (
-                        <option key={h} value={h}>
-                          {String(h).padStart(2, "0")}:00
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
+                <>
+                  <select
+                    className="rounded-lg border bg-elevated px-2 py-1 text-small"
+                    aria-label={t("selfupdate.interval")}
+                    value={cfg.intervalHours <= 24 ? 24 : 168}
+                    disabled={saving}
+                    onChange={(e) => save({ intervalHours: Number(e.target.value) })}
+                  >
+                    <option value={24}>{t("selfupdate.daily")}</option>
+                    <option value={168}>{t("selfupdate.weekly")}</option>
+                  </select>
+                  <select
+                    className="rounded-lg border bg-elevated px-2 py-1 text-small"
+                    aria-label={t("selfupdate.window")}
+                    value={cfg.windowStart}
+                    disabled={saving}
+                    onChange={(e) => {
+                      const start = Number(e.target.value);
+                      const end = start + 2 <= 24 ? start + 2 : start + 2 - 24;
+                      save({ windowStart: start, windowEnd: end });
+                    }}
+                  >
+                    {Array.from({ length: 24 }, (_, h) => (
+                      <option key={h} value={h}>
+                        {String(h).padStart(2, "0")}:00
+                      </option>
+                    ))}
+                  </select>
+                </>
               )}
-
-              {st && (
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-baseline justify-between gap-4">
-                    <span className="text-small text-muted">{t("selfupdate.lastCheck")}</span>
-                    <span className="text-small">{fmtTime(st.lastCheck)}</span>
-                  </div>
-                  <div className="flex items-baseline justify-between gap-4">
-                    <span className="text-small text-muted">{t("selfupdate.lastResult")}</span>
-                    <span className="text-small">
-                      {st.lastResult
-                        ? t(`selfupdate.result_${st.lastResult.split(" ")[0]}`, {
-                            version: st.lastResult.split(" ")[1] ?? "",
-                          })
-                        : "-"}
-                    </span>
-                  </div>
-                </div>
-              )}
-
+              <Toggle
+                checked={cfg.enabled}
+                disabled={saving}
+                onChange={(v) => save({ enabled: v })}
+              />
               {savedAt > 0 && Date.now() - savedAt < 4000 && (
                 <span className="text-xs text-ok">{t("selfupdate.saved")}</span>
               )}
-            </div>
+            </span>
           )}
         </div>
       )}

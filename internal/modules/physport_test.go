@@ -28,7 +28,7 @@ func TestEtoolPortModesNeverNil(t *testing.T) {
 		ethtoolOutputFn = func(string) ([]byte, error) {
 			return nil, errors.New("exec: \"ethtool\": executable file not found in $PATH")
 		}
-		autoneg, speed, duplex, modes := ethtoolPort("lan2")
+		autoneg, speed, duplex, modes, _ := ethtoolPort("lan2")
 		if autoneg || speed != 0 || duplex != "" {
 			t.Fatalf("boca sin ethtool = %v/%d/%q, want false/0/empty", autoneg, speed, duplex)
 		}
@@ -44,7 +44,7 @@ func TestEtoolPortModesNeverNil(t *testing.T) {
 		ethtoolOutputFn = func(string) ([]byte, error) {
 			return []byte(ethtoolNoModesSample), nil
 		}
-		if _, _, _, modes := ethtoolPort("lan21"); modes == nil || len(modes) != 0 {
+		if _, _, _, modes, _ := ethtoolPort("lan21"); modes == nil || len(modes) != 0 {
 			t.Fatalf("modes = %+v (nil=%v), want slice vacio no nulo", modes, modes == nil)
 		}
 	})
@@ -53,7 +53,7 @@ func TestEtoolPortModesNeverNil(t *testing.T) {
 		ethtoolOutputFn = func(string) ([]byte, error) {
 			return []byte(ethtoolNoModesSample), nil
 		}
-		_, _, _, modes := ethtoolPort("lan21")
+		_, _, _, modes, _ := ethtoolPort("lan21")
 		raw, err := json.Marshal(PhysPort{Name: "lan21", Supported: modes})
 		if err != nil {
 			t.Fatalf("marshal: %v", err)

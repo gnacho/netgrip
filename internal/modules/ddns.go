@@ -207,6 +207,51 @@ func ddnsRollback(snap string) {
 	_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"ddns", "reload"}})
 }
 
+// UpdateDDNS edits an existing entry in place. The section name is derived
+// from the domain, so changing the domain moves it: the old section is
+// deleted in the same batch, otherwise the entry would be duplicated and
+// later toggles (which look it up by domain) would miss it (#641).
+func UpdateDDNS(section string, cfg DDNSConfig) (*DDNSProbe, bool, error) {
+	if !validDDNSSection(section) || !ddnsSectionExists("ddns."+section) {
+		return ProbeDDNS(), false, fmt.Errorf("ddns section %q not found", section)
+	}
+	if cfg.Domain == "" || strings.TrimSpace(cfg.ServiceName) == "" {
+		return ProbeDDNS(), false, fmt.Errorf("service_name and domain are required")
+	}
+	target := ddnsEntryName(cfg.Domain)
+	if target != section && ddnsSectionExists("ddns."+target) {
+		return ProbeDDNS(), false, fmt.Errorf("another entry already uses %s", cfg.Domain)
+	}
+
+	snap := ddnsSnapshot()
+	ops, err := ddnsEntryOps(cfg, target, target == section || uciSectionExists("ddns."+target))
+	if err != nil {
+		return ProbeDDNS(), false, err
+	}
+	if target != section {
+		ops = append([]executor.Op{
+			{Kind: "uci_delete", Args: []string{"ddns." + section}},
+		}, ops...)
+	}
+	if err := executor.Apply(ops, nil); err != nil {
+		ddnsRollback(snap)
+		return ProbeDDNS(), true, err
+	}
+
+	if target != section {
+		ddnsStopUpdater(section)
+	}
+	for range 5 {
+		probe := ProbeDDNS()
+		if entry := findDDNSEntry(probe.Entries, cfg.Domain); entry != nil && entry.Enabled {
+			return ProbeDDNS(), false, nil
+		}
+		time.Sleep(time.Second)
+	}
+	ddnsRollback(snap)
+	return ProbeDDNS(), true, fmt.Errorf("entry not present after edit, rolled back")
+}
+
 // SetDDNS creates or updates a single DDNS entry identified by its domain.
 func SetDDNS(cfg DDNSConfig) (*DDNSProbe, bool, error) {
 	if cfg.Domain == "" {

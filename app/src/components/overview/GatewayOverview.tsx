@@ -12,10 +12,10 @@ import type { OverviewVariantProps } from "./props";
  * es la que más superficie gestiona.
  */
 export function GatewayOverview(props: OverviewVariantProps) {
-  const { board, system, wan, drift, onDriftChange, health, mode, ethports, onNavigate } = props;
+  const { board, system, wan, drift, onDriftChange, health, mode, ethports, wireless, onNavigate } = props;
   return (
     <>
-      <HealthHero health={health} board={board} system={system} onNavigate={onNavigate} />
+      <HealthHero health={health} board={board} system={system} onNavigate={onNavigate} role="router" />
       {/* El enlace y su tráfico en vivo, cada uno a todo el ancho (#598). */}
       <InternetCard wan={wan} mode={mode} />
       <LiveTrafficCard />
@@ -23,7 +23,7 @@ export function GatewayOverview(props: OverviewVariantProps) {
       <ResourcesCard system={system} />
       {/* Las bocas usan el mismo modelo que el Resumen de AP (#602). */}
       <EthPortsCard ports={ethports} index={3} />
-      <ClientsCard onNavigate={onNavigate} />
+      <ClientsCard onNavigate={onNavigate} wireless={wireless} />
       <DriftSection drift={drift} onChange={onDriftChange} />
     </>
   );

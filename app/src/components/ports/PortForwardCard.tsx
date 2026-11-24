@@ -9,7 +9,7 @@ import { api } from "../../api";
 import type { Client, FwdProbe, FwdRule } from "../../types";
 import {
   ActionBanner, Banner, Button, Card, ConfirmDialog, EmptyState,
-  Field, IconTile, Input, Modal, Pill, SegmentedControl, SkeletonRows,
+  Field, Input, Modal, Pill, SegmentedControl, SkeletonRows,
 } from "../ui";
 import { IlluPlug } from "../ui/illustrations";
 import { useActionCycle } from "../wifi/action";
@@ -28,7 +28,7 @@ interface FwdTemplate {
 const TEMPLATES: FwdTemplate[] = [
   { id: "nas", icon: HardDrive, port: "443", proto: "tcp", nameKey: "fwd.tplNas", descKey: "fwd.tplNasDesc" },
   { id: "minecraft", icon: Gamepad2, port: "25565", proto: "tcp", nameKey: "fwd.tplMinecraft", descKey: "fwd.tplMinecraftDesc" },
-  { id: "plex", icon: Clapperboard, port: "32400", proto: "tcp", nameKey: "fwd.tplPlex", descKey: "fwd.tplPlexDesc" },
+  { id: "jellyfin", icon: Clapperboard, port: "8096", proto: "tcp", nameKey: "fwd.tplJellyfin", descKey: "fwd.tplJellyfinDesc" },
   { id: "camera", icon: Video, port: "554", proto: "tcpudp", nameKey: "fwd.tplCamera", descKey: "fwd.tplCameraDesc" },
   { id: "custom", icon: Pencil, port: "", proto: "tcp", nameKey: "fwd.tplCustom", descKey: "fwd.tplCustomDesc" },
 ];
@@ -45,6 +45,7 @@ export function PortForwardCard({ probe, onChange }: {
   const { t } = useTranslation();
   const { phase, detail, busy, run, clear } = useActionCycle();
   const [modal, setModal] = useState<FwdTemplate>();
+  const [editing, setEditing] = useState<FwdRule>();
   const [toDelete, setToDelete] = useState<FwdRule>();
 
   const applicable = !!probe?.has_wan && !!probe?.firewall;
@@ -54,6 +55,15 @@ export function PortForwardCard({ probe, onChange }: {
       if (res?.status === "applied") {
         onChange(res.state);
         setModal(undefined);
+      }
+    });
+  };
+
+  const updateRule = (section: string, srcDport: string, destIP: string, destPort: string, proto: string) => {
+    run(() => api.updateFwdRule(section, srcDport, destIP, destPort, proto)).then((res) => {
+      if (res?.status === "applied") {
+        onChange(res.state);
+        setEditing(undefined);
       }
     });
   };
@@ -115,6 +125,21 @@ export function PortForwardCard({ probe, onChange }: {
                       {r.proto}
                     </span>
                     <span className="flex-1" />
+                    {/* Editar va antes del estado (#617): es la accion, y asi
+                        no queda escondida detras de las pildoras. Cualquier
+                        reenvio se puede editar, tambien los de LuCI; borrar
+                        sigue siendo solo de los nuestros (#613). */}
+                    {r.kind === "forward" && (
+                      <button
+                        type="button"
+                        onClick={() => setEditing(r)}
+                        disabled={busy}
+                        aria-label={`${t("fwd.edit")} ${ruleName(t, r)}`}
+                        className="text-faint hover:text-accent transition-colors duration-[var(--dur-fast)] ring-focus rounded-sm p-1"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                    )}
                     <Pill tone="ok">{t("fwd.active")}</Pill>
                     {/* Only what NetGrip created is removable from here;
                         anything set up elsewhere is shown, not touched. */}
@@ -152,38 +177,15 @@ export function PortForwardCard({ probe, onChange }: {
         )}
       </Card>
 
-      {/* Plantillas rápidas §3: chips grandes que abren el modal pre-rellenado */}
-      {probe && applicable && (
-        <div className="mt-4">
-          <p className="text-eyebrow text-faint mb-2">{t("fwd.tplTitle")}</p>
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-            {TEMPLATES.map((tpl) => (
-              <button
-                key={tpl.id}
-                type="button"
-                onClick={() => setModal(tpl)}
-                className="flex items-center gap-2.5 h-12 shrink-0 rounded-md bg-surface border border-border px-3
-                  hover:bg-surface-2 hover:border-accent transition-colors duration-[var(--dur-fast)] ring-focus"
-              >
-                <IconTile icon={tpl.icon} tone="violet" size={32} />
-                <span className="text-left">
-                  <span className="block text-small font-medium whitespace-nowrap">{t(tpl.nameKey)}</span>
-                  <span className="block text-caption text-muted font-mono">
-                    {tpl.port ? `:${tpl.port}` : "·"} {tpl.port ? tpl.proto.toUpperCase() : ""}
-                  </span>
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       <NewRuleModal
         template={modal}
+        rule={editing}
         probe={probe}
         busy={busy}
-        onClose={() => setModal(undefined)}
-        onConfirm={addRule}
+        onClose={() => { setModal(undefined); setEditing(undefined); }}
+        onConfirm={editing
+          ? (srcDport, destIP, destPort, proto) => updateRule(editing.section, srcDport, destIP, destPort, proto)
+          : addRule}
       />
 
       <ConfirmDialog
@@ -201,8 +203,10 @@ export function PortForwardCard({ probe, onChange }: {
 
 /* ══════════ Modal "Nueva regla" (ports.md §2) ══════════ */
 
-function NewRuleModal({ template, probe, busy, onClose, onConfirm }: {
+function NewRuleModal({ template, rule, probe, busy, onClose, onConfirm }: {
   template: FwdTemplate | undefined;
+  /** Regla existente que se está editando (solo forwards propios). */
+  rule?: FwdRule;
   probe: FwdProbe | undefined;
   busy: boolean;
   onClose: () => void;
@@ -216,38 +220,49 @@ function NewRuleModal({ template, probe, busy, onClose, onConfirm }: {
   const [proto, setProto] = useState("tcp");
   const [clients, setClients] = useState<Client[]>([]);
 
-  // Pre-relleno al abrir con una plantilla.
+  // Pre-relleno: los datos de la regla que se edita, o la plantilla elegida.
   useEffect(() => {
+    if (rule) {
+      setSrcDport(rule.src_dport);
+      setDestPort(rule.dest_port);
+      setDestIP(rule.dest_ip);
+      setProto(rule.proto === "tcp udp" ? "tcpudp" : rule.proto);
+      return;
+    }
     if (!template) return;
     setSel(template);
     setSrcDport(template.port);
     setDestPort(template.port);
     setProto(template.proto);
     setDestIP("");
-  }, [template]);
+  }, [template, rule]);
 
   // Inventario de clientes para "¿A qué equipo?".
   useEffect(() => {
-    if (!template) return;
+    if (!template && !rule) return;
     api.clients().then((r) => setClients(r.clients.filter((c) => !!c.ip && !c.self))).catch(() => {});
-  }, [template]);
+  }, [template, rule]);
 
   const portOk = (p: string) => /^\d+$/.test(p) && Number(p) >= 1 && Number(p) <= 65535;
-  const duplicate = probe?.rules.some((r) => r.src_dport === srcDport && srcDport !== "");
+  const duplicate = probe?.rules.some((r) =>
+    r.section !== rule?.section && r.src_dport === srcDport && srcDport !== "");
   const valid = portOk(srcDport) && portOk(destPort) && isValidIp(destIP) && !duplicate;
 
   return (
-    <Modal open={!!template} onClose={onClose} title={t("fwd.modalTitle")}
+    <Modal open={!!template || !!rule} onClose={onClose}
+      title={rule ? t("fwd.editTitle") : t("fwd.modalTitle")}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
           <Button onClick={() => onConfirm(srcDport, destIP, destPort, proto)} disabled={!valid} loading={busy}>
-            {t("fwd.open")}
+            {rule ? t("common.save") : t("fwd.open")}
           </Button>
         </>
       }
     >
-      {/* 1. ¿Qué quieres abrir? */}
+      {/* 1. ¿Qué quieres abrir? (al editar ya está decidido) */}
+      {!rule && (
+        <>
       <p className="text-small font-medium mb-2">{t("fwd.stepWhat")}</p>
       <div className="grid grid-cols-2 gap-2">
         {TEMPLATES.map((tpl) => (
@@ -270,6 +285,8 @@ function NewRuleModal({ template, probe, busy, onClose, onConfirm }: {
           </button>
         ))}
       </div>
+        </>
+      )}
 
       {/* 2. ¿A qué equipo? */}
       <p className="text-small font-medium mt-4 mb-2">{t("fwd.stepWhere")}</p>

@@ -170,7 +170,14 @@ export function MultiSeriesChart({ series, xLabels, height = 220, formatY = fmtB
 
   const n = series[0]?.points.length ?? 0;
   const model = useMemo(() => {
-    if (n < 2 || series.length === 0) return null;
+    // Un solo punto no es una linea, pero si un dato: se dibuja como punto
+    // en el centro (p. ej. el primer cubo de 5 min tras arrancar, #615).
+    if (n < 1 || series.length === 0) return null;
+    if (n === 1) {
+      const max = Math.max(...series.flatMap((s) => s.points), 1);
+      const y = PAD_TOP + (1 - series[0].points[0] / max) * (H - PAD_TOP - PAD_BOTTOM);
+      return { max, stepX: 0, single: true as const, pts: series.map(() => [{ x: W / 2, y }]) };
+    }
     const max = Math.max(...series.flatMap((s) => s.points), 1);
     const stepX = (W - PAD_X * 2) / (n - 1);
     const toPt = (v: number, i: number) => ({
@@ -207,7 +214,17 @@ export function MultiSeriesChart({ series, xLabels, height = 220, formatY = fmtB
           const y = PAD_TOP + (1 - f) * (H - PAD_TOP - PAD_BOTTOM);
           return <line key={f} x1={PAD_X} x2={W - PAD_X} y1={y} y2={y} stroke={GRID} strokeWidth="1" />;
         })}
-        {model && series.map((s, si) => (
+        {model && "single" in model && series.map((s, si) => {
+          const { y } = model.pts[si][0];
+          return (
+            <g key={s.key}>
+              <rect x={PAD_X} y={y} width={W - PAD_X * 2} height={Math.max(1, baseY - y)}
+                fill={s.color} fillOpacity={0.15} />
+              <line x1={PAD_X} x2={W - PAD_X} y1={y} y2={y} stroke={s.color} strokeWidth="2" />
+            </g>
+          );
+        })}
+        {model && !("single" in model) && series.map((s, si) => (
           <g key={s.key}>
             <path d={smoothArea(model.pts[si], baseY)} fill={s.color} fillOpacity={0.08} />
             <path d={smoothLine(model.pts[si])} fill="none" stroke={s.color} strokeWidth="2" />

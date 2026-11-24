@@ -255,6 +255,10 @@ export const demoApi: typeof api = {
     state.wg.peers.push({ section: `peer_${state.wg.peers.length}`, name, public_key: publicKey, allowed_ips: [], admin });
     return write(state.wg);
   },
+  setWgEndpoint: async (endpoint) => {
+    state.wg.endpoint = endpoint;
+    return state.wg;
+  },
   addWgPeerQr: async (name, admin) => {
     await wait(800, 1500);
     state.wg.peers.push({ section: `peer_${state.wg.peers.length}`, name, public_key: "DEMO" + "x".repeat(39) + "=", allowed_ips: [], admin });
@@ -289,6 +293,11 @@ export const demoApi: typeof api = {
       });
     }
     return { status: "applied" as const, rolled_back: false, state: state.ddns };
+  },
+  updateDdns: async (section, cfg) => {
+    state.ddns.entries = state.ddns.entries.map((e) =>
+      e.section === section ? { ...e, ...cfg, domain: cfg.domain ?? e.domain } : e);
+    return write(state.ddns);
   },
   deleteDdns: async (section) => {
     await wait(800, 1500);
@@ -515,9 +524,23 @@ export const demoApi: typeof api = {
     state.firewall.rules.push({ section: `netgrip_fw_${n}`, managed: true, enabled: true, ...rule });
     return write(state.firewall);
   },
+  updateFirewallRule: async (section, rule) => {
+    state.firewall.rules = state.firewall.rules.map((r) =>
+      r.section === section ? { ...r, ...rule } : r);
+    return write(state.firewall);
+  },
   deleteFirewallRule: async (section) => {
     state.firewall.rules = state.firewall.rules.filter((r) => r.section !== section);
     return write(state.firewall);
+  },
+  speedtest: () => get({ state: "idle", down_mbps: 0, up_mbps: 0 } as const),
+  startSpeedtest: async () => get({ state: "running", phase: "download", down_mbps: 0, up_mbps: 0 } as const),
+  sysUpdateSchedule: () => get({ config: { enabled: false, intervalHours: 168, windowStart: 3, windowEnd: 5 },
+    state: { lastCheck: 0, lastResult: "", lastApply: 0, lastVersion: "" } }),
+  sysUpdateScheduleSave: async (patch) => {
+    const cur = await get({ config: { enabled: false, intervalHours: 168, windowStart: 3, windowEnd: 5 },
+      state: { lastCheck: 0, lastResult: "", lastApply: 0, lastVersion: "" } });
+    return get({ ...cur, config: { ...cur.config, ...patch } });
   },
   dpi: () => get(D.demoDpi),
   netifyd: () => get(state.netifyd),
@@ -533,9 +556,14 @@ export const demoApi: typeof api = {
   lan: () => get(state.lan),
   setLan: async (opts) => { Object.assign(state.lan, opts); return write(state.lan); },
   setDhcp: async (cfg) => { state.lan.dhcp = { ...cfg }; return write(state.lan); },
+  updateReservation: async (old_mac, mac, ip, name) => {
+    state.lan.reservations = state.lan.reservations.map((r) =>
+      r.mac === old_mac ? { ...r, mac, ip, name } : r);
+    return write(state.lan);
+  },
   setReservation: async (mac, ip, name, reserved) => {
     state.lan.reservations = reserved
-      ? [...state.lan.reservations.filter((r) => r.mac !== mac), { mac, ip, name }]
+      ? [...state.lan.reservations.filter((r) => r.mac !== mac), { mac, ip, name, managed: true }]
       : state.lan.reservations.filter((r) => r.mac !== mac);
     const c = state.clients.find((x) => x.mac === mac);
     if (c) c.reserved = reserved;
@@ -654,6 +682,11 @@ export const demoApi: typeof api = {
   portforward: () => get(state.fwd),
   addFwdRule: async (src_dport, dest_ip, dest_port, proto) => {
     state.fwd.rules.push({ section: `fwd_${state.fwd.rules.length}`, name: "", src_dport, dest_ip, dest_port, proto });
+    return write(state.fwd);
+  },
+  updateFwdRule: async (section, src_dport, dest_ip, dest_port, proto) => {
+    state.fwd.rules = state.fwd.rules.map((r) =>
+      r.section === section ? { ...r, src_dport, dest_ip, dest_port, proto } : r);
     return write(state.fwd);
   },
   deleteFwdRule: async (section) => {

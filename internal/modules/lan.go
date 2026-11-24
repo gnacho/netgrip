@@ -35,6 +35,10 @@ type Reservation struct {
 	MAC  string `json:"mac"`
 	IP   string `json:"ip"`
 	Name string `json:"name,omitempty"`
+	// Managed: la creó NetGrip y por tanto el botón de vaciar la toca. Las
+	// que vienen de LuCI o de una migración se ven y se editan, pero no se
+	// borran en bloque (#621).
+	Managed bool `json:"managed"`
 }
 
 func lanApplicable() bool {
@@ -82,17 +86,19 @@ func probeApIsolation() bool {
 }
 
 func probeReservations() []Reservation {
-	var list []Reservation
+	list := []Reservation{}
 	for _, section := range hostSections() {
-		mac := strings.ToLower(uciGet("dhcp." + section + ".mac"))
+		mac := strings.ToLower(strings.TrimSpace(uciGet("dhcp." + section + ".mac")))
 		ip := uciGet("dhcp." + section + ".ip")
-		if mac == "" {
+		if mac == "" || ip == "" {
 			continue
 		}
-		list = append(list, Reservation{MAC: mac, IP: ip, Name: uciGet("dhcp." + section + ".name")})
-	}
-	if list == nil {
-		return []Reservation{}
+		list = append(list, Reservation{
+			MAC:     mac,
+			IP:      ip,
+			Name:    uciGet("dhcp." + section + ".name"),
+			Managed: strings.HasPrefix(section, "netgrip_host_"),
+		})
 	}
 	return list
 }
@@ -300,7 +306,12 @@ func SetReservation(mac, ip, name string, reserved bool) (*LANConfig, bool, erro
 		_ = executor.Restore("dhcp", snap)
 		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"dnsmasq", "reload"}})
 	}
-	section := "netgrip_host_" + strings.ReplaceAll(mac, ":", "")
+	// Si esa MAC ya tiene reserva (en LuCI o de otra herramienta) se edita la
+	// suya: crear otra dejaria dos entradas para el mismo aparato (#621).
+	section := reservationSectionForMAC(mac)
+	if section == "" {
+		section = "netgrip_host_" + strings.ReplaceAll(mac, ":", "")
+	}
 	base := "dhcp." + section
 	var ops []executor.Op
 	if reserved {
@@ -326,12 +337,74 @@ func SetReservation(mac, ip, name string, reserved bool) (*LANConfig, bool, erro
 	return ProbeLAN(), false, nil
 }
 
+// UpdateReservation edits an existing reservation in place: destination IP,
+// name and even the MAC. The section keeps its name, so nothing that points at
+// it breaks; only the options change (#622).
+func UpdateReservation(oldMAC, mac, ip, name string) (*LANConfig, bool, error) {
+	if !lanApplicable() {
+		return ProbeLAN(), false, fmt.Errorf("reservations only apply on the gateway (static IP + dnsmasq)")
+	}
+	oldMAC = strings.ToLower(strings.TrimSpace(oldMAC))
+	mac = strings.ToLower(strings.TrimSpace(mac))
+	if !reMac.MatchString(mac) || !reIPv4.MatchString(ip) || !reMac.MatchString(oldMAC) {
+		return ProbeLAN(), false, fmt.Errorf("invalid mac/ip")
+	}
+	section := reservationSectionForMAC(oldMAC)
+	if section == "" {
+		return ProbeLAN(), false, fmt.Errorf("reservation not found")
+	}
+	if mac != oldMAC && reservationSectionForMAC(mac) != "" {
+		return ProbeLAN(), false, fmt.Errorf("that device already has a reservation")
+	}
+
+	snap, err := executor.Snapshot("dhcp")
+	if err != nil {
+		return ProbeLAN(), false, err
+	}
+	rollback := func() {
+		_ = executor.Restore("dhcp", snap)
+		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"dnsmasq", "reload"}})
+	}
+
+	base := "dhcp." + section
+	ops := []executor.Op{
+		{Kind: "uci_set", Args: []string{base + ".mac", mac}},
+		{Kind: "uci_set", Args: []string{base + ".ip", ip}},
+	}
+	if strings.TrimSpace(name) == "" {
+		ops = append(ops, executor.Op{Kind: "uci_delete", Args: []string{base + ".name"}})
+	} else {
+		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{base + ".name", strings.TrimSpace(name)}})
+	}
+	ops = append(ops,
+		executor.Op{Kind: "uci_commit", Args: []string{"dhcp"}},
+		executor.Op{Kind: "initd", Args: []string{"dnsmasq", "reload"}},
+	)
+	if err := executor.Apply(ops, nil); err != nil {
+		rollback()
+		return ProbeLAN(), true, err
+	}
+	for _, r := range probeReservations() {
+		if r.MAC == mac && r.IP == ip {
+			return ProbeLAN(), false, nil
+		}
+	}
+	rollback()
+	return ProbeLAN(), true, fmt.Errorf("reservation not present after edit, rolled back")
+}
+
 // ClearReservations removes every netgrip_* reservation (gateway only).
 func ClearReservations() (*LANConfig, bool, error) {
 	if !lanApplicable() {
 		return ProbeLAN(), false, fmt.Errorf("reservations only apply on the gateway (static IP + dnsmasq)")
 	}
-	sections := hostSections()
+	// Solo las que creó NetGrip: el resto son configuracion del usuario.
+	var sections []string
+	for _, s := range hostSections() {
+		if strings.HasPrefix(s, "netgrip_host_") {
+			sections = append(sections, s)
+		}
+	}
 	if len(sections) == 0 {
 		return ProbeLAN(), false, nil
 	}

@@ -104,30 +104,36 @@ export function DnsCard({ index = 1 }: { index?: number }) {
             <Banner tone="info" className="mb-1">{t("dns.adguardNote")}</Banner>
           )}
 
-          <div className="divide-y divide-border/60">
-            {rows.map((r) => (
-              <SettingRow
-                key={r.key}
-                icon={r.icon}
-                title={r.title}
-                description={r.desc}
-                checked={cfg[r.key]}
-                busy={busy}
-                disabled={r.disabled}
-                disabledReason={r.reason}
-                onChange={(v) => toggle(r.key, v)}
-              />
-            ))}
-          </div>
+          {/* Con AdGuard Home al mando, estos ajustes no se aplican: se
+              ocultan en vez de mostrarlos desactivados (#623). */}
+          {!cfg.adguard_active && (
+            <>
+              <div className="divide-y divide-border/60">
+                {rows.map((r) => (
+                  <SettingRow
+                    key={r.key}
+                    icon={r.icon}
+                    title={r.title}
+                    description={r.desc}
+                    checked={cfg[r.key]}
+                    busy={busy}
+                    disabled={r.disabled}
+                    disabledReason={r.reason}
+                    onChange={(v) => toggle(r.key, v)}
+                  />
+                ))}
+              </div>
 
-          {cfg.override_dns && (
-            <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto] items-end">
-              <Field label={t("lan.dns1")} mono
-                inputProps={{ value: dns1, onChange: (e) => setDns1(e.target.value), placeholder: t("lan.optional") }} />
-              <Field label={t("lan.dns2")} mono
-                inputProps={{ value: dns2, onChange: (e) => setDns2(e.target.value), placeholder: t("lan.optional") }} />
-              <Button size="sm" onClick={saveDns} loading={busy}>{t("lan.save")}</Button>
-            </div>
+              {cfg.override_dns && (
+                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto] items-end">
+                  <Field label={t("lan.dns1")} mono
+                    inputProps={{ value: dns1, onChange: (e) => setDns1(e.target.value), placeholder: t("lan.optional") }} />
+                  <Field label={t("lan.dns2")} mono
+                    inputProps={{ value: dns2, onChange: (e) => setDns2(e.target.value), placeholder: t("lan.optional") }} />
+                  <Button size="sm" onClick={saveDns} loading={busy}>{t("lan.save")}</Button>
+                </div>
+              )}
+            </>
           )}
 
           <div className="mt-2 border-t border-border/60 pt-4">

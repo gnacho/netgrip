@@ -16,6 +16,9 @@ export function WifiScheduleCard({ ifaces, index = 3 }: { ifaces: WifiUI[]; inde
   const [open, setOpen] = useState<string>();
   const [msg, setMsg] = useState<{ tone: "ok" | "danger"; text: string }>();
   const [busySec, setBusySec] = useState<string>();
+  // La tarjeta solo se abre cuando hay algún horario en uso o el usuario
+  // acaba de pedirlo (#634).
+  const [opened, setOpened] = useState(false);
 
   const load = useCallback(() => {
     api.wifiSchedule().then((r) => setSchedules(r.schedules ?? [])).catch(() => {});
@@ -31,6 +34,9 @@ export function WifiScheduleCard({ ifaces, index = 3 }: { ifaces: WifiUI[]; inde
 
   if (rows.length === 0 && schedules === undefined) return null;
 
+  const anyEnabled = rows.some((st) => st.schedule?.enabled);
+  if (rows.length === 0) return null;
+
   const persist = async (sched: WifiSchedule) => {
     setBusySec(sched.section);
     setMsg(undefined);
@@ -44,6 +50,16 @@ export function WifiScheduleCard({ ifaces, index = 3 }: { ifaces: WifiUI[]; inde
       setBusySec(undefined);
     }
   };
+
+  if (!anyEnabled && !opened) {
+    return (
+      <div className="flex justify-end">
+        <Button variant="ghost" size="sm" icon={Clock} onClick={() => setOpened(true)}>
+          {t("wifi.scheduleEntry")}
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <Card index={index} title={t("wifi.scheduleCardTitle")} help="wifiSchedule" icon={Clock} iconTone="accent">

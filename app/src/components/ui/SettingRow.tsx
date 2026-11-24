@@ -15,7 +15,8 @@ export function SettingRow({ icon, iconTone = "accent", title, description, help
   icon?: LucideIcon;
   iconTone?: Tone;
   title: string;
-  description: string;
+  /** opcional: una fila sin prosa (solo título y control) */
+  description?: string;
   /** texto de ayuda (con helpTitle) para el HelpTip opcional */
   help?: string;
   helpTitle?: string;
@@ -41,7 +42,9 @@ export function SettingRow({ icon, iconTone = "accent", title, description, help
           </p>
           {help && helpTitle && <HelpTip title={helpTitle} body={help} />}
         </div>
-        <p className="text-small text-muted mt-0.5 line-clamp-1 sm:line-clamp-2">{description}</p>
+        {description && (
+          <p className="text-small text-muted mt-0.5 line-clamp-1 sm:line-clamp-2">{description}</p>
+        )}
         {disabled && disabledReason && (
           <p className="text-small text-faint mt-0.5 line-clamp-1">{disabledReason}</p>
         )}

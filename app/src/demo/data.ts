@@ -110,6 +110,7 @@ export const demoUpdate: T.UpdateCheck = {
 
 export const demoWg: T.WGProbe = {
   installed: true,
+  endpoint: "casa.midominio.net",
   active: true,
   running: true,
   port: "51820",
@@ -149,6 +150,7 @@ export const demoMdns: T.MDNSProbe = {
 
 export const demoSqm: T.SQMProbe = {
   installed: true,
+  luci_app: true,
   has_wan: true,
   active: true,
   running: true,
@@ -288,7 +290,7 @@ export const demoMode: T.ModeProbe = {
 
 export const demoAccess: T.AccessProbe = {
   panel: { http_port: 8090, https_enabled: true, force_https: false, session_ttl: "60m" },
-  luci: { http_port: 80, https_port: 443, force_https: false, enabled: true },
+  luci: { installed: true, http_port: 80, https_port: 443, force_https: false, enabled: true },
   ssh: { enabled: true, port: "22" },
 };
 
@@ -355,7 +357,7 @@ export const demoLan: T.LANConfig = {
   netmask: "255.255.255.0",
   ap_isolation: false,
   dhcp: { enabled: true, start: 100, limit: 150, lease_time: 43200, gateway: "192.168.8.1", dns1: "1.1.1.1", dns2: "9.9.9.9" },
-  reservations: [{ mac: "00:11:32:9A:BC:10", ip: "192.168.8.10", name: "NAS" }],
+  reservations: [{ mac: "00:11:32:9A:BC:10", ip: "192.168.8.10", name: "NAS", managed: true }],
 };
 
 export const demoDns: T.DNSConfig = {
@@ -723,6 +725,7 @@ export const demoPhysPorts: T.PhysPortsProbe = {
 
 export const demoStorage: T.StorageProbe = {
   applicable: true,
+  supported: true,
   devices: [{
     name: "sda1", path: "/dev/sda1", fs_type: "ext4",
     size_bytes: 120 * 1024 * MIB,
