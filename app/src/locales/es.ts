@@ -1793,7 +1793,7 @@ export default {
     mask: "Tamaño de la red (máscara)",
     maskOther: "Otra",
     ipChangeHint: "Si la cambias, tendrás que entrar de nuevo con la nueva dirección.",
-    dhcpRow: "Reparto automático de direcciones",
+    dhcpRow: "Reparto automático de IPs",
     rangeFrom: "de",
     rangeTo: "a",
     lease: "Caduca a las",

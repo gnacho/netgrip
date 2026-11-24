@@ -219,18 +219,7 @@ export function LanConfigCard({ cfg, ipv6, onChange, onIpv6Change, index = 0 }: 
             />
             {dhcpOn && (
               <>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-small text-muted">{t("lan.rangeFrom")}</span>
-                  <span className="text-small text-muted font-mono">.</span>
-                  <Input mono className="!w-16" inputMode="numeric" value={start}
-                    onChange={(e) => setStart(e.target.value)} aria-label={t("lan.dhcpStart")} />
-                  <span className="text-small text-muted">{t("lan.rangeTo")}</span>
-                  <span className="text-small text-muted font-mono">.</span>
-                  <Input mono className="!w-16" inputMode="numeric" value={end}
-                    onChange={(e) => setEnd(e.target.value)} aria-label={t("lan.dhcpEnd")} />
-                  {errors.range && <span className="text-caption text-danger">{errors.range}</span>}
-                </div>
-                {/* Caducidad en la misma fila del reparto (#635). */}
+                {/* Caducidad pegada al reparto, antes del rango (#644). */}
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-small text-muted">{t("lan.lease")}</span>
                   <SegmentedControl
@@ -243,6 +232,17 @@ export function LanConfigCard({ cfg, ipv6, onChange, onIpv6Change, index = 0 }: 
                       : [...LEASES.map((l) => ({ value: l.value, label: t(l.labelKey) })),
                          { value: lease, label: fmtLease(t, Number(lease)) }]}
                   />
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-small text-muted">{t("lan.rangeFrom")}</span>
+                  <span className="text-small text-muted font-mono">.</span>
+                  <Input mono className="!w-16" inputMode="numeric" value={start}
+                    onChange={(e) => setStart(e.target.value)} aria-label={t("lan.dhcpStart")} />
+                  <span className="text-small text-muted">{t("lan.rangeTo")}</span>
+                  <span className="text-small text-muted font-mono">.</span>
+                  <Input mono className="!w-16" inputMode="numeric" value={end}
+                    onChange={(e) => setEnd(e.target.value)} aria-label={t("lan.dhcpEnd")} />
+                  {errors.range && <span className="text-caption text-danger">{errors.range}</span>}
                 </div>
               </>
             )}
