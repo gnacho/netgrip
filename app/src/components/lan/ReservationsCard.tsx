@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pencil, Pin, Trash2 } from "lucide-react";
 import { api } from "../../api";
@@ -48,12 +48,45 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
     return "";
   };
 
-  const fillFromMac = (mac: string) => {
-    const c = clients.find((x) => x.mac?.toLowerCase() === mac.trim().toLowerCase());
-    if (c) {
-      if (c.name) setRName(c.name);
-      if (c.ip && isValidIp(c.ip)) setRIp(c.ip);
+  // Valores que hemos rellenado nosotros: lo que escriba el usuario no se
+  // pisa (#654).
+  const auto = useRef({ name: "", ip: "" });
+
+  const applyClient = (c: Client) => {
+    if (c.name && (!rName.trim() || rName === auto.current.name)) {
+      setRName(c.name);
+      auto.current.name = c.name;
     }
+    if (c.ip && isValidIp(c.ip) && (!rIp.trim() || rIp === auto.current.ip)) {
+      setRIp(c.ip);
+      auto.current.ip = c.ip;
+    }
+  };
+
+  const byMac = (mac: string) =>
+    clients.find((x) => x.mac?.toLowerCase() === mac.trim().toLowerCase());
+  const byIp = (ip: string) => clients.find((x) => x.ip === ip.trim());
+
+  // Al escribir la MAC se rellenan nombre e IP del equipo.
+  const changeMac = (value: string) => {
+    setRMac(value);
+    const c = byMac(value);
+    if (c) {
+      applyClient(c);
+      return;
+    }
+    // Solo se propone una IP libre cuando la MAC ya está completa: si no,
+    // el primer carácter rellenaba la IP y luego ya no se sustituía (#654).
+    if (!rIp && MAC_RE.test(value.trim())) setRIp(defaultIp());
+  };
+
+  // Y al revés: la IP (elegida del desplegable o escrita) trae la MAC.
+  const changeIp = (value: string) => {
+    setRIp(value);
+    const c = byIp(value);
+    if (!c) return;
+    if (!rMac.trim()) setRMac(c.mac);
+    applyClient(c);
   };
 
   const formError = useMemo(() => {
@@ -178,11 +211,16 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
           <Field label={t("lan.name")}
             inputProps={{ value: rName, onChange: (e) => setRName(e.target.value), placeholder: t("lan.namePlaceholder"), list: "resv-clients-name" }} />
           <Field label={t("lan.mac")} mono error={rMac && !MAC_RE.test(rMac.trim()) ? t("lan.invalidMac") : undefined}
-            inputProps={{ value: rMac, onChange: (e) => { setRMac(e.target.value); if (!rIp) setRIp(defaultIp()); }, onBlur: () => fillFromMac(rMac), placeholder: "00:11:22:33:44:55", list: "resv-clients" }} />
+            inputProps={{ value: rMac, onChange: (e) => changeMac(e.target.value), placeholder: "00:11:22:33:44:55", list: "resv-clients" }} />
           <Field label="IP" mono error={rIp && !isValidIp(rIp) ? t("lan.invalidIp") : undefined}
-            inputProps={{ value: rIp, onFocus: () => { if (!rIp) setRIp(defaultIp()); }, onChange: (e) => setRIp(e.target.value), placeholder: "192.168.8.10" }} />
+            inputProps={{ value: rIp, onChange: (e) => changeIp(e.target.value), placeholder: "192.168.8.10", list: "resv-ips", autoComplete: "off" }} />
           <datalist id="resv-clients">
             {clients.map((c) => (c.mac ? <option key={c.mac} value={c.mac} label={c.name || c.ip || undefined}>{`${c.name || c.ip || ""} · ${c.mac}`}</option> : null))}
+          </datalist>
+          <datalist id="resv-ips">
+            {clients.filter((c) => !!c.ip).map((c) => (
+              <option key={c.mac} value={c.ip} label={c.name || c.mac} />
+            ))}
           </datalist>
           <datalist id="resv-clients-name">
             {clients.map((c) => (c.name ? <option key={c.mac} value={c.name} label={c.ip || undefined}>{`${c.name} · ${c.ip || ""}`}</option> : null))}
