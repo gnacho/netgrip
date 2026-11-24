@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BookText, CloudOff, Lock, Router, Server, ShieldCheck, Trash2 } from "lucide-react";
 import { api } from "../../api";
@@ -27,6 +27,27 @@ export function DnsCard({ index = 1 }: { index?: number }) {
   // Equipos de la red para autocompletar la IP (#646). Solo IPv4: es el
   // rango con el que trabaja dnsmasq aquí y lo que valida el formulario.
   const [devices, setDevices] = useState<Client[]>([]);
+  // Último nombre rellenado por nosotros: si el usuario lo cambia a mano, no
+  // se vuelve a pisar al elegir otra IP (#648).
+  const autoName = useRef("");
+
+  const devicesByIp = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of devices) {
+      if (c.ip && c.name) m.set(c.ip, c.name);
+    }
+    return m;
+  }, [devices]);
+
+  const changeIp = (value: string) => {
+    setHIp(value);
+    const name = devicesByIp.get(value.trim());
+    if (!name) return;
+    if (!hHost.trim() || hHost === autoName.current) {
+      setHHost(name);
+      autoName.current = name;
+    }
+  };
 
   const load = useCallback(async () => {
     setError(false);
@@ -173,7 +194,7 @@ export function DnsCard({ index = 1 }: { index?: number }) {
               <Field label={t("dns.hostIp")} mono error={hIp && !isValidIp(hIp) ? t("lan.invalidIp") : undefined}
                 inputProps={{
                   value: hIp,
-                  onChange: (e) => setHIp(e.target.value),
+                  onChange: (e) => changeIp(e.target.value),
                   placeholder: "192.168.8.10",
                   list: "dns-host-ips",
                   autoComplete: "off",
