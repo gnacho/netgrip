@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BookText, CloudOff, Lock, Router, Server, ShieldCheck, Trash2 } from "lucide-react";
 import { api } from "../../api";
-import type { DNSConfig } from "../../types";
+import type { Client, DNSConfig } from "../../types";
 import {
   ActionBanner, Banner, Button, Card, EmptyState, Field, SettingRow, SkeletonRows, useToast,
 } from "../ui";
@@ -24,6 +24,9 @@ export function DnsCard({ index = 1 }: { index?: number }) {
   const { phase, detail, busy, run, clear } = useActionCycle();
   const [hHost, setHHost] = useState("");
   const [hIp, setHIp] = useState("");
+  // Equipos de la red para autocompletar la IP (#646). Solo IPv4: es el
+  // rango con el que trabaja dnsmasq aquí y lo que valida el formulario.
+  const [devices, setDevices] = useState<Client[]>([]);
 
   const load = useCallback(async () => {
     setError(false);
@@ -37,6 +40,10 @@ export function DnsCard({ index = 1 }: { index?: number }) {
     } catch {
       setError(true);
     }
+  }, []);
+
+  useEffect(() => {
+    api.clients().then((r) => setDevices(r.clients.filter((c) => !!c.ip))).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -164,7 +171,20 @@ export function DnsCard({ index = 1 }: { index?: number }) {
               <Field label={t("dns.hostName")}
                 inputProps={{ value: hHost, onChange: (e) => setHHost(e.target.value), placeholder: "nas" }} />
               <Field label={t("dns.hostIp")} mono error={hIp && !isValidIp(hIp) ? t("lan.invalidIp") : undefined}
-                inputProps={{ value: hIp, onChange: (e) => setHIp(e.target.value), placeholder: "192.168.8.10" }} />
+                inputProps={{
+                  value: hIp,
+                  onChange: (e) => setHIp(e.target.value),
+                  placeholder: "192.168.8.10",
+                  list: "dns-host-ips",
+                  autoComplete: "off",
+                }} />
+              <datalist id="dns-host-ips">
+                {devices
+                  .filter((c) => /^(\d{1,3}\.){3}\d{1,3}$/.test(c.ip ?? ""))
+                  .map((c) => (
+                    <option key={c.mac} value={c.ip} label={c.name || c.mac} />
+                  ))}
+              </datalist>
               <Button size="sm" onClick={() => host(false)}
                 disabled={busy || !hHost || !isValidIp(hIp)} loading={busy}>
                 {t("guest.add")}
