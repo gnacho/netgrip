@@ -5,7 +5,7 @@ import { Clock, Globe, Network, Pencil } from "lucide-react";
 import { api } from "../../api";
 import type { IPv6Probe, LANConfig } from "../../types";
 import {
-  ActionBanner, AdvancedDisclosure, Button, Card, ConfirmDialog,
+  ActionBanner, Button, Card, ConfirmDialog,
   Field, IconTile, Input, Modal, SegmentedControl, SettingRow, Toggle,
 } from "../ui";
 import { useActionCycle } from "../wifi/action";
@@ -57,7 +57,6 @@ export function LanConfigCard({ cfg, ipv6, onChange, onIpv6Change, index = 0 }: 
   const [start, setStart] = useState(String(cfg.dhcp.start));
   const [end, setEnd] = useState(String(cfg.dhcp.start + cfg.dhcp.limit - 1));
   const [lease, setLease] = useState(String(cfg.dhcp.lease_time));
-  const [gateway, setGateway] = useState(cfg.dhcp.gateway ?? "");
   const [dns1, setDns1] = useState(cfg.dhcp.dns1 ?? "");
   const [dns2, setDns2] = useState(cfg.dhcp.dns2 ?? "");
   const [confirmIp, setConfirmIp] = useState(false);
@@ -74,7 +73,6 @@ export function LanConfigCard({ cfg, ipv6, onChange, onIpv6Change, index = 0 }: 
     setStart(String(cfg.dhcp.start));
     setEnd(String(cfg.dhcp.start + cfg.dhcp.limit - 1));
     setLease(String(cfg.dhcp.lease_time));
-    setGateway(cfg.dhcp.gateway ?? "");
     setDns1(cfg.dhcp.dns1 ?? "");
     setDns2(cfg.dhcp.dns2 ?? "");
   }, [cfg]);
@@ -130,7 +128,6 @@ export function LanConfigCard({ cfg, ipv6, onChange, onIpv6Change, index = 0 }: 
     || startN !== cfg.dhcp.start
     || (endN - startN + 1) !== cfg.dhcp.limit
     || Number(lease) !== cfg.dhcp.lease_time
-    || gateway.trim() !== (cfg.dhcp.gateway ?? "")
     || dns1.trim() !== (cfg.dhcp.dns1 ?? "")
     || dns2.trim() !== (cfg.dhcp.dns2 ?? "");
   const dirty = lanDirty || dhcpDirty;
@@ -153,7 +150,7 @@ export function LanConfigCard({ cfg, ipv6, onChange, onIpv6Change, index = 0 }: 
           start: startN,
           limit: endN - startN + 1,
           lease_time: Number(lease),
-          gateway: gateway.trim(),
+          gateway: cfg.dhcp.gateway ?? "",
           dns1: dns1.trim(),
           dns2: dns2.trim(),
         });
@@ -207,7 +204,7 @@ export function LanConfigCard({ cfg, ipv6, onChange, onIpv6Change, index = 0 }: 
         </div>
       )}
 
-      <div className="mt-1 divide-y divide-border/60">
+      <div className="mt-1">
         <div>
           <div className="flex items-center gap-3 flex-wrap py-2.5">
             <SettingRow
@@ -247,16 +244,6 @@ export function LanConfigCard({ cfg, ipv6, onChange, onIpv6Change, index = 0 }: 
               </>
             )}
           </div>
-          {dhcpOn && (
-            <div className="pb-3">
-              <AdvancedDisclosure label={t("lan.advancedDhcp")}>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Field label={t("lan.gateway")} mono hint={t("lan.gatewayHint")}
-                    inputProps={{ value: gateway, onChange: (e) => setGateway(e.target.value), placeholder: t("lan.optional") }} />
-                </div>
-              </AdvancedDisclosure>
-            </div>
-          )}
         </div>
 
         {/* IPv6 (#635): activación aquí, sin tarjeta propia. */}
@@ -283,6 +270,14 @@ export function LanConfigCard({ cfg, ipv6, onChange, onIpv6Change, index = 0 }: 
                 </span>
               }
             />
+            <Button
+              className="ml-auto shrink-0"
+              onClick={() => (ipChanged ? setConfirmIp(true) : save())}
+              disabled={!dirty || hasErrors}
+              loading={busy}
+            >
+              {t("lan.save")}
+            </Button>
           </div>
           {ipv6 && ipv6.state !== "disabled" && (
             <p className="pb-2 text-caption text-faint font-mono">
@@ -297,22 +292,16 @@ export function LanConfigCard({ cfg, ipv6, onChange, onIpv6Change, index = 0 }: 
         </div>
       </div>
 
-      <div className="mt-3 flex flex-col gap-3">
-        {phase && (
+      {phase && (
+        <div className="mt-3">
           <ActionBanner
             phase={phase}
             text={phase === "done" ? t("lan.saved") : phase === "failed" ? t("lan.rolledBack") : undefined}
             detail={detail}
             onDone={clear}
           />
-        )}
-        <div>
-          <Button onClick={() => (ipChanged ? setConfirmIp(true) : save())}
-            disabled={!dirty || hasErrors} loading={busy}>
-            {t("lan.save")}
-          </Button>
         </div>
-      </div>
+      )}
 
       <ConfirmDialog
         open={confirmIp}
