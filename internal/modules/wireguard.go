@@ -693,22 +693,69 @@ func AddWGPeerGenerated(name string, admin bool, endpoint string) (string, *WGPr
 	if endpoint == "" {
 		endpoint = lanIPv4()
 	}
+	return buildWGClientConfig(wgClientConfig{
+		PrivateKey:   priv,
+		Address:      address,
+		DNS:          wgClientDNS(probe),
+		ServerKey:    probe.PublicKey,
+		PresharedKey: psk,
+		Endpoint:     endpoint,
+		Port:         probe.Port,
+	}), probe, nil
+}
+
+// wgClientConfig is one client profile as the official WireGuard apps expect
+// it. Kept as data so the rendering has unit tests (#659).
+type wgClientConfig struct {
+	PrivateKey   string
+	Address      string
+	DNS          string
+	ServerKey    string
+	PresharedKey string
+	Endpoint     string
+	Port         string
+}
+
+// wgClientPort is the listening port written into client profiles. Fixed
+// instead of left out: with no ListenPort the client picks a random port on
+// every start, and profiles exported by other tools (qrencode included)
+// always carry one.
+const wgClientPort = "51820"
+
+// wgClientDNS returns the DNS address for client profiles. The tunnel
+// address of the server is the safe default, a VPN without DNS breaks name
+// resolution; when the server address is unknown the line is left out.
+func wgClientDNS(probe *WGProbe) string {
+	return strings.Split(probe.Address, "/")[0]
+}
+
+// buildWGClientConfig renders the profile. Order and spacing follow the
+// official clients' own export so the file is identical to what qrencode
+// prints from a working config.
+func buildWGClientConfig(c wgClientConfig) string {
 	var b strings.Builder
 	b.WriteString("[Interface]\n")
-	b.WriteString("PrivateKey = " + priv + "\n")
-	b.WriteString("Address = " + address + "\n")
-	b.WriteString("DNS = " + strings.Split(probe.Address, "/")[0] + "\n")
+	b.WriteString("PrivateKey = " + c.PrivateKey + "\n")
+	b.WriteString("Address = " + c.Address + "\n")
+	if c.DNS != "" {
+		b.WriteString("DNS = " + c.DNS + "\n")
+	}
+	b.WriteString("ListenPort = " + wgClientPort + "\n")
 	b.WriteString("\n[Peer]\n")
-	b.WriteString("PublicKey = " + probe.PublicKey + "\n")
-	if psk != "" {
-		b.WriteString("PresharedKey = " + psk + "\n")
+	b.WriteString("PublicKey = " + c.ServerKey + "\n")
+	if c.PresharedKey != "" {
+		b.WriteString("PresharedKey = " + c.PresharedKey + "\n")
 	}
 	b.WriteString("AllowedIPs = 0.0.0.0/0\n")
-	if endpoint != "" {
-		b.WriteString("Endpoint = " + endpoint + ":" + probe.Port + "\n")
+	if c.Endpoint != "" {
+		port := c.Port
+		if port == "" {
+			port = wgDefaultPort
+		}
+		b.WriteString("Endpoint = " + c.Endpoint + ":" + port + "\n")
 	}
 	b.WriteString("PersistentKeepalive = 25\n")
-	return b.String(), probe, nil
+	return b.String()
 }
 func nextWGAddress(probe *WGProbe) string {
 	base := strings.Split(probe.Address, ".")
