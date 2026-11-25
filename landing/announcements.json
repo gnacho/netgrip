@@ -1,6 +1,25 @@
 {
  "announcements": [
   {
+   "id": "v0800-2026-11",
+   "urgency": "info",
+   "title": {
+    "es": "Novedades de la v0.80.0",
+    "en": "What's new in v0.80.0"
+   },
+   "body": {
+    "es": "Casi todo lo que ya existía se puede editar: reenvíos de puertos, reglas de tráfico, direcciones fijas y entradas DDNS se abren en un formulario ya relleno y se reescriben en el sitio, con copia y vuelta atrás si algo falla. El panel ocupa mucho menos y explica los detalles en los botones de información. Diagnóstico estrena un test de velocidad M-Lab NDT7 medido desde el router, y la actualización de firmware se puede programar de madrugada (apagada por defecto y solo si owut la da por segura). De paso se arreglan la boca WAN que desaparecía en el resumen, el falso aviso de enlace lento, el tráfico por aplicación que mostraba protocolos y la adopción de equipos en Flota con la contraseña correcta.",
+    "en": "Almost everything that already existed can now be edited: port forwards, traffic rules, static addresses and DDNS entries open in a prefilled form and are rewritten in place, with a snapshot and rollback if something fails. The panel takes far less room and explains the details in help popovers. Diagnostics gains an M-Lab NDT7 speed test measured from the router, and the firmware update can be scheduled at night (off by default, and only when owut says it is safe). It also fixes the WAN port missing from the overview, the false slow-link warning, the traffic-by-app chart showing protocols, and fleet adoption failing with the right password."
+   },
+   "url": "https://github.com/gnacho/netgrip/releases/tag/v0.80.0",
+   "urlLabel": {
+    "es": "Ver la release",
+    "en": "See the release"
+   },
+   "starts": "2026-11-25",
+   "expires": "2026-12-31"
+  },
+  {
    "id": "v0790-2026-11",
    "urgency": "info",
    "title": {
