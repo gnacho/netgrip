@@ -1,0 +1,111 @@
+{
+  "tag_name": "v0.80.1",
+  "body": "Same panel as v0.80.0, with the package feed actually published.\n\nv0.80.0 shipped its binaries and packages, but the signed APK feed and the Pages mirror failed: the run uses the tagged tree, and the feed signing key rotation landed after the tag, so the new key signed an index that was verified against the old public key.\n\nThis release carries the fresh EC P-256 key (the previous private key only existed in a temporary directory and is gone), so the feed is signed and the Pages manifest is published again. Nothing had consumed a signed feed before, so there is nothing to migrate.\n\nIf you are on v0.80.0 you do not need this one for any code reason: it is the same build.\n",
+  "assets": [
+    {
+      "name": "netgrip-linux-amd64",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-amd64",
+      "size": 4819316
+    },
+    {
+      "name": "netgrip-linux-amd64.sha256",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-amd64.sha256",
+      "size": 65
+    },
+    {
+      "name": "netgrip-linux-amd64.sha256.sig",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-amd64.sha256.sig",
+      "size": 64
+    },
+    {
+      "name": "netgrip-linux-arm64",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-arm64",
+      "size": 3983520
+    },
+    {
+      "name": "netgrip-linux-arm64.sha256",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-arm64.sha256",
+      "size": 65
+    },
+    {
+      "name": "netgrip-linux-arm64.sha256.sig",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-arm64.sha256.sig",
+      "size": 64
+    },
+    {
+      "name": "netgrip-linux-armv5",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-armv5",
+      "size": 4027828
+    },
+    {
+      "name": "netgrip-linux-armv5.sha256",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-armv5.sha256",
+      "size": 65
+    },
+    {
+      "name": "netgrip-linux-armv5.sha256.sig",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-armv5.sha256.sig",
+      "size": 64
+    },
+    {
+      "name": "netgrip-linux-armv6",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-armv6",
+      "size": 4022168
+    },
+    {
+      "name": "netgrip-linux-armv6.sha256",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-armv6.sha256",
+      "size": 65
+    },
+    {
+      "name": "netgrip-linux-armv6.sha256.sig",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-armv6.sha256.sig",
+      "size": 64
+    },
+    {
+      "name": "netgrip-linux-armv7",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-armv7",
+      "size": 4016312
+    },
+    {
+      "name": "netgrip-linux-armv7.sha256",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-armv7.sha256",
+      "size": 65
+    },
+    {
+      "name": "netgrip-linux-armv7.sha256.sig",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-armv7.sha256.sig",
+      "size": 64
+    },
+    {
+      "name": "netgrip-linux-mips",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-mips",
+      "size": 3927348
+    },
+    {
+      "name": "netgrip-linux-mips.sha256",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-mips.sha256",
+      "size": 65
+    },
+    {
+      "name": "netgrip-linux-mips.sha256.sig",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-mips.sha256.sig",
+      "size": 64
+    },
+    {
+      "name": "netgrip-linux-mipsle",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-mipsle",
+      "size": 3992948
+    },
+    {
+      "name": "netgrip-linux-mipsle.sha256",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-mipsle.sha256",
+      "size": 65
+    },
+    {
+      "name": "netgrip-linux-mipsle.sha256.sig",
+      "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-mipsle.sha256.sig",
+      "size": 64
+    }
+  ]
+}
