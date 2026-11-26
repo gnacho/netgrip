@@ -19,6 +19,46 @@ import { CopyButton, downloadText, qrMatrixSvg, Reveal, shortKey } from "./share
  * Nota: la API solo devuelve la config del peer al crearlo (la clave privada
  * no se guarda), así que el QR grande solo existe justo tras el alta.
  */
+/**
+ * Ficha de un peer/usuario (#714): tarjetas en rejilla de tres en escritorio.
+ * `onDelete` ausente = lista de solo lectura (túneles gestionados por GL.iNet).
+ */
+function PeerCard({ peer, onDelete }: { peer: WGPeer; onDelete?: () => void }) {
+  const { t } = useTranslation();
+  const canDelete = !!onDelete && !peer.admin;
+  return (
+    <div className="flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-surface-2 p-3">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent text-small font-semibold" aria-hidden="true">
+          {(peer.name || peer.public_key).charAt(0).toUpperCase()}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-body font-medium" title={peer.name || peer.public_key}>
+            {peer.name || shortKey(peer.public_key)}
+          </span>
+          <span className="block truncate font-mono text-caption text-muted">
+            {peer.allowed_ips.join(", ") || "-"}
+          </span>
+        </span>
+      </div>
+      <div className="mt-auto flex items-center gap-2">
+        {peer.admin && <Pill tone="muted">{t("wg.adminPill")}</Pill>}
+        {canDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            title={t("wg.deletePeer")}
+            aria-label={`${t("wg.deletePeer")} ${peer.name || peer.public_key}`}
+            className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-sm text-muted hover:text-danger hover:bg-surface transition-colors ring-focus"
+          >
+            <Trash2 size={16} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function WireguardCard({ probe, onChange, index = 0 }: {
   probe: WGProbe | undefined;
   onChange: (p: WGProbe) => void;
@@ -153,19 +193,11 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
                     {tun.peers.length === 0 && (
                       <p className="text-small text-muted py-1">{t("wg.noPeers")}</p>
                     )}
-                    <ul>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {tun.peers.map((p) => (
-                        <li key={p.public_key} className="flex items-center gap-3 py-2 border-b border-border/60 last:border-0">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent text-small font-semibold" aria-hidden="true">
-                            {(p.name || p.public_key).charAt(0).toUpperCase()}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-body font-medium">{p.name || shortKey(p.public_key)}</span>
-                            <span className="block font-mono text-caption text-muted">{p.allowed_ips.join(", ") || "-"}</span>
-                          </span>
-                        </li>
+                        <PeerCard key={p.public_key} peer={p} />
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -234,30 +266,12 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
                 {probe.peers.length === 0 && (
                   <p className="text-small text-muted py-1">{t("wg.noPeers")}</p>
                 )}
-                <ul>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {probe.peers.map((p) => (
-                    <li key={p.public_key} className="flex items-center gap-3 py-2 border-b border-border/60 last:border-0">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent text-small font-semibold" aria-hidden="true">
-                        {(p.name || p.public_key).charAt(0).toUpperCase()}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-body font-medium">{p.name || shortKey(p.public_key)}</span>
-                        <span className="block font-mono text-caption text-muted">{p.allowed_ips.join(", ") || "—"}</span>
-                      </span>
-                      {p.admin && <Pill tone="muted">{t("wg.adminPill")}</Pill>}
-                      <button
-                        type="button"
-                        onClick={() => setDelTarget(p)}
-                        disabled={p.admin}
-                        title={p.admin ? t("wg.adminCannotDelete") : t("wg.deletePeer")}
-                        aria-label={t("wg.deletePeer")}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-muted hover:text-danger hover:bg-surface-2 ring-focus transition-colors disabled:opacity-40 disabled:hover:text-muted disabled:hover:bg-transparent"
-                      >
-                        <Trash2 size={16} aria-hidden="true" />
-                      </button>
-                    </li>
+                    <PeerCard key={p.public_key} peer={p}
+                      onDelete={p.admin ? undefined : () => setDelTarget(p)} />
                   ))}
-                </ul>
+                </div>
                 <div className="mt-3">
                   <Button size="sm" icon={Plus} disabled={glManaged} title={glManaged ? t("wg.glDisabledReason") : undefined} onClick={() => setAddOpen(true)}>{t("wg.addDevice")}</Button>
                 </div>

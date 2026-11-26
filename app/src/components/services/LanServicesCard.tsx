@@ -198,12 +198,10 @@ export function LanServicesCard() {
           <Skeleton className="h-24" />
         </div>
       ) : empty ? (
-        <EmptyState
-          illustration={<AppWindow size={140} />}
-          title={t("lanservices.emptyTitle")}
-          body={t("lanservices.emptyBody")}
-          action={<Button icon={Plus} onClick={() => setShowAdd(true)}>{t("lanservices.addFirst")}</Button>}
-        />
+        /* #717: sin ilustración ni prosa de "no hay nada"; solo la acción. */
+        <div className="flex justify-start">
+          <Button icon={Plus} onClick={() => setShowAdd(true)}>{t("lanservices.addFirst")}</Button>
+        </div>
       ) : (
         <div className="flex flex-col gap-[var(--card-gap)]">
           {services.map((s, i) => (
