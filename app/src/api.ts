@@ -982,6 +982,18 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, action }),
     }),
+  mountStorage: (req: { device: string; target: string; read_only: boolean }) =>
+    request<import("./types").StorageProbe>("/api/storage/mount", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    }),
+  unmountStorage: (target: string) =>
+    request<import("./types").StorageProbe>("/api/storage/unmount", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target }),
+    }),
   installStorageService: (name: string) =>
     request<{ job?: InstallJob; status?: string }>("/api/storage/install", {
       method: "POST",

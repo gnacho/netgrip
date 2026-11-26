@@ -1646,6 +1646,8 @@ export interface StorageDevice {
   used_bytes: number;
   free_bytes: number;
   mount_point?: string;
+  /** La entrada de fstab la creó el panel: se puede desmontar desde aquí. */
+  managed: boolean;
 }
 
 export interface StorageService {
