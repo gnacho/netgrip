@@ -9,9 +9,8 @@ import {
   Field, HelpTip, Input, Modal, Pill, SettingRow, SkeletonRows, Toggle, useToast,
 } from "../ui";
 import { ServiceRow } from "./ServiceRow";
-import { QrBox } from "../wifi/qr";
 import { useActionCycle } from "../wifi/action";
-import { CopyButton, downloadText, Reveal, shortKey, TechName, useQrData } from "./shared";
+import { CopyButton, downloadText, qrMatrixSvg, Reveal, shortKey, TechName } from "./shared";
 
 /**
  * WireGuard — "Entra en tu casa desde fuera" (services.md §2). Card héroe a
@@ -257,19 +256,17 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
                         <span className="block truncate text-body font-medium">{p.name || shortKey(p.public_key)}</span>
                         <span className="block font-mono text-caption text-muted">{p.allowed_ips.join(", ") || "—"}</span>
                       </span>
-                      {p.admin ? (
-                        <Pill tone="muted">{t("wg.adminPill")}</Pill>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setDelTarget(p)}
-                          title={t("wg.deletePeer")}
-                          aria-label={t("wg.deletePeer")}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-muted hover:text-danger hover:bg-surface-2 ring-focus transition-colors"
-                        >
-                          <Trash2 size={16} aria-hidden="true" />
-                        </button>
-                      )}
+                      {p.admin && <Pill tone="muted">{t("wg.adminPill")}</Pill>}
+                      <button
+                        type="button"
+                        onClick={() => setDelTarget(p)}
+                        disabled={p.admin}
+                        title={p.admin ? t("wg.adminCannotDelete") : t("wg.deletePeer")}
+                        aria-label={t("wg.deletePeer")}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-muted hover:text-danger hover:bg-surface-2 ring-focus transition-colors disabled:opacity-40 disabled:hover:text-muted disabled:hover:bg-transparent"
+                      >
+                        <Trash2 size={16} aria-hidden="true" />
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -362,7 +359,7 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
 function QrConfigModal({ config, onClose }: { config: string | undefined; onClose: () => void }) {
   const { t } = useTranslation();
   const toast = useToast();
-  const qr = useQrData(config, 220);
+  const svg = qrMatrixSvg(config);
   const [copied, setCopied] = useState(false);
   const copyConfig = async () => {
     if (!config) return;
@@ -371,10 +368,24 @@ function QrConfigModal({ config, onClose }: { config: string | undefined; onClos
     setTimeout(() => setCopied(false), 1500);
     toast.push({ tone: "ok", text: t("wg.copyConfig") });
   };
+  // El usuario ya sabe que este comando sí dibuja un QR legible; se le da
+  // listo para pegar con el fichero que acaba de descargar.
+  const copyQrencode = async () => {
+    try {
+      await navigator.clipboard.writeText("qrencode -t ansiutf8 < wireguard-client.conf");
+      toast.push({ tone: "ok", text: t("wg.qrencodeCopied") });
+    } catch {
+      // clipboard bloqueado
+    }
+  };
   return (
     <Modal open={!!config} onClose={onClose} title={t("wg.qrModalTitle")}>
       <div className="flex flex-col items-center gap-3 py-2">
-        {qr && <QrBox data={qr} size={220} />}
+        {svg && (
+          <span className="block bg-white" style={{ width: 300, height: 300 }}
+            role="img" aria-label={t("wg.qrModalTitle")}
+            dangerouslySetInnerHTML={{ __html: svg }} />
+        )}
         <p className="text-small text-muted text-center">{t("wg.qrHint")}</p>
         {config && (
           <div className="w-full">
@@ -397,6 +408,9 @@ function QrConfigModal({ config, onClose }: { config: string | undefined; onClos
           <Button variant="secondary" size="sm"
             onClick={() => config && downloadText("wireguard-client.conf", config)}>
             {t("wg.downloadConf")}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={copyQrencode}>
+            {t("wg.copyQrencode")}
           </Button>
         </div>
       </div>
