@@ -873,7 +873,7 @@ export const demoApi: typeof api = {
   confirmRevert: async () => { await wait(300, 600); return { status: "reverted" }; },
   drift: () => get(state.drift),
   access: () => get(state.access),
-  setWebAccess: async (web) => { state.access.luci = { ...web }; return write(state.access); },
+  setWebAccess: async (web) => { state.access.web = { ...web }; return write(state.access); },
   setSshAccess: async (ssh) => { state.access.ssh = { ...ssh }; return write(state.access); },
   setPanelSessionTtl: async (minutes) => {
     await wait(400, 800);

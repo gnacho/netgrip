@@ -63,9 +63,9 @@ export function AccessCard({ index = 2 }: { index?: number }) {
   const reload = () => {
     api.access().then((p) => {
       setProbe(p);
-      setWebHttp(p.luci.http_port);
-      setWebHttps(p.luci.https_port);
-      setWebForce(p.luci.force_https);
+      setWebHttp(p.web.http_port);
+      setWebHttps(p.web.https_port);
+      setWebForce(p.web.force_https);
       setSshEnabled(p.ssh.enabled);
       setSshPort(p.ssh.port || "22");
       setTtlMin(durationToMin(p.panel.session_ttl));
@@ -290,7 +290,7 @@ export function AccessCard({ index = 2 }: { index?: number }) {
 
           {/* Sin interfaz web en el router esos puertos no llevan a ningún
               panel (#638). */}
-          {probe?.luci?.installed && sectionRow(
+          {probe?.web?.installed && sectionRow(
             t("access.webSection"),
             <>
               <span className="text-small text-muted whitespace-nowrap">{t("access.webPorts")}</span>

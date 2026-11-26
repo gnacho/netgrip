@@ -160,7 +160,7 @@ export interface MDNSProbe {
 export interface SQMProbe {
   installed: boolean;
   /** El router tiene la página de ajustes avanzados de SQM. */
-  luci_app: boolean;
+  web_ui_app: boolean;
   has_wan: boolean;
   active: boolean;
   running: boolean;
@@ -401,7 +401,7 @@ export interface SSHAccess {
 
 export interface AccessProbe {
   panel: PanelAccess;
-  luci: WebAccess;
+  web: WebAccess;
   ssh: SSHAccess;
 }
 
