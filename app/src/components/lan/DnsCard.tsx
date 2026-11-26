@@ -129,7 +129,15 @@ export function DnsCard({ index = 1 }: { index?: number }) {
       ) : (
         <>
           {cfg.adguard_active && (
-            <Banner tone="info" className="mb-1">{t("dns.adguardNote")}</Banner>
+            <Banner tone="info" className="mb-1"
+              action={
+                <a href="#/protection"
+                  className="shrink-0 inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-small hover:border-accent hover:text-accent ring-focus transition-colors">
+                  {t("dns.adguardOpen")} →
+                </a>
+              }>
+              {t("dns.adguardNote")}
+            </Banner>
           )}
 
           {/* Con AdGuard Home al mando, estos ajustes no se aplican: se
@@ -164,6 +172,8 @@ export function DnsCard({ index = 1 }: { index?: number }) {
             </>
           )}
 
+          {/* Con AdGuard instalado, sus entradas de nombres no se usan (#709). */}
+          {!cfg.adguard_installed && (
           <div className="mt-2 border-t border-border/60 pt-4">
             <p className="text-body font-medium">{t("dns.hostsTitle")}</p>
             <p className="text-caption text-muted mt-0.5">{t("dns.hostsHint")}</p>
@@ -212,6 +222,7 @@ export function DnsCard({ index = 1 }: { index?: number }) {
               </Button>
             </div>
           </div>
+          )}
 
           {phase && (
             <div className="mt-3">

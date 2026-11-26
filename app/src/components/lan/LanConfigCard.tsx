@@ -180,15 +180,61 @@ export function LanConfigCard({ cfg, ipv6, onChange, onIpv6Change, index = 0 }: 
 
   return (
     <Card index={index} icon={Network} iconTone="teal" title={t("lan.homeTitle")} help="lan">
-      {/* Héroe: IP del router */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1 min-w-0">
+      {/* #707: IP, lápiz de edición, reparto y caducidad en la misma fila. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex items-center gap-2 shrink-0">
           <p className="stat-lg font-mono">{cfg.ipaddr}</p>
+          {!editingIp && (
+            <button
+              type="button"
+              onClick={() => setEditingIp(true)}
+              aria-label={t("lan.changeIp")}
+              title={t("lan.changeIp")}
+              className="text-faint hover:text-accent transition-colors duration-[var(--dur-fast)] ring-focus rounded-sm p-1"
+            >
+              <Pencil size={16} />
+            </button>
+          )}
         </div>
-        {!editingIp && (
-          <Button variant="secondary" size="sm" icon={Pencil} onClick={() => setEditingIp(true)}>
-            {t("lan.changeIp")}
-          </Button>
+
+        <div className="min-w-0 w-full sm:w-auto sm:flex-1">
+          <SettingRow
+            title={t("lan.dhcpRow")}
+            help={t("help.dhcp.body")}
+            helpTitle={t("help.dhcp.title")}
+            checked={dhcpOn}
+            onChange={setDhcpOn}
+          />
+        </div>
+
+        {dhcpOn && (
+          <>
+            {/* Caducidad pegada al reparto, antes del rango (#644). */}
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-small text-muted">{t("lan.lease")}</span>
+              <SegmentedControl
+                size="sm"
+                ariaLabel={t("lan.lease")}
+                value={lease}
+                onChange={setLease}
+                options={leaseKnown
+                  ? LEASES.map((l) => ({ value: l.value, label: t(l.labelKey) }))
+                  : [...LEASES.map((l) => ({ value: l.value, label: t(l.labelKey) })),
+                     { value: lease, label: fmtLease(t, Number(lease)) }]}
+              />
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-small text-muted">{t("lan.rangeFrom")}</span>
+              <span className="text-small text-muted font-mono">.</span>
+              <Input mono className="!w-16" inputMode="numeric" value={start}
+                onChange={(e) => setStart(e.target.value)} aria-label={t("lan.dhcpStart")} />
+              <span className="text-small text-muted">{t("lan.rangeTo")}</span>
+              <span className="text-small text-muted font-mono">.</span>
+              <Input mono className="!w-16" inputMode="numeric" value={end}
+                onChange={(e) => setEnd(e.target.value)} aria-label={t("lan.dhcpEnd")} />
+              {errors.range && <span className="text-caption text-danger">{errors.range}</span>}
+            </div>
+          </>
         )}
       </div>
 
@@ -205,47 +251,6 @@ export function LanConfigCard({ cfg, ipv6, onChange, onIpv6Change, index = 0 }: 
       )}
 
       <div className="mt-1">
-        <div>
-          <div className="flex items-center gap-3 flex-wrap py-2.5">
-            <SettingRow
-              title={t("lan.dhcpRow")}
-              help={t("help.dhcp.body")}
-              helpTitle={t("help.dhcp.title")}
-              checked={dhcpOn}
-              onChange={setDhcpOn}
-            />
-            {dhcpOn && (
-              <>
-                {/* Caducidad pegada al reparto, antes del rango (#644). */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-small text-muted">{t("lan.lease")}</span>
-                  <SegmentedControl
-                    size="sm"
-                    ariaLabel={t("lan.lease")}
-                    value={lease}
-                    onChange={setLease}
-                    options={leaseKnown
-                      ? LEASES.map((l) => ({ value: l.value, label: t(l.labelKey) }))
-                      : [...LEASES.map((l) => ({ value: l.value, label: t(l.labelKey) })),
-                         { value: lease, label: fmtLease(t, Number(lease)) }]}
-                  />
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-small text-muted">{t("lan.rangeFrom")}</span>
-                  <span className="text-small text-muted font-mono">.</span>
-                  <Input mono className="!w-16" inputMode="numeric" value={start}
-                    onChange={(e) => setStart(e.target.value)} aria-label={t("lan.dhcpStart")} />
-                  <span className="text-small text-muted">{t("lan.rangeTo")}</span>
-                  <span className="text-small text-muted font-mono">.</span>
-                  <Input mono className="!w-16" inputMode="numeric" value={end}
-                    onChange={(e) => setEnd(e.target.value)} aria-label={t("lan.dhcpEnd")} />
-                  {errors.range && <span className="text-caption text-danger">{errors.range}</span>}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
         {/* IPv6 (#635): activación aquí, sin tarjeta propia. */}
         <div>
           <div className="flex items-center gap-3 flex-wrap py-2.5">
