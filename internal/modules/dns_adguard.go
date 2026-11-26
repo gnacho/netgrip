@@ -211,6 +211,22 @@ func adGuardForwarders(servers []string) []string {
 	return out
 }
 
+// adGuardOtherForwarders returns the global dnsmasq servers that are not the
+// local AdGuard listener. noresolv=1 only stops dnsmasq from reading
+// /etc/resolv.conf: every explicit server is still used, so each of these
+// sends part of the DNS traffic around AdGuard (#673). Domain-scoped entries
+// (`/example.com/1.1.1.1`) are left alone: they only redirect that domain.
+func adGuardOtherForwarders(servers []string) []string {
+	out := []string{}
+	for _, s := range servers {
+		if strings.HasPrefix(s, "/") || reAdGuardForwarder.MatchString(s) {
+			continue
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
 // adGuardProtected reports whether dnsmasq already forwards to a local
 // AdGuard listener.
 func adGuardProtected(st dnsmasqState) bool {
@@ -301,6 +317,48 @@ func AdGuardProtection(enable bool) (*DNSConfig, bool, error) {
 		return adGuardEnable(st)
 	}
 	return adGuardDisable(st)
+}
+
+// AdGuardDropForwarders removes the dnsmasq global forwarders that are not the
+// local AdGuard listener (#673). Without it the panel claims AdGuard filters
+// everything while an explicit 1.1.1.1 in the list keeps taking queries.
+func AdGuardDropForwarders() (*DNSConfig, bool, error) {
+	if !dnsApplicable() {
+		return ProbeDNS(), false, fmt.Errorf("DNS protection only applies on the gateway (dnsmasq)")
+	}
+	st := dnsmasqStateNow()
+	if !adGuardProtected(st) {
+		return ProbeDNS(), false, fmt.Errorf("dnsmasq does not forward to AdGuard yet")
+	}
+	extra := adGuardOtherForwarders(st.servers)
+	if len(extra) == 0 {
+		return ProbeDNS(), false, nil
+	}
+
+	restart := []executor.Op{
+		{Kind: "uci_commit", Args: []string{"dhcp"}},
+		{Kind: "initd", Args: []string{"dnsmasq", "restart"}},
+	}
+	var ops []executor.Op
+	for _, v := range extra {
+		ops = append(ops, executor.Op{Kind: "uci_del_list", Args: []string{"dhcp.@dnsmasq[0].server", v}})
+	}
+	ops = append(ops, restart...)
+
+	if err := executor.Apply(ops, nil); err != nil {
+		var undo []executor.Op
+		for _, v := range extra {
+			undo = append(undo, executor.Op{Kind: "uci_add_list", Args: []string{"dhcp.@dnsmasq[0].server", v}})
+		}
+		undo = append(undo, restart...)
+		_ = executor.Apply(undo, nil)
+		return ProbeDNS(), true, err
+	}
+
+	if st := dnsmasqStateNow(); len(adGuardOtherForwarders(st.servers)) > 0 {
+		return ProbeDNS(), false, fmt.Errorf("dnsmasq still lists forwarders other than AdGuard")
+	}
+	return ProbeDNS(), false, nil
 }
 
 func adGuardEnable(st dnsmasqState) (*DNSConfig, bool, error) {

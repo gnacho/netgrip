@@ -218,6 +218,7 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("POST /api/dns/adguard/action", s.requireAuth(s.handleAdGuardAction))
 	s.mux.HandleFunc("GET /api/dns/adguard/credentials", s.requireAuth(s.handleAdGuardCredentials))
 	s.mux.HandleFunc("POST /api/dns/adguard/protection", s.requireAuth(s.handleAdGuardProtection))
+	s.mux.HandleFunc("POST /api/dns/adguard/forwarders", s.requireAuth(s.handleAdGuardForwarders))
 	s.mux.HandleFunc("POST /api/dns/adguard/clients", s.requireAuth(s.handleAdGuardClients))
 	s.mux.HandleFunc("POST /api/dns/doh/action", s.requireAuth(s.handleAdGuardDoH))
 	s.mux.HandleFunc("POST /api/dns/hosts", s.requireAuth(s.handleDNSHostsSet))
@@ -1986,6 +1987,25 @@ func (s *Server) handleAdGuardProtection(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	probe, rolledBack, err := modules.AdGuardProtection(req.Enable)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+// handleAdGuardForwarders drops the dnsmasq forwarders that bypass AdGuard
+// (#673). It rewrites the dnsmasq server list, so it asks for the same
+// confirmation as the handoff itself.
+func (s *Server) handleAdGuardForwarders(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Confirm bool `json:"confirm"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if !req.Confirm {
+		writeError(w, http.StatusBadRequest, "confirmation required")
+		return
+	}
+	probe, rolledBack, err := modules.AdGuardDropForwarders()
 	writeModuleResult(w, probe, rolledBack, err)
 }
 

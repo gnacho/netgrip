@@ -607,6 +607,11 @@ export const demoApi: typeof api = {
     await wait(200, 400);
     return { state: "managed", username: "admin", password: "demo-adguard-pass-42" };
   },
+  adguardForwarders: async () => {
+    await wait(600, 1000);
+    state.dns.adguard_other_forwarders = [];
+    return { status: "applied" as const, rolled_back: false, state: { ...state.dns } };
+  },
   adguardRegeneratePassword: async () => {
     await wait(600, 1000);
     state.dns.adguard_credentials = "managed";

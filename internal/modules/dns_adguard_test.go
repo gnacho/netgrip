@@ -60,6 +60,30 @@ func TestAdGuardProtectedRejectsPlainLoopback(t *testing.T) {
 	}
 }
 
+func TestAdGuardOtherForwardersSkipsTheListenerAndDomainEntries(t *testing.T) {
+	servers := []string{"127.0.0.1#3053", "1.1.1.1", "9.9.9.9", "/lan/192.168.1.1", "/example.com/8.8.8.8"}
+	got := adGuardOtherForwarders(servers)
+	want := []string{"1.1.1.1", "9.9.9.9"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+	}
+}
+
+// The payload never carries a null list: the card reads .length from it (#661).
+func TestAdGuardOtherForwardersIsNeverNil(t *testing.T) {
+	if adGuardOtherForwarders(nil) == nil {
+		t.Fatal("an empty server list returns nil")
+	}
+	if adGuardOtherForwarders([]string{"127.0.0.1#3053"}) == nil {
+		t.Fatal("a list with only the AdGuard listener returns nil")
+	}
+}
+
 func TestParseAdGuardDNSPort(t *testing.T) {
 	yaml := `http:
   address: 0.0.0.0:3000

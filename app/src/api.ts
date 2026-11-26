@@ -347,6 +347,12 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enable, confirm: true }),
     }),
+  adguardForwarders: () =>
+    request<import("./types").ModuleResult<import("./types").DNSConfig>>("/api/dns/adguard/forwarders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirm: true }),
+    }),
   adguardClients: (enabled: boolean) =>
     request<import("./types").ModuleResult<import("./types").DNSConfig>>("/api/dns/adguard/clients", {
       method: "POST",
