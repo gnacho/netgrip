@@ -65,10 +65,23 @@ export function IdentityCard({ board, index = 1 }: { board: Board | undefined; i
           { label: t("system.firmware"), value: board?.release ? `${board.release.distribution} ${board.release.version} (${board.release.revision})` : "…" },
           { label: t("system.kernel"), value: board?.kernel ?? "…", mono: true },
         ]} />
-        <KeyValue items={[
-          { label: t("system.hostname"), value: board?.hostname ?? "…", mono: true },
-          { label: "NetGrip", value: selfUpdate?.current ?? "…", mono: true },
-        ]} />
+        <div>
+          <KeyValue items={[
+            { label: t("system.hostname"), value: board?.hostname ?? "…", mono: true },
+            { label: "NetGrip", value: selfUpdate?.current ?? "…", mono: true },
+          ]} />
+          {/* #723: la estrella vive bajo la versión del producto, no en la
+              fila del reinicio. */}
+          <a
+            href={STARGAZERS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1 text-small text-accent hover:text-accent-hover ring-focus rounded-sm"
+          >
+            <Star size={14} aria-hidden="true" />
+            {t("system.starCta")}
+          </a>
+        </div>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -77,15 +90,6 @@ export function IdentityCard({ board, index = 1 }: { board: Board | undefined; i
           onClick={() => setConfirm(true)}>
           {t("system.reboot")}
         </Button>
-        <a
-          href={STARGAZERS_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="ml-auto inline-flex items-center gap-1 text-small text-accent hover:text-accent-hover ring-focus rounded-sm"
-        >
-          <Star size={14} aria-hidden="true" />
-          {t("system.starCta")}
-        </a>
       </div>
 
       {phase === "background" && (

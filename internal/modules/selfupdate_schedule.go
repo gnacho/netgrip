@@ -213,13 +213,15 @@ func scheduledSelfUpdateTick(version string) {
 	time.Sleep(jitter)
 
 	check := CheckSelfUpdate(version)
-	st.LastCheck = time.Now().Unix()
+	failed := false
 	switch {
 	case check == nil || (!check.Available && check.Latest == ""):
 		st.LastResult = "error: check failed"
+		failed = true
 	case check.Available:
 		if err := StartSelfUpdate(version); err != nil {
 			st.LastResult = "error: " + err.Error()
+			failed = true
 		} else {
 			st.LastResult = "applied " + strings.TrimPrefix(check.Latest, "v")
 			st.LastApply = time.Now().Unix()
@@ -228,6 +230,7 @@ func scheduledSelfUpdateTick(version string) {
 	default:
 		st.LastResult = "up-to-date"
 	}
+	st.LastCheck = scheduleNextCheck(time.Now().Unix(), cfg.IntervalH, failed)
 	selfUpdateSaveState(st)
 	if strings.HasPrefix(st.LastResult, "applied") || strings.HasPrefix(st.LastResult, "error") {
 		log.Printf("netgrip: scheduled self-update: %s", st.LastResult)
