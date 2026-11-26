@@ -994,6 +994,12 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ target }),
     }),
+  setStoragePaths: (service: string, paths: string[]) =>
+    request<import("./types").StorageProbe>("/api/storage/paths", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ service, paths }),
+    }),
   installStorageService: (name: string) =>
     request<{ job?: InstallJob; status?: string }>("/api/storage/install", {
       method: "POST",

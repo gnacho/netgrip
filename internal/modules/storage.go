@@ -6,8 +6,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gnacho/netgrip/internal/executor"
 )
@@ -32,6 +34,11 @@ type StorageService struct {
 	// Installed: el paquete está puesto (existe su init script). Sin él la
 	// página ofrece instalarlo en vez de un interruptor muerto (#720).
 	Installed bool `json:"installed"`
+	// Available: el paquete existe en los repos del router. Sin esto la
+	// página ofrecía instalar Samba en firmwares que no lo traen (#720).
+	Available bool `json:"available"`
+	// Paths: carpetas que comparte el servicio (media_dir de minidlna).
+	Paths []string `json:"paths"`
 }
 
 // storageServiceUCI maps a service to the UCI switch its init script reads
@@ -58,6 +65,31 @@ func storageServiceProcesses(name string) []string {
 		}
 	}
 	return []string{name, name + "d"}
+}
+
+// storagePackageAvailable reports whether the router feeds carry the package.
+func storagePackageAvailable(pkg string) bool {
+	if pkg == "" {
+		return false
+	}
+	if _, err := exec.LookPath("apk"); err == nil {
+		out, err := exec.Command("apk", "search", "-x", pkg).Output()
+		return err == nil && strings.TrimSpace(string(out)) != ""
+	}
+	out, err := exec.Command("opkg", "list", pkg).Output()
+	return err == nil && strings.Contains(string(out), pkg)
+}
+
+// storageServicePaths returns the folders a service shares.
+func storageServicePaths(name string) []string {
+	if name != "minidlna" {
+		return []string{}
+	}
+	out, err := exec.Command("uci", "-q", "get", "minidlna.config.media_dir").Output()
+	if err != nil {
+		return []string{}
+	}
+	return strings.Fields(strings.ReplaceAll(string(out), "\n", " "))
 }
 
 // storageServicePackages maps the services the page manages to the package
@@ -132,6 +164,62 @@ func usbDevicePresent() bool {
 func usbStorageLoaded() bool {
 	_, err := os.Stat("/sys/module/usb_storage")
 	return err == nil
+}
+
+// reStoragePath acepta carpetas dentro de /mnt, con subcarpetas.
+var reStoragePath = regexp.MustCompile(`^/mnt(/[A-Za-z0-9._-]+)+$`)
+
+// SetStoragePaths replaces the folders a service shares (#720). Today only
+// minidlna exposes a folder list (media_dir).
+func SetStoragePaths(name string, paths []string) (StorageProbe, error) {
+	if name != "minidlna" {
+		return ProbeStorage(), fmt.Errorf("folder selection is not available for %q", name)
+	}
+	if len(paths) == 0 {
+		return ProbeStorage(), fmt.Errorf("pick at least one folder")
+	}
+	for _, p := range paths {
+		if !reStoragePath.MatchString(p) {
+			return ProbeStorage(), fmt.Errorf("invalid folder %q", p)
+		}
+		if fi, err := os.Stat(p); err != nil || !fi.IsDir() {
+			return ProbeStorage(), fmt.Errorf("%s is not a folder on this router", p)
+		}
+	}
+
+	old := storageServicePaths(name)
+	ops, rollback := storagePathsOps(paths, old)
+	if err := executor.Apply(ops, rollback); err != nil {
+		return ProbeStorage(), err
+	}
+	InvalidateKey("storage")
+
+	// minidlna no arranca si una carpeta no existe: si no volvió, se restaura.
+	time.Sleep(2 * time.Second)
+	if !probeStorageService(name).Running {
+		_ = executor.Apply(rollback, nil)
+		return ProbeStorage(), fmt.Errorf("minidlna did not come back with those folders; previous ones restored")
+	}
+	return ProbeStorage(), nil
+}
+
+// storagePathsOps builds the ops and their inverse for the folder list.
+func storagePathsOps(paths, old []string) (ops, rollback []executor.Op) {
+	ops = append(ops, executor.Op{Kind: "uci_delete", Args: []string{"minidlna.config.media_dir"}})
+	rollback = append(rollback, executor.Op{Kind: "uci_delete", Args: []string{"minidlna.config.media_dir"}})
+	for _, p := range paths {
+		ops = append(ops, executor.Op{Kind: "uci_add_list", Args: []string{"minidlna.config.media_dir", p}})
+	}
+	for _, p := range old {
+		rollback = append(rollback, executor.Op{Kind: "uci_add_list", Args: []string{"minidlna.config.media_dir", p}})
+	}
+	for _, set := range []*[]executor.Op{&ops, &rollback} {
+		*set = append(*set,
+			executor.Op{Kind: "uci_commit", Args: []string{"minidlna"}},
+			executor.Op{Kind: "initd", Args: []string{"minidlna", "restart"}},
+		)
+	}
+	return ops, rollback
 }
 
 func ProbeStorage() StorageProbe {
@@ -248,6 +336,8 @@ func probeStorageService(name string) StorageService {
 	if _, err := os.Stat("/etc/init.d/" + name); err == nil {
 		svc.Installed = true
 	}
+	svc.Available = svc.Installed || storagePackageAvailable(storageServicePackages[name])
+	svc.Paths = storageServicePaths(name)
 
 	out, err := exec.Command("/etc/init.d/"+name, "enabled").CombinedOutput()
 	initEnabled := err == nil && strings.TrimSpace(string(out)) == ""

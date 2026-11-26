@@ -1093,6 +1093,12 @@ export const demoApi: typeof api = {
     if (d) { d.mount_point = undefined; d.managed = false; }
     return state.storage;
   },
+  setStoragePaths: async (service, paths) => {
+    await wait(900, 1500);
+    const s = state.storage.services.find((x) => x.name === service);
+    if (s) s.paths = paths;
+    return state.storage;
+  },
   installStorageService: async (name) => {
     await wait(1200, 1800);
     const s = state.storage.services.find((x) => x.name === name);
