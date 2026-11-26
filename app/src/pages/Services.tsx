@@ -42,37 +42,45 @@ export function Services({ wg, onWgChange, ddns, onDdnsChange, sqm, onSqmChange,
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-6 md:gap-8">
-      {/* Bloqueo y reglas — el bloqueador de anuncios arriba. Contabilidad
-          y bloqueo solo en el gateway (#500): un AP no enruta, así que
-          nlbwmon no puede contar tráfico por equipo. El encabezado también
-          solo en gateway: describe funciones que en un AP no se pintan. */}
-      <section className="flex flex-col gap-[var(--card-gap)]">
-        {!apMode && (
-          <GroupHeader index={0} title={t("services.groupRules")} desc={t("services.groupRulesDesc")} />
-        )}
-        <AdguardCard index={0} />
-        {!apMode && <NlbwmonCard index={0} />}
-        {!apMode && <BanipCard index={0} onNavigate={onNavigate} />}
-      </section>
+      {/* Protección: lo que se bloquea. Contabilidad y bloqueo por IP solo en
+          el gateway (#500): un AP no enruta, así que nlbwmon no puede contar
+          tráfico por equipo. Los encabezados también solo en gateway: describen
+          funciones que en un AP no se pintan. */}
+      {!apMode && (
+        <section className="flex flex-col gap-[var(--card-gap)]">
+          <GroupHeader index={0} title={t("services.groupProtection")} desc={t("services.groupProtectionDesc")} />
+          <AdguardCard index={0} />
+          <BanipCard index={0} onNavigate={onNavigate} />
+        </section>
+      )}
 
-      {/* Tu conexión — cómo sale tu casa a Internet. Solo gateway: desde
-          #500 "Nombre local" (mDNS) vive en Ajustes, también en APs. */}
-      <section className="flex flex-col gap-[var(--card-gap)]">
-        {!apMode && (
-          <GroupHeader index={2} title={t("services.groupConn")} desc={t("services.groupConnDesc")} />
-        )}
-        {!apMode && <DdnsCard probe={ddns} onChange={onDdnsChange} index={2} />}
-        {!apMode && <SqmCard probe={sqm} onChange={onSqmChange} index={2} />}
-      </section>
+      {/* Calidad: qué usa la línea y cómo se reparte. nlbwmon responde "qué
+          está gastando la línea", que es la misma pregunta que resuelve SQM. */}
+      {!apMode && (
+        <section className="flex flex-col gap-[var(--card-gap)]">
+          <GroupHeader index={2} title={t("services.groupQuality")} desc={t("services.groupQualityDesc")} />
+          <SqmCard probe={sqm} onChange={onSqmChange} index={2} />
+          <NlbwmonCard index={2} />
+        </section>
+      )}
+
+      {/* Nombre de casa: una tarjeta y un trabajo, mantener el dominio
+          apuntando a la IP que cambia. */}
+      {!apMode && (
+        <section className="flex flex-col gap-[var(--card-gap)]">
+          <GroupHeader index={4} title={t("services.groupDdns")} desc={t("services.groupDdnsDesc")} />
+          <DdnsCard probe={ddns} onChange={onDdnsChange} index={4} />
+        </section>
+      )}
 
       {/* VPN — para entrar a tu casa desde fuera (al final). Solo gateway:
           un AP no enruta, así que los túneles no aplican (#500). */}
       {!apMode && (
       <section className="flex flex-col gap-[var(--card-gap)]">
-        <GroupHeader index={4} title={t("services.groupVpn")} desc={t("services.groupVpnDesc")} />
-        <WireguardCard probe={wg} onChange={onWgChange} index={4} />
-        <OpenvpnCard probe={ovpn} onChange={onOvpnChange} index={4} />
-        <TailscaleCard probe={ts} onChange={onTsChange} index={4} />
+        <GroupHeader index={6} title={t("services.groupVpn")} desc={t("services.groupVpnDesc")} />
+        <WireguardCard probe={wg} onChange={onWgChange} index={6} />
+        <OpenvpnCard probe={ovpn} onChange={onOvpnChange} index={6} />
+        <TailscaleCard probe={ts} onChange={onTsChange} index={6} />
       </section>
       )}
 
@@ -80,7 +88,7 @@ export function Services({ wg, onWgChange, ddns, onDdnsChange, sqm, onSqmChange,
           Solo gateway (#500): en un AP es información ajena a su función. */}
       {!apMode && (
       <section className="flex flex-col gap-[var(--card-gap)]">
-        <GroupHeader index={6} title={t("services.groupLocal")} desc={t("services.groupLocalDesc")} />
+        <GroupHeader index={8} title={t("services.groupLocal")} desc={t("services.groupLocalDesc")} />
         <LanServicesCard />
       </section>
       )}
