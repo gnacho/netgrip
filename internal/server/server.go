@@ -244,6 +244,9 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("POST /api/config/confirm/rollback", s.requireAuth(s.handleConfirmRevert))
 	s.mux.HandleFunc("POST /api/ports/bounce", s.requireAuth(s.handlePortBounce))
 	s.mux.HandleFunc("POST /api/ports/block", s.requireAuth(s.handlePortBlock))
+	s.mux.HandleFunc("GET /api/ports/roles", s.requireAuth(s.handlePortRolesGet))
+	s.mux.HandleFunc("POST /api/ports/role", s.requireAuth(s.handlePortRoleSet))
+	s.mux.HandleFunc("POST /api/ports/mac", s.requireAuth(s.handlePortMACSet))
 	s.mux.HandleFunc("GET /api/vlans", s.requireAuth(s.handleVLANsGet))
 	s.mux.HandleFunc("POST /api/vlans", s.requireAuth(s.handleVLANsSet))
 	s.mux.HandleFunc("DELETE /api/vlans", s.requireAuth(s.handleVLANsDelete))
@@ -2575,6 +2578,50 @@ func (s *Server) handlePhysPortSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "applied"})
+}
+
+// ---- Port roles and MACs (#662) ----
+
+type portRoleRequest struct {
+	Port    string `json:"port"`
+	Role    string `json:"role,omitempty"`
+	MAC     string `json:"mac,omitempty"`
+	Confirm bool   `json:"confirm,omitempty"`
+}
+
+func (s *Server) handlePortRolesGet(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbePortRoles())
+}
+
+// handlePortRoleSet moves a port between LAN and WAN. Removing a port from
+// the bridge can cut the management path, so it goes through the same
+// apply/confirm/revert window as the LAN form.
+func (s *Server) handlePortRoleSet(w http.ResponseWriter, r *http.Request) {
+	var req portRoleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Port == "" {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	var snapshots map[string]string
+	if req.Confirm {
+		snapshots = snapshotConfigs("network")
+	}
+	probe, rolledBack, err := modules.SetPortRole(req.Port, req.Role)
+	s.finishRiskyApply(w, probe, rolledBack, err, req.Confirm, snapshots, []string{"network"})
+}
+
+func (s *Server) handlePortMACSet(w http.ResponseWriter, r *http.Request) {
+	var req portRoleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Port == "" {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	var snapshots map[string]string
+	if req.Confirm {
+		snapshots = snapshotConfigs("network")
+	}
+	probe, rolledBack, err := modules.SetPortMAC(req.Port, req.MAC)
+	s.finishRiskyApply(w, probe, rolledBack, err, req.Confirm, snapshots, []string{"network"})
 }
 
 func (s *Server) handleLAGGet(w http.ResponseWriter, _ *http.Request) {

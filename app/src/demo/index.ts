@@ -44,6 +44,7 @@ const state = {
   snapshots: [...D.demoSnapshots],
   vlans: structuredClone(D.demoVlans),
   lag: structuredClone(D.demoLag),
+  portRoles: structuredClone(D.demoPortRoles),
   firewall: structuredClone(D.demoFirewall),
   nlbwmon: { ...D.demoNlbwmon },
   banip: structuredClone(D.demoBanip),
@@ -700,6 +701,27 @@ export const demoApi: typeof api = {
   stp: () => get(D.demoStp),
   setSTPBridge: async () => { await wait(800, 1500); return { status: "applied" }; },
   setSTPPort: async () => { await wait(800, 1500); return { status: "applied" }; },
+  portRoles: () => get(state.portRoles),
+  setPortRole: async (port, role) => {
+    await wait(800, 1500);
+    state.portRoles = { ...state.portRoles, ports: state.portRoles.ports.map((p) => (p.name === port ? { ...p, role } : p)) };
+    return {
+      status: "applied" as const,
+      rolled_back: false,
+      state: state.portRoles,
+      confirm: { id: "demo", expires: Math.floor(Date.now() / 1000) + 120 },
+    };
+  },
+  setPortMac: async (port, mac) => {
+    await wait(800, 1500);
+    state.portRoles = { ...state.portRoles, ports: state.portRoles.ports.map((p) => (p.name === port ? { ...p, mac_override: mac, mac: mac || p.factory_mac } : p)) };
+    return {
+      status: "applied" as const,
+      rolled_back: false,
+      state: state.portRoles,
+      confirm: { id: "demo", expires: Math.floor(Date.now() / 1000) + 120 },
+    };
+  },
   physPorts: () => get(D.demoPhysPorts),
   setPhysPort: async () => { await wait(800, 1500); return { status: "applied" }; },
   portStats: () => get(D.demoPortStats),

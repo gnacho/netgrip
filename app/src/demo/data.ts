@@ -277,6 +277,21 @@ export const demoEthPorts: T.EthPort[] = [
   { name: "lan4", wan: false, up: true, speed_mbps: 100, devices: [{ mac: "C8:2B:96:33:77:19", name: "Impresora HP" }] },
 ];
 
+export const demoPortRoles: T.PortRolesProbe = {
+  applicable: true,
+  mode: "router",
+  wan_iface: "wan",
+  wan_device: "wan",
+  can_assign_wan: true,
+  ports: [
+    { name: "lan1", role: "lan", link_up: true, speed_mbps: 1000, mac: "cc:d8:43:b1:e5:94", factory_mac: "cc:d8:43:b1:e5:94", mac_override: "" },
+    { name: "lan2", role: "lan", link_up: true, speed_mbps: 1000, mac: "cc:d8:43:b1:e5:94", factory_mac: "cc:d8:43:b1:e5:94", mac_override: "" },
+    { name: "lan3", role: "lan", link_up: false, speed_mbps: 0, mac: "cc:d8:43:b1:e5:94", factory_mac: "cc:d8:43:b1:e5:94", mac_override: "" },
+    { name: "lan4", role: "lan", link_up: true, speed_mbps: 100, mac: "cc:d8:43:b1:e5:94", factory_mac: "cc:d8:43:b1:e5:94", mac_override: "" },
+    { name: "wan", role: "wan", link_up: true, speed_mbps: 1000, mac: "cc:d8:43:b1:e5:94", factory_mac: "cc:d8:43:b1:e5:94", mac_override: "" },
+  ],
+};
+
 export const demoMode: T.ModeProbe = {
   mode: "router",
   hardware_class: "router",
