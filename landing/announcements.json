@@ -1,6 +1,25 @@
 {
  "announcements": [
   {
+   "id": "v0820-2026-11",
+   "urgency": "info",
+   "title": {
+    "es": "Novedades de la v0.82.0",
+    "en": "What's new in v0.82.0"
+   },
+   "body": {
+    "es": "El panel se ordena por tareas: Protección tiene su propia página con AdGuard y banIP, Servicios se separa en VPN, calidad de la conexión, nombre de casa y servicios locales, y el cortafuegos se llama así. Tráfico por aplicación pinta el icono de cada app con un juego incrustado en el binario, sin que el panel salga a internet. UPnP es una sola tarjeta que solo enseña mapeos y ACL cuando está encendido, los servidores de dnsmasq que se saltaban AdGuard se avisan con un botón para quitarlos, y Servicios locales lista todos los puertos abiertos a Internet, incluido WireGuard, con lápiz para editar cada reenvío. Se arreglan la página Internet, que reventaba en kernels sin tabla de conntrack, y el aviso de actualización, que no desaparecía tras aplicarla.",
+    "en": "The panel is now organised by job: Protection has its own page with AdGuard and banIP, Services is split into VPN, connection quality, home name and local services, and the firewall goes by its name. Traffic by application draws each app's icon from a set embedded in the binary, so the panel never calls out. UPnP is one card that only shows mappings and the ACL while it is on, the dnsmasq forwarders that bypassed AdGuard are flagged with a button to drop them, and Local services lists every port open to the Internet, WireGuard included, with a pencil to edit each forward. It also fixes the Internet page, which crashed on kernels without a conntrack table, and the update banner, which did not go away after applying one."
+   },
+   "url": "https://github.com/gnacho/netgrip/releases/tag/v0.82.0",
+   "urlLabel": {
+    "es": "Ver la release",
+    "en": "See the release"
+   },
+   "starts": "2026-11-26",
+   "expires": "2026-12-31"
+  },
+  {
    "id": "v0801-2026-11",
    "urgency": "info",
    "title": {
