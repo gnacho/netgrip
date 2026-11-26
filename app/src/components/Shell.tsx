@@ -7,7 +7,7 @@ import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTPr
 import { useHealthScore } from "../hooks/useHealthScore";
 import { useMode } from "../hooks/useMode";
 import { AnnouncementBanner } from "./AnnouncementBanner";
-import { Banner, Button, Drawer, Pill, StatusDot, ThemeToggle, ToastProvider } from "./ui";
+import { Banner, Button, Drawer, Pill, ThemeToggle, ToastProvider } from "./ui";
 import { Logo } from "./ui/illustrations";
 import { Overview } from "../pages/Overview";
 import { CoveragePage } from "../pages/Coverage";
@@ -335,7 +335,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
                     {portCount}
                   </span>
                 )}
-                {!compact && id === "overview" && <StatusDot tone={health.tone} label={t(health.labelKey)} />}
               </button>
             );
           })}
