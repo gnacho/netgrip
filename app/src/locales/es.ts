@@ -160,6 +160,10 @@ export default {
     },
   },
   help: {
+    banip: {
+      title: "¿Qué hace banIP?",
+      body: "Corta el tráfico desde y hacia direcciones de mala reputación, con listas públicas que se actualizan solas. Cada lista decide si filtra a la entrada o a la salida, y puedes añadir direcciones a mano en la lista blanca y en la negra.",
+    },
     upnp: {
       title: "¿Qué es UPnP?",
       body: "Deja que las aplicaciones de tu red abran puertos en el router por su cuenta, sin que tengas que crear la regla a mano. Es cómodo para juegos, consolas y cámaras, pero cualquier dispositivo de casa puede hacerlo. Con la lista de abajo limitas quién puede.",
@@ -730,6 +734,7 @@ export default {
     minutes: "{{count}}m",
   },
   banip: {
+    title: "banIP",
     stateActive: "Activo",
     stateStopped: "Parado",
     startingHint: "Arrancando banIP: la primera vez descarga los feeds y puede tardar un minuto. No cierres la página.",
