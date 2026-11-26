@@ -59,8 +59,10 @@ export function FleetPage() {
     try {
       const data = await api.fleet();
       setNodes(data.nodes ?? []);
+      return data.nodes ?? [];
     } catch {
       setNodesError(true);
+      return undefined;
     }
   }, []);
 
@@ -87,8 +89,22 @@ export function FleetPage() {
     }
   }, []);
 
+  // Tras reiniciar el panel la caché de estado viene vacía: sin esto la
+  // flota entera decía "Sin respuesta" hasta pulsar Comprobar todos (#760).
   const load = useCallback(async () => {
-    await Promise.all([loadNodes(), loadDiscovered(), loadDiscoveryConfig()]);
+    const [list] = await Promise.all([loadNodes(), loadDiscovered(), loadDiscoveryConfig()]);
+    const neverChecked = list && list.length > 0 && list.every((n) => !n.reachable && !n.error && !n.current_version);
+    if (neverChecked) {
+      setCheckingAll(true);
+      try {
+        const data = await api.checkAllFleet();
+        setNodes(data.nodes ?? []);
+      } catch {
+        /* se queda el estado vacío y el botón permite reintentar */
+      } finally {
+        setCheckingAll(false);
+      }
+    }
   }, [loadNodes, loadDiscovered, loadDiscoveryConfig]);
 
   useEffect(() => { load(); }, [load]);
