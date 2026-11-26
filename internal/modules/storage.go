@@ -52,6 +52,10 @@ var storageServiceUCI = map[string]string{
 // storageServiceProcesses lists the names to try with pidof: the PROG the
 // init script launches (minidlnad), then the service name.
 func storageServiceProcesses(name string) []string {
+	// samba4 no declara PROG: sudaemon es /usr/sbin/samba y levanta smbd/nmbd.
+	if name == "samba4" {
+		return []string{"samba", "smbd", "nmbd"}
+	}
 	if data, err := os.ReadFile("/etc/init.d/" + name); err == nil {
 		for _, line := range strings.Split(string(data), "\n") {
 			line = strings.TrimSpace(line)
@@ -67,8 +71,18 @@ func storageServiceProcesses(name string) []string {
 	return []string{name, name + "d"}
 }
 
-// storagePackageAvailable reports whether the router feeds carry the package.
-func storagePackageAvailable(pkg string) bool {
+// storagePackageAvailable reports whether the router feeds carry at least one
+// of the packages. samba4 ships as samba4-server, so the exact name matters.
+func storagePackageAvailable(pkgs []string) bool {
+	for _, pkg := range pkgs {
+		if storageOnePackageAvailable(pkg) {
+			return true
+		}
+	}
+	return false
+}
+
+func storageOnePackageAvailable(pkg string) bool {
 	if pkg == "" {
 		return false
 	}
@@ -82,34 +96,82 @@ func storagePackageAvailable(pkg string) bool {
 
 // storageServicePaths returns the folders a service shares.
 func storageServicePaths(name string) []string {
-	if name != "minidlna" {
-		return []string{}
+	switch name {
+	case "minidlna":
+		out, err := exec.Command("uci", "-q", "get", "minidlna.config.media_dir").Output()
+		if err != nil {
+			return []string{}
+		}
+		return strings.Fields(strings.ReplaceAll(string(out), "\n", " "))
+	case "samba4":
+		out := []string{}
+		for _, sec := range sambaNetgripSections() {
+			if p := uciGet("samba4." + sec + ".path"); p != "" {
+				out = append(out, p)
+			}
+		}
+		return out
 	}
-	out, err := exec.Command("uci", "-q", "get", "minidlna.config.media_dir").Output()
+	return []string{}
+}
+
+// sambaNetgripSections lists the sambashare sections this panel created.
+// Hand-made shares are never touched.
+func sambaNetgripSections() []string {
+	out, err := exec.Command("uci", "-q", "show", "samba4").Output()
 	if err != nil {
-		return []string{}
+		return nil
 	}
-	return strings.Fields(strings.ReplaceAll(string(out), "\n", " "))
+	var secs []string
+	for _, line := range strings.Split(string(out), "\n") {
+		if !strings.HasSuffix(line, "=sambashare") {
+			continue
+		}
+		name := strings.TrimPrefix(strings.SplitN(line, "=", 2)[0], "samba4.")
+		if strings.HasPrefix(name, "netgrip_") {
+			secs = append(secs, name)
+		}
+	}
+	return secs
+}
+
+// sambaSectionName derives the section for a shared folder.
+func sambaSectionName(path string) string {
+	base := path[strings.LastIndex(path, "/")+1:]
+	var b strings.Builder
+	for _, r := range strings.ToLower(base) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '_':
+			b.WriteRune(r)
+		default:
+			b.WriteRune('_')
+		}
+	}
+	name := strings.Trim(b.String(), "_")
+	if name == "" {
+		name = "share"
+	}
+	return "netgrip_" + name
 }
 
 // storageServicePackages maps the services the page manages to the package
 // that provides them.
-var storageServicePackages = map[string]string{
-	"samba4":   "samba4",
-	"minidlna": "minidlna",
+var storageServicePackages = map[string][]string{
+	"samba4":   {"samba4-server"},
+	"minidlna": {"minidlna"},
 }
 
 // StorageServicePackages returns the packages to install for name, validating
 // it against the services the page manages.
 func StorageServicePackages(name string) ([]string, error) {
-	pkg, ok := storageServicePackages[name]
+	pkgs, ok := storageServicePackages[name]
 	if !ok {
 		return nil, fmt.Errorf("unknown storage service %q", name)
 	}
 	if _, err := os.Stat("/etc/init.d/" + name); err == nil {
 		return nil, nil
 	}
-	return []string{pkg}, nil
+	return pkgs, nil
 }
 
 type StorageProbe struct {
@@ -172,7 +234,7 @@ var reStoragePath = regexp.MustCompile(`^/mnt(/[A-Za-z0-9._-]+)+$`)
 // SetStoragePaths replaces the folders a service shares (#720). Today only
 // minidlna exposes a folder list (media_dir).
 func SetStoragePaths(name string, paths []string) (StorageProbe, error) {
-	if name != "minidlna" {
+	if name != "minidlna" && name != "samba4" {
 		return ProbeStorage(), fmt.Errorf("folder selection is not available for %q", name)
 	}
 	if len(paths) == 0 {
@@ -188,7 +250,7 @@ func SetStoragePaths(name string, paths []string) (StorageProbe, error) {
 	}
 
 	old := storageServicePaths(name)
-	ops, rollback := storagePathsOps(paths, old)
+	ops, rollback := storagePathsOps(name, paths, old)
 	if err := executor.Apply(ops, rollback); err != nil {
 		return ProbeStorage(), err
 	}
@@ -198,13 +260,18 @@ func SetStoragePaths(name string, paths []string) (StorageProbe, error) {
 	time.Sleep(2 * time.Second)
 	if !probeStorageService(name).Running {
 		_ = executor.Apply(rollback, nil)
-		return ProbeStorage(), fmt.Errorf("minidlna did not come back with those folders; previous ones restored")
+		return ProbeStorage(), fmt.Errorf("%s did not come back with those folders; previous ones restored", name)
 	}
 	return ProbeStorage(), nil
 }
 
 // storagePathsOps builds the ops and their inverse for the folder list.
-func storagePathsOps(paths, old []string) (ops, rollback []executor.Op) {
+func storagePathsOps(name string, paths, old []string) (ops, rollback []executor.Op) {
+	if name == "samba4" {
+		ops = sambaShareOps(paths, true)
+		rollback = sambaShareOps(old, false)
+		return ops, rollback
+	}
 	ops = append(ops, executor.Op{Kind: "uci_delete", Args: []string{"minidlna.config.media_dir"}})
 	rollback = append(rollback, executor.Op{Kind: "uci_delete", Args: []string{"minidlna.config.media_dir"}})
 	for _, p := range paths {
@@ -220,6 +287,35 @@ func storagePathsOps(paths, old []string) (ops, rollback []executor.Op) {
 		)
 	}
 	return ops, rollback
+}
+
+// sambaShareOps recreates the NetGrip shares for the given folders. Shares
+// are guest (no password) and writable: the panel has no Samba user base.
+func sambaShareOps(paths []string, dropExisting bool) []executor.Op {
+	var ops []executor.Op
+	if dropExisting {
+		for _, sec := range sambaNetgripSections() {
+			ops = append(ops, executor.Op{Kind: "uci_delete", Args: []string{"samba4." + sec}})
+		}
+	}
+	for _, p := range paths {
+		sec := "samba4." + sambaSectionName(p)
+		base := p[strings.LastIndex(p, "/")+1:]
+		ops = append(ops,
+			executor.Op{Kind: "uci_set", Args: []string{sec, "sambashare"}},
+			executor.Op{Kind: "uci_set", Args: []string{sec + ".name", base}},
+			executor.Op{Kind: "uci_set", Args: []string{sec + ".path", p}},
+			executor.Op{Kind: "uci_set", Args: []string{sec + ".browseable", "yes"}},
+			executor.Op{Kind: "uci_set", Args: []string{sec + ".guest_ok", "yes"}},
+			executor.Op{Kind: "uci_set", Args: []string{sec + ".read_only", "no"}},
+			executor.Op{Kind: "uci_set", Args: []string{sec + ".create_mask", "0666"}},
+			executor.Op{Kind: "uci_set", Args: []string{sec + ".dir_mask", "0777"}},
+		)
+	}
+	return append(ops,
+		executor.Op{Kind: "uci_commit", Args: []string{"samba4"}},
+		executor.Op{Kind: "initd", Args: []string{"samba4", "restart"}},
+	)
 }
 
 func ProbeStorage() StorageProbe {

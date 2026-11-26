@@ -2819,6 +2819,7 @@ export default {
     foldersTitle: "Carpetas que compartir",
     foldersHint: "Se comparten las carpetas marcadas. Los discos montados aparecen aquí.",
     foldersNoMounts: "No hay ningún disco montado: monta uno primero.",
+    foldersGuestHint: "Se comparten las carpetas marcadas con acceso sin contraseña para cualquiera en tu red, con permiso de escritura.",
     foldersNow: "Comparte {{list}}",
     foldersNone: "Sin carpetas: no comparte nada todavía",
     usbNoDriver: "Hay un dispositivo USB conectado, pero el router no tiene el controlador de discos: por eso no aparece. Instálalo y el disco se verá al momento.",

@@ -2820,6 +2820,7 @@ export default {
     foldersTitle: "Folders to share",
     foldersHint: "The ticked folders are shared. Mounted disks show up here.",
     foldersNoMounts: "No mounted disk: mount one first.",
+    foldersGuestHint: "The ticked folders are shared with no password for anyone on your network, writable.",
     foldersNow: "Sharing {{list}}",
     foldersNone: "No folders: nothing shared yet",
     usbNoDriver: "A USB device is plugged in, but the router has no disk driver, so it cannot show it. Install it and the disk appears right away.",
