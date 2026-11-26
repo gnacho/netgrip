@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Radio } from "lucide-react";
 import type { UsteerAP } from "../types";
 import { Card, Pill, SkeletonRows } from "../components/ui";
+import { WifiChanCard } from "../components/wifi/WifiChanCard";
 import { signalColor } from "../lib/format";
 
 // Malla radial determinista: este router al centro, peers en un círculo,
@@ -72,15 +73,26 @@ export function CoveragePage({ aps, error }: { aps?: UsteerAP[]; error: boolean 
 
   if (error) {
     return (
-      <Card title={t("coverage.title")} icon={Radio} iconTone="teal">
-        <p className="text-small text-muted">{t("coverage.absent")}</p>
-      </Card>
+      <div className="flex flex-col gap-[var(--card-gap)]">
+        <Card title={t("coverage.title")} icon={Radio} iconTone="teal">
+          <p className="text-small text-muted">{t("coverage.absent")}</p>
+        </Card>
+        <WifiChanCard index={1} />
+      </div>
     );
   }
 
-  if (!aps) return <Card title={t("coverage.title")} icon={Radio} iconTone="teal"><SkeletonRows rows={4} /></Card>;
+  if (!aps) {
+    return (
+      <div className="flex flex-col gap-[var(--card-gap)]">
+        <Card title={t("coverage.title")} icon={Radio} iconTone="teal"><SkeletonRows rows={4} /></Card>
+        <WifiChanCard index={1} />
+      </div>
+    );
+  }
 
   return (
+    <div className="flex flex-col gap-[var(--card-gap)]">
     <Card index={0} title={t("coverage.title")} icon={Radio} iconTone="teal">
       {aps.length === 0 || nodes.length <= 1 ? (
         <p className="text-small text-muted">{t("coverage.empty")}</p>
@@ -152,5 +164,7 @@ export function CoveragePage({ aps, error }: { aps?: UsteerAP[]; error: boolean 
         </>
       )}
     </Card>
+    <WifiChanCard index={1} />
+    </div>
   );
 }

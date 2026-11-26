@@ -15,7 +15,6 @@ import { WifiRadioModal } from "../components/WifiRadioModal";
 import { GuestWifiCard } from "../components/GuestWifiCard";
 import { IotWifiCard } from "../components/IotWifiCard";
 import { WifiScheduleCard } from "../components/wifi/WifiScheduleCard";
-import { WifiChanCard } from "../components/wifi/WifiChanCard";
 
 function fmtWidth(htmode: string): string {
   const m = htmode.match(/(\d+)/);
@@ -145,7 +144,6 @@ export function WifiPage({ iot, onIotChange, guest, onGuestChange }: {
       <GuestWifiCard probe={guest} mainSsid={main[0]?.ssid} onChange={onGuestChange} />
       <IotWifiCard probe={iot} mainSsid={main[0]?.ssid} onChange={onIotChange} />
       <WifiScheduleCard ifaces={main} index={3} />
-      <WifiChanCard index={4} />
 
       {editing && (
         <WifiEditModal

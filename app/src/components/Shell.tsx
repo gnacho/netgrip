@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import { Activity, ArrowLeftRight, Blocks, ChartColumn, Download, EyeOff, Forward, Gauge, Globe, HardDrive, Link2, Lock, Shield, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldAlert, ShieldBan, Smartphone, Wifi } from "lucide-react";
@@ -208,12 +208,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   // fallback actual aplica solo a ese campo.
   const hasWifiRadios = mode?.has_wifi ?? true;
   const hasSwitchPorts = (mode?.port_count ?? 1) > 0;
-  // Cobertura inalámbrica: solo si usteer reporta varios routers activos.
-  const usteerMultiRouter = useMemo(() => {
-    const hosts = new Set<string>();
-    for (const a of usteerAps ?? []) hosts.add(a.hostname || a.bssid);
-    return hosts.size > 1;
-  }, [usteerAps]);
   // #521: gateOf devuelve la CLAVE del motivo cuando la entrada se oculta
   // (null = visible). El mismo cálculo alimenta el menú y el desplegable
   // "N secciones ocultas por este rol" del pie del sidebar, que nombra cada
@@ -232,7 +226,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     if (id === "ports" && role === "ap") return "portsAp";
     if (id === "ports" && !hasSwitchPorts) return "noPorts";
     if (id === "storage" && !storage?.applicable) return "noStorage";
-    if (id === "coverage" && !usteerMultiRouter) return "coverageSingle";
     // #500: Servicios solo gateway (en AP solo quedaba AdGuard/mDNS;
     // el nombre local se movió a Ajustes).
     return null;
