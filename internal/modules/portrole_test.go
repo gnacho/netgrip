@@ -301,3 +301,50 @@ func TestDerivePortRoleMatchesTheRealFleet(t *testing.T) {
 		}
 	})
 }
+
+// Flint2 real (26-Nov): la WAN vive en eth1.20 (PPPoE del ISP) y los 5
+// puertos del switch estan en br-lan. lan1 es el otro 2.5G del equipo, el
+// que GL.iNet deja elegir como WAN o LAN, asi que la conmutacion tiene que
+// estar permitida y conservar el sufijo de VLAN.
+func TestFlint2Lan1CanBecomeTheWAN(t *testing.T) {
+	fixture := `network.@device[0]=device
+network.@device[0].name='br-lan'
+network.@device[0].type='bridge'
+network.@device[0].ports='lan1' 'lan2' 'lan3' 'lan4' 'lan5'
+network.lan=interface
+network.lan.device='br-lan'
+network.lan.proto='static'
+network.lan.ipaddr='192.168.10.1'
+network.wan=interface
+network.wan.device='eth1.20'
+network.wan.proto='pppoe'
+network.wan.metric='10'
+network.secondwan=interface
+network.secondwan.proto='dhcp'
+`
+	sections := parseUCIShow(fixture, "network")
+	in := roleInput("router", "br-lan", "wan", "eth1.20", "lan1", "lan2", "lan3", "lan4", "lan5")
+	ops, err := buildPortRoleOps(sections, in, "lan1", "wan")
+	if err != nil {
+		t.Fatalf("lan1 must be assignable to WAN: %v", err)
+	}
+	got := opsString(ops)
+	for _, want := range []string{
+		"uci_del_list network.@device[0].ports lan1\n",
+		"uci_set network.wan.device lan1.20\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("ops missing %q in:\n%s", want, got)
+		}
+	}
+	// eth1 es el otro 2.5G y no es puerto del chasis: queda sin rol, no se
+	// bridgea solo. El usuario lo pasa a LAN si quiere con otro clic.
+	if strings.Contains(got, "uci_add_list") {
+		t.Fatalf("eth1 must stay unused after the swap:\n%s", got)
+	}
+	for _, op := range ops {
+		if err := executor.Validate(op); err != nil {
+			t.Fatalf("generated op fails the executor allowlist: %v", err)
+		}
+	}
+}
