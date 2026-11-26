@@ -1,16 +1,16 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { copyText } from "../../lib/clipboard";
-import { AlertTriangle, Copy, Download, Globe, Lock, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Copy, Download, Globe, Lock, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { api } from "../../api";
 import type { OVPNProbe } from "../../types";
 import {
-  ActionBanner, Banner, Button, Card, ConfirmDialog, Input,
-  KeyValue, Modal, Pill, SettingRow, SkeletonRows, Toggle, useToast,
+  ActionBanner, Banner, Button, Card, ConfirmDialog, HelpTip, Input,
+  KeyValue, Modal, Pill, SkeletonRows, Toggle, useToast,
 } from "../ui";
 import { ServiceRow } from "./ServiceRow";
 import { useActionCycle } from "../wifi/action";
-import { downloadText, Reveal, TechName } from "./shared";
+import { downloadText, Reveal } from "./shared";
 
 /**
  * OpenVPN - "VPN compatible con todo" (services.md #3). Mantiene el alta de
@@ -99,7 +99,7 @@ export function OpenvpnCard({ probe, onChange, index = 0 }: {
   };
 
   return (
-    <Card index={index}>
+    <Card index={index} title="OpenVPN" icon={ShieldCheck} iconTone="violet">
       {!probe ? (
         <SkeletonRows rows={3} />
       ) : !probe.installed ? (
@@ -111,26 +111,16 @@ export function OpenvpnCard({ probe, onChange, index = 0 }: {
         />
       ) : (
         <>
-          <SettingRow
-            icon={Lock}
-            iconTone="violet"
-            title={t("ovpn.cardTitle")}
-            description={t("ovpn.desc")}
-            help={t("help.openvpn.body")}
-            helpTitle={t("help.openvpn.title")}
-            checked={active}
-            busy={busy}
-            onChange={toggle}
-            control={
-              <span className="flex items-center gap-2">
-                <Pill className="max-w-24 sm:max-w-32" tone={probe.running ? "ok" : active ? "warn" : "muted"}>
-                  {probe.running ? t("ovpn.running") : active ? t("ovpn.configured") : t("ovpn.off")}
-                </Pill>
-                <Toggle checked={active} busy={busy} onChange={toggle} label={t("ovpn.cardTitle")} />
-              </span>
-            }
-          />
-          <TechName>OpenVPN</TechName>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="flex-1 min-w-0 text-small text-muted">{t("ovpn.desc")}</p>
+            <span className="flex shrink-0 items-center gap-2">
+              <Pill className="max-w-24 sm:max-w-32" tone={probe.running ? "ok" : active ? "warn" : "muted"}>
+                {probe.running ? t("ovpn.running") : active ? t("ovpn.configured") : t("ovpn.off")}
+              </Pill>
+              <Toggle checked={active} busy={busy} onChange={toggle} label="OpenVPN" />
+              <HelpTip title={t("help.openvpn.title")} body={t("help.openvpn.body")} />
+            </span>
+          </div>
 
           {phase && (
             <div className="mt-2">

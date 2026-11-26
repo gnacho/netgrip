@@ -1278,6 +1278,7 @@ export default {
     tplCustomDesc: "You set the port and protocol",
   },
   ts: {
+    cloudWarn: "Tailscale depends on the Tailscale cloud, a third-party service. Devices find each other through its servers, so without internet, or if that service changes, the VPN stops working. If you prefer not to depend on anyone, use WireGuard.",
     connected: "Connected",
     needsLogin: "Login needed",
     off: "Off",

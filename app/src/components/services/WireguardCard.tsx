@@ -6,11 +6,11 @@ import { api } from "../../api";
 import type { WGPeer, WGProbe } from "../../types";
 import {
   ActionBanner, AdvancedDisclosure, Banner, Button, Card, ConfirmDialog,
-  Field, HelpTip, Input, Modal, Pill, SettingRow, SkeletonRows, Toggle, useToast,
+  Field, HelpTip, Input, Modal, Pill, SkeletonRows, Toggle, useToast,
 } from "../ui";
 import { ServiceRow } from "./ServiceRow";
 import { useActionCycle } from "../wifi/action";
-import { CopyButton, downloadText, qrMatrixSvg, Reveal, shortKey, TechName } from "./shared";
+import { CopyButton, downloadText, qrMatrixSvg, Reveal, shortKey } from "./shared";
 
 /**
  * WireGuard — "Entra en tu casa desde fuera" (services.md §2). Card héroe a
@@ -100,7 +100,7 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
   };
 
   return (
-    <Card index={index}>
+    <Card index={index} title="WireGuard" icon={ShieldCheck} iconTone="violet">
       {!probe ? (
         <SkeletonRows rows={3} />
       ) : !probe.installed ? (
@@ -112,28 +112,16 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
         />
       ) : (
         <>
-          <SettingRow
-            icon={ShieldCheck}
-            iconTone="violet"
-            title={t("wg.cardTitle")}
-            description={t("wg.desc")}
-            help={t("help.wireguard.body")}
-            helpTitle={t("help.wireguard.title")}
-            checked={active}
-            busy={busy}
-            disabled={glManaged && !active}
-            disabledReason={glManaged && !active ? t("wg.glDisabledReason") : undefined}
-            onChange={toggle}
-            control={
-              <span className="flex items-center gap-2">
-                <Pill className="max-w-24 sm:max-w-32" tone={active ? "ok" : "muted"}>
-                  {active ? t("wg.activeCount", { count: probe.peers.length }) : t("wg.off")}
-                </Pill>
-                <Toggle checked={active} busy={busy} disabled={glManaged && !active} onChange={toggle} label={t("wg.cardTitle")} />
-              </span>
-            }
-          />
-          <TechName>WireGuard</TechName>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="flex-1 min-w-0 text-small text-muted">{t("wg.desc")}</p>
+            <span className="flex shrink-0 items-center gap-2">
+              <Pill className="max-w-24 sm:max-w-32" tone={active ? "ok" : "muted"}>
+                {active ? t("wg.activeCount", { count: probe.peers.length }) : t("wg.off")}
+              </Pill>
+              <Toggle checked={active} busy={busy} disabled={glManaged && !active} onChange={toggle} label="WireGuard" />
+              <HelpTip title={t("help.wireguard.title")} body={t("help.wireguard.body")} />
+            </span>
+          </div>
 
           {glManaged && (
             <div className="mt-3 flex flex-col gap-3" data-testid="wg-gl-managed">
