@@ -586,22 +586,54 @@ type messageBase struct {
 	Type string `json:"type"`
 }
 
+// netifydCategory normalises the category field. Older exports sent a plain
+// string; netifyd 4.x sends an object with numeric ids per dimension
+// ({"application":0,"domain":0,"protocol":14}). Decoding the object into a
+// string failed the whole flow message, which left every flow as Unknown with
+// no protocol and no domain (#711).
+type netifydCategory struct {
+	Name string
+}
+
+func (c *netifydCategory) UnmarshalJSON(b []byte) error {
+	if len(b) == 0 || string(b) == "null" {
+		return nil
+	}
+	if b[0] == '"' {
+		var s string
+		if err := json.Unmarshal(b, &s); err != nil {
+			return err
+		}
+		c.Name = s
+		return nil
+	}
+	var obj struct {
+		Application int `json:"application"`
+		Domain      int `json:"domain"`
+		Protocol    int `json:"protocol"`
+	}
+	if err := json.Unmarshal(b, &obj); err != nil {
+		return err
+	}
+	return nil
+}
+
 // flowMsg carries application identification for a flow.
 type flowMsg struct {
 	Type string `json:"type"`
 	Flow *struct {
-		Digest                  string `json:"digest"`
-		DetectedApplicationName string `json:"detected_application_name"`
-		DetectedProtocolName    string `json:"detected_protocol_name"`
-		HostServerName          string `json:"host_server_name"`
-		DNSHostName             string `json:"dns_host_name"`
-		Category                string `json:"category"`
+		Digest                  string          `json:"digest"`
+		DetectedApplicationName string          `json:"detected_application_name"`
+		DetectedProtocolName    string          `json:"detected_protocol_name"`
+		HostServerName          string          `json:"host_server_name"`
+		DNSHostName             string          `json:"dns_host_name"`
+		Category                netifydCategory `json:"category"`
 	} `json:"flow,omitempty"`
 }
 
 func (m *flowMsg) category() string {
 	if m.Flow != nil {
-		return m.Flow.Category
+		return m.Flow.Category.Name
 	}
 	return ""
 }
