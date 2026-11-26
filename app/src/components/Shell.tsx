@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { Activity, ArrowLeftRight, Blocks, ChartColumn, ChartPie, Download, EyeOff, Forward, Globe, HardDrive, Info, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldAlert, ShieldBan, Smartphone, Wifi, Wrench } from "lucide-react";
+import { Activity, ArrowLeftRight, Blocks, ChartColumn, Download, EyeOff, Forward, Globe, HardDrive, Info, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldAlert, ShieldBan, Smartphone, Wifi } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
 import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MultiWanProbe, OVPNProbe, PhysPortsProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
@@ -10,7 +10,6 @@ import { AnnouncementBanner } from "./AnnouncementBanner";
 import { Banner, Button, Drawer, Pill, StatusDot, ThemeToggle, ToastProvider } from "./ui";
 import { Logo } from "./ui/illustrations";
 import { Overview } from "../pages/Overview";
-import { TrafficPage } from "../pages/Traffic";
 import { CoveragePage } from "../pages/Coverage";
 import { ClientsPage } from "../pages/Clients";
 import { L2ClientsPage } from "../pages/L2Clients";
@@ -27,7 +26,7 @@ import { StoragePage } from "../pages/Storage";
 import { AboutPage } from "../pages/About";
 import { SelfUpdateDialog } from "../components/system/SelfUpdateDialog";
 
-export type Page = "overview" | "internet" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "traffic" | "trafficrules" | "banip" | "upnp" | "ports" | "forwards" | "tools" | "diagnostics" | "fleet" | "storage" | "system" | "dpi" | "about";
+export type Page = "overview" | "internet" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "trafficrules" | "banip" | "upnp" | "ports" | "forwards" | "diagnostics" | "fleet" | "storage" | "system" | "dpi" | "about";
 
 const NAV_ICONS: Record<Page, LucideIcon> = {
   overview: LayoutDashboard,
@@ -38,13 +37,11 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
   wifi: Wifi,
   lan: Network,
   services: Blocks,
-  traffic: ChartPie,
   trafficrules: ShieldAlert,
   banip: ShieldBan,
   upnp: ArrowLeftRight,
   ports: ArrowLeftRight,
   forwards: Forward,
-  tools: Wrench,
   diagnostics: Activity,
   storage: HardDrive,
   fleet: Server,
@@ -66,9 +63,8 @@ const ROLE_BADGE: Record<"router" | "ap" | "switch", { labelKey: string; cls: st
  *  páginas pero ya no son entradas directas: se componen dentro de
  *  "internet" (solo gateway). */
 const NAV_GROUPS: { group: string | null; items: Page[] }[] = [
-  { group: null, items: ["overview"] },
-  { group: "nav.group.yourNetwork", items: ["clients", "coverage", "traffic"] },
-  { group: "nav.group.connection", items: ["internet", "wifi", "lan", "ports", "trafficrules"] },
+  { group: null, items: ["overview", "clients"] },
+  { group: "nav.group.connection", items: ["internet", "wifi", "coverage", "lan", "ports", "trafficrules"] },
   { group: "nav.group.services", items: ["services"] },
   { group: "nav.group.system", items: ["diagnostics", "storage", "fleet", "system", "about"] },
 ];
@@ -237,12 +233,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     // #500: Servicios solo gateway (en AP solo quedaba AdGuard/mDNS;
     // el nombre local se movió a Ajustes).
     if (id === "services" && !isRouter) return "gatewayOnly";
-    // #518/#520: en un switch L2, "Clients" muestra el inventario de la FDB
-    // (L2ClientsPage) en vez de la vista de router. "Traffic" sí queda
-    // oculto: el conteo por cliente/app (nlbwmon) no aplica al forwarding
-    // por hardware y la página quedaría vacía (su CTA apunta a Servicios,
-    // que en switch tampoco se ofrece).
-    if ((id === "traffic") && isSwitch) return "switchL2";
     return null;
   };
   const visible = (id: Page) => gateOf(id) === null;
@@ -386,10 +376,10 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   // Bottom bar móvil §7.4: los 3-4 destinos más usados del modo actual + Menú.
   const bottomItems: Page[] = (
     isSwitch
-      ? (["overview", "ports", "tools"] as Page[])
+      ? (["overview", "ports", "diagnostics"] as Page[])
       : !isRouter
-        ? (["overview", "wifi", "ports", "tools"] as Page[])
-        : (["overview", "wifi", "traffic", "tools"] as Page[])
+        ? (["overview", "wifi", "ports", "diagnostics"] as Page[])
+        : (["overview", "wifi", "clients", "diagnostics"] as Page[])
   ).filter(visible);
 
   const demo = isDemo();
@@ -463,7 +453,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
           wireless={wireless} ethports={ethports} onNavigate={navigate}
         />
       )}
-      {activePage === "traffic" && <TrafficPage onNavigate={navigate} />}
       {activePage === "clients" && (isSwitch ? <L2ClientsPage /> : <ClientsPage />)}
       {activePage === "internet" && (
         <InternetPage mwan={mwan} onMwanChange={setMwan} fwd={fwd} onFwdChange={setFwd} />
