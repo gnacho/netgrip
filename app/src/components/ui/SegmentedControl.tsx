@@ -18,6 +18,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange, s
   ariaLabel?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const [indicator, setIndicator] = useState<{ left: number; width: number }>();
 
   useLayoutEffect(() => {
@@ -26,35 +27,43 @@ export function SegmentedControl<T extends string>({ options, value, onChange, s
     const idx = options.findIndex((o) => o.value === value);
     const btn = el.children[idx + 1] as HTMLElement | undefined; // +1: el indicador
     if (btn) setIndicator({ left: btn.offsetLeft, width: btn.offsetWidth });
+    // Narrow viewports scroll the strip sideways, so the active tab has to be
+    // brought into view without moving the page itself (#664).
+    const scroller = scrollerRef.current;
+    if (btn && scroller && scroller.scrollWidth > scroller.clientWidth) {
+      scroller.scrollLeft = Math.max(0, btn.offsetLeft - (scroller.clientWidth - btn.offsetWidth) / 2);
+    }
   }, [value, options]);
 
   return (
-    <div
-      ref={containerRef}
-      role="tablist"
-      aria-label={ariaLabel}
-      className="relative inline-flex items-center gap-0.5 rounded-full bg-surface-2 p-0.5 border border-border"
-    >
-      <span
-        aria-hidden="true"
-        className="absolute top-0.5 bottom-0.5 rounded-full bg-surface shadow-card transition-all duration-200 ease-[var(--ease-soft)]"
-        style={indicator ? { left: indicator.left, width: indicator.width } : { opacity: 0 }}
-      />
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          role="tab"
-          aria-selected={o.value === value}
-          title={o.title}
-          onClick={() => onChange(o.value)}
-          className={`relative z-10 rounded-full ring-focus font-medium whitespace-nowrap transition-colors duration-[var(--dur-fast)]
-            ${size === "sm" ? "px-2.5 py-1 text-caption" : size === "lg" ? "px-5 py-2 text-body" : "px-3 py-1.5 text-small"}
-            ${o.value === value ? "text-text" : "text-muted hover:text-text"}`}
-        >
-          {o.label}
-        </button>
-      ))}
+    <div ref={scrollerRef} className="max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div
+        ref={containerRef}
+        role="tablist"
+        aria-label={ariaLabel}
+        className="relative inline-flex items-center gap-0.5 rounded-full bg-surface-2 p-0.5 border border-border"
+      >
+        <span
+          aria-hidden="true"
+          className="absolute top-0.5 bottom-0.5 rounded-full bg-surface shadow-card transition-all duration-200 ease-[var(--ease-soft)]"
+          style={indicator ? { left: indicator.left, width: indicator.width } : { opacity: 0 }}
+        />
+        {options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            role="tab"
+            aria-selected={o.value === value}
+            title={o.title}
+            onClick={() => onChange(o.value)}
+            className={`relative z-10 rounded-full ring-focus font-medium whitespace-nowrap transition-colors duration-[var(--dur-fast)]
+              ${size === "sm" ? "px-2.5 py-1 text-caption" : size === "lg" ? "px-5 py-2 text-body" : "px-3 py-1.5 text-small"}
+              ${o.value === value ? "text-text" : "text-muted hover:text-text"}`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
