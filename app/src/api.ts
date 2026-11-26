@@ -229,7 +229,7 @@ const realApi = {
     request<import("./types").ModuleResult<import("./types").AccessProbe>>("/api/access", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ target: "luci", luci: web }),
+      body: JSON.stringify({ target: "web", web }),
     }),
   setSshAccess: (ssh: import("./types").SSHAccess) =>
     request<import("./types").ModuleResult<import("./types").AccessProbe>>("/api/access", {

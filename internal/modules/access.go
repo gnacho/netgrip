@@ -20,7 +20,7 @@ import (
 // the panel itself, the router's web UI (uhttpd) and SSH (dropbear).
 type AccessProbe struct {
 	Panel PanelAccess `json:"panel"`
-	Web   WebAccess   `json:"luci"` // wire name kept for older clients
+	Web   WebAccess   `json:"web"`
 	SSH   SSHAccess   `json:"ssh"`
 }
 

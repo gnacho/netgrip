@@ -28,7 +28,7 @@ type SQMProbe struct {
 	Installed bool `json:"installed"`
 	// WebUIApp: la pagina de ajustes avanzados de SQM del router solo
 	// existe si esta instalado su paquete; enlazarla a ciegas daba 404 (#626).
-	WebUIApp  bool   `json:"luci_app"` // wire name kept for older clients
+	WebUIApp  bool   `json:"web_ui_app"`
 	HasWan    bool   `json:"has_wan"`
 	Active    bool   `json:"active"`
 	Running   bool   `json:"running"`

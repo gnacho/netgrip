@@ -1666,7 +1666,7 @@ func (s *Server) handleAccessGet(w http.ResponseWriter, _ *http.Request) {
 type accessSetRequest struct {
 	// Exactly one of the following targets is applied per request.
 	Target      string            `json:"target"` // web | ssh | panel_session
-	Web         modules.WebAccess `json:"luci"`   // wire name kept for older clients
+	Web         modules.WebAccess `json:"web"`
 	SSH         modules.SSHAccess `json:"ssh"`
 	SessionTtlM int               `json:"session_ttl_minutes"`
 }
@@ -1678,7 +1678,7 @@ func (s *Server) handleAccessSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch req.Target {
-	case "web", "luci":
+	case "web":
 		probe, rolledBack, err := modules.SetWebAccess(req.Web)
 		writeModuleResult(w, probe, rolledBack, err)
 	case "ssh":
