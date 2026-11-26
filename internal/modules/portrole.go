@@ -80,6 +80,12 @@ func ProbePortRoles() *PortRolesProbe {
 		p.Reason = "no physical ethernet ports on this device"
 		return p
 	}
+	// En un switch gestionado los puertos son tela del chip (DSA), no bocas
+	// que se puedan repartir entre LAN y WAN: ni rol ni MAC se tocan aquí.
+	if mode.Role == "switch" {
+		p.Reason = "managed switch: its ports belong to the switch fabric"
+		return p
+	}
 	p.Applicable = true
 
 	sections := networkSections()
