@@ -2766,7 +2766,6 @@ export default {
     download: "Download",
     upload: "Upload",
     timeline: "Data usage by application (last 24 h)",
-    timelineSince: "Data use by application ( since {{time}} )",
     tableTitle: "Application traffic statistics",
     searchPlaceholder: "Enter application name",
     totalTraffic: "Total traffic",
@@ -2777,6 +2776,7 @@ export default {
     colFlows: "Flows",
     colPercent: "%",
     noMatches: "No application matches your search.",
+    collecting: "Collecting: netifyd needs a couple of minutes to name the traffic.",
   },
   storage: {
     title: "Network Storage",

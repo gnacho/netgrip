@@ -111,7 +111,9 @@ export function DpiPage() {
       "var(--color-accent)",
       "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#10b981", "#6366f1",
     ];
-    const appNames = timeline.top.map((a) => a.name);
+    // Ocho series como mucho: con más, las áreas se solapan y todo se ve
+    // del mismo color.
+    const appNames = timeline.top.slice(0, 8).map((a) => a.name);
     return appNames.map((name, idx) => ({
       key: name,
       label: name === UNKNOWN_APP ? t("dpi.unknownApp") : name,
@@ -318,16 +320,9 @@ function DpiNetifydView({
   const totalLocal = timeline.totals.local || 1;
   const totalOther = timeline.totals.other || 1;
 
-  // La ventana es de 24 h como mucho: el agregado vive en memoria y empieza
-  // con el panel, asi que el titulo dice desde cuando hay datos (#615).
-  const timelineTitle = useMemo(() => {
-    const first = timeline.buckets[0]?.time;
-    if (!first) return t("dpi.timeline");
-    const start = new Date(first);
-    const hours = (Date.now() - start.getTime()) / 3_600_000;
-    if (!Number.isFinite(hours) || hours >= 23) return t("dpi.timeline");
-    return t("dpi.timelineSince", { time: start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) });
-  }, [timeline, t]);
+  // La ventana es de 24 h como mucho (el agregado vive en memoria y empieza
+  // con el panel). El título es fijo, como pidió el usuario: "últimas 24 h".
+  const timelineTitle = t("dpi.timeline");
 
   const sortHeader = (key: typeof sort.key) => {
     const nextDir = sort.key === key && sort.dir === "desc" ? "asc" : "desc";
@@ -425,7 +420,9 @@ function DpiNetifydView({
               })}
               {filteredApps.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="py-6 text-center text-small text-muted">{t("dpi.noMatches")}</td>
+                  <td colSpan={4} className="py-6 text-center text-small text-muted">
+                    {timeline.top.length === 0 ? t("dpi.collecting") : t("dpi.noMatches")}
+                  </td>
                 </tr>
               )}
             </tbody>

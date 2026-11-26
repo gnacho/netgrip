@@ -214,13 +214,19 @@ export function MultiSeriesChart({ series, xLabels, height = 220, formatY = fmtB
           const y = PAD_TOP + (1 - f) * (H - PAD_TOP - PAD_BOTTOM);
           return <line key={f} x1={PAD_X} x2={W - PAD_X} y1={y} y2={y} stroke={GRID} strokeWidth="1" />;
         })}
+        {/* Un solo cubo no es una serie: se pinta una barra por aplicación,
+            comparables entre sí. Antes cada serie rellenaba de su color hasta
+            la base y el resultado era una mancha uniforme. */}
         {model && "single" in model && series.map((s, si) => {
-          const { y } = model.pts[si][0];
+          const rows = Math.max(series.length, 1);
+          const rowH = (H - PAD_TOP - PAD_BOTTOM) / rows;
+          const barH = Math.max(4, Math.min(12, rowH - 3));
+          const y = PAD_TOP + si * rowH + (rowH - barH) / 2;
+          const w = (s.points[0] / model.max) * (W - PAD_X * 2);
           return (
             <g key={s.key}>
-              <rect x={PAD_X} y={y} width={W - PAD_X * 2} height={Math.max(1, baseY - y)}
-                fill={s.color} fillOpacity={0.15} />
-              <line x1={PAD_X} x2={W - PAD_X} y1={y} y2={y} stroke={s.color} strokeWidth="2" />
+              <rect x={PAD_X} y={y} width={Math.max(1, w)} height={barH} rx="2"
+                fill={s.color} fillOpacity={0.85} />
             </g>
           );
         })}
@@ -230,7 +236,7 @@ export function MultiSeriesChart({ series, xLabels, height = 220, formatY = fmtB
             <path d={smoothLine(model.pts[si])} fill="none" stroke={s.color} strokeWidth="2" />
           </g>
         ))}
-        {model && hover !== undefined && (
+        {model && !("single" in model) && hover !== undefined && (
           <g>
             <line x1={model.pts[0][hover].x} x2={model.pts[0][hover].x} y1={PAD_TOP} y2={baseY} stroke={GRID} strokeWidth="1.5" />
             {series.map((s, si) => (

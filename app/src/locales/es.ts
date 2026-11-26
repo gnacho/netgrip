@@ -2765,7 +2765,6 @@ export default {
     download: "Descarga",
     upload: "Subida",
     timeline: "Uso de datos por aplicación ( últimas 24 h )",
-    timelineSince: "Uso de datos por aplicación ( desde las {{time}} )",
     tableTitle: "Estadísticas por aplicación",
     searchPlaceholder: "Ingresa el nombre de la aplicación",
     totalTraffic: "Todo el tráfico",
@@ -2776,6 +2775,7 @@ export default {
     colFlows: "Flujos",
     colPercent: "%",
     noMatches: "Ninguna aplicación coincide con la búsqueda.",
+    collecting: "Recopilando: netifyd tarda un par de minutos en nombrar el tráfico.",
   },
   storage: {
     title: "Almacenamiento en red",
