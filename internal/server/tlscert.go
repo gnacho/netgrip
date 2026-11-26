@@ -2,7 +2,7 @@
 // from disk when it changes.
 //
 // The default pair is uhttpd's, already on the router: the panel inherits the
-// same trust decision as LuCI instead of asking for a second one. px5g
+// same trust decision as the router web UI instead of asking for a second one. px5g
 // regenerates that pair when it expires, so loading it once at startup would
 // leave the panel serving an expired certificate until the next restart -
 // which on a router can be months.
@@ -30,7 +30,7 @@ var (
 	// asked for.
 	panelPair = modules.PanelCertPaths
 
-	// routerPair is uhttpd's pair, the fallback: the one LuCI serves, so a
+	// routerPair is uhttpd's pair, the fallback: the one the router web UI serves, so a
 	// browser that already accepted that certificate sees nothing new beyond
 	// the different origin. Read from uhttpd's own configuration rather than
 	// assumed, because the conventional paths are only a default - a build

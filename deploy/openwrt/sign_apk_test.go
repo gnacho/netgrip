@@ -103,7 +103,7 @@ func TestSignAPKLaysOutFeedByArchitecture(t *testing.T) {
 		pkgs: map[string][3]string{
 			"netgrip-0.79.0-r1-arm64.apk":              {"netgrip", "0.79.0-r1", "aarch64_cortex-a53"},
 			"netgrip-0.79.0-r1-aarch64_cortex-a72.apk": {"netgrip", "0.79.0-r1", "aarch64_cortex-a72"},
-			"luci-app-netgrip-0.79.0-r1.apk":           {"luci-app-netgrip", "0.79.0-r1", "noarch"},
+			"netgrip-extra-0.79.0-r1.apk":             {"netgrip-extra", "0.79.0-r1", "noarch"},
 		},
 		verify: "packages.adb: OK",
 	}
@@ -116,9 +116,9 @@ func TestSignAPKLaysOutFeedByArchitecture(t *testing.T) {
 
 	want := []string{
 		"aarch64_cortex-a53/netgrip-0.79.0-r1.apk",
-		"aarch64_cortex-a53/luci-app-netgrip-0.79.0-r1.apk",
+		"aarch64_cortex-a53/netgrip-extra-0.79.0-r1.apk",
 		"aarch64_cortex-a72/netgrip-0.79.0-r1.apk",
-		"aarch64_cortex-a72/luci-app-netgrip-0.79.0-r1.apk",
+		"aarch64_cortex-a72/netgrip-extra-0.79.0-r1.apk",
 		"aarch64_cortex-a53/netgrip-feed.pem",
 		"netgrip-feed.pem",
 	}
@@ -127,7 +127,7 @@ func TestSignAPKLaysOutFeedByArchitecture(t *testing.T) {
 			t.Errorf("missing %s", rel)
 		}
 	}
-	for _, gone := range []string{"netgrip-0.79.0-r1-arm64.apk", "luci-app-netgrip-0.79.0-r1.apk"} {
+	for _, gone := range []string{"netgrip-0.79.0-r1-arm64.apk", "netgrip-extra-0.79.0-r1.apk"} {
 		if _, err := os.Stat(filepath.Join(feedDir, gone)); !os.IsNotExist(err) {
 			t.Errorf("%s should have been moved or removed from the feed root", gone)
 		}

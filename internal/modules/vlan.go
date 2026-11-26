@@ -217,7 +217,7 @@ func SetVLAN(edit VLANEdit) (*VLANProbe, bool, error) {
 
 // normalizeVLANPorts validates a requested membership. The caller's
 // untagged/tagged/PVID choice is honoured as sent - the UI offers all of
-// them, as LuCI does - but a port may be egress-untagged in only one VLAN:
+// them, like the router web UI does - but a port may be egress-untagged in only one VLAN:
 // two untagged VLANs on one port emit indistinguishable frames, and the
 // second one silently takes over the port the first was serving.
 func normalizeVLANPorts(edit VLANEdit, sections map[string]uciSection, bridge string) ([]VLANPort, error) {

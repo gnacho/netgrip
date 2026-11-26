@@ -3,7 +3,7 @@ package modules
 import "testing"
 
 // Las reservas son datos de dnsmasq, no nuestros: la tarjeta salia vacia en
-// un router configurado desde LuCI porque solo se listaban las netgrip_host_*
+// un router configurado desde otro panel porque solo se listaban las netgrip_host_*
 // (#621).
 func TestParseHostSections(t *testing.T) {
 	const uciShow = `dhcp.lan=dhcp

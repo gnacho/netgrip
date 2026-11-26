@@ -88,7 +88,6 @@ export function SqmCard({ probe, onChange, index = 0 }: {
   const active = probe?.active ?? false;
   const hasWan = probe?.has_wan ?? false;
   const ratesOk = Number(download) > 0 && Number(upload) > 0;
-  const luciSqmUrl = `http://${window.location.hostname}/cgi-bin/luci/admin/network/sqm`;
 
   const profileName = (p: string) => t(SQM_PROFILES.find((o) => o.value === p)?.label ?? "sqm.profileBalanced");
   const profileDesc = (p: string) => t(`${SQM_PROFILES.find((o) => o.value === p)?.label ?? "sqm.profileBalanced"}Desc`);
@@ -201,18 +200,6 @@ export function SqmCard({ probe, onChange, index = 0 }: {
                     {t("sqm.speedTest")}
                     <ExternalLink size={12} aria-hidden="true" />
                   </a>
-                  {probe.luci_app ? (
-                    <a href={luciSqmUrl} target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-0.5 text-accent hover:text-accent-hover">
-                      {t("sqm.luciLink")}
-                      <ExternalLink size={12} aria-hidden="true" />
-                    </a>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-faint">
-                      {t("sqm.luciMissing")}
-                      <HelpTip title={t("sqm.luciLink")} body={t("sqm.luciMissingHint")} />
-                    </span>
-                  )}
                 </div>
               </div>
 

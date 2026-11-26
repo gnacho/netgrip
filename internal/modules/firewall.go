@@ -13,7 +13,7 @@ import (
 
 // fwRulePrefix names the UCI sections NetGrip owns for traffic rules
 // (firewall.rule sections named netgrip_fw_N). Anything else is a system
-// rule (LuCI, the firmware factory config): listed read-only, never edited
+// rule (another panel, the firmware factory config): listed read-only, never edited
 // or deleted from here.
 const fwRulePrefix = "netgrip_fw_"
 
@@ -50,7 +50,7 @@ type FWRule struct {
 	UTCTime   bool   `json:"utc_time,omitempty"`
 	Enabled   bool   `json:"enabled"`
 	// Managed: this rule was created by NetGrip and can be edited/removed
-	// here. Anything set up in LuCI or shipped by the firmware is read-only.
+	// here. Anything set up elsewhere or shipped by the firmware is read-only.
 	Managed bool `json:"managed"`
 }
 
@@ -574,7 +574,7 @@ func trafficRuleUpdateOps(section string, current FWRule, rule FirewallRuleAdd) 
 
 // UpdateFirewallRule edits a traffic rule created by NetGrip in place, with
 // the same validation, snapshot, reload and rollback as adding one. Rules
-// from the firmware or from LuCI stay read-only, like delete.
+// from the firmware or from another panel stay read-only, like delete.
 func UpdateFirewallRule(section string, rule FirewallRuleAdd) (*FirewallProbe, bool, error) {
 	InvalidateKey("ucishow|firewall")
 	if !executor.ServiceEnabled("firewall") {

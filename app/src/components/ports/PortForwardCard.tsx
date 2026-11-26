@@ -127,7 +127,7 @@ export function PortForwardCard({ probe, onChange }: {
                     <span className="flex-1" />
                     {/* Editar va antes del estado (#617): es la accion, y asi
                         no queda escondida detras de las pildoras. Cualquier
-                        reenvio se puede editar, tambien los de LuCI; borrar
+                        reenvio se puede editar, tambien los de fuera; borrar
                         sigue siendo solo de los nuestros (#613). */}
                     {r.kind === "forward" && (
                       <button

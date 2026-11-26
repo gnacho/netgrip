@@ -18,8 +18,8 @@ define Package/netgrip
 endef
 
 define Package/netgrip/description
-	Simple visual panel that complements LuCI: dashboard plus service
-	toggles that deploy real configuration with snapshot and rollback.
+	Simple visual panel for OpenWrt: dashboard plus service toggles that
+	deploy real configuration with snapshot and rollback.
 endef
 
 define Build/Compile

@@ -82,7 +82,7 @@ Architecture: ${PKG_ARCH}
 Depends: ethtool-full, rpcd-mod-rpcsys
 Maintainer: Nacho <netgrip@cloudless.club>
 Description: Lightweight on-router companion panel for OpenWrt
- Simple visual panel that complements LuCI: dashboard plus service
+ Simple visual panel for OpenWrt: dashboard plus service
  toggles that deploy real configuration with snapshot and rollback.
 CTRL
 

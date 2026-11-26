@@ -26,17 +26,19 @@ function durationToMin(d: string): number {
   return Math.round(total) || 720;
 }
 
-/** Three separate services live in this card: the panel, LuCI and SSH.
+/** Three separate services live in this card: the panel, the router web UI
+ *  and SSH.
  *  Each one saves on its own deliberately - with a single button, turning
- *  LuCI's "force HTTPS" off reapplied SSH as well and could fail with an
+ *  The router web UI's "force HTTPS" off reapplied SSH as well and could
+ *  fail with an
  *  error about dropbear, which is not what anybody had touched. */
 export function AccessCard({ index = 2 }: { index?: number }) {
   const { t } = useTranslation();
   const { push } = useToast();
   const [probe, setProbe] = useState<AccessProbe>();
-  const [luciHttp, setLuciHttp] = useState(80);
-  const [luciHttps, setLuciHttps] = useState(443);
-  const [luciForce, setLuciForce] = useState(false);
+  const [webHttp, setWebHttp] = useState(80);
+  const [webHttps, setWebHttps] = useState(443);
+  const [webForce, setWebForce] = useState(false);
   const [sshEnabled, setSshEnabled] = useState(true);
   const [sshPort, setSshPort] = useState("22");
   const [ttlMin, setTtlMin] = useState(720);
@@ -55,15 +57,15 @@ export function AccessCard({ index = 2 }: { index?: number }) {
   const [confirmScheme, setConfirmScheme] = useState(false);
 
   const panel = useActionCycle();
-  const luci = useActionCycle();
+  const web = useActionCycle();
   const ssh = useActionCycle();
 
   const reload = () => {
     api.access().then((p) => {
       setProbe(p);
-      setLuciHttp(p.luci.http_port);
-      setLuciHttps(p.luci.https_port);
-      setLuciForce(p.luci.force_https);
+      setWebHttp(p.luci.http_port);
+      setWebHttps(p.luci.https_port);
+      setWebForce(p.luci.force_https);
       setSshEnabled(p.ssh.enabled);
       setSshPort(p.ssh.port || "22");
       setTtlMin(durationToMin(p.panel.session_ttl));
@@ -129,9 +131,9 @@ export function AccessCard({ index = 2 }: { index?: number }) {
       return { status: "applied" as const };
     }).then(() => reload());
 
-  const saveLuci = () =>
-    luci.run(() =>
-      api.setLuciAccess({ http_port: luciHttp, https_port: luciHttps, force_https: luciForce, enabled: true }),
+  const saveWeb = () =>
+    web.run(() =>
+      api.setWebAccess({ http_port: webHttp, https_port: webHttps, force_https: webForce, enabled: true }),
     ).then((res) => { if (res?.status === "applied") reload(); });
 
   const saveSsh = () =>
@@ -286,21 +288,22 @@ export function AccessCard({ index = 2 }: { index?: number }) {
             savePanel, panel, ttlMin <= 0,
           )}
 
-          {/* Sin LuCI instalado esos puertos no llevan a ningún panel (#638). */}
+          {/* Sin interfaz web en el router esos puertos no llevan a ningún
+              panel (#638). */}
           {probe?.luci?.installed && sectionRow(
-            t("access.luciSection"),
+            t("access.webSection"),
             <>
-              <span className="text-small text-muted whitespace-nowrap">{t("access.luciPorts")}</span>
+              <span className="text-small text-muted whitespace-nowrap">{t("access.webPorts")}</span>
               <div className="flex items-center gap-1.5">
-                {numPort(luciHttp, setLuciHttp, t("access.luciHttp"))}
+                {numPort(webHttp, setWebHttp, t("access.webHttp"))}
                 <span className="text-small text-muted">/</span>
-                {numPort(luciHttps, setLuciHttps, t("access.luciHttps"))}
+                {numPort(webHttps, setWebHttps, t("access.webHttps"))}
               </div>
               <span className="text-border-strong" aria-hidden="true">·</span>
               <span className="text-small whitespace-nowrap">{t("access.forceHttps")}</span>
-              <Toggle checked={luciForce} onChange={setLuciForce} label={t("access.forceHttps")} />
+              <Toggle checked={webForce} onChange={setWebForce} label={t("access.forceHttps")} />
             </>,
-            saveLuci, luci,
+            saveWeb, web,
           )}
 
           {sectionRow(

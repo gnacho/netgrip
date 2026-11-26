@@ -108,7 +108,7 @@ network.@bridge-vlan[1].ports='lan1:t'
 	}
 }
 
-// The UI offers untagged with and without PVID separately, as LuCI does,
+// The UI offers untagged with and without PVID separately, as the router web UI does,
 // so the requested combination has to survive untouched.
 func TestNormalizeVLANPortsHonoursRequestedFlags(t *testing.T) {
 	cases := []struct {

@@ -16,7 +16,7 @@
 <p align="center">
   <strong>Cada servicio de tu router OpenWrt, detrás de un interruptor que
   puede pulsar tu familia.</strong><br>
-  NetGrip es un panel companion que corre en el propio router, junto a LuCI:
+  NetGrip es un panel independiente que corre en el propio router:
   WireGuard, WiFi de invitados, QoS, DNS y más, un clic cada uno, con
   snapshot, comprobación de salud y rollback automático si algo sale mal.<br>
   <strong>Un solo binario estático, 3,9 MB instalado, interfaz incluida.</strong>
@@ -46,11 +46,11 @@
 ## ¿Por qué NetGrip?
 
 Seguía entregándoles routers OpenWrt a personas que solo quieren WiFi y una
-VPN que funcionen. LuCI es una herramienta para ingenieros: cada toggle te
-pide una sección, una interfaz y una opción. Los portales del fabricante son
+VPN que funcionen. La interfaz web de serie de OpenWrt es una herramienta
+para ingenieros: cada toggle te pide una sección, una interfaz y una opción. Los portales del fabricante son
 más amables, pero son apps cerradas que solo funcionan en su firmware. Yo
 quería la máquina intermedia: el router de verdad, detrás de botones que
-pueda pulsar un familiar. NetGrip toma los servicios que LuCI ya expone vía
+pueda pulsar un familiar. NetGrip toma los servicios que OpenWrt ya expone vía
 rpcd y les pone un interruptor delante. Lo pulsas, y NetGrip hace snapshot
 de la config, aplica el cambio, espera, comprueba que el servicio levantó, y
 se deshace solo si no fue así.
@@ -61,7 +61,8 @@ Cuatro reglas lo dan forma:
   **3,9 MB instalado** (la release lo publica empaquetado con UPX y también
   sin empaquetar), empaquetado como `.apk`/`.ipk` real de OpenWrt que
   sobrevive al sysupgrade. Sin contenedores, sin caja extra, sin Node en un
-  router, sin PHP ni Python en ningún sitio, y sin LuCI: sirve su propia UI y
+  router, sin PHP ni Python en ningún sitio, y sin otra pila web: sirve su
+  propia UI y
   habla directo con rpcd/ubus de OpenWrt. Sus dependencias extra son
   `ethtool-full` y `rpcd-mod-rpcsys`.
 - **Seguro por construcción.** Cada cambio pasa por un executor con
@@ -73,7 +74,8 @@ Cuatro reglas lo dan forma:
   necesita algo que esa caja no tiene (una radio, un uplink, un paquete)
   simplemente se aparta.
 - **Sin cuentas nuevas.** El login se valida contra rpcd, la misma sesión
-  que usa LuCI; un admin por router, nada extra que administrar. AGPL-3.0,
+  sesión de administración del propio router; un admin por router, nada
+  extra que administrar. AGPL-3.0,
   sin premium de ningún tipo.
 
 ## Qué te llevas
@@ -112,8 +114,7 @@ la malla de roaming dibujada como grafo radial vía usteer.
 </p>
 
 **Y más:** análisis de tráfico avanzado por aplicación (netifyd) con
-timeline de 24 h, la entrada opcional `luci-app-netgrip` bajo LuCI >
-Servicios, e interfaz ES/EN que cambia en un clic. Y esto todavía no es
+timeline de 24 h, e interfaz ES/EN que cambia en un clic. Y esto todavía no es
 todo: **[en la web están todas las
 funcionalidades](https://netgrip.cloudless.club)**, cada una con sus
 capturas a tamaño real.
@@ -196,7 +197,6 @@ cachés que el panel, y cada llamada queda en el log.
 | Logs | Log del sistema |
 | MQTT / Home Assistant | Discovery + 23 entidades (sensores, interruptores, botones) |
 | Agente de NetPulse | Telemetría de flota integrada, opcional |
-| LuCI | No lo necesita; entrada opcional luci-app-netgrip |
 | MCP | Endpoint con token Bearer y tools de solo lectura para agentes |
 | Idioma | ES / EN |
 
@@ -206,7 +206,7 @@ Requisitos: un target amd64, ARM64, ARMv5/6/7, MIPS little-endian o MIPS
 big-endian compatible, con OpenWrt 24.10 o 25.12. El instalador consulta al
 gestor de paquetes la arquitectura exacta del router y elige el paquete y ABI
 Go genérico correspondientes. El panel escucha en el puerto 8090 y entra con
-tus credenciales de LuCI.
+la contraseña de root del router.
 
 SSH al router y ejecuta:
 
@@ -224,7 +224,7 @@ si `wget` no puede descargar los assets de GitHub, instala `wget-ssl` con
 versión: `NETGRIP_VERSION=vX.Y.Z sh install.sh`.
 
 Abre `http://<ip-del-router>:8090` y entra con el mismo usuario y contraseña
-que usas en LuCI.
+la contraseña de root del router.
 
 <details>
 <summary><strong>Instalación manual (paquetes)</strong></summary>
@@ -247,8 +247,7 @@ opkg install netgrip_<version>-1_aarch64_cortex-a53.ipk
 
 El postinst añade el binario, el init y el enlace rc.d a
 `/etc/sysupgrade.conf`, así que el panel vuelve tras una actualización de
-firmware. El paquete opcional `luci-app-netgrip` incrusta el panel bajo LuCI
-> Servicios de la misma forma.
+firmware.
 
 El índice de paquetes también se publica como feed firmado, con un directorio
 por arquitectura de paquete:
@@ -374,7 +373,7 @@ El binario sin empaquetar es el daemon autónomo entero, no la UI: el runtime
 de Go más el backend (cliente ubus/rpcd, sondas, MQTT, el agente de NetPulse,
 self-update) más el frontend embebido. El frontend en sí son ~344 KB gzip;
 el resto es lo que hace que NetGrip corra autónomo donde una capa solo-UI
-(como LuCI) pesa unos cientos de KB sobre servicios que OpenWrt ya trae.
+pesa unos cientos de KB sobre servicios que OpenWrt ya trae.
 
 ## Licencia
 

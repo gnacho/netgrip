@@ -98,7 +98,7 @@ export function UpdateCard({ board, update, onChange }: {
 
   const blocked = update ? !update.safe_to_proceed && !update.safe_with_reinstall : false;
   // Firmware upgrade only (#155): the packages branch (same_version) is
-  // intentionally hidden - package management belongs to LuCI / CLI.
+  // intentionally hidden - package management belongs to the CLI.
   const showUpgrade = update !== undefined && update.available && !update.same_version;
 
   return (

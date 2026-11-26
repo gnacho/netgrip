@@ -26,9 +26,9 @@ type SQMConfig struct {
 // SQMProbe is the read-only SQM state.
 type SQMProbe struct {
 	Installed bool `json:"installed"`
-	// LuciApp: la pagina de ajustes de SQM en LuCI solo existe si esta
-	// instalado luci-app-sqm; enlazarla a ciegas daba un 404 (#626).
-	LuciApp   bool   `json:"luci_app"`
+	// WebUIApp: la pagina de ajustes avanzados de SQM del router solo
+	// existe si esta instalado su paquete; enlazarla a ciegas daba 404 (#626).
+	WebUIApp  bool   `json:"luci_app"` // wire name kept for older clients
 	HasWan    bool   `json:"has_wan"`
 	Active    bool   `json:"active"`
 	Running   bool   `json:"running"`
@@ -51,8 +51,8 @@ var sqmProfileKeys = []string{"eqdisc_opts", "iqdisc_opts"}
 //     script defaults, i.e. exactly today's behavior).
 //   - gaming/streaming: both keys present with the profile's CAKE options.
 //   - custom: nil -> leave eqdisc_opts/iqdisc_opts untouched so raw CAKE
-//     settings stay in LuCI. Note: switching gaming/streaming -> custom leaves
-//     the previous profile's options in place until edited in LuCI (custom
+//     settings are not exposed here. Note: switching gaming/streaming -> custom leaves
+//     the previous profile's options in place until they are edited (custom
 //     deliberately never overwrites them).
 func profileSqmOpts(profile string) map[string]string {
 	switch profile {
@@ -134,7 +134,7 @@ func sqmCakePresent(dev string) bool {
 
 // ProbeSQM reads the SQM state.
 func ProbeSQM() *SQMProbe {
-	p := &SQMProbe{Installed: sqmInstalled(), LuciApp: pkgInstalled("luci-app-sqm")}
+	p := &SQMProbe{Installed: sqmInstalled(), WebUIApp: pkgInstalled("luci-app-sqm")}
 	dev := wanDevice()
 	p.HasWan = dev != ""
 	base := "sqm." + sqmSection

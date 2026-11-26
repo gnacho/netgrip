@@ -268,7 +268,7 @@ func TestCertReloaderSurvivesAVanishedPair(t *testing.T) {
 }
 
 // The fallback is uhttpd's pair: that is what makes the panel inherit the
-// trust decision the operator already made for LuCI. The paths come from
+// trust decision the operator already made for the router web UI. The paths come from
 // uhttpd's own configuration, because the conventional /etc/uhttpd.crt is
 // only the default value of a UCI option and a firmware may move it.
 func TestFallbackPairIsWhateverUhttpdIsConfiguredWith(t *testing.T) {
