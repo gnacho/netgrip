@@ -310,3 +310,33 @@ func TestNetifydTimelineCarriesTheCategory(t *testing.T) {
 		t.Fatalf("top category = %q, want admin", tl.Top[0].Category)
 	}
 }
+
+// netifyd 4.x manda category como objeto; con el parser viejo el mensaje
+// entero se descartaba y todo quedaba en Unknown (#711).
+func TestNetifydObjectCategoryKeepsApplication(t *testing.T) {
+	tbl := newNetifydTable(256, 4096)
+	c := newNetifydSocketClient("", tbl)
+
+	c.handleMessage(`{"type":"flow","flow":{"digest":"d4","detected_application_name":"netify.github","detected_protocol_name":"TLS","host_server_name":"github.com","category":{"application":0,"domain":0,"protocol":14}}}`)
+	c.handleMessage(`{"type":"flow_stats","flow":{"digest":"d4","local_bytes":10,"other_bytes":20,"total_bytes":30,"total_packets":2}}`)
+	c.handleMessage(`{"type":"flow_purge","flow":{"digest":"d4","local_bytes":10,"other_bytes":20,"total_bytes":30,"total_packets":2}}`)
+
+	apps := tbl.Apps()
+	// appLabel quita el prefijo "netify.".
+	if len(apps) != 1 || apps[0].Name != "github" || apps[0].Bytes != 30 {
+		t.Fatalf("expected github with 30 bytes, got %+v", apps)
+	}
+}
+
+// El formato de cadena antigua se sigue aceptando.
+func TestNetifydStringCategoryStillParses(t *testing.T) {
+	tbl := newNetifydTable(256, 4096)
+	c := newNetifydSocketClient("", tbl)
+	c.handleMessage(`{"type":"flow","flow":{"digest":"d5","detected_application_name":"YouTube","category":"streaming"}}`)
+	c.handleMessage(`{"type":"flow_stats","flow":{"digest":"d5","local_bytes":1,"other_bytes":1,"total_bytes":2,"total_packets":1}}`)
+	c.handleMessage(`{"type":"flow_purge","flow":{"digest":"d5","local_bytes":1,"other_bytes":1,"total_bytes":2,"total_packets":1}}`)
+	apps := tbl.Apps()
+	if len(apps) != 1 || apps[0].Category != "streaming" {
+		t.Fatalf("expected the string category to survive, got %+v", apps)
+	}
+}
