@@ -18,6 +18,26 @@ func TestSysUpdateConfigWindow(t *testing.T) {
 	}
 }
 
+// Un fallo transitorio no debe empujar el siguiente intento una semana
+// entera: se reintenta dentro de la misma ventana.
+func TestScheduleNextCheckRetriesSoonAfterFailure(t *testing.T) {
+	const now = int64(1_800_000_000)
+	if got := scheduleNextCheck(now, 168, false); got != now {
+		t.Fatalf("successful run: got %d, want %d", got, now)
+	}
+	weekly := scheduleNextCheck(now, 168, true)
+	if weekly != now-168*3600+3600 {
+		t.Fatalf("weekly failure: got %d, want %d", weekly, now-168*3600+3600)
+	}
+	if now-weekly != 167*3600 {
+		t.Fatalf("weekly failure should retry in an hour, got %d s", now-weekly)
+	}
+	// Intervalos cortos no cambian: se reintenta en el siguiente tick.
+	if got := scheduleNextCheck(now, 1, true); got != now {
+		t.Fatalf("hourly failure: got %d, want %d", got, now)
+	}
+}
+
 // La decisión es la parte peligrosa: un upgrade de firmware reinicia el
 // router, así que solo se aplica cuando owut lo da por seguro.
 func TestSysUpdateAction(t *testing.T) {

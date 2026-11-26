@@ -194,6 +194,26 @@ func StartSysUpdateScheduler() {
 	}()
 }
 
+// retryAfterFailure is how long a failed scheduled run waits before trying
+// again. Without it, one transient failure would push the next attempt a
+// whole interval away (a week, on the default).
+const retryAfterFailure = int64(3600)
+
+// scheduleNextCheck returns the timestamp to persist as LastCheck. A run that
+// completed stores now, so the interval starts there. A failed run stores a
+// point that is already one hour old relative to the interval, so the next
+// tick inside the window retries instead of waiting for the full interval.
+func scheduleNextCheck(now int64, intervalH int, failed bool) int64 {
+	if !failed {
+		return now
+	}
+	interval := int64(intervalH) * 3600
+	if interval <= retryAfterFailure {
+		return now
+	}
+	return now - interval + retryAfterFailure
+}
+
 func scheduledSysUpdateTick() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -214,11 +234,12 @@ func scheduledSysUpdateTick() {
 	time.Sleep(time.Duration(rand.Intn(8*60)) * time.Second)
 
 	check := CheckUpdate()
-	st.LastCheck = time.Now().Unix()
 	action, withReinstall := sysUpdateAction(check)
+	failed := false
 	switch action {
 	case "error":
 		st.LastResult = "error: check failed"
+		failed = true
 	case "up-to-date":
 		st.LastResult = "up-to-date"
 	case "blocked":
@@ -231,6 +252,7 @@ func scheduledSysUpdateTick() {
 		// /etc/sysupgrade.conf, así que el panel vuelve tras el reinicio.
 		if err := StartUpgrade(withReinstall); err != nil {
 			st.LastResult = "error: " + err.Error()
+			failed = true
 		} else {
 			st.LastResult = "applied " + strings.TrimPrefix(check.VersionTo, "v")
 			st.LastApply = time.Now().Unix()
@@ -238,5 +260,6 @@ func scheduledSysUpdateTick() {
 			log.Printf("netgrip: scheduled system update to %s started (reboot follows)", check.VersionTo)
 		}
 	}
+	st.LastCheck = scheduleNextCheck(now, cfg.IntervalH, failed)
 	saveSysUpdateState(st)
 }

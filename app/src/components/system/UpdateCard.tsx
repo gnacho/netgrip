@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CircleCheck, Download } from "lucide-react";
+import { Download } from "lucide-react";
 import { api } from "../../api";
 import type { Board, SysUpdateSchedule, UpdateCheck } from "../../types";
-import { Banner, Button, Card, ConfirmDialog, HelpTip, IconTile, SkeletonRows, Toggle, useToast } from "../ui";
+import { Banner, Button, Card, ConfirmDialog, HelpTip, Pill, SkeletonRows, Toggle, useToast } from "../ui";
 import { WaitOverlay, useMeBack } from "./WaitOverlay";
 import { InstallProgress, useInstallJob } from "../wizard/common";
 
@@ -103,109 +103,115 @@ export function UpdateCard({ board, update, onChange }: {
 
   return (
     <Card index={0} title={t("update.title")} icon={Download}
-      iconTone={showUpgrade ? "warn" : "ok"} help="firmware">
+      iconTone={showUpgrade ? "warn" : "ok"} help="firmware"
+      status={update === undefined ? undefined
+        : update.owut_present === false ? <Pill tone="warn">{t("update.pillNoOwut")}</Pill>
+        : showUpgrade ? <Pill tone="warn">{t("update.pillNew")}</Pill>
+        : <Pill tone="ok">{t("update.upToDate")}</Pill>}>
       {update === undefined ? (
-        <SkeletonRows rows={3} />
-      ) : update.owut_present === false ? (
-        <div className="flex flex-col gap-3">
-          <Banner tone="warn">{t("update.noOwut")}</Banner>
-          <div>
-            <Button variant="secondary" size="sm" loading={installing} onClick={installOwut}>
-              <Download size={14} aria-hidden="true" /> {t("update.installOwut")}
-            </Button>
-          </div>
-          {installing && <p className="text-small text-muted">{t("update.installingOwut")}</p>}
-          <InstallProgress job={installing ? job : null} />
-        </div>
-      ) : !showUpgrade ? (
-        /* al día (firmware-wise) */
-        <div className="flex flex-col items-start gap-2.5">
-          <div className="flex items-center gap-3">
-            <IconTile icon={CircleCheck} tone="ok" size={44} />
-            <div>
-              <p className="text-h2">{t("update.heroUpToDate")}</p>
-            <p className="text-caption text-muted mt-0.5">{currentCaption}</p>
-          </div>
-        </div>
-        <Button variant="ghost" size="sm" onClick={recheck} loading={checking}>{t("update.checkNow")}</Button>
-        </div>
+        <SkeletonRows rows={1} />
       ) : (
-        /* hay actualización: héroe warn (design-rev2 §5) + detalles */
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
-            <IconTile icon={Download} tone="warn" size={44} />
-            <div className="min-w-0">
-              <p className="text-h2">{t("update.availableTitle", { version: update.version_to })}</p>
-              <p className="text-caption text-muted mt-0.5">{currentCaption}</p>
-            </div>
+        <>
+          {/* #722: una sola fila, como la tarjeta de NetGrip. */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span className="inline-flex items-center gap-2">
+              <span className="text-small text-muted">{t("update.current")}</span>
+              <span className="font-mono text-small font-medium">{currentCaption}</span>
+              {showUpgrade && (
+                <>
+                  <span className="text-faint" aria-hidden="true">→</span>
+                  <span className="font-mono text-small font-semibold text-warn">{update.version_to}</span>
+                </>
+              )}
+            </span>
+
+            <span className="inline-flex items-center gap-2">
+              {update.owut_present === false ? (
+                <Button variant="secondary" size="sm" loading={installing} onClick={installOwut}>
+                  <Download size={14} aria-hidden="true" /> {t("update.installOwut")}
+                </Button>
+              ) : (
+                showUpgrade && (
+                  <Button onClick={() => setConfirm(true)} disabled={blocked || phase !== "idle"}>
+                    {t("update.updateNow")}
+                  </Button>
+                )
+              )}
+              {update.owut_present !== false && (
+                <Button variant="secondary" size="sm" onClick={recheck} loading={checking}>
+                  {t("update.checkNow")}
+                </Button>
+              )}
+            </span>
+
+            {/* Programación del firmware (#640): solo tiene sentido con owut. */}
+            {update.owut_present !== false && sched && (
+              <span className="ml-auto inline-flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-small">{t("update.scheduleTitle")}</span>
+                  <HelpTip title={t("update.scheduleTitle")} body={t("update.scheduleHint")} />
+                </span>
+                {sched.config.enabled && (
+                  <>
+                    <select
+                      className="rounded-lg border bg-elevated px-2 py-1 text-small"
+                      aria-label={t("selfupdate.interval")}
+                      value={sched.config.intervalHours <= 24 ? 24 : 168}
+                      disabled={schedSaving}
+                      onChange={(e) => saveSched({ intervalHours: Number(e.target.value) })}
+                    >
+                      <option value={24}>{t("selfupdate.daily")}</option>
+                      <option value={168}>{t("selfupdate.weekly")}</option>
+                    </select>
+                    <select
+                      className="rounded-lg border bg-elevated px-2 py-1 text-small"
+                      aria-label={t("selfupdate.window")}
+                      value={sched.config.windowStart}
+                      disabled={schedSaving}
+                      onChange={(e) => {
+                        const start = Number(e.target.value);
+                        const end = start + 2 <= 24 ? start + 2 : start + 2 - 24;
+                        saveSched({ windowStart: start, windowEnd: end });
+                      }}
+                    >
+                      {Array.from({ length: 24 }, (_, h) => (
+                        <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+                <Toggle
+                  checked={sched.config.enabled}
+                  busy={schedSaving}
+                  onChange={(v) => saveSched({ enabled: v })}
+                  label={t("update.scheduleTitle")}
+                />
+              </span>
+            )}
           </div>
-          {update.warnings.length > 0 && (
-            <ul className="flex flex-col gap-1">
+
+          {update.owut_present === false && (
+            <Banner tone="warn" className="mt-3">{t("update.noOwut")}</Banner>
+          )}
+          {installing && <p className="mt-3 text-small text-muted">{t("update.installingOwut")}</p>}
+          <InstallProgress job={installing ? job : null} />
+
+          {showUpgrade && update.warnings.length > 0 && (
+            <ul className="mt-3 flex flex-col gap-1">
               {update.warnings.map((w) => (
                 <li key={w} className="text-small text-muted">· {plainWarning(w, t)}</li>
               ))}
             </ul>
           )}
-          {!update.safe_to_proceed && (
-            <Banner tone="warn">
+          {showUpgrade && !update.safe_to_proceed && (
+            <Banner tone="warn" className="mt-3">
               {update.missing_packages.length > 0
                 ? t("update.missingPkgs", { list: update.missing_packages.join(", ") })
                 : t("update.unsafe")}
               {update.safe_with_reinstall && <> {t("update.warnReinstall")}</>}
             </Banner>
           )}
-          <div className="flex items-center gap-2">
-            <Button onClick={() => setConfirm(true)} disabled={blocked || phase !== "idle"}>
-              {t("update.updateNow")}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={recheck} loading={checking}>{t("update.checkNow")}</Button>
-          </div>
-        </div>
-      )}
-
-      {/* Programación del firmware (#640): solo tiene sentido con owut. */}
-      {update?.owut_present !== false && sched && (
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="text-small font-medium">{t("update.scheduleTitle")}</span>
-            <HelpTip title={t("update.scheduleTitle")} body={t("update.scheduleHint")} />
-          </span>
-          {sched.config.enabled && (
-            <>
-              <select
-                className="rounded-lg border bg-elevated px-2 py-1 text-small"
-                aria-label={t("selfupdate.interval")}
-                value={sched.config.intervalHours <= 24 ? 24 : 168}
-                disabled={schedSaving}
-                onChange={(e) => saveSched({ intervalHours: Number(e.target.value) })}
-              >
-                <option value={24}>{t("selfupdate.daily")}</option>
-                <option value={168}>{t("selfupdate.weekly")}</option>
-              </select>
-              <select
-                className="rounded-lg border bg-elevated px-2 py-1 text-small"
-                aria-label={t("selfupdate.window")}
-                value={sched.config.windowStart}
-                disabled={schedSaving}
-                onChange={(e) => {
-                  const start = Number(e.target.value);
-                  const end = start + 2 <= 24 ? start + 2 : start + 2 - 24;
-                  saveSched({ windowStart: start, windowEnd: end });
-                }}
-              >
-                {Array.from({ length: 24 }, (_, h) => (
-                  <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
-                ))}
-              </select>
-            </>
-          )}
-          <Toggle
-            checked={sched.config.enabled}
-            busy={schedSaving}
-            onChange={(v) => saveSched({ enabled: v })}
-            label={t("update.scheduleTitle")}
-          />
-        </div>
+        </>
       )}
 
       {phase === "background" && (
