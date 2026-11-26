@@ -76,7 +76,6 @@ export default {
       gatewayOnly: "A gateway job: it lives on your router",
       noDnsmasq: "No local DHCP/DNS (dnsmasq off): there is no LAN to configure here",
       noWifi: "This device has no Wi-Fi radios",
-      coverageSingle: "Coverage compares several access points; only one reports data here",
       portsAp: "Its port detail lives in Overview",
       noPorts: "No manageable built-in switch",
       noStorage: "No USB storage to manage",

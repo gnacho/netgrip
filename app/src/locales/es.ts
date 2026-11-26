@@ -75,7 +75,6 @@ export default {
       gatewayOnly: "Es función de la puerta de enlace: vive en tu router",
       noDnsmasq: "Sin DHCP/DNS local (dnsmasq apagado): no hay red local que configurar aquí",
       noWifi: "Este equipo no tiene radios Wi-Fi",
-      coverageSingle: "Compara la cobertura entre varios puntos de acceso; aquí solo hay uno con datos",
       portsAp: "El detalle de sus bocas vive en Resumen",
       noPorts: "Sin switch integrado gestionable",
       noStorage: "No hay almacenamiento USB que gestionar",
