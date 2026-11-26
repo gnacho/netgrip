@@ -2,7 +2,6 @@ import type { FwdProbe, MultiWanProbe } from "../types";
 import { WanPage } from "./Wan";
 import { ForwardsPage } from "./Forwards";
 import { DpiPage } from "./Dpi";
-import { BanipPage } from "./Banip";
 import { UpnpPage } from "./Upnp";
 
 /**
@@ -29,7 +28,6 @@ export function InternetPage({ mwan, onMwanChange, fwd, onFwdChange }: {
       <div id="page-forwards"><ForwardsPage fwd={fwd} onFwdChange={onFwdChange} /></div>
       <div id="page-upnp"><UpnpPage /></div>
       <div id="page-dpi"><DpiPage /></div>
-      <div id="page-banip"><BanipPage /></div>
     </div>
   );
 }

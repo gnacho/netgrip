@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { Activity, ArrowLeftRight, Blocks, ChartColumn, Download, EyeOff, Forward, Globe, HardDrive, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldAlert, ShieldBan, Smartphone, Wifi } from "lucide-react";
+import { Activity, ArrowLeftRight, Blocks, ChartColumn, Download, EyeOff, Forward, Globe, HardDrive, Shield, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldAlert, ShieldBan, Smartphone, Wifi } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
 import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MultiWanProbe, OVPNProbe, PhysPortsProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
@@ -24,8 +24,9 @@ import { DiagnosticsPage } from "../pages/Diagnostics";
 import { FleetPage } from "../pages/Fleet";
 import { StoragePage } from "../pages/Storage";
 import { SelfUpdateDialog } from "../components/system/SelfUpdateDialog";
+import { ProtectionPage } from "../pages/Protection";
 
-export type Page = "overview" | "internet" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "trafficrules" | "banip" | "upnp" | "ports" | "forwards" | "diagnostics" | "fleet" | "storage" | "system" | "dpi";
+export type Page = "overview" | "internet" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "trafficrules" | "banip" | "upnp" | "ports" | "forwards" | "diagnostics" | "fleet" | "storage" | "system" | "dpi" | "protection";
 
 const NAV_ICONS: Record<Page, LucideIcon> = {
   overview: LayoutDashboard,
@@ -46,6 +47,7 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
   fleet: Server,
   system: Settings,
   dpi: ChartColumn,
+  protection: Shield,
 };
 
 /** Badge de rol en la cabecera del sidebar (#487): colores del mockup de
@@ -63,7 +65,7 @@ const ROLE_BADGE: Record<"router" | "ap" | "switch", { labelKey: string; cls: st
 const NAV_GROUPS: { group: string | null; items: Page[] }[] = [
   { group: null, items: ["overview", "clients"] },
   { group: "nav.group.connection", items: ["internet", "wifi", "coverage", "lan", "ports", "trafficrules"] },
-  { group: "nav.group.services", items: ["services"] },
+  { group: "nav.group.services", items: ["services", "protection"] },
   { group: "nav.group.system", items: ["diagnostics", "storage", "fleet", "system"] },
 ];
 
@@ -217,7 +219,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     if (!modeReady) return id === "overview" ? null : "loading";
     // La línea de salida y todo lo que cuelga de ella (reenvío de puertos,
     // DPI, banIP) solo aplica a la puerta de enlace.
-    if ((id === "internet" || id === "wan" || id === "forwards" || id === "dpi" || id === "banip" || id === "upnp" || id === "trafficrules") && !isRouter) return "gatewayOnly";
+    if ((id === "internet" || id === "wan" || id === "forwards" || id === "dpi" || id === "banip" || id === "upnp" || id === "trafficrules" || id === "protection") && !isRouter) return "gatewayOnly";
     // Red local (DHCP/DNS/reservas): sin dnsmasq la página quedaría vacía
     // (p. ej. un switch gestionado), así que la entrada no se ofrece.
     if (id === "lan" && !mode?.dnsmasq_on) return "noDnsmasq";
@@ -252,7 +254,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     forwards: { page: "internet", anchor: "page-forwards" },
     upnp: { page: "internet", anchor: "page-upnp" },
     dpi: { page: "internet", anchor: "page-dpi" },
-    banip: { page: "internet", anchor: "page-banip" },
+    banip: { page: "protection", anchor: "page-banip" },
   };
   const [pendingAnchor, setPendingAnchor] = useState<string>();
 
@@ -462,8 +464,9 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
       {activePage === "lan" && (
         <LanPage ipv6={ipv6} onIpv6Change={setIpv6} />
       )}
+      {activePage === "protection" && <ProtectionPage />}
       {activePage === "services" && (
-        <Services wg={wg} onWgChange={setWg} ddns={ddns} onDdnsChange={setDdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} ts={ts} onTsChange={setTs} apMode={!isRouter} onNavigate={navigate} />
+        <Services wg={wg} onWgChange={setWg} ddns={ddns} onDdnsChange={setDdns} sqm={sqm} onSqmChange={setSqm} ovpn={ovpn} onOvpnChange={setOvpn} ts={ts} onTsChange={setTs} apMode={!isRouter} />
       )}
       {activePage === "ports" && (
         <Ports ethports={ethports ?? []} />
