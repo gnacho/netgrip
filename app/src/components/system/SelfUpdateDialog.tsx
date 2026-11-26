@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ArrowRight, Check, Circle, DownloadCloud, Loader2, AlertTriangle } from "lucide-react";
 import { api } from "../../api";
 import type { SelfUpdateCheck, SelfUpdateStatus } from "../../types";
-import { Button, Modal, useToast } from "../ui";
+import { Button, Modal } from "../ui";
 
 const STEP_ORDER = ["downloading", "installing", "restarting"] as const;
 
@@ -13,7 +13,6 @@ export function SelfUpdateDialog({ open, onClose, initialCheck }: {
   initialCheck?: SelfUpdateCheck;
 }) {
   const { t } = useTranslation();
-  const { push } = useToast();
   const [check, setCheck] = useState<SelfUpdateCheck | undefined>(initialCheck);
   const [status, setStatus] = useState<SelfUpdateStatus>({ phase: "idle", progress: 0 });
   const [ack, setAck] = useState(false);
@@ -28,6 +27,21 @@ export function SelfUpdateDialog({ open, onClose, initialCheck }: {
     if (reloadRef.current) clearInterval(reloadRef.current);
     pollRef.current = undefined;
     reloadRef.current = undefined;
+  }, []);
+
+  // Once the apply finished the binary on disk is a different one, so every
+  // piece of state on the page is stale: the version, the check and the Shell
+  // ribbon that prompted this dialog. Waiting for the new process and reloading
+  // covers both endings, including the race where the restart wins and the poll
+  // only ever sees `idle` (#679).
+  const reloadWhenBack = useCallback(() => {
+    if (reloadRef.current) return;
+    reloadRef.current = setInterval(() => {
+      api.me().then(() => {
+        if (reloadRef.current) clearInterval(reloadRef.current);
+        window.location.reload();
+      }).catch(() => {});
+    }, 2000);
   }, []);
 
   useEffect(() => {
@@ -56,26 +70,24 @@ export function SelfUpdateDialog({ open, onClose, initialCheck }: {
         if (s.phase === "restarting") {
           // backend ya reinició el servicio: esperamos a que vuelva
           if (pollRef.current) clearInterval(pollRef.current);
-          reloadRef.current = setInterval(() => {
-            api.me().then(() => {
-              if (reloadRef.current) clearInterval(reloadRef.current);
-              window.location.reload();
-            }).catch(() => {});
-          }, 2000);
+          reloadWhenBack();
         } else if (s.phase === "error") {
           if (pollRef.current) clearInterval(pollRef.current);
           setError(s.message || t("selfupdate.failed"));
         } else if (s.phase === "idle") {
-          // terminó sin reiniciar (no debería pasar en self-update)
+          // Terminó con el proceso nuevo ya en marcha: el primer sondeo después
+          // del apply puede ver `idle` antes que `restarting`. La versión en
+          // disco cambió igualmente, así que se recarga (#679). La fase se queda
+          // en `restarting` a propósito: `active` sigue true y el cleanup del
+          // efecto no mata el intervalo de recarga.
           if (pollRef.current) clearInterval(pollRef.current);
-          push({ tone: "ok", text: t("selfupdate.doneToast", { version: check?.latest ?? "" }) });
-          onClose();
-          api.selfUpdateCheck().then(setCheck).catch(() => {});
+          setStatus({ phase: "restarting", progress: 100 });
+          reloadWhenBack();
         }
       }).catch(() => {});
     }, 800);
     return clearTimers;
-  }, [active, clearTimers, t, push, check?.latest, onClose]);
+  }, [active, clearTimers, reloadWhenBack, t]);
 
   const apply = async () => {
     setError(null);
