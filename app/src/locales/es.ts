@@ -151,6 +151,10 @@ export default {
     },
   },
   help: {
+    upnp: {
+      title: "¿Qué es UPnP?",
+      body: "Deja que las aplicaciones de tu red abran puertos en el router por su cuenta, sin que tengas que crear la regla a mano. Es cómodo para juegos, consolas y cámaras, pero cualquier dispositivo de casa puede hacerlo. Con la lista de abajo limitas quién puede.",
+    },
     login: {
       title: "¿Qué contraseña es?",
       body: "La contraseña de administrador del router: la misma que usarías para entrar en LuCI. NetGrip no guarda usuarios propios; valida directamente contra el router.",
@@ -870,7 +874,7 @@ export default {
     introDesc: "UPnP y NAT-PMP dejan que los dispositivos de tu LAN abran puertos hacia internet solos (consolas, juegos, cámaras). Cómodo, pero arriesgado: cualquier app de la red puede exponer algo sin preguntar.",
     riskNote: "UPnP es un vector de abuso. Actívalo solo si lo necesitas y mantén la ACL por cliente para limitar quién puede abrir puertos.",
     secureModeOn: "Modo seguro activo: cada equipo solo puede abrir puertos hacia su propia IP (restringido a LAN).",
-    cardTitle: "UPnP / NAT-PMP",
+    enableTitle: "Activar UPnP",
     notGatewayTitle: "UPnP solo funciona en el gateway",
     notGatewayBody: "Este router no es la puerta de salida a internet, así que no hay WAN donde abrir puertos. UPnP vive en el router que da salida a internet.",
     notInstalledTitle: "UPnP/NAT-PMP no está instalado",
@@ -1232,7 +1236,7 @@ export default {
     applied: "Cambio aplicado",
     rolledBack: "Falló el cambio y se restauró la configuración anterior",
     failed: "Falló el cambio",
-    openTitle: "Abrir algo a Internet",
+    openTitle: "Abrir aplicaciones a Internet",
     rules_one: "{{count}} regla",
     rules_other: "{{count}} reglas",
     emptyHero: "No hay nada abierto a Internet. Es lo más seguro.",
