@@ -1,16 +1,5 @@
 export default {
   app: { name: "NetGrip" },
-  about: {
-    description: "El panel complementario de código abierto para tu router OpenWrt.",
-    project: "Proyecto",
-    repository: "Repositorio",
-    website: "Web del proyecto",
-    developer: "Desarrollador",
-    license: "Licencia",
-    starTitle: "Danos una estrella en GitHub",
-    starDesc: "Si NetGrip te resulta útil, una estrella en GitHub ayuda a que más gente lo descubra.",
-    starButton: "Dar estrella en GitHub",
-  },
   login: {
     title: "Entrar",
     subtitle: "Contraseña root del router (la misma de LuCI)",
@@ -45,7 +34,6 @@ export default {
     storage: "Almacenamiento",
     system: "Ajustes",
     diagnostics: "Diagnóstico",
-    about: "Acerca de",
     menu: "Menú",
     role: {
       router: "Router · Gateway",
@@ -71,7 +59,6 @@ export default {
       storage: "Discos USB conectados al router",
       fleet: "Otros equipos NetGrip de tu red",
       system: "Contraseñas, acceso, avisos y actualizaciones",
-      about: "Sobre el panel NetGrip",
     },
     hiddenSections_one: "{{count}} sección oculta por este rol",
     hiddenSections_other: "{{count}} secciones ocultas por este rol",
@@ -406,6 +393,7 @@ export default {
     groupDevice: "Este equipo",
     identityTitle: "Identidad y reinicio",
     reboot: "Reiniciar el dispositivo",
+    starCta: "Danos una estrella en GitHub",
     rebootConfirmTitle: "Reiniciar el dispositivo",
     rebootConsequence: "La red se cortará ~1 minuto. Todo vuelve solo.",
     rebootConfirm: "Reiniciar ahora",

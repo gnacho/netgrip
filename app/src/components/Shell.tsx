@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { Activity, ArrowLeftRight, Blocks, ChartColumn, Download, EyeOff, Forward, Globe, HardDrive, Info, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldAlert, ShieldBan, Smartphone, Wifi } from "lucide-react";
+import { Activity, ArrowLeftRight, Blocks, ChartColumn, Download, EyeOff, Forward, Globe, HardDrive, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldAlert, ShieldBan, Smartphone, Wifi } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
 import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MultiWanProbe, OVPNProbe, PhysPortsProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
@@ -23,10 +23,9 @@ import { LanPage } from "../pages/Lan";
 import { DiagnosticsPage } from "../pages/Diagnostics";
 import { FleetPage } from "../pages/Fleet";
 import { StoragePage } from "../pages/Storage";
-import { AboutPage } from "../pages/About";
 import { SelfUpdateDialog } from "../components/system/SelfUpdateDialog";
 
-export type Page = "overview" | "internet" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "trafficrules" | "banip" | "upnp" | "ports" | "forwards" | "diagnostics" | "fleet" | "storage" | "system" | "dpi" | "about";
+export type Page = "overview" | "internet" | "wan" | "clients" | "coverage" | "wifi" | "lan" | "services" | "trafficrules" | "banip" | "upnp" | "ports" | "forwards" | "diagnostics" | "fleet" | "storage" | "system" | "dpi";
 
 const NAV_ICONS: Record<Page, LucideIcon> = {
   overview: LayoutDashboard,
@@ -47,7 +46,6 @@ const NAV_ICONS: Record<Page, LucideIcon> = {
   fleet: Server,
   system: Settings,
   dpi: ChartColumn,
-  about: Info,
 };
 
 /** Badge de rol en la cabecera del sidebar (#487): colores del mockup de
@@ -66,7 +64,7 @@ const NAV_GROUPS: { group: string | null; items: Page[] }[] = [
   { group: null, items: ["overview", "clients"] },
   { group: "nav.group.connection", items: ["internet", "wifi", "coverage", "lan", "ports", "trafficrules"] },
   { group: "nav.group.services", items: ["services"] },
-  { group: "nav.group.system", items: ["diagnostics", "storage", "fleet", "system", "about"] },
+  { group: "nav.group.system", items: ["diagnostics", "storage", "fleet", "system"] },
 ];
 
 // Deep-linking (#508): cada página es direccionable por hash (`#/clients`).
@@ -478,7 +476,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
       {activePage === "storage" && (
         <StoragePage />
       )}
-      {activePage === "about" && <AboutPage />}
       {activePage === "system" && (
         <System board={board} update={update} onUpdateChange={setUpdate} onLogout={onLogout} />
       )}

@@ -1,16 +1,5 @@
 export default {
   app: { name: "NetGrip" },
-  about: {
-    description: "An open-source companion panel for your OpenWrt router.",
-    project: "Project",
-    repository: "Repository",
-    website: "Website",
-    developer: "Developer",
-    license: "License",
-    starTitle: "Star us on GitHub",
-    starDesc: "If NetGrip is useful to you, a star on GitHub helps more people find it.",
-    starButton: "Star on GitHub",
-  },
   login: {
     title: "Sign in",
     subtitle: "Router root password (same as LuCI)",
@@ -45,7 +34,6 @@ export default {
     storage: "Storage",
     system: "Settings",
     diagnostics: "Diagnostics",
-    about: "About",
     menu: "Menu",
     role: {
       router: "Router · Gateway",
@@ -72,7 +60,6 @@ export default {
       storage: "USB drives on the router",
       fleet: "Other NetGrip devices on your network",
       system: "Passwords, access, notifications and updates",
-      about: "About the NetGrip panel",
     },
     hiddenSections_one: "{{count}} section hidden by this role",
     hiddenSections_other: "{{count}} sections hidden by this role",
@@ -407,6 +394,7 @@ export default {
     groupDevice: "This device",
     identityTitle: "Identity and reboot",
     reboot: "Reboot the device",
+    starCta: "Star us on GitHub",
     rebootConfirmTitle: "Reboot the device",
     rebootConsequence: "The network will be down for ~1 minute. Everything comes back on its own.",
     rebootConfirm: "Reboot now",
