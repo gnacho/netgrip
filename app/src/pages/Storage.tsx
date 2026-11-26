@@ -324,7 +324,7 @@ function ServiceRow({ svc, onChanged, mounts }: { svc: StorageService; onChanged
   };
 
   // #720: minidlna comparte carpetas concretas; se eligen entre los discos.
-  const canPickFolders = svc.name === "minidlna" && svc.installed;
+  const canPickFolders = (svc.name === "minidlna" || svc.name === "samba4") && svc.installed;
   const toggleFolder = (path: string) =>
     setSelected((cur) => (cur.includes(path) ? cur.filter((p) => p !== path) : [...cur, path]));
 
@@ -402,7 +402,9 @@ function ServiceRow({ svc, onChanged, mounts }: { svc: StorageService; onChanged
           </>
         }
       >
-        <p className="text-small text-muted">{t("storage.foldersHint")}</p>
+        <p className="text-small text-muted">
+          {svc.name === "samba4" ? t("storage.foldersGuestHint") : t("storage.foldersHint")}
+        </p>
         {mounts.length === 0 ? (
           <p className="mt-3 text-small text-muted">{t("storage.foldersNoMounts")}</p>
         ) : (

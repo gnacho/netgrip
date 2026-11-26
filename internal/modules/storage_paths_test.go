@@ -5,7 +5,7 @@ import "testing"
 // #720: la lista de carpetas se escribe como media_dir y su inversa las deja
 // como estaban.
 func TestStoragePathsOps(t *testing.T) {
-	ops, rollback := storagePathsOps([]string{"/mnt/sda", "/mnt/sda/Music"}, []string{"/mnt"})
+	ops, rollback := storagePathsOps("minidlna", []string{"/mnt/sda", "/mnt/sda/Music"}, []string{"/mnt"})
 
 	adds := 0
 	for _, op := range ops {
@@ -38,8 +38,8 @@ func TestStoragePathsOps(t *testing.T) {
 }
 
 func TestSetStoragePathsValidation(t *testing.T) {
-	if _, err := SetStoragePaths("samba4", []string{"/mnt/sda"}); err == nil {
-		t.Fatal("samba4 has no folder picker yet")
+	if _, err := SetStoragePaths("nfs", []string{"/mnt/sda"}); err == nil {
+		t.Fatal("nfs has no folder picker")
 	}
 	if _, err := SetStoragePaths("minidlna", nil); err == nil {
 		t.Fatal("empty list must be rejected")
@@ -49,5 +49,30 @@ func TestSetStoragePathsValidation(t *testing.T) {
 	}
 	if _, err := SetStoragePaths("minidlna", []string{"/mnt/does-not-exist"}); err == nil {
 		t.Fatal("missing folders must be rejected")
+	}
+}
+
+// Samba: una sección sambashare por carpeta, invitada y escribible, y la
+// inversa las quita.
+func TestSambaShareOps(t *testing.T) {
+	ops := sambaShareOps([]string{"/mnt/sda", "/mnt/sda/Music"}, true)
+	sets := map[string]string{}
+	for _, op := range ops {
+		if op.Kind == "uci_set" {
+			sets[op.Args[0]] = op.Args[1]
+		}
+	}
+	if sets["samba4.netgrip_sda"] != "sambashare" || sets["samba4.netgrip_sda.path"] != "/mnt/sda" {
+		t.Errorf("sda share missing: %v", sets)
+	}
+	if sets["samba4.netgrip_sda.guest_ok"] != "yes" || sets["samba4.netgrip_sda.read_only"] != "no" {
+		t.Errorf("share should be guest and writable: %v", sets)
+	}
+	if sets["samba4.netgrip_music.path"] != "/mnt/sda/Music" {
+		t.Errorf("music share missing: %v", sets)
+	}
+	last := ops[len(ops)-1]
+	if last.Kind != "initd" || last.Args[0] != "samba4" {
+		t.Errorf("last op should restart samba4, got %+v", last)
 	}
 }
