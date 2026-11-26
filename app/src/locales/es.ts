@@ -2799,6 +2799,9 @@ export default {
     serviceGeneric: "Comparte el disco del router con tu red.",
     svcOnOk: "Listo. {{name}} está activo.",
     svcOffOk: "Listo. {{name}} está apagado.",
+    svcInstalled: "{{name}} instalado. Enciéndelo cuando quieras.",
+    svcInstall: "Instalar",
+    svcNotInstalled: "No instalado",
     service: {
       samba: {
         label: "Compartir carpetas (Windows/Mac)",

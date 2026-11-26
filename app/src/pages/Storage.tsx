@@ -8,6 +8,8 @@ import {
   Skeleton, SkeletonRows, Toggle,
 } from "../components/ui";
 import { IlluDisk } from "../components/ui/illustrations";
+import { InstallProgress, useInstallJob } from "../components/wizard/common";
+import type { InstallJob } from "../api";
 import { useActionCycle } from "../components/wifi/action";
 import { fmtBytes } from "../lib/format";
 
@@ -168,6 +170,7 @@ function DiskCard({ disk: d, index }: { disk: StorageDevice; index: number }) {
 function ServiceRow({ svc, onChanged }: { svc: StorageService; onChanged: () => void }) {
   const { t } = useTranslation();
   const { phase, detail, busy, run, clear } = useActionCycle();
+  const { begin, running: installing, job } = useInstallJob();
   const [doneText, setDoneText] = useState<string>();
 
   const key = serviceKey(svc.name);
@@ -185,9 +188,25 @@ function ServiceRow({ svc, onChanged }: { svc: StorageService; onChanged: () => 
     });
   };
 
+  // #720: sin el paquete el interruptor no tiene nada que encender.
+  const install = async () => {
+    try {
+      const res = await begin(async () => {
+        const r = await api.installStorageService(svc.name);
+        return { job: r.job ?? ({ phase: "done", total: 0, done: 0 } as InstallJob) };
+      });
+      if (res.phase === "done") {
+        setDoneText(t("storage.svcInstalled", { name: label }));
+        onChanged();
+      }
+    } catch {
+      /* el progreso del job muestra el fallo */
+    }
+  };
+
   return (
     <div className="py-3 first:pt-0 last:pb-0">
-      <div className={`flex items-start gap-3 ${busy ? "opacity-70" : ""}`}>
+      <div className={`flex items-start gap-3 ${busy || installing ? "opacity-70" : ""}`}>
         <IconTile icon={FolderSymlink} tone="accent" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -200,12 +219,24 @@ function ServiceRow({ svc, onChanged }: { svc: StorageService; onChanged: () => 
           <p className="text-small text-muted mt-0.5">{desc}</p>
         </div>
         <div className="flex items-center gap-2.5 shrink-0 pt-1">
-          <Pill tone={svc.running ? "ok" : "muted"}>
-            {svc.running ? t("storage.serviceOn") : t("storage.serviceOff")}
-          </Pill>
-          <Toggle checked={svc.enabled} busy={busy} onChange={toggle} label={label} />
+          {svc.installed ? (
+            <>
+              <Pill tone={svc.running ? "ok" : "muted"}>
+                {svc.running ? t("storage.serviceOn") : t("storage.serviceOff")}
+              </Pill>
+              <Toggle checked={svc.enabled} busy={busy} onChange={toggle} label={label} />
+            </>
+          ) : (
+            <>
+              <Pill tone="muted">{t("storage.svcNotInstalled")}</Pill>
+              <Button size="sm" variant="secondary" loading={installing} onClick={install}>
+                {t("storage.svcInstall")}
+              </Button>
+            </>
+          )}
         </div>
       </div>
+      {installing && <div className="mt-2"><InstallProgress job={job} /></div>}
       {phase && (
         <div className="mt-2">
           <ActionBanner phase={phase} text={phase === "done" ? doneText : undefined} detail={detail} onDone={clear} />

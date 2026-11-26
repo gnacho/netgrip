@@ -982,6 +982,12 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, action }),
     }),
+  installStorageService: (name: string) =>
+    request<{ job?: InstallJob; status?: string }>("/api/storage/install", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
   macAcl: () =>
     request<import("./types").MACACLProbe>("/api/mac-acl"),
   setMacAcl: (port: string, mode: string, macs: string[]) =>

@@ -2800,6 +2800,9 @@ export default {
     serviceGeneric: "Shares the router's drive with your network.",
     svcOnOk: "Done. {{name}} is on.",
     svcOffOk: "Done. {{name}} is off.",
+    svcInstalled: "{{name}} installed. Turn it on whenever you like.",
+    svcInstall: "Install",
+    svcNotInstalled: "Not installed",
     service: {
       samba: {
         label: "Folder sharing (Windows/Mac)",

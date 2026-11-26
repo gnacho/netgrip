@@ -1652,6 +1652,8 @@ export interface StorageService {
   name: string;
   running: boolean;
   enabled: boolean;
+  /** El paquete está instalado. Si no, la página ofrece instalarlo. */
+  installed: boolean;
 }
 
 export interface StorageProbe {
