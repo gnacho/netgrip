@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -135,6 +136,9 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("POST /api/wireguard/peers", s.requireAuth(s.handleWGPeerAdd))
 	s.mux.HandleFunc("POST /api/wireguard/peers/qr", s.requireAuth(s.handleWGPeerQR))
 	s.mux.HandleFunc("POST /api/wireguard/peers/delete", s.requireAuth(s.handleWGPeerDelete))
+	s.mux.HandleFunc("POST /api/wireguard/peers/rename", s.requireAuth(s.handleWGPeerRename))
+	s.mux.HandleFunc("POST /api/wireguard/peers/config", s.requireAuth(s.handleWGPeerConfig))
+	s.mux.HandleFunc("POST /api/wireguard/peers/rotate", s.requireAuth(s.handleWGPeerRotate))
 	s.mux.HandleFunc("GET /api/ddns", s.requireAuth(s.handleDDNSGet))
 	s.mux.HandleFunc("POST /api/ddns", s.requireAuth(s.handleDDNSSet))
 	s.mux.HandleFunc("PUT /api/ddns", s.requireAuth(s.handleDDNSUpdate))
@@ -982,6 +986,65 @@ func (s *Server) handleWGPeerDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	probe, rolledBack, err := modules.RemoveWGPeer(req.PublicKey)
 	writeModuleResult(w, probe, rolledBack, err)
+}
+
+// handleWGPeerRename (#754): cambia la etiqueta de un peer.
+func (s *Server) handleWGPeerRename(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		PublicKey string `json:"public_key"`
+		Name      string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, rolledBack, err := modules.RenameWGPeer(req.PublicKey, req.Name)
+	writeModuleResult(w, probe, rolledBack, err)
+}
+
+// handleWGPeerConfig (#754): devuelve el perfil del cliente para volver a
+// pintar su QR. Si la clave privada no se guardó, responde 409 con code.
+func (s *Server) handleWGPeerConfig(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		PublicKey string `json:"public_key"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	cfg, err := modules.WGPeerConfig(req.PublicKey)
+	if errors.Is(err, modules.ErrNoStoredKey) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"code":  "no_stored_key",
+			"error": "this peer has no stored private key",
+		})
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"config": cfg})
+}
+
+// handleWGPeerRotate (#754): nuevo par de claves para el peer y devuelve el
+// perfil. El dispositivo anterior deja de conectar hasta importar el nuevo.
+func (s *Server) handleWGPeerRotate(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		PublicKey string `json:"public_key"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	cfg, probe, err := modules.RotateWGPeer(req.PublicKey)
+	if err != nil {
+		writeModuleResult(w, probe, false, err)
+		return
+	}
+	writeJSON(w, map[string]any{"config": cfg, "state": probe})
 }
 
 func (s *Server) handleDDNSGet(w http.ResponseWriter, _ *http.Request) {
