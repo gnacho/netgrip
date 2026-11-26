@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { copyText } from "../../lib/clipboard";
 import { Plus, QrCode, ShieldCheck, Trash2 } from "lucide-react";
 import { api } from "../../api";
 import type { WGPeer, WGProbe } from "../../types";
@@ -365,14 +366,10 @@ function QrConfigModal({ config, onClose }: { config: string | undefined; onClos
   const [copied, setCopied] = useState(false);
   const copyConfig = async () => {
     if (!config) return;
-    try {
-      await navigator.clipboard.writeText(config);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-      toast.push({ tone: "ok", text: t("wg.copyConfig") });
-    } catch {
-      // clipboard bloqueado
-    }
+    if (!(await copyText(config))) return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+    toast.push({ tone: "ok", text: t("wg.copyConfig") });
   };
   return (
     <Modal open={!!config} onClose={onClose} title={t("wg.qrModalTitle")}>

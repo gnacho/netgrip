@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Copy, ListChecks, Wrench } from "lucide-react";
 import { DnsCard, PingCard, SelfTestCard, TcpCard, TracerouteCard } from "../components/diagnostics/cards";
 import { SpeedTestCard } from "../components/diagnostics/SpeedTestCard";
 import { buildShareText } from "../components/diagnostics/share";
 import { CableTestTool, BounceTool, LoopsTool } from "../components/tools/diagnostics";
-import { Button, Card, useToast } from "../components/ui";
+import { Button, Card, Modal, useToast } from "../components/ui";
+import { copyText } from "../lib/clipboard";
 import type { EthPort } from "../types";
 import type { DNSResult, PingResult, SelfTestResult, TCPResult, TracerouteResult } from "../types";
 
@@ -30,13 +31,17 @@ export function DiagnosticsPage({ ethports = [] }: { ethports?: EthPort[] }) {
     [selftest, ping, traceroute, dns, tcp, t],
   );
 
+  // Si el navegador rechaza las dos vías de copia (HTTP en LAN sin Clipboard
+  // API y execCommand bloqueado), se abre el texto ya seleccionado en vez de
+  // dejar al usuario con un error que no le dice cómo salir.
+  const [manual, setManual] = useState(false);
+  const manualRef = useRef<HTMLTextAreaElement>(null);
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(summary);
+    if (await copyText(summary)) {
       toast.push({ tone: "ok", text: t("diagnostics.copied") });
-    } catch {
-      toast.push({ tone: "danger", text: t("diagnostics.copyFailed") });
+      return;
     }
+    setManual(true);
   };
 
   return (
@@ -65,6 +70,24 @@ export function DiagnosticsPage({ ethports = [] }: { ethports?: EthPort[] }) {
 
       {/* Herramientas físicas (#500: antes página Herramientas, fusionada
           aquí): una tarjeta, tres columnas internas. */}
+      <Modal
+        open={manual}
+        onClose={() => setManual(false)}
+        title={t("diagnostics.copyManualTitle")}
+        footer={<Button onClick={() => setManual(false)}>{t("common.close")}</Button>}
+      >
+        <p className="text-small text-muted mb-2">{t("diagnostics.copyManualBody")}</p>
+        <textarea
+          ref={manualRef}
+          readOnly
+          value={summary}
+          rows={12}
+          autoFocus
+          onFocus={() => manualRef.current?.select()}
+          className="w-full resize-y rounded-md border border-border bg-surface-2 p-2 font-mono text-caption"
+        />
+      </Modal>
+
       <Card title={t("tools.physTitle")} icon={Wrench}>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-5">
           <CableTestTool />

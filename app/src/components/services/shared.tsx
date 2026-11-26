@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { copyText } from "../../lib/clipboard";
 import { Copy } from "lucide-react";
 import QRCode from "qrcode";
 import { useToast } from "../ui";
@@ -36,9 +37,9 @@ export function CopyButton({ text, label }: { text: string; label?: string }) {
       aria-label={label ?? t("services.copy")}
       title={label ?? t("services.copy")}
       onClick={() => {
-        navigator.clipboard?.writeText(text)
-          .then(() => toast.push({ tone: "ok", text: t("services.copied") }))
-          .catch(() => {});
+        void copyText(text).then((ok) => {
+          if (ok) toast.push({ tone: "ok", text: t("services.copied") });
+        });
       }}
       className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-muted hover:text-text hover:bg-surface-2 ring-focus transition-colors duration-[var(--dur-fast)]"
     >
