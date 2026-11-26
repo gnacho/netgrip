@@ -243,6 +243,9 @@ export interface FwdProbe {
   has_wan: boolean;
   firewall: boolean;
   rules: FwdRule[];
+  /** LAN address of the router itself. A forward pointing at it is not a
+   *  service on another machine. */
+  router_ip?: string;
 }
 
 /** One internet connection. `name` is the UCI network section, which is also

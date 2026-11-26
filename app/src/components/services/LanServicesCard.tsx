@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { AppWindow, ExternalLink, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { api } from "../../api";
-import type { LanDiscoverySuggestion, LanService, LanServiceStatus, LanServicesProbe } from "../../types";
+import type { FwdProbe, LanDiscoverySuggestion, LanService, LanServiceStatus, LanServicesProbe } from "../../types";
 import {
   AdvancedDisclosure, Button, ConfirmDialog, EmptyState, Field, IconTile,
   Modal, Pill, SegmentedControl, Skeleton, useToast,
@@ -84,6 +84,9 @@ export function LanServicesCard() {
   const [toRemove, setToRemove] = useState<LanServiceStatus>();
   const [suggestions, setSuggestions] = useState<LanDiscoverySuggestion[]>([]);
   const [discovering, setDiscovering] = useState(false);
+  // Puertos que ya están abiertos hacia un equipo de la red: son servicios
+  // self-hosted aunque no se hayan añadido a mano (#699).
+  const [fwd, setFwd] = useState<FwdProbe>();
 
   const load = useCallback(async () => {
     setLoadError(false);
@@ -92,11 +95,18 @@ export function LanServicesCard() {
     } catch {
       setLoadError(true);
     }
+    api.portforward().then(setFwd).catch(() => {});
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const services = probe?.services ?? [];
+  // Puertos abiertos a Internet: los que llevan a otro equipo y los que
+  // escucha el propio router (WireGuard, por ejemplo). Las redirecciones que
+  // apuntan al router para otro fin, como el DNS, se quedan fuera.
+  const exposed = (fwd?.rules ?? []).filter(
+    (r) => r.kind === "input" || (r.dest_ip && r.dest_ip !== fwd?.router_ip),
+  );
   const loading = probe === undefined && !loadError;
   const empty = !loading && !loadError && services.length === 0;
 
@@ -234,6 +244,32 @@ export function LanServicesCard() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {exposed.length > 0 && (
+        <div className="mt-4 border-t border-border pt-4">
+          <p className="text-small font-medium text-secondary">{t("lanservices.exposedTitle")}</p>
+          <p className="text-caption text-muted mt-0.5">{t("lanservices.exposedHint")}</p>
+          <ul className="mt-2 divide-y divide-border/60">
+            {exposed.map((r) => (
+              <li key={r.section} className="flex flex-wrap items-center gap-2 py-2">
+                {r.kind === "input" ? (
+                  <>
+                    <span className="flex-1 min-w-0 truncate text-small">{r.name || t("lanservices.exposedUnnamed", { port: r.src_dport })}</span>
+                    <span className="font-mono text-small text-muted">{r.proto || "tcp udp"}{r.src_dport ? ` ${r.src_dport}` : ""}</span>
+                    <Pill tone="warn">{t("lanservices.exposedOnRouter")}</Pill>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex-1 min-w-0 truncate text-small">{r.name || t("lanservices.exposedUnnamed", { port: r.src_dport })}</span>
+                    <span className="font-mono text-small text-muted">{r.dest_ip}:{r.dest_port}</span>
+                    <Pill tone="warn">{t("lanservices.exposedPill", { port: r.src_dport })}</Pill>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

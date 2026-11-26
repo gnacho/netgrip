@@ -39,6 +39,9 @@ type FwdProbe struct {
 	HasWan   bool      `json:"has_wan"`
 	Firewall bool      `json:"firewall"`
 	Rules    []FwdRule `json:"rules"`
+	// RouterIP is the LAN address of the router itself: a forward pointing at
+	// it (the DNS redirects, say) is not a service on another machine.
+	RouterIP string `json:"router_ip,omitempty"`
 }
 
 var (
@@ -192,6 +195,7 @@ func ProbeFwd() *FwdProbe {
 		HasWan:   hasUplink(),
 		Firewall: executor.ServiceEnabled("firewall"),
 		Rules:    []FwdRule{},
+		RouterIP: uciGet("network.lan.ipaddr"),
 	}
 	wanZones := internetZones()
 	stock := stockRuleNames()

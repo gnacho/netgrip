@@ -2910,6 +2910,11 @@ export default {
     pushFailed: "Fallo el envio",
   },
   lanservices: {
+    exposedTitle: "Abiertos a Internet",
+    exposedHint: "Puertos abiertos a Internet: los que van a un equipo de tu red y los que escucha el propio router. Se editan en Internet y en Servicios.",
+    exposedUnnamed: "Puerto {{port}}",
+    exposedOnRouter: "en el router",
+    exposedPill: "externo {{port}}",
     emptyTitle: "Aún no hay servicios locales",
     emptyBody: "Añade un servicio self-hosted (Jellyfin, Home Assistant, un NAS...) y comprueba desde el router si está accesible.",
     add: "Añadir servicio",
