@@ -4,8 +4,8 @@ import { CloudOff, FolderSymlink, HardDrive } from "lucide-react";
 import { api } from "../api";
 import type { StorageDevice, StorageProbe, StorageService } from "../types";
 import {
-  ActionBanner, Banner, Button, Card, EmptyState, Gauge, HelpTip, IconTile, KeyValue, Pill,
-  Skeleton, SkeletonRows, Toggle,
+  ActionBanner, Banner, Button, Card, ConfirmDialog, EmptyState, Field, Gauge, HelpTip,
+  IconTile, KeyValue, Modal, Pill, Skeleton, SkeletonRows, Toggle,
 } from "../components/ui";
 import { IlluDisk } from "../components/ui/illustrations";
 import { InstallProgress, useInstallJob } from "../components/wizard/common";
@@ -116,7 +116,7 @@ export function StoragePage() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {(probe.devices ?? []).map((d, i) => (
-              <DiskCard key={d.path || d.name} disk={d} index={i} />
+              <DiskCard key={d.path || d.name} disk={d} index={i} onChanged={refresh} />
             ))}
           </div>
         )}
@@ -144,8 +144,48 @@ export function StoragePage() {
 
 /* ══════════════ Mini-card de disco (storage.md §2) ══════════════ */
 
-function DiskCard({ disk: d, index }: { disk: StorageDevice; index: number }) {
+function DiskCard({ disk: d, index, onChanged }: { disk: StorageDevice; index: number; onChanged: () => void }) {
   const { t } = useTranslation();
+  const [mountOpen, setMountOpen] = useState(false);
+  const [target, setTarget] = useState(`/mnt/${d.name}`);
+  const [readOnly, setReadOnly] = useState(false);
+  const [unmountOpen, setUnmountOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string>();
+
+  const targetError = target.trim() !== "" && !/^\/mnt\/[A-Za-z0-9._-]+$/.test(target.trim())
+    ? t("storage.mountTargetInvalid")
+    : undefined;
+
+  const mount = async () => {
+    setBusy(true);
+    setActionError(undefined);
+    try {
+      await api.mountStorage({ device: d.path, target: target.trim(), read_only: readOnly });
+      setMountOpen(false);
+      onChanged();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const unmount = async () => {
+    if (!d.mount_point) return;
+    setBusy(true);
+    setActionError(undefined);
+    setUnmountOpen(false);
+    try {
+      await api.unmountStorage(d.mount_point);
+      onChanged();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const pct = d.size_bytes > 0 ? Math.round((d.used_bytes / d.size_bytes) * 100) : 0;
   const usage = t("storage.usedOf", {
     used: fmtBytes(d.used_bytes),
@@ -176,16 +216,65 @@ function DiskCard({ disk: d, index }: { disk: StorageDevice; index: number }) {
           <p title={free} className="text-small text-muted tabular-nums truncate">{free}</p>
           <div className="mt-1">
             {d.mount_point ? (
-              <KeyValue items={[{ label: t("storage.mountPoint"), value: d.mount_point, mono: true }]} />
+              <div className="flex items-center gap-2">
+                <KeyValue items={[{ label: t("storage.mountPoint"), value: d.mount_point, mono: true }]} />
+                {d.managed && (
+                  <Button size="sm" variant="ghost" loading={busy} onClick={() => setUnmountOpen(true)}>
+                    {t("storage.unmount")}
+                  </Button>
+                )}
+              </div>
             ) : (
               <div className="py-1.5 flex flex-col gap-1.5 items-start">
                 <Pill tone="warn">{t("storage.notMounted")}</Pill>
                 <p className="text-small text-muted">{t("storage.notMountedHint")}</p>
+                <Button size="sm" variant="secondary" onClick={() => setMountOpen(true)}>
+                  {t("storage.mount")}
+                </Button>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {actionError && <p className="mt-2 text-caption text-danger">{actionError}</p>}
+
+      <Modal
+        open={mountOpen}
+        onClose={() => setMountOpen(false)}
+        title={t("storage.mountTitle")}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setMountOpen(false)}>{t("common.cancel")}</Button>
+            <Button loading={busy} disabled={!target.trim() || !!targetError} onClick={mount}>
+              {t("storage.mountConfirm")}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-small text-muted">{t("storage.mountHint", { device: d.path })}</p>
+          <Field label={t("storage.mountTarget")} mono error={targetError} hint={t("storage.mountTargetHint")}
+            inputProps={{ value: target, onChange: (e) => setTarget(e.target.value), autoComplete: "off" }} />
+          <div className="flex items-center justify-between gap-3 py-1">
+            <div className="min-w-0">
+              <p className="text-body font-medium">{t("storage.mountReadOnly")}</p>
+              <p className="text-small text-muted">{t("storage.mountReadOnlyHint")}</p>
+            </div>
+            <Toggle checked={readOnly} onChange={setReadOnly} label={t("storage.mountReadOnly")} />
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={unmountOpen}
+        onClose={() => setUnmountOpen(false)}
+        onConfirm={unmount}
+        title={t("storage.unmountTitle", { target: d.mount_point ?? "" })}
+        consequence={t("storage.unmountConsequence")}
+        confirmLabel={t("storage.unmount")}
+        busy={busy}
+      />
     </div>
   );
 }

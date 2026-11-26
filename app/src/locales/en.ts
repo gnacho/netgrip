@@ -2809,6 +2809,18 @@ export default {
     svcNotInstalled: "Not installed",
     usbNoDriver: "A USB device is plugged in, but the router has no disk driver, so it cannot show it. Install it and the disk appears right away.",
     usbInstallDriver: "Install driver",
+    mount: "Mount",
+    mountTitle: "Mount the disk",
+    mountHint: "It mounts now and the setting is saved: after a reboot it comes back on its own. Device {{device}}.",
+    mountTarget: "Mount point",
+    mountTargetHint: "A folder under /mnt. An existing one is reused.",
+    mountTargetInvalid: "Use a folder such as /mnt/usb",
+    mountReadOnly: "Read only",
+    mountReadOnlyHint: "Nothing can write to the disk over the network.",
+    mountConfirm: "Mount disk",
+    unmount: "Unmount",
+    unmountTitle: "Unmount {{target}}",
+    unmountConsequence: "The disk stops being reachable and the saved mount is forgotten. Data is untouched.",
     service: {
       samba: {
         label: "Folder sharing (Windows/Mac)",

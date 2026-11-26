@@ -2808,6 +2808,18 @@ export default {
     svcNotInstalled: "No instalado",
     usbNoDriver: "Hay un dispositivo USB conectado, pero el router no tiene el controlador de discos: por eso no aparece. Instálalo y el disco se verá al momento.",
     usbInstallDriver: "Instalar controlador",
+    mount: "Montar",
+    mountTitle: "Montar el disco",
+    mountHint: "Se monta ahora y queda guardado: tras un reinicio vuelve solo. Dispositivo {{device}}.",
+    mountTarget: "Punto de montaje",
+    mountTargetHint: "Una carpeta bajo /mnt. Si ya existe, se reutiliza.",
+    mountTargetInvalid: "Usa una carpeta como /mnt/usb",
+    mountReadOnly: "Solo lectura",
+    mountReadOnlyHint: "Nadie podrá escribir en el disco desde la red.",
+    mountConfirm: "Montar disco",
+    unmount: "Desmontar",
+    unmountTitle: "Desmontar {{target}}",
+    unmountConsequence: "El disco deja de estar accesible y se olvida el montaje guardado. Los datos no se tocan.",
     service: {
       samba: {
         label: "Compartir carpetas (Windows/Mac)",

@@ -1077,6 +1077,22 @@ export const demoApi: typeof api = {
     if (s) { s.enabled = s.running = action === "enable"; }
     return { status: "ok" };
   },
+  mountStorage: async ({ device, target, read_only }) => {
+    await wait(800, 1500);
+    const d = state.storage.devices.find((x) => x.path === device);
+    if (d) {
+      d.mount_point = target;
+      d.managed = true;
+      d.fs_type = read_only ? "vfat (ro)" : "vfat";
+    }
+    return state.storage;
+  },
+  unmountStorage: async (target) => {
+    await wait(600, 1200);
+    const d = state.storage.devices.find((x) => x.mount_point === target);
+    if (d) { d.mount_point = undefined; d.managed = false; }
+    return state.storage;
+  },
   installStorageService: async (name) => {
     await wait(1200, 1800);
     const s = state.storage.services.find((x) => x.name === name);

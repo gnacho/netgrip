@@ -349,6 +349,8 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("GET /api/storage", s.requireAuth(s.handleStorageGet))
 	s.mux.HandleFunc("POST /api/storage", s.requireAuth(s.handleStorageSet))
 	s.mux.HandleFunc("POST /api/storage/install", s.requireAuth(s.handleStorageInstall))
+	s.mux.HandleFunc("POST /api/storage/mount", s.requireAuth(s.handleStorageMount))
+	s.mux.HandleFunc("POST /api/storage/unmount", s.requireAuth(s.handleStorageUnmount))
 	s.mux.HandleFunc("GET /api/mac-acl", s.requireAuth(s.handleMACACLGet))
 	s.mux.HandleFunc("POST /api/mac-acl", s.requireAuth(s.handleMACACLSet))
 	s.mux.HandleFunc("GET /api/netpulse", s.requireAuth(s.handleNetPulseGet))
@@ -3375,6 +3377,38 @@ func (s *Server) handleStorageSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "applied"})
+}
+
+// handleStorageMount (#739): monta un disco detectado y deja la entrada de
+// fstab. El executor guarda snapshot, así que un fallo no deja basura.
+func (s *Server) handleStorageMount(w http.ResponseWriter, r *http.Request) {
+	var req modules.StorageMountRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, err := modules.MountStorage(req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, probe)
+}
+
+func (s *Server) handleStorageUnmount(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Target string `json:"target"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, err := modules.UnmountStorage(req.Target)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, probe)
 }
 
 // handleStorageInstall (#720): instala el paquete de samba4 o minidlna y

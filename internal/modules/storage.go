@@ -18,6 +18,9 @@ type StorageDevice struct {
 	UsedBytes  uint64 `json:"used_bytes"`
 	FreeBytes  uint64 `json:"free_bytes"`
 	MountPoint string `json:"mount_point,omitempty"`
+	// Managed: la entrada de fstab la creó este panel, así que se puede
+	// desmontar desde aquí sin pisar una configurada a mano (#739).
+	Managed bool `json:"managed"`
 }
 
 type StorageService struct {
@@ -183,6 +186,7 @@ func detectUSBStorage() []StorageDevice {
 		}
 
 		if dev.MountPoint != "" {
+			dev.Managed = storageMountManaged(dev.MountPoint)
 			cmd := exec.Command("df", "-B1", dev.MountPoint)
 			out, err := cmd.Output()
 			if err == nil {

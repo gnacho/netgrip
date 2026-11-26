@@ -750,6 +750,7 @@ export const demoStorage: T.StorageProbe = {
     used_bytes: Math.round(120 * 0.41 * 1024) * MIB,
     free_bytes: Math.round(120 * 0.59 * 1024) * MIB,
     mount_point: "/mnt/backups",
+    managed: true,
   }],
   services: [
     { name: "samba", running: true, enabled: true, installed: true },
