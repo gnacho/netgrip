@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/gnacho/netgrip/internal/executor"
 )
 
 type StorageDevice struct {
@@ -30,6 +32,32 @@ type StorageService struct {
 	// Installed: el paquete está puesto (existe su init script). Sin él la
 	// página ofrece instalarlo en vez de un interruptor muerto (#720).
 	Installed bool `json:"installed"`
+}
+
+// storageServiceUCI maps a service to the UCI switch its init script reads
+// before starting. minidlna refuses to run with enabled=0 even when the init
+// script itself is enabled, so toggling only the symlink left it "on" and
+// dead (#747).
+var storageServiceUCI = map[string]string{
+	"minidlna": "minidlna.config.enabled",
+}
+
+// storageServiceProcesses lists the names to try with pidof: the PROG the
+// init script launches (minidlnad), then the service name.
+func storageServiceProcesses(name string) []string {
+	if data, err := os.ReadFile("/etc/init.d/" + name); err == nil {
+		for _, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			if !strings.HasPrefix(line, "PROG=") {
+				continue
+			}
+			prog := strings.Trim(strings.TrimPrefix(line, "PROG="), "\"'")
+			if base := filepath.Base(prog); base != "" && base != "." && base != "/" {
+				return []string{base, name, name + "d"}
+			}
+		}
+	}
+	return []string{name, name + "d"}
 }
 
 // storageServicePackages maps the services the page manages to the package
@@ -222,13 +250,20 @@ func probeStorageService(name string) StorageService {
 	}
 
 	out, err := exec.Command("/etc/init.d/"+name, "enabled").CombinedOutput()
-	if err == nil && strings.TrimSpace(string(out)) == "" {
-		svc.Enabled = true
+	initEnabled := err == nil && strings.TrimSpace(string(out)) == ""
+	if key, ok := storageServiceUCI[name]; ok {
+		// Arrancará al bootear solo si el switch propio también está a 1.
+		svc.Enabled = initEnabled && uciGet(key) == "1"
+	} else {
+		svc.Enabled = initEnabled
 	}
 
-	out, err = exec.Command("pidof", name).CombinedOutput()
-	if err == nil && strings.TrimSpace(string(out)) != "" {
-		svc.Running = true
+	for _, proc := range storageServiceProcesses(name) {
+		out, err = exec.Command("pidof", proc).CombinedOutput()
+		if err == nil && strings.TrimSpace(string(out)) != "" {
+			svc.Running = true
+			break
+		}
 	}
 
 	return svc
@@ -243,6 +278,22 @@ func SetStorageService(name string, action string) error {
 	initPath := "/etc/init.d/" + name
 	if _, err := os.Stat(initPath); err != nil {
 		return err
+	}
+
+	// Sin este switch el servicio queda "encendido" y muerto (#747).
+	if key, ok := storageServiceUCI[name]; ok {
+		val := "0"
+		if action == "enable" {
+			val = "1"
+		}
+		cfg := strings.SplitN(key, ".", 2)[0]
+		ops := []executor.Op{
+			{Kind: "uci_set", Args: []string{key, val}},
+			{Kind: "uci_commit", Args: []string{cfg}},
+		}
+		if err := executor.Apply(ops, nil); err != nil {
+			return err
+		}
 	}
 
 	exec.Command(initPath, action).Run()
