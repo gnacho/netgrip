@@ -455,7 +455,8 @@ function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: 
         {draft.length === 0 ? (
           <EmptyState small title={t("banip.feedsEmpty")} />
         ) : (
-          <table className="w-full border-collapse">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[40rem] border-collapse">
             <thead>
               <tr className="border-b border-border/60 text-left">
                 <th className="pb-2 pr-4">{t("banip.feedName")}</th>
@@ -497,6 +498,7 @@ function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: 
               })}
             </tbody>
           </table>
+          </div>
         )}
         <p className="text-caption text-faint">{t("banip.feedsNote")}</p>
       </div>
@@ -514,7 +516,8 @@ function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: 
         {available.length === 0 ? (
           <EmptyState small title={t("banip.catalogEmpty")} />
         ) : (
-          <table className="w-full border-collapse">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[34rem] border-collapse">
             <thead>
               <tr className="border-b border-border/60 text-left">
                 <th className="pb-2 pr-4">{t("banip.feedName")}</th>
@@ -550,6 +553,7 @@ function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: 
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Modal>
     </div>
@@ -694,7 +698,8 @@ function DosTab({ probe }: { probe: BanipProbe }) {
   return (
     <div className="flex flex-col gap-3 border-t border-border pt-4">
       <p className="text-small font-medium text-secondary">{t("banip.dosTitle")}</p>
-      <table className="w-full border-collapse">
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[30rem] border-collapse">
         <thead>
           <tr className="border-b border-border/60 text-left">
             <th className="pb-2 pr-4">{t("banip.dosCounter")}</th>
@@ -712,6 +717,7 @@ function DosTab({ probe }: { probe: BanipProbe }) {
           ))}
         </tbody>
       </table>
+      </div>
       <p className="text-caption text-faint">{t("banip.dosNote")}</p>
     </div>
   );
