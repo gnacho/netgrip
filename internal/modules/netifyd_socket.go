@@ -38,18 +38,19 @@ type NetifydTimelineResponse struct {
 
 // NetifydTimelineBucket is one time slot with per-app counters.
 type NetifydTimelineBucket struct {
-	Time string                    `json:"time"`
+	Time string                   `json:"time"`
 	Apps map[string]NetifydBucket `json:"apps"`
 }
 
 // NetifydApp is one aggregated application entry from netifyd flow data.
 type NetifydApp struct {
-	Name        string `json:"name"`
-	Bytes       int64  `json:"bytes"`
-	LocalBytes  int64  `json:"local_bytes"`
-	OtherBytes  int64  `json:"other_bytes"`
-	Packets     int64  `json:"packets"`
-	Flows       int    `json:"flows"`
+	Name       string `json:"name"`
+	Category   string `json:"category"`
+	Bytes      int64  `json:"bytes"`
+	LocalBytes int64  `json:"local_bytes"`
+	OtherBytes int64  `json:"other_bytes"`
+	Packets    int64  `json:"packets"`
+	Flows      int    `json:"flows"`
 }
 
 // netifydFlow is what the table knows about one live flow.
@@ -64,6 +65,7 @@ type NetifydApp struct {
 type netifydFlow struct {
 	appName   string
 	protoName string
+	catName   string
 	lastLocal int64
 	lastOther int64
 	lastTotal int64
@@ -93,8 +95,12 @@ const pendingFlushAfter = 90 * time.Second
 
 // netifydAppTable holds the live aggregation. It is safe for concurrent use.
 type netifydAppTable struct {
-	mu         sync.Mutex
-	apps       map[string]*NetifydApp
+	mu   sync.Mutex
+	apps map[string]*NetifydApp
+	// cats remembers the category per label: nDPI names the application
+	// before the first byte arrives, so the category has to wait for the app
+	// entry to exist (#687).
+	cats       map[string]string
 	flows      map[string]*netifydFlow
 	buckets    map[int64]map[string]*NetifydBucket
 	maxApps    int
@@ -111,6 +117,7 @@ func newNetifydTable(maxApps, maxFlows int) *netifydAppTable {
 	}
 	return &netifydAppTable{
 		apps:       make(map[string]*NetifydApp),
+		cats:       make(map[string]string),
 		flows:      make(map[string]*netifydFlow),
 		buckets:    make(map[int64]map[string]*NetifydBucket),
 		maxApps:    maxApps,
@@ -168,7 +175,7 @@ func bucketNow() int64 {
 func (t *netifydAppTable) creditLocked(label string, bucket, local, other, total, packets int64) {
 	app, ok := t.apps[label]
 	if !ok {
-		app = &NetifydApp{Name: label}
+		app = &NetifydApp{Name: label, Category: t.cats[label]}
 		t.apps[label] = app
 		if len(t.apps) > t.maxApps {
 			t.evictSmallestApp()
@@ -211,7 +218,7 @@ func (t *netifydAppTable) countFlowLocked(f *netifydFlow, label string) {
 	}
 	app, ok := t.apps[label]
 	if !ok {
-		app = &NetifydApp{Name: label}
+		app = &NetifydApp{Name: label, Category: t.cats[label]}
 		t.apps[label] = app
 		if len(t.apps) > t.maxApps {
 			t.evictSmallestApp()
@@ -231,13 +238,18 @@ func (t *netifydAppTable) flushLocked(f *netifydFlow) {
 	if f.sawBytes {
 		t.countFlowLocked(f, label)
 	}
+	if f.catName != "" {
+		if app, ok := t.apps[label]; ok && app.Category == "" {
+			app.Category = f.catName
+		}
+	}
 }
 
 // setFlowApp records what nDPI knows about a digest. The application is kept
 // apart from the protocol so the protocol is only used as a fallback, and the
 // bytes held while waiting are moved to the application as soon as it is
 // named.
-func (t *netifydAppTable) setFlowApp(digest, appName, protoName string) {
+func (t *netifydAppTable) setFlowApp(digest, appName, protoName, category string) {
 	if digest == "" {
 		return
 	}
@@ -246,6 +258,10 @@ func (t *netifydAppTable) setFlowApp(digest, appName, protoName string) {
 	f := t.flowLocked(digest)
 	if protoName != "" {
 		f.protoName = protoName
+	}
+	if category != "" {
+		f.catName = category
+		t.cats[appName] = category
 	}
 	if appName == "" || appName == "Unknown" || appName == f.appName {
 		return
@@ -359,8 +375,13 @@ func (t *netifydAppTable) Timeline() NetifydTimelineResponse {
 
 	top := make([]NetifydApp, 0, len(appTotals))
 	for name, entry := range appTotals {
+		category := ""
+		if app, ok := t.apps[name]; ok {
+			category = app.Category
+		}
 		top = append(top, NetifydApp{
 			Name:       name,
+			Category:   category,
 			Bytes:      entry.Total,
 			LocalBytes: entry.Local,
 			OtherBytes: entry.Other,
@@ -511,7 +532,7 @@ func (c *netifydSocketClient) readLoop(ctx context.Context) error {
 		}
 
 		// Each message is preceded by a {"length": N} framing line.
-		 framing, err := reader.ReadString('\n')
+		framing, err := reader.ReadString('\n')
 		if err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
@@ -551,7 +572,15 @@ type flowMsg struct {
 		Digest                  string `json:"digest"`
 		DetectedApplicationName string `json:"detected_application_name"`
 		DetectedProtocolName    string `json:"detected_protocol_name"`
+		Category                string `json:"category"`
 	} `json:"flow,omitempty"`
+}
+
+func (m *flowMsg) category() string {
+	if m.Flow != nil {
+		return m.Flow.Category
+	}
+	return ""
 }
 
 func (m *flowMsg) digest() string {
@@ -625,7 +654,7 @@ func (c *netifydSocketClient) handleMessage(line string) {
 		if err := json.Unmarshal([]byte(line), &msg); err != nil {
 			return
 		}
-		c.table.setFlowApp(msg.digest(), msg.appName(), msg.protoName())
+		c.table.setFlowApp(msg.digest(), msg.appName(), msg.protoName(), msg.category())
 	case "flow_stats":
 		var msg statsMsg
 		if err := json.Unmarshal([]byte(line), &msg); err != nil {

@@ -6,6 +6,7 @@ import type { DPIProbe, NetifydApp, NetifydProbe, NetifydTimeline } from "../typ
 import { ActionBanner, Button, Card, EmptyState, Pill, Skeleton, Toggle } from "../components/ui";
 import { Input } from "../components/ui/Field";
 import { MultiSeriesChart, type MultiSeries } from "../components/ui/charts";
+import { AppIcon } from "../components/dpi/appIcons";
 import { fmtBytes } from "../lib/format";
 
 function oneLine(text: string) {
@@ -393,8 +394,8 @@ function DpiNetifydView({
                   <tr key={app.name} className="border-b border-border/40 last:border-0">
                     <td className="py-3 pr-4">
                       <span className="flex items-center gap-2 text-small">
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-surface-2 text-caption font-medium shrink-0">
-                          {app.name.slice(0, 2).toUpperCase()}
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-surface-2 text-muted shrink-0">
+                          <AppIcon name={app.name} category={app.category} size={14} />
                         </span>
                         {app.name}
                       </span>
