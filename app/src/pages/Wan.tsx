@@ -94,18 +94,20 @@ export function WanPage({ mwan, onMwanChange, hideMode = false }: {
 
   const set = (patch: Partial<WANConfig>) => setForm((f) => ({ ...f, ...patch }));
 
-  // Asking the outside world what address we come from is the one thing
-  // that leaves the network, so it happens on a click and never on a poll.
-  const checkPublic = async () => {
+  // Asking the outside world what address we come from is the only traffic
+  // that leaves the network. It runs once when the page opens (the server
+  // caches the answer for a minute) and the button forces a fresh check.
+  const checkPublic = async (force = false, quiet = false) => {
     setChecking(true);
     try {
-      setPublicIp(await api.checkPublicIp());
+      setPublicIp(await api.checkPublicIp(force));
     } catch (e) {
-      push({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
+      if (!quiet) push({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
     } finally {
       setChecking(false);
     }
   };
+  useEffect(() => { checkPublic(false, true); /* eslint-disable-line react-hooks/exhaustive-deps */ }, []);
   const protoLabel = (p: string) => t(PROTO_KEY[p] ?? p);
 
   const save = async () => {
@@ -187,30 +189,29 @@ export function WanPage({ mwan, onMwanChange, hideMode = false }: {
                   sees are not always the same number, and that difference
                   is what makes people think something is broken. */}
               {status.up && (
-                <div className="mt-2.5">
-                  {publicIp ? (
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <span className="text-small text-muted">{t("wan.publicSeen")}</span>
+                <div className="mt-2.5 flex flex-col gap-1">
+                  {/* La pregunta es la etiqueta del dato: qué dirección ven
+                      las webs. Se consulta al abrir y se puede repetir. */}
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span className="text-small text-muted">{t("wan.publicCheck")}</span>
+                    {publicIp ? (
                       <span className="font-mono text-body">{publicIp.ip}</span>
-                      <span className="text-caption text-muted">
-                        {publicIp.ip === stats.ip
+                    ) : (
+                      <span className="text-small text-faint">{checking ? t("wan.publicChecking") : "—"}</span>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => checkPublic(true)} loading={checking}>
+                      {t("wan.publicAgain")}
+                    </Button>
+                  </div>
+                  <span className="text-caption text-muted">
+                    {publicIp
+                      ? (publicIp.ip === stats.ip
                           ? t("wan.publicSame")
-                          : t("wan.publicVia", { source: publicIp.source })}
-                      </span>
-                      <Button variant="ghost" size="sm" onClick={checkPublic} loading={checking}>
-                        {t("wan.publicAgain")}
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      {stats.ip !== "—" && providerAddress(stats.ip) && (
-                        <span className="text-caption text-muted">{t("wan.publicShared")}</span>
-                      )}
-                      <Button variant="secondary" size="sm" onClick={checkPublic} loading={checking}>
-                        {t("wan.publicCheck")}
-                      </Button>
-                    </div>
-                  )}
+                          : t("wan.publicVia", { source: publicIp.source }))
+                      : stats.ip !== "—" && providerAddress(stats.ip)
+                        ? t("wan.publicShared")
+                        : ""}
+                  </span>
                 </div>
               )}
             </div>

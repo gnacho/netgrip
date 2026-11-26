@@ -441,6 +441,7 @@ export default {
     uptimeLabel: "Uptime",
     publicCheck: "What address do sites see?",
     publicAgain: "Check again",
+    publicChecking: "Asking…",
     publicSeen: "Sites see",
     publicVia: "asked {{source}}",
     publicSame: "same as this connection",

@@ -440,6 +440,7 @@ export default {
     uptimeLabel: "Tiempo conectado",
     publicCheck: "¿Qué dirección ven las webs?",
     publicAgain: "Volver a comprobar",
+    publicChecking: "Consultando…",
     publicSeen: "Las webs ven",
     publicVia: "consultado a {{source}}",
     publicSame: "la misma de esta conexión",
