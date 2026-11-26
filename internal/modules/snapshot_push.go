@@ -10,10 +10,10 @@ import (
 	"time"
 )
 
-const (
-	pushConfigPath = "/etc/netgrip/push-config.json"
-	pushTimeout    = 30 * time.Second
-)
+const pushTimeout = 30 * time.Second
+
+// var so tests can point at a temporary file.
+var pushConfigPath = "/etc/netgrip/push-config.json"
 
 type PushConfig struct {
 	ServerURL string `json:"server_url"`
@@ -27,13 +27,41 @@ type PushResult struct {
 	Error      string `json:"error,omitempty"`
 }
 
-func GetPushConfig() PushConfig {
+// pushNetPulseEnvPath is injectable so tests can point at a temporary file.
+var pushNetPulseEnvPath = func() string { return prodNetPulsePaths().env }
+
+func readPushConfigFile() PushConfig {
 	data, err := os.ReadFile(pushConfigPath)
 	if err != nil {
 		return PushConfig{}
 	}
 	var cfg PushConfig
 	_ = json.Unmarshal(data, &cfg)
+	return cfg
+}
+
+// GetPushConfig returns the push settings, filled from the embedded NetPulse
+// agent when the card has never been saved (#721). Both talk to the same
+// server with the same token, and the agent already knows the slug, so the
+// card no longer asks again for what NetGrip already has.
+func GetPushConfig() PushConfig {
+	cfg := readPushConfigFile()
+	if cfg.ServerURL != "" && cfg.RouterID != "" {
+		return cfg
+	}
+	np, err := ReadNetPulseConfig(pushNetPulseEnvPath())
+	if err != nil {
+		return cfg
+	}
+	if cfg.ServerURL == "" {
+		cfg.ServerURL = np.Server
+	}
+	if cfg.RouterID == "" {
+		cfg.RouterID = np.Slug
+	}
+	if cfg.Token == "" {
+		cfg.Token = np.Token
+	}
 	return cfg
 }
 
