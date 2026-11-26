@@ -329,6 +329,8 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("POST /api/fleet/adopt", s.requireAuth(s.handleFleetAdopt))
 	s.mux.HandleFunc("GET /api/cable-test", s.requireAuth(s.handleCableTestGet))
 	s.mux.HandleFunc("GET /api/diagnostics/selftest", s.requireAuth(s.handleDiagnosticsSelfTest))
+	s.mux.HandleFunc("GET /api/logs", s.requireAuth(s.handleDeviceLogs))
+	s.mux.HandleFunc("GET /api/leds", s.requireAuth(s.handleLEDs))
 	s.mux.HandleFunc("POST /api/diagnostics", s.requireAuth(s.handleDiagnosticsRun))
 	s.mux.HandleFunc("GET /api/speedtest", s.requireAuth(s.handleSpeedTestStatus))
 	s.mux.HandleFunc("POST /api/speedtest", s.requireAuth(s.handleSpeedTestStart))
@@ -3800,4 +3802,24 @@ func servingSource(path string) string {
 	default:
 		return modules.CertSourceCustom
 	}
+}
+
+// handleDeviceLogs returns the system ring buffer, parsed and filtered. It is
+// the log side of the device parity work (#642): the app can show what the
+// router logged without shelling out to logread.
+func (s *Server) handleDeviceLogs(w http.ResponseWriter, r *http.Request) {
+	lines := 200
+	if v := r.URL.Query().Get("lines"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			lines = n
+		}
+	}
+	writeJSON(w, modules.ProbeDeviceLogs(lines, r.URL.Query().Get("filter")))
+}
+
+// handleLEDs lists the LEDs the router knows about. Read-only: writing the
+// sysfs default drops the trigger these LEDs carry (netdev on the port LEDs)
+// and the indication with it.
+func (s *Server) handleLEDs(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, modules.ProbeLEDs())
 }
