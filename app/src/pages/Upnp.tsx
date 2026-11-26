@@ -133,28 +133,91 @@ export function UpnpPage() {
   const active = probe.enabled && probe.running;
 
   return (
-    <div className="flex flex-col gap-[var(--card-gap)]">
-      {/* Estado + toggle + uninstall */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Pill tone={active ? "ok" : probe.enabled ? "warn" : "muted"} live={active}>
-          {active ? t("upnp.stateActive") : probe.enabled ? t("upnp.stateStopped") : t("upnp.stateDisabled")}
-        </Pill>
-        {probe.natpmp && <Pill tone="muted">NAT-PMP</Pill>}
-        {probe.upnp && <Pill tone="muted">UPnP</Pill>}
-        <span className="flex-1" />
-        <Toggle
-          checked={active}
-          disabled={busy}
-          busy={busy}
-          onChange={onToggle}
-          label={t("upnp.cardTitle")}
-        />
-        <Button variant="ghost" size="sm" className="text-danger hover:text-danger" disabled={busy} onClick={() => setConfirmUninstall(true)}>
-          <Trash2 size={14} aria-hidden="true" /> {t("upnp.uninstall")}
-        </Button>
+    <>
+      <div className="flex flex-col gap-[var(--card-gap)]">
+        {/* Una sola tarjeta mientras está apagado: switch y la ayuda. Todo lo
+            demás (aviso, mapeos y ACL) solo tiene sentido con UPnP en marcha. */}
+        <Card
+          index={0}
+          icon={ArrowLeftRight}
+          iconTone="accent"
+          title={t("upnp.enableTitle")}
+          help="upnp"
+          action={
+            <span className="flex items-center gap-2">
+              <Toggle
+                checked={active}
+                disabled={busy}
+                busy={busy}
+                onChange={onToggle}
+                label={t("upnp.enableTitle")}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-danger hover:text-danger"
+                disabled={busy}
+                onClick={() => setConfirmUninstall(true)}
+              >
+                <Trash2 size={14} aria-hidden="true" /> {t("upnp.uninstall")}
+              </Button>
+            </span>
+          }
+        >
+          {active && (
+            <div className="flex flex-col gap-2">
+              <Banner tone="warn" icon={TriangleAlert}>
+                {t("upnp.riskNote")}
+              </Banner>
+              {probe.secure_mode && (
+                <p className="text-caption text-faint">{t("upnp.secureModeOn")}</p>
+              )}
+            </div>
+          )}
+        </Card>
+
+        {active && (
+          <>
+            {/* Mapeos activos: los dueños son los clientes que los piden. */}
+            <Card index={1} icon={ArrowLeftRight} iconTone="accent" title={t("upnp.mappingsTitle")}>
+              {probe.leases.length === 0 ? (
+                <EmptyState small title={t("upnp.mappingsEmpty")} />
+              ) : (
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[34rem] border-collapse">
+                  <thead>
+                    <tr className="border-b border-border/60 text-left">
+                      <th className="pb-2 pr-4">{t("upnp.colProto")}</th>
+                      <th className="pb-2 pr-4 text-right">{t("upnp.colExtPort")}</th>
+                      <th className="pb-2 pr-4">{t("upnp.colIntAddr")}</th>
+                      <th className="pb-2 pr-4 text-right">{t("upnp.colIntPort")}</th>
+                      <th className="pb-2 pr-4 text-right">{t("upnp.colLease")}</th>
+                      <th className="pb-2 text-right">{t("upnp.colDesc")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {probe.leases.map((l, i) => (
+                      <tr key={`${l.proto}-${l.ext_port}-${i}`} className="border-b border-border/40 last:border-0">
+                        <td className="py-2 pr-4 font-mono text-small">{l.proto}</td>
+                        <td className="py-2 pr-4 text-right font-mono text-small tabular-nums">{fmtInt.format(l.ext_port)}</td>
+                        <td className="py-2 pr-4 font-mono text-small">{l.int_addr}</td>
+                        <td className="py-2 pr-4 text-right font-mono text-small tabular-nums">{fmtInt.format(l.int_port)}</td>
+                        <td className="py-2 pr-4 text-right text-small tabular-nums text-muted">{fmtLease(l.lease_time)}</td>
+                        <td className="py-2 text-right text-small text-muted max-w-[220px]"><span className="line-clamp-1" title={l.desc}>{l.desc || "—"}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                </div>
+              )}
+              <p className="text-caption text-faint mt-3">{t("upnp.mappingsNote")}</p>
+            </Card>
+
+            <RulesCard probe={probe} busy={busy} onChanged={(p) => { setProbe(p); load(); }} onError={(m) => push({ tone: "danger", text: t("upnp.actionFailed"), detail: m })} />
+          </>
+        )}
       </div>
 
-      {/* Confirmación de riesgo (activar) + desinstalar */}
       <ConfirmDialog
         open={confirmEnable}
         onClose={() => setConfirmEnable(false)}
@@ -180,52 +243,7 @@ export function UpnpPage() {
         confirmLabel={t("upnp.uninstall")}
         busy={busy}
       />
-
-      {/* Riesgo + secure_mode */}
-      <Banner tone="warn" icon={TriangleAlert}>
-        {t("upnp.riskNote")}
-      </Banner>
-      <p className="text-small text-muted -mt-1">{t("upnp.introDesc")}</p>
-      {probe.secure_mode && (
-        <p className="text-caption text-faint -mt-1">{t("upnp.secureModeOn")}</p>
-      )}
-
-      {/* Mapeos activos */}
-      <Card icon={ArrowLeftRight} iconTone="accent" title={t("upnp.mappingsTitle")}>
-        {probe.leases.length === 0 ? (
-          <EmptyState small title={t("upnp.mappingsEmpty")} />
-        ) : (
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-border/60 text-left">
-                <th className="pb-2 pr-4">{t("upnp.colProto")}</th>
-                <th className="pb-2 pr-4 text-right">{t("upnp.colExtPort")}</th>
-                <th className="pb-2 pr-4">{t("upnp.colIntAddr")}</th>
-                <th className="pb-2 pr-4 text-right">{t("upnp.colIntPort")}</th>
-                <th className="pb-2 pr-4 text-right">{t("upnp.colLease")}</th>
-                <th className="pb-2 text-right">{t("upnp.colDesc")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {probe.leases.map((l, i) => (
-                <tr key={`${l.proto}-${l.ext_port}-${i}`} className="border-b border-border/40 last:border-0">
-                  <td className="py-2 pr-4 font-mono text-small">{l.proto}</td>
-                  <td className="py-2 pr-4 text-right font-mono text-small tabular-nums">{fmtInt.format(l.ext_port)}</td>
-                  <td className="py-2 pr-4 font-mono text-small">{l.int_addr}</td>
-                  <td className="py-2 pr-4 text-right font-mono text-small tabular-nums">{fmtInt.format(l.int_port)}</td>
-                  <td className="py-2 pr-4 text-right text-small tabular-nums text-muted">{fmtLease(l.lease_time)}</td>
-                  <td className="py-2 text-right text-small text-muted max-w-[220px]"><span className="line-clamp-1" title={l.desc}>{l.desc || "—"}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        <p className="text-caption text-faint mt-3">{t("upnp.mappingsNote")}</p>
-      </Card>
-
-      {/* ACL */}
-      <RulesCard probe={probe} busy={busy} onChanged={(p) => { setProbe(p); load(); }} onError={(m) => push({ tone: "danger", text: t("upnp.actionFailed"), detail: m })} />
-    </div>
+    </>
   );
 }
 
