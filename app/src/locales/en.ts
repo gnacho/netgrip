@@ -2911,6 +2911,10 @@ export default {
     pushFailed: "Push failed",
   },
   lanservices: {
+    exposedTitle: "Open to the Internet",
+    exposedHint: "Ports the router forwards to a machine on your network. They are edited in Internet.",
+    exposedUnnamed: "Port {{port}}",
+    exposedPill: "external {{port}}",
     emptyTitle: "No local services yet",
     emptyBody: "Add a self-hosted service (Jellyfin, Home Assistant, a NAS...) and see from the router whether it's reachable.",
     add: "Add service",
