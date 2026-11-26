@@ -65,6 +65,7 @@ type NetifydApp struct {
 type netifydFlow struct {
 	appName   string
 	protoName string
+	hostName  string
 	catName   string
 	lastLocal int64
 	lastOther int64
@@ -77,10 +78,15 @@ type netifydFlow struct {
 	countedAs string
 }
 
-// label is what a flow's bytes are credited to right now.
+// label is what a flow's bytes are credited to right now. When nDPI cannot
+// name the application, the domain netifyd saw is far more useful than the
+// protocol, and the protocol beats an anonymous Unknown (#711).
 func (f *netifydFlow) label() string {
 	if f.appName != "" {
 		return f.appName
+	}
+	if f.hostName != "" {
+		return f.hostName
 	}
 	if f.protoName != "" {
 		return f.protoName
@@ -268,6 +274,21 @@ func (t *netifydAppTable) setFlowApp(digest, appName, protoName, category string
 	}
 	f.appName = appName
 	t.flushLocked(f)
+}
+
+// setFlowHost remembers the domain netifyd saw for a digest. It is the label
+// used while nDPI has not named the application (#711).
+func (t *netifydAppTable) setFlowHost(digest, host string) {
+	if digest == "" || host == "" {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	f := t.flowLocked(digest)
+	if f.appName != "" || f.hostName == host {
+		return
+	}
+	f.hostName = host
 }
 
 // addStats credits the delta since the last message for digest.
@@ -572,6 +593,8 @@ type flowMsg struct {
 		Digest                  string `json:"digest"`
 		DetectedApplicationName string `json:"detected_application_name"`
 		DetectedProtocolName    string `json:"detected_protocol_name"`
+		HostServerName          string `json:"host_server_name"`
+		DNSHostName             string `json:"dns_host_name"`
 		Category                string `json:"category"`
 	} `json:"flow,omitempty"`
 }
@@ -595,6 +618,18 @@ func (m *flowMsg) protoName() string {
 		return ""
 	}
 	return m.Flow.DetectedProtocolName
+}
+
+// hostName is the domain netifyd resolved for the flow, either from TLS SNI
+// or from DNS. It is the fallback label when nDPI cannot name the app.
+func (m *flowMsg) hostName() string {
+	if m.Flow == nil {
+		return ""
+	}
+	if m.Flow.HostServerName != "" {
+		return m.Flow.HostServerName
+	}
+	return m.Flow.DNSHostName
 }
 
 func (m *flowMsg) appName() string {
@@ -654,6 +689,7 @@ func (c *netifydSocketClient) handleMessage(line string) {
 		if err := json.Unmarshal([]byte(line), &msg); err != nil {
 			return
 		}
+		c.table.setFlowHost(msg.digest(), msg.hostName())
 		c.table.setFlowApp(msg.digest(), msg.appName(), msg.protoName(), msg.category())
 	case "flow_stats":
 		var msg statsMsg

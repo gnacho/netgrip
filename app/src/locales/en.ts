@@ -2767,6 +2767,7 @@ export default {
     tableTitle: "Application traffic statistics",
     searchPlaceholder: "Enter application name",
     totalTraffic: "Total traffic",
+    unknownApp: "Unidentified",
     colApp: "Application",
     colTotal: "Total bandwidth",
     colBytes: "Bytes",

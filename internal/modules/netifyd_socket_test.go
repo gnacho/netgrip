@@ -57,6 +57,40 @@ func TestNetifydTableUnknownDigest(t *testing.T) {
 	}
 }
 
+// #711: con nDPI sin nombre de aplicación, el dominio que vio netifyd es más
+// útil que "Unknown".
+func TestNetifydFallsBackToHostName(t *testing.T) {
+	tbl := newNetifydTable(256, 4096)
+	c := newNetifydSocketClient("", tbl)
+
+	c.handleMessage(`{"type":"flow","flow":{"digest":"d2","detected_protocol_name":"","host_server_name":"netflix.com"}}`)
+	c.handleMessage(`{"type":"flow_stats","flow":{"digest":"d2","local_bytes":10,"other_bytes":20,"total_bytes":30,"total_packets":2}}`)
+	c.handleMessage(`{"type":"flow_purge","flow":{"digest":"d2","local_bytes":10,"other_bytes":20,"total_bytes":30,"total_packets":2}}`)
+
+	apps := tbl.Apps()
+	if len(apps) != 1 {
+		t.Fatalf("expected one app, got %+v", apps)
+	}
+	if apps[0].Name != "netflix.com" || apps[0].Bytes != 30 {
+		t.Fatalf("expected netflix.com with 30 bytes, got %+v", apps[0])
+	}
+}
+
+// Un dominio no pisa el nombre de aplicación cuando nDPI sí lo conoce.
+func TestNetifydHostNameKeepsApplication(t *testing.T) {
+	tbl := newNetifydTable(256, 4096)
+	c := newNetifydSocketClient("", tbl)
+
+	c.handleMessage(`{"type":"flow","flow":{"digest":"d3","detected_application_name":"YouTube","host_server_name":"googlevideo.com"}}`)
+	c.handleMessage(`{"type":"flow_stats","flow":{"digest":"d3","local_bytes":1,"other_bytes":1,"total_bytes":2,"total_packets":1}}`)
+	c.handleMessage(`{"type":"flow_purge","flow":{"digest":"d3","local_bytes":1,"other_bytes":1,"total_bytes":2,"total_packets":1}}`)
+
+	apps := tbl.Apps()
+	if len(apps) != 1 || apps[0].Name != "YouTube" {
+		t.Fatalf("expected YouTube, got %+v", apps)
+	}
+}
+
 func TestNetifydTableEviction(t *testing.T) {
 	tbl := newNetifydTable(2, 2)
 	// Fill the apps table past the limit.

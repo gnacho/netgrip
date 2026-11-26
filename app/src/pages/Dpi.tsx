@@ -13,6 +13,9 @@ function oneLine(text: string) {
   return <span className="block truncate" title={text}>{text}</span>;
 }
 
+/** #711: netifyd entrega "Unknown" cuando nDPI no identifica el flujo. */
+const UNKNOWN_APP = "Unknown";
+
 export function DpiPage() {
   const { t } = useTranslation();
   const [probe, setProbe] = useState<DPIProbe>();
@@ -111,11 +114,11 @@ export function DpiPage() {
     const appNames = timeline.top.map((a) => a.name);
     return appNames.map((name, idx) => ({
       key: name,
-      label: name,
+      label: name === UNKNOWN_APP ? t("dpi.unknownApp") : name,
       color: palette[idx % palette.length],
       points: timeline.buckets.map((b) => b.apps[name]?.total ?? 0),
     }));
-  }, [timeline]);
+  }, [timeline, t]);
 
   const xLabels = useMemo(() => {
     if (!timeline?.buckets?.length) return [];
@@ -128,7 +131,12 @@ export function DpiPage() {
   const filteredApps = useMemo(() => {
     const list = timeline?.top ?? apps ?? [];
     const term = search.trim().toLowerCase();
-    let rows = term ? list.filter((a) => a.name.toLowerCase().includes(term)) : [...list];
+    let rows = term
+      ? list.filter((a) => {
+          const name = a.name === UNKNOWN_APP ? t("dpi.unknownApp") : a.name;
+          return a.name.toLowerCase().includes(term) || name.toLowerCase().includes(term);
+        })
+      : [...list];
     rows.sort((a, b) => {
       const va = a[sort.key];
       const vb = b[sort.key];
@@ -138,7 +146,7 @@ export function DpiPage() {
       return sort.dir === "asc" ? (va as number) - (vb as number) : (vb as number) - (va as number);
     });
     return rows;
-  }, [timeline, apps, search, sort]);
+  }, [timeline, apps, search, sort, t]);
 
   const maxBytes = useMemo(() => {
     if (timeline?.top?.length) return Math.max(1, ...timeline.top.map((a) => a.bytes));
@@ -397,7 +405,7 @@ function DpiNetifydView({
                         <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-surface-2 text-muted shrink-0">
                           <AppIcon name={app.name} category={app.category} size={14} />
                         </span>
-                        {app.name}
+                        {app.name === UNKNOWN_APP ? t("dpi.unknownApp") : app.name}
                       </span>
                     </td>
                     <td className="py-3 pr-4 text-right font-mono text-small" style={{ fontVariantNumeric: "tabular-nums" }}>
