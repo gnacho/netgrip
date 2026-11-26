@@ -161,6 +161,10 @@ export default {
     },
   },
   help: {
+    banip: {
+      title: "What does banIP do?",
+      body: "It blocks traffic to and from addresses with a bad reputation, using public lists that update themselves. Each list decides whether it filters on the way in or out, and you can add addresses by hand in the allow and block lists.",
+    },
     upnp: {
       title: "What is UPnP?",
       body: "It lets applications on your network open ports on the router on their own, without you writing the rule by hand. Convenient for games, consoles and cameras, but any device at home can do it. The list below decides who can.",
@@ -731,6 +735,7 @@ export default {
     minutes: "{{count}}m",
   },
   banip: {
+    title: "banIP",
     stateActive: "Active",
     stateStopped: "Stopped",
     startingHint: "Starting banIP: the first run downloads the feeds and can take a minute. Keep the page open.",

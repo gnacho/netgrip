@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowDownToLine, ArrowUpDown, ArrowUpFromLine, Ban, Info, Play, Plus, RefreshCw, Search, ShieldBan, ShieldCheck, Square, Trash2, TriangleAlert } from "lucide-react";
+import { ArrowDownToLine, ArrowUpDown, ArrowUpFromLine, Info, Play, Plus, RefreshCw, ShieldBan, Square, Trash2, TriangleAlert } from "lucide-react";
 import { api } from "../api";
 import type { BanipCatalogFeed, BanipFeed, BanipProbe, BanipSearchResult, BanipStatus } from "../types";
 import {
@@ -90,13 +90,13 @@ function FeedInfoButton({ name, descr, chain, ipv6, downloadFailed }: { name: st
 }
 
 /** Tarjeta de cifra clave del resumen. */
-function StatCard({ index, label, value, hint }: { index: number; label: string; value: string; hint?: string }) {
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <Card index={index} className="md:col-span-3">
+    <div className="rounded-lg bg-surface-2 px-3 py-2.5">
       <p className="text-small text-muted">{label}</p>
       <p className="text-h2 mt-1 tabular-nums">{value}</p>
       {hint && <p className="text-caption text-faint mt-0.5">{hint}</p>}
-    </Card>
+    </div>
   );
 }
 
@@ -250,104 +250,116 @@ export function BanipPage() {
     ...(dosAvailable ? [{ value: "dos" as Tab, label: t("banip.tabDos") }] : []),
   ];
 
+  const fail = (msg: string) => push({ tone: "danger", text: t("banip.actionFailed"), detail: msg });
+
+  // Una sola tarjeta (#695): estado y acciones en la cabecera, y dentro el
+  // resumen, las pestañas y su contenido. Antes eran siete tarjetas.
   return (
-    <div className="flex flex-col gap-[var(--card-gap)]">
-      {/* Estado + acciones */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Pill tone={active ? "ok" : probe.enabled ? "warn" : "muted"} live={active}>
-          {active ? t("banip.stateActive") : probe.enabled ? t("banip.stateStopped") : t("banip.stateDisabled")}
-        </Pill>
-        {probe.version && <span className="text-caption text-faint font-mono">banIP {probe.version}</span>}
-        <span className="flex-1" />
-        {!active && (
-          <Button variant="secondary" size="sm" disabled={busy !== null}
-            onClick={() => run(probe.enabled ? "start" : "enable", () => api.banipAction(probe.enabled ? "start" : "enable"))}>
-            <Play size={14} aria-hidden="true" /> {probe.enabled ? t("banip.start") : t("banip.enable")}
-          </Button>
-        )}
-        {(busy === "enable" || busy === "start") && (
-          <span className="text-caption text-muted">{t("banip.startingHint")}</span>
-        )}
-        <Button variant="primary" size="sm" disabled={busy !== null}
-          title={t("banip.reloadHint")}
-          onClick={() => setConfirmReload(true)}>
-          <RefreshCw size={14} aria-hidden="true" /> {t("banip.reload")}
-        </Button>
-        <ConfirmDialog
-          open={confirmReload}
-          onClose={() => setConfirmReload(false)}
-          onConfirm={() => { setConfirmReload(false); run("reload", () => api.banipAction("reload")); }}
-          title={t("banip.reloadConfirmTitle")}
-          consequence={t("banip.reloadNote")}
-          confirmLabel={t("banip.reload")}
-          busy={busy === "reload"}
-        />
-        {active && (
-          <Button variant="secondary" size="sm" disabled={busy !== null}
-            onClick={() => run("stop", () => api.banipAction("stop"))}>
-            <Square size={14} aria-hidden="true" /> {t("banip.stop")}
-          </Button>
-        )}
-        <Button variant="ghost" size="sm" className="text-danger hover:text-danger" disabled={busy !== null}
-          onClick={() => setConfirmUninstall(true)}>
-          <Trash2 size={14} aria-hidden="true" /> {t("banip.uninstall")}
-        </Button>
-        <ConfirmDialog
-          open={confirmUninstall}
-          onClose={() => setConfirmUninstall(false)}
-          onConfirm={() => {
-            setConfirmUninstall(false);
-            setBusy("uninstall");
-            api.banipUninstall()
-              .then((p) => { setProbe(p); push({ tone: "ok", text: t("banip.uninstallOk") }); })
-              .catch((e) => push({ tone: "danger", text: t("banip.actionFailed"), detail: e instanceof Error ? e.message : String(e) }))
-              .finally(() => setBusy(null));
-          }}
-          title={t("banip.uninstallConfirmTitle")}
-          consequence={t("banip.uninstallConfirmBody")}
-          confirmLabel={t("banip.uninstall")}
-          busy={busy === "uninstall"}
-        />
-      </div>
+    <>
+      <Card
+        index={0}
+        icon={ShieldBan}
+        iconTone="warn"
+        title={t("banip.title")}
+        help="banip"
+        action={
+          <span className="flex flex-wrap items-center gap-2">
+            <Pill tone={active ? "ok" : probe.enabled ? "warn" : "muted"} live={active}>
+              {active ? t("banip.stateActive") : probe.enabled ? t("banip.stateStopped") : t("banip.stateDisabled")}
+            </Pill>
+            {probe.version && <span className="text-caption text-faint font-mono">banIP {probe.version}</span>}
+            {!active && (
+              <Button variant="secondary" size="sm" disabled={busy !== null}
+                onClick={() => run(probe.enabled ? "start" : "enable", () => api.banipAction(probe.enabled ? "start" : "enable"))}>
+                <Play size={14} aria-hidden="true" /> {probe.enabled ? t("banip.start") : t("banip.enable")}
+              </Button>
+            )}
+            {active && (
+              <Button variant="secondary" size="sm" disabled={busy !== null}
+                onClick={() => run("stop", () => api.banipAction("stop"))}>
+                <Square size={14} aria-hidden="true" /> {t("banip.stop")}
+              </Button>
+            )}
+            <Button variant="primary" size="sm" disabled={busy !== null}
+              title={t("banip.reloadHint")}
+              onClick={() => setConfirmReload(true)}>
+              <RefreshCw size={14} aria-hidden="true" /> {t("banip.reload")}
+            </Button>
+            <Button variant="ghost" size="sm" className="text-danger hover:text-danger" disabled={busy !== null}
+              onClick={() => setConfirmUninstall(true)}>
+              <Trash2 size={14} aria-hidden="true" /> {t("banip.uninstall")}
+            </Button>
+          </span>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-small text-muted">{t("banip.introDesc")}</p>
+          {(busy === "enable" || busy === "start") && (
+            <span className="text-caption text-muted">{t("banip.startingHint")}</span>
+          )}
+          {probe.ram_warning && !probe.ram_warning.dismissed && (
+            <Banner tone="warn" onDismiss={dismissRamWarning}>
+              {t("banip.lowMem", { mb: fmtInt.format(probe.ram_warning.free_mb) })}
+            </Banner>
+          )}
 
-      {/* Explicación sencilla + avisos */}
-      <p className="text-small text-muted -mt-1">{t("banip.introDesc")}</p>
-      {probe.ram_warning && !probe.ram_warning.dismissed && (
-        <Banner tone="warn" onDismiss={dismissRamWarning}>
-          {t("banip.lowMem", { mb: fmtInt.format(probe.ram_warning.free_mb) })}
-        </Banner>
-      )}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <Stat label={t("banip.statIps")} value={report?.parsed ? fmtInt.format(report.total_ips) : "—"}
+              hint={report?.parsed ? t("banip.statIpsHint") : undefined} />
+            {probe.nft_count && (
+              <Stat label={t("banip.statPackets")} value={report?.parsed ? fmtInt.format(report.packets_in + report.packets_out) : "—"}
+                hint={t("banip.statPacketsHint")} />
+            )}
+            <Stat label={t("banip.statFeeds")} value={`${enabledFeeds.length}`}
+              hint={t("banip.statFeedsHint", { total: (probe.feeds ?? []).length })} />
+            {dosAvailable && (
+              <Stat label={t("banip.statAutobans")} value={fmtInt.format(report.auto_block)}
+                hint={t("banip.statAutobansHint", { allow: fmtInt.format(report.auto_allow) })} />
+            )}
+          </div>
 
-      {/* Resumen */}
-      <div className="grid grid-cols-2 md:grid-cols-12 gap-[var(--card-gap)]">
-        <StatCard index={0} label={t("banip.statIps")} value={report?.parsed ? fmtInt.format(report.total_ips) : "—"}
-          hint={report?.parsed ? t("banip.statIpsHint") : undefined} />
-        {probe.nft_count && (
-          <StatCard index={1} label={t("banip.statPackets")} value={report?.parsed ? fmtInt.format(report.packets_in + report.packets_out) : "—"}
-            hint={t("banip.statPacketsHint")} />
-        )}
-        <StatCard index={2} label={t("banip.statFeeds")} value={`${enabledFeeds.length}`}
-          hint={t("banip.statFeedsHint", { total: (probe.feeds ?? []).length })} />
-        {dosAvailable && (
-          <StatCard index={3} label={t("banip.statAutobans")} value={fmtInt.format(report.auto_block)}
-            hint={t("banip.statAutobansHint", { allow: fmtInt.format(report.auto_allow) })} />
-        )}
-      </div>
+          <SegmentedControl<Tab>
+            ariaLabel={t("banip.tabs")}
+            value={tab}
+            onChange={setTab}
+            options={tabs}
+          />
 
-      <SegmentedControl<Tab>
-        ariaLabel={t("banip.tabs")}
-        value={tab}
-        onChange={setTab}
-        options={tabs}
+          {tab === "feeds" && (
+            <FeedsTab probe={probe} busy={busy !== null} onSaved={(p) => { setProbe(p); push({ tone: "ok", text: t("banip.feedsSaved") }); load(); }} onError={fail} />
+          )}
+          {tab === "search" && <SearchTab onError={fail} />}
+          {tab === "lists" && <ListsTab probe={probe} busy={busy !== null} onChanged={(p) => { setProbe(p); load(); }} onError={fail} />}
+          {tab === "dos" && dosAvailable && <DosTab probe={probe} />}
+        </div>
+      </Card>
+
+      <ConfirmDialog
+        open={confirmReload}
+        onClose={() => setConfirmReload(false)}
+        onConfirm={() => { setConfirmReload(false); run("reload", () => api.banipAction("reload")); }}
+        title={t("banip.reloadConfirmTitle")}
+        consequence={t("banip.reloadNote")}
+        confirmLabel={t("banip.reload")}
+        busy={busy === "reload"}
       />
-
-      {tab === "feeds" && (
-        <FeedsTab probe={probe} busy={busy !== null} onSaved={(p) => { setProbe(p); push({ tone: "ok", text: t("banip.feedsSaved") }); load(); }} onError={(msg) => push({ tone: "danger", text: t("banip.actionFailed"), detail: msg })} />
-      )}
-      {tab === "search" && <SearchTab onError={(msg) => push({ tone: "danger", text: t("banip.actionFailed"), detail: msg })} />}
-      {tab === "lists" && <ListsTab probe={probe} busy={busy !== null} onChanged={(p) => { setProbe(p); load(); }} onError={(msg) => push({ tone: "danger", text: t("banip.actionFailed"), detail: msg })} />}
-      {tab === "dos" && dosAvailable && <DosTab probe={probe} />}
-    </div>
+      <ConfirmDialog
+        open={confirmUninstall}
+        onClose={() => setConfirmUninstall(false)}
+        onConfirm={() => {
+          setConfirmUninstall(false);
+          setBusy("uninstall");
+          api.banipUninstall()
+            .then((p) => { setProbe(p); push({ tone: "ok", text: t("banip.uninstallOk") }); })
+            .catch((e) => fail(e instanceof Error ? e.message : String(e)))
+            .finally(() => setBusy(null));
+        }}
+        title={t("banip.uninstallConfirmTitle")}
+        consequence={t("banip.uninstallConfirmBody")}
+        confirmLabel={t("banip.uninstall")}
+        busy={busy === "uninstall"}
+      />
+    </>
   );
 }
 
@@ -431,15 +443,15 @@ function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: 
           {t("banip.recommendedBanner")}
         </Banner>
       )}
-      <Card icon={ShieldCheck} iconTone="success" title={t("banip.feedsTitle")}
-        action={
-          <span className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" icon={Plus} disabled={busy || saving} onClick={() => setAddOpen(true)}>
-              {t("banip.addList")}
-            </Button>
-            <Button variant="primary" size="sm" disabled={!dirty || busy || saving} onClick={save}>{t("common.save")}</Button>
-          </span>
-        }>
+      <div className="flex flex-col gap-3 border-t border-border pt-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-small font-medium text-secondary">{t("banip.feedsTitle")}</p>
+          <span className="flex-1" />
+          <Button variant="secondary" size="sm" icon={Plus} disabled={busy || saving} onClick={() => setAddOpen(true)}>
+            {t("banip.addList")}
+          </Button>
+          <Button variant="primary" size="sm" disabled={!dirty || busy || saving} onClick={save}>{t("common.save")}</Button>
+        </div>
         {draft.length === 0 ? (
           <EmptyState small title={t("banip.feedsEmpty")} />
         ) : (
@@ -486,8 +498,8 @@ function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: 
             </tbody>
           </table>
         )}
-        <p className="text-caption text-faint mt-3">{t("banip.feedsNote")}</p>
-      </Card>
+        <p className="text-caption text-faint">{t("banip.feedsNote")}</p>
+      </div>
 
       {/* Las listas disponibles viven tras el botón: la tarjeta se queda con
           lo que está configurado (#633). */}
@@ -565,7 +577,8 @@ function SearchTab({ onError }: { onError: (msg: string) => void }) {
   };
 
   return (
-    <Card icon={Search} iconTone="accent" title={t("banip.searchTitle")}>
+    <div className="flex flex-col gap-3 border-t border-border pt-4">
+      <p className="text-small font-medium text-secondary">{t("banip.searchTitle")}</p>
       <form className="flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); if (ip.trim()) search(); }}>
         <div className="flex-1">
           <Field label={t("banip.searchLabel")}>
@@ -592,7 +605,7 @@ function SearchTab({ onError }: { onError: (msg: string) => void }) {
           )}
         </div>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -624,7 +637,8 @@ function ListCard({ list, entries, busy, onChanged, onError }: {
   };
 
   return (
-    <Card icon={isAllow ? ShieldCheck : Ban} iconTone={isAllow ? "success" : "danger"} title={t(isAllow ? "banip.allowlist" : "banip.blocklist")}>
+    <div className="flex flex-col gap-3 border-t border-border pt-4">
+      <p className="text-small font-medium text-secondary">{t(isAllow ? "banip.allowlist" : "banip.blocklist")}</p>
       <form className="flex items-end gap-2" onSubmit={(e) => {
         e.preventDefault();
         const value = entry.trim();
@@ -650,7 +664,7 @@ function ListCard({ list, entries, busy, onChanged, onError }: {
           </li>
         ))}
       </ul>
-    </Card>
+    </div>
   );
 }
 
@@ -678,7 +692,8 @@ function DosTab({ probe }: { probe: BanipProbe }) {
     { label: t("banip.dosInvalidTcp"), value: dos.invalid_tcp_packets },
   ];
   return (
-    <Card icon={ShieldBan} iconTone="warn" title={t("banip.dosTitle")}>
+    <div className="flex flex-col gap-3 border-t border-border pt-4">
+      <p className="text-small font-medium text-secondary">{t("banip.dosTitle")}</p>
       <table className="w-full border-collapse">
         <thead>
           <tr className="border-b border-border/60 text-left">
@@ -697,7 +712,7 @@ function DosTab({ probe }: { probe: BanipProbe }) {
           ))}
         </tbody>
       </table>
-      <p className="text-caption text-faint mt-3">{t("banip.dosNote")}</p>
-    </Card>
+      <p className="text-caption text-faint">{t("banip.dosNote")}</p>
+    </div>
   );
 }
