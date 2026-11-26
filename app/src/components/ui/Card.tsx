@@ -12,9 +12,11 @@ import { HelpTip } from "./HelpTip";
  * keep their detail in a modal, so the summary takes as little vertical
  * space as possible.
  */
-export function Card({ eyebrow, title, icon, iconTone = "accent", help, action, onExpand, expandLabel, variant = "default", index = 0, id, className = "", children, animate = true, headerOnly = false }: {
+export function Card({ eyebrow, title, status, icon, iconTone = "accent", help, action, onExpand, expandLabel, variant = "default", index = 0, id, className = "", children, animate = true, headerOnly = false }: {
   eyebrow?: string;
   title?: ReactNode;
+  /** Badge that describes the title (state pill). Rendered right after it. */
+  status?: ReactNode;
   icon?: LucideIcon;
   iconTone?: Tone;
   help?: string;
@@ -49,14 +51,17 @@ export function Card({ eyebrow, title, icon, iconTone = "accent", help, action, 
           {eyebrow && <p className="text-eyebrow text-faint mb-1.5">{eyebrow}</p>}
           <div className={`flex items-center gap-2.5 ${headerOnly ? "flex-wrap" : ""}`}>
             {icon && <IconTile icon={icon} tone={iconTone} />}
-            {title && <h2 className="text-h2 flex-1 min-w-0">{title}</h2>}
-            {help && <HelpTip title={t(`help.${help}.title`)} body={t(`help.${help}.body`)} />}
-            {onExpand && (
-              <button type="button" onClick={onExpand} aria-label={expandLabel}
-                className="shrink-0 text-muted hover:text-text ring-focus rounded-sm">
-                <Maximize2 size={14} />
-              </button>
-            )}
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
+              {title && <h2 className="text-h2 min-w-0">{title}</h2>}
+              {status}
+              {help && <HelpTip title={t(`help.${help}.title`)} body={t(`help.${help}.body`)} />}
+              {onExpand && (
+                <button type="button" onClick={onExpand} aria-label={expandLabel}
+                  className="shrink-0 text-muted hover:text-text ring-focus rounded-sm">
+                  <Maximize2 size={14} />
+                </button>
+              )}
+            </div>
             {action}
           </div>
         </header>

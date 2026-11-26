@@ -73,7 +73,10 @@ export function HealthHero({ health, board, system, onNavigate, wireless, ports,
       b.speed_mbps - a.speed_mbps)[0];
   const hasWifi = wireless !== undefined;
   const hasUplink = ports !== undefined;
-  const columns = hasWifi && hasUplink ? "md:grid-cols-3" : hasWifi || hasUplink ? "md:grid-cols-2" : "";
+  const extras = (hasWifi ? 1 : 0) + (hasUplink ? 1 : 0);
+  const columns = extras === 0
+    ? "md:grid-cols-[minmax(0,1fr)_auto]"
+    : extras === 1 ? "md:grid-cols-2" : "md:grid-cols-3";
 
   return (
     <Card index={0} id="salud" className="md:col-span-12 order-1 md:order-none">
@@ -157,12 +160,25 @@ export function HealthHero({ health, board, system, onNavigate, wireless, ports,
             )}
           </div>
         )}
-      </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-border pt-2.5 text-caption text-muted">
-        <span><span className="text-faint">{t("overview.model")}:</span> <span className="text-text">{board?.model ?? "…"}</span></span>
-        <span><span className="text-faint">{t("overview.firmware")}:</span> <span className="text-text">{board?.release ? `${board.release.distribution} ${board.release.version}` : "…"}</span></span>
-        <span><span className="text-faint">{t("system.uptime")}:</span> <span className="text-text">{system ? fmtUptime(t, system.uptime) : "…"}</span></span>
+        {/* Identidad del equipo (#706): columna propia a la derecha, una
+            línea por dato. En móvil cae debajo del resto. */}
+        <div id="equipo" className={`min-w-0 border-t border-border pt-4 md:border-l md:border-t-0 md:pl-5 md:pt-0 ${extras === 0 ? "md:text-right" : ""}`}>
+          <div className="flex flex-col gap-1 text-caption text-muted">
+            <span className="truncate">
+              <span className="text-faint">{t("overview.model")}:</span>{" "}
+              <span className="text-text">{board?.model ?? "…"}</span>
+            </span>
+            <span className="truncate">
+              <span className="text-faint">{t("overview.firmware")}:</span>{" "}
+              <span className="text-text">{board?.release ? `${board.release.distribution} ${board.release.version}` : "…"}</span>
+            </span>
+            <span className="truncate">
+              <span className="text-faint">{t("system.uptime")}:</span>{" "}
+              <span className="text-text">{system ? fmtUptime(t, system.uptime) : "…"}</span>
+            </span>
+          </div>
+        </div>
       </div>
     </Card>
   );
@@ -186,7 +202,7 @@ export function InternetCard({ wan, mode }: { wan?: WanStatus; mode?: ModeProbe 
   return (
     <Card index={1} id="internet" className="md:col-span-4 order-2 md:order-none"
       title={oneLine(t("overview.internet"))} icon={Globe} help="internet"
-      action={wan && (
+      status={wan && (
         ap
           ? <Pill tone="muted">{t("overview.apMode")}</Pill>
           : <Pill tone={wan.up ? "ok" : "danger"}>{wan.up ? t("overview.connected") : t("overview.down")}</Pill>
