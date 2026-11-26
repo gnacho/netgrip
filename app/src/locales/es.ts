@@ -2168,6 +2168,12 @@ export default {
     policyIn: "Entrada: {{policy}}",
   },
   adguard: {
+    clientsSwitch: "Identificar cada dispositivo",
+    clientsHint: "Redirige el DNS de los clientes directamente a AdGuard, sin pasar por dnsmasq. AdGuard ve la IP de cada equipo y sus estadísticas dejan de contar todo como el router.",
+    clientsCaveat: "A cambio, las políticas por dominio (VPN y control parental) dejan de aplicarse y los nombres locales de la LAN (por ejemplo nas.lan) hay que resolverlos en AdGuard.",
+    clientsOn: "AdGuard ya recibe las consultas de cada dispositivo",
+    clientsOff: "Los clientes vuelven a preguntar a dnsmasq",
+    clientsFailed: "No se pudo cambiar la redirección del DNS",
     title: "Bloqueador de anuncios",
     stopped: "Parado",
     stop: "Parar",

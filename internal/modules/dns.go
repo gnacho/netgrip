@@ -29,13 +29,16 @@ type DNSConfig struct {
 	// AdGuardProtection is the DNS handoff (#360): dnsmasq forwards
 	// everything to the local AdGuard listener. AdGuardHasBackup reports the
 	// snapshot taken before the handoff, so the UI can promise a restore.
-	AdGuardProtection bool        `json:"adguard_protection"`
-	AdGuardHasBackup  bool        `json:"adguard_has_backup"`
-	AdGuardDnsPort    int         `json:"adguard_dns_port,omitempty"`
+	AdGuardProtection bool `json:"adguard_protection"`
+	AdGuardHasBackup  bool `json:"adguard_has_backup"`
+	AdGuardDnsPort    int  `json:"adguard_dns_port,omitempty"`
+	// AdGuardClients is the #671 redirect: LAN clients hit AdGuard directly,
+	// so its statistics show each device instead of the router.
+	AdGuardClients bool `json:"adguard_clients"`
 	// AdGuardCredentials reports who owns the web credential (#424):
 	// "managed" (NetGrip provisioned it, the card can show and rotate it),
 	// "external" (users NetGrip did not write, never touched) or "none".
-	AdGuardCredentials string      `json:"adguard_credentials,omitempty"`
+	AdGuardCredentials string `json:"adguard_credentials,omitempty"`
 	// DoH (#364): whether AdGuard resolves through DNS-over-HTTPS upstreams,
 	// the current upstream list (capped at 8) and the provider presets the UI
 	// offers. Providers are a backend constant (single source of truth).
@@ -76,6 +79,9 @@ func ProbeDNS() *DNSConfig {
 		c.AdGuardRunning = executor.ServiceRunning("adguardhome")
 		c.AdGuardDnsPort = adGuardResolvedPort()
 		c.AdGuardCredentials = adGuardCredStateNow()
+		if c.AdGuardProtection && c.AdGuardDnsPort > 0 {
+			c.AdGuardClients = adGuardClientsEnabled(adguardClientsFirewallShow(), c.AdGuardDnsPort)
+		}
 		c.DohEnabled, c.DohUpstreams = probeDoHState()
 	}
 	return c

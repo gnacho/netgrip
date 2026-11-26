@@ -218,6 +218,7 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("POST /api/dns/adguard/action", s.requireAuth(s.handleAdGuardAction))
 	s.mux.HandleFunc("GET /api/dns/adguard/credentials", s.requireAuth(s.handleAdGuardCredentials))
 	s.mux.HandleFunc("POST /api/dns/adguard/protection", s.requireAuth(s.handleAdGuardProtection))
+	s.mux.HandleFunc("POST /api/dns/adguard/clients", s.requireAuth(s.handleAdGuardClients))
 	s.mux.HandleFunc("POST /api/dns/doh/action", s.requireAuth(s.handleAdGuardDoH))
 	s.mux.HandleFunc("POST /api/dns/hosts", s.requireAuth(s.handleDNSHostsSet))
 	s.mux.HandleFunc("GET /api/netdev", s.requireAuth(s.handleNetDev))
@@ -1983,6 +1984,26 @@ func (s *Server) handleAdGuardProtection(w http.ResponseWriter, r *http.Request)
 	}
 	probe, rolledBack, err := modules.AdGuardProtection(req.Enable)
 	writeModuleResult(w, probe, rolledBack, err)
+}
+
+// handleAdGuardClients redirects LAN DNS straight to AdGuard (#671). It
+// touches the firewall of a live router, so it shares the confirm window and
+// the snapshot of every other connectivity-risky write.
+func (s *Server) handleAdGuardClients(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Enabled bool `json:"enabled"`
+		Confirm bool `json:"confirm,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	var snapshots map[string]string
+	if req.Confirm {
+		snapshots = snapshotConfigs("firewall")
+	}
+	probe, rolledBack, err := modules.AdGuardClientRequests(req.Enabled)
+	s.finishRiskyApply(w, probe, rolledBack, err, req.Confirm, snapshots, []string{"firewall"})
 }
 
 func (s *Server) handleAdGuardDoH(w http.ResponseWriter, r *http.Request) {
