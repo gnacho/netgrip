@@ -696,7 +696,7 @@ func AddWGPeerGenerated(name string, admin bool, endpoint string) (string, *WGPr
 	if endpoint == "" {
 		endpoint = lanIPv4()
 	}
-	// Guardada solo para poder volver a pintar el QR (#754); el fichero es 0600.
+	// Guardada solo para poder volver a pintar el QR (#756); el fichero es 0600.
 	if err := SaveWGClientPrivate(pub, priv); err != nil {
 		return "", probe, fmt.Errorf("save client key: %w", err)
 	}

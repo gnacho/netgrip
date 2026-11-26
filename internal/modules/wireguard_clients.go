@@ -16,7 +16,7 @@ import (
 // Un perfil de cliente WireGuard solo se puede volver a pintar si se guarda
 // su clave privada: sin ella el QR no se puede reconstruir. Se guarda en un
 // fichero 0600 (igual que UCI guarda la clave del servidor) y solo se
-// devuelve por la ruta autenticada que pide el QR (#754).
+// devuelve por la ruta autenticada que pide el QR (#756).
 
 var wgClientsPath = "/etc/netgrip/wg-clients.json"
 

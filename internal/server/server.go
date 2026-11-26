@@ -988,7 +988,7 @@ func (s *Server) handleWGPeerDelete(w http.ResponseWriter, r *http.Request) {
 	writeModuleResult(w, probe, rolledBack, err)
 }
 
-// handleWGPeerRename (#754): cambia la etiqueta de un peer.
+// handleWGPeerRename (#756): cambia la etiqueta de un peer.
 func (s *Server) handleWGPeerRename(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		PublicKey string `json:"public_key"`
@@ -1002,7 +1002,7 @@ func (s *Server) handleWGPeerRename(w http.ResponseWriter, r *http.Request) {
 	writeModuleResult(w, probe, rolledBack, err)
 }
 
-// handleWGPeerConfig (#754): devuelve el perfil del cliente para volver a
+// handleWGPeerConfig (#756): devuelve el perfil del cliente para volver a
 // pintar su QR. Si la clave privada no se guardó, responde 409 con code.
 func (s *Server) handleWGPeerConfig(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -1029,7 +1029,7 @@ func (s *Server) handleWGPeerConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"config": cfg})
 }
 
-// handleWGPeerRotate (#754): nuevo par de claves para el peer y devuelve el
+// handleWGPeerRotate (#756): nuevo par de claves para el peer y devuelve el
 // perfil. El dispositivo anterior deja de conectar hasta importar el nuevo.
 func (s *Server) handleWGPeerRotate(w http.ResponseWriter, r *http.Request) {
 	var req struct {
