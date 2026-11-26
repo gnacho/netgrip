@@ -269,6 +269,33 @@ export const demoApi: typeof api = {
     state.wg.peers = state.wg.peers.filter((p) => p.public_key !== publicKey);
     return write(state.wg);
   },
+  wgPeerConfig: async (publicKey) => {
+    await wait(500, 900);
+    const peer = state.wg.peers.find((p) => p.public_key === publicKey);
+    if (!peer || publicKey.startsWith("DEMO")) throw new Error("no stored private key");
+    return {
+      config:
+        "[Interface]\nPrivateKey = <demo>\nAddress = " + (peer.allowed_ips[0] ?? "10.9.0.9/32") +
+        "\nDNS = " + state.wg.address.split("/")[0] +
+        "\nListenPort = 51820\n\n[Peer]\nPublicKey = " + state.wg.public_key +
+        "\nAllowedIPs = 0.0.0.0/0\nEndpoint = casa.duckdns.org:51820\nPersistentKeepalive = 25\n",
+    };
+  },
+  wgRenamePeer: async (publicKey, name) => {
+    await wait(700, 1200);
+    const peer = state.wg.peers.find((p) => p.public_key === publicKey);
+    if (peer) peer.name = name;
+    return write(state.wg);
+  },
+  wgRotatePeer: async (publicKey) => {
+    await wait(900, 1500);
+    const peer = state.wg.peers.find((p) => p.public_key === publicKey);
+    if (peer) peer.public_key = "ROT" + "y".repeat(39) + "=";
+    return {
+      config: "[Interface]\nPrivateKey = <demo-nueva>\nAddress = 10.9.0.9/32\n\n[Peer]\nPublicKey = " + state.wg.public_key + "\nAllowedIPs = 0.0.0.0/0\nEndpoint = casa.duckdns.org:51820\n",
+      state: state.wg,
+    };
+  },
   ddns: () => get(state.ddns),
   setDdns: async (cfg) => {
     await wait(800, 1500);

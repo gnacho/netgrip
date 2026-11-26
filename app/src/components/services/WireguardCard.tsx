@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { copyText } from "../../lib/clipboard";
-import { Plus, QrCode, ShieldCheck, Trash2 } from "lucide-react";
+import { Pencil, Plus, QrCode, ShieldCheck, Trash2 } from "lucide-react";
 import { api } from "../../api";
 import type { WGPeer, WGProbe } from "../../types";
 import {
@@ -23,7 +23,13 @@ import { CopyButton, downloadText, qrMatrixSvg, Reveal, shortKey } from "./share
  * Ficha de un peer/usuario (#714): tarjetas en rejilla de tres en escritorio.
  * `onDelete` ausente = lista de solo lectura (túneles gestionados por GL.iNet).
  */
-function PeerCard({ peer, onDelete }: { peer: WGPeer; onDelete?: () => void }) {
+function PeerCard({ peer, onDelete, onEdit, onQr, busy }: {
+  peer: WGPeer;
+  onDelete?: () => void;
+  onEdit?: () => void;
+  onQr?: () => void;
+  busy?: boolean;
+}) {
   const { t } = useTranslation();
   const canDelete = !!onDelete && !peer.admin;
   return (
@@ -41,19 +47,31 @@ function PeerCard({ peer, onDelete }: { peer: WGPeer; onDelete?: () => void }) {
           </span>
         </span>
       </div>
-      <div className="mt-auto flex items-center gap-2">
+      <div className="mt-auto flex items-center gap-1">
         {peer.admin && <Pill tone="muted">{t("wg.adminPill")}</Pill>}
-        {canDelete && (
-          <button
-            type="button"
-            onClick={onDelete}
-            title={t("wg.deletePeer")}
-            aria-label={`${t("wg.deletePeer")} ${peer.name || peer.public_key}`}
-            className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-sm text-muted hover:text-danger hover:bg-surface transition-colors ring-focus"
-          >
-            <Trash2 size={16} aria-hidden="true" />
-          </button>
-        )}
+        <span className="ml-auto inline-flex items-center gap-1">
+          {onEdit && (
+            <button type="button" onClick={onEdit} disabled={busy}
+              title={t("wg.editPeer")} aria-label={`${t("wg.editPeer")} ${peer.name || peer.public_key}`}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-muted hover:text-accent hover:bg-surface transition-colors ring-focus disabled:opacity-40">
+              <Pencil size={16} aria-hidden="true" />
+            </button>
+          )}
+          {onQr && (
+            <button type="button" onClick={onQr} disabled={busy}
+              title={t("wg.showQr")} aria-label={`${t("wg.showQr")} ${peer.name || peer.public_key}`}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-muted hover:text-accent hover:bg-surface transition-colors ring-focus disabled:opacity-40">
+              <QrCode size={16} aria-hidden="true" />
+            </button>
+          )}
+          {canDelete && (
+            <button type="button" onClick={onDelete} disabled={busy}
+              title={t("wg.deletePeer")} aria-label={`${t("wg.deletePeer")} ${peer.name || peer.public_key}`}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-muted hover:text-danger hover:bg-surface transition-colors ring-focus disabled:opacity-40">
+              <Trash2 size={16} aria-hidden="true" />
+            </button>
+          )}
+        </span>
       </div>
     </div>
   );
@@ -76,6 +94,11 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
   const [endpointOpen, setEndpointOpen] = useState(false);
   const [endpointDraft, setEndpointDraft] = useState("");
   const [delTarget, setDelTarget] = useState<WGPeer>();
+  const [renamePeer, setRenamePeer] = useState<WGPeer>();
+  const [renameName, setRenameName] = useState("");
+  // Peer whose private key was never stored: se ofrece generar claves nuevas.
+  const [keylessPeer, setKeylessPeer] = useState<WGPeer>();
+  const [peerBusy, setPeerBusy] = useState<string>();
 
   const apply = async (fn: () => Promise<{ state: WGProbe; status: string; error?: string }>, okText?: string) => {
     setDoneMsg(undefined);
@@ -91,6 +114,50 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
 
   const toggle = (v: boolean) =>
     apply(() => api.setWireguard(v ? "enable" : "disable"), v ? t("wg.doneOn") : t("wg.doneOff"));
+
+  // #756: volver a pintar el QR de un usuario ya creado.
+  const showPeerQr = async (p: WGPeer) => {
+    setPeerBusy(p.public_key);
+    try {
+      const r = await api.wgPeerConfig(p.public_key);
+      setQrConfig(r.config);
+    } catch {
+      setKeylessPeer(p);
+    } finally {
+      setPeerBusy(undefined);
+    }
+  };
+
+  const rotateKeyless = async () => {
+    if (!keylessPeer) return;
+    const p = keylessPeer;
+    setPeerBusy(p.public_key);
+    try {
+      const r = await api.wgRotatePeer(p.public_key);
+      onChange(r.state);
+      setKeylessPeer(undefined);
+      setQrConfig(r.config);
+      push({ tone: "ok", text: t("wg.rotated") });
+    } catch (e) {
+      push({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setPeerBusy(undefined);
+    }
+  };
+
+  const saveRename = async () => {
+    if (!renamePeer) return;
+    setPeerBusy(renamePeer.public_key);
+    try {
+      const r = await api.wgRenamePeer(renamePeer.public_key, renameName.trim());
+      if (r.state) onChange(r.state);
+      setRenamePeer(undefined);
+    } catch (e) {
+      push({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setPeerBusy(undefined);
+    }
+  };
 
   const addWithQr = async () => {
     setDoneMsg(undefined);
@@ -268,8 +335,10 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
                 )}
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {probe.peers.map((p) => (
-                    <PeerCard key={p.public_key} peer={p}
-                      onDelete={p.admin ? undefined : () => setDelTarget(p)} />
+                    <PeerCard key={p.public_key} peer={p} busy={peerBusy === p.public_key}
+                      onDelete={p.admin ? undefined : () => setDelTarget(p)}
+                      onEdit={() => { setRenamePeer(p); setRenameName(p.name ?? ""); }}
+                      onQr={() => showPeerQr(p)} />
                   ))}
                 </div>
                 <div className="mt-3">
@@ -338,6 +407,39 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
 
           {/* Modal: QR grande + descarga de la config recién creada */}
           <QrConfigModal config={qrConfig} onClose={() => setQrConfig(undefined)} />
+
+          <Modal
+            open={!!renamePeer}
+            onClose={() => setRenamePeer(undefined)}
+            title={t("wg.renameTitle")}
+            footer={
+              <>
+                <Button variant="ghost" onClick={() => setRenamePeer(undefined)}>{t("common.cancel")}</Button>
+                <Button loading={renamePeer ? peerBusy === renamePeer.public_key : false} onClick={saveRename}>
+                  {t("common.save")}
+                </Button>
+              </>
+            }
+          >
+            <Input value={renameName} onChange={(e) => setRenameName(e.target.value)}
+              placeholder={t("wg.peerName")} maxLength={40} autoFocus />
+          </Modal>
+
+          <Modal
+            open={!!keylessPeer}
+            onClose={() => setKeylessPeer(undefined)}
+            title={t("wg.keylessTitle")}
+            footer={
+              <>
+                <Button variant="ghost" onClick={() => setKeylessPeer(undefined)}>{t("common.cancel")}</Button>
+                <Button loading={keylessPeer ? peerBusy === keylessPeer.public_key : false} onClick={rotateKeyless}>
+                  {t("wg.rotate")}
+                </Button>
+              </>
+            }
+          >
+            <p className="text-small text-muted">{t("wg.keylessBody")}</p>
+          </Modal>
 
           <ConfirmDialog
             open={!!delTarget}

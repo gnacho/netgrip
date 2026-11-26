@@ -199,6 +199,24 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ endpoint }),
     }),
+  wgPeerConfig: (public_key: string) =>
+    request<{ config: string }>("/api/wireguard/peers/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ public_key }),
+    }),
+  wgRenamePeer: (public_key: string, name: string) =>
+    request<import("./types").ModuleResult<import("./types").WGProbe>>("/api/wireguard/peers/rename", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ public_key, name }),
+    }),
+  wgRotatePeer: (public_key: string) =>
+    request<{ config: string; state: import("./types").WGProbe }>("/api/wireguard/peers/rotate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ public_key }),
+    }),
   addWgPeerQr: (name: string, admin: boolean) =>
     request<{ config: string; state: import("./types").WGProbe }>("/api/wireguard/peers/qr", {
       method: "POST",

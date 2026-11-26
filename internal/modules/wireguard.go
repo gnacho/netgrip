@@ -47,22 +47,22 @@ type WGGLTunnel struct {
 
 // WGProbe is the read-only WireGuard state.
 type WGProbe struct {
-	Installed  bool         `json:"installed"`
-	Active     bool         `json:"active"`
-	Running    bool         `json:"running"`
-	ZoneMember bool         `json:"zone_member"`
-	Port       string       `json:"port"`
-	Address    string       `json:"address"`
-	PublicKey  string       `json:"public_key"`
-	Peers      []WGPeer     `json:"peers"`
+	Installed  bool     `json:"installed"`
+	Active     bool     `json:"active"`
+	Running    bool     `json:"running"`
+	ZoneMember bool     `json:"zone_member"`
+	Port       string   `json:"port"`
+	Address    string   `json:"address"`
+	PublicKey  string   `json:"public_key"`
+	Peers      []WGPeer `json:"peers"`
 	// Endpoint es el nombre (dominio DDNS recomendado, o IP) que va en el
 	// "Endpoint =" de las configs de cliente. Sin él se usa la IP WAN, que
 	// cambia con el operador y deja la VPN muerta (#629).
-	Endpoint  string `json:"endpoint"`
+	Endpoint string `json:"endpoint"`
 	// SuggestedEndpoint propone el primer dominio DDNS ya configurado.
 	SuggestedEndpoint string       `json:"suggested_endpoint,omitempty"`
-	ManagedBy  string       `json:"managed_by,omitempty"` // "gl_firmware" when GL.iNet tunnels exist
-	GLTunnels  []WGGLTunnel `json:"gl_tunnels"`
+	ManagedBy         string       `json:"managed_by,omitempty"` // "gl_firmware" when GL.iNet tunnels exist
+	GLTunnels         []WGGLTunnel `json:"gl_tunnels"`
 }
 
 // wgEndpointFile guarda el nombre externo elegido (una linea, sin adorno).
@@ -653,6 +653,9 @@ func RemoveWGPeer(pubkey string) (*WGProbe, bool, error) {
 		}
 		return true
 	})
+	if err == nil && !rolledBack {
+		ForgetWGClient(pubkey)
+	}
 	return ProbeWG(), rolledBack, err
 }
 
@@ -692,6 +695,10 @@ func AddWGPeerGenerated(name string, admin bool, endpoint string) (string, *WGPr
 	}
 	if endpoint == "" {
 		endpoint = lanIPv4()
+	}
+	// Guardada solo para poder volver a pintar el QR (#756); el fichero es 0600.
+	if err := SaveWGClientPrivate(pub, priv); err != nil {
+		return "", probe, fmt.Errorf("save client key: %w", err)
 	}
 	return buildWGClientConfig(wgClientConfig{
 		PrivateKey:   priv,
