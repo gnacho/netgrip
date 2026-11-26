@@ -263,3 +263,41 @@ func TestNamedDeviceSectionIsAValidUCISection(t *testing.T) {
 		t.Fatalf("generated section name is not a valid UCI key: %v", err)
 	}
 }
+
+// Los dos equipos reales de la oficina, con su volcado de verdad (26-Nov):
+// Flint2 es router con la WAN en eth1.20 (PPPoE sobre VLAN del ISP) y los 5
+// puertos del switch en br-lan; rt2 es AP con los 4 puertos en br-lan.
+func TestDerivePortRoleMatchesTheRealFleet(t *testing.T) {
+	t.Run("flint2 router", func(t *testing.T) {
+		cases := []struct {
+			port     string
+			inBridge bool
+			want     string
+		}{
+			{"eth1", false, "wan"}, // device de network.wan (eth1.20)
+			{"lan1", true, "lan"},
+			{"lan2", true, "lan"},
+			{"lan3", true, "lan"},
+			{"lan4", true, "lan"},
+			{"lan5", true, "lan"},
+			{"eth0", false, "unused"}, // master DSA: no lo lista el chasis
+		}
+		for _, c := range cases {
+			if got := derivePortRole(c.port, c.inBridge, "router", "eth1"); got != c.want {
+				t.Fatalf("flint2 %s: role = %q, want %q", c.port, got, c.want)
+			}
+		}
+	})
+	t.Run("rt2 access point", func(t *testing.T) {
+		for _, p := range []string{"wan", "lan2", "lan3", "lan4"} {
+			if got := derivePortRole(p, true, "ap", "wan"); got != "lan" {
+				t.Fatalf("rt2 %s: role = %q, want lan", p, got)
+			}
+		}
+		// El puerto "wan" de un AP convertido sigue siendo LAN aunque el
+		// device de la interfaz WAN vieja lo nombre: manda el bridge.
+		if got := derivePortRole("wan", true, "router", "wan"); got != "lan" {
+			t.Fatalf("stale wan device must not win over bridge membership: got %q", got)
+		}
+	})
+}

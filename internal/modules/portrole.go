@@ -101,14 +101,8 @@ func ProbePortRoles() *PortRolesProbe {
 
 	for _, port := range parts {
 		inBridge := bridgePorts[port.Name]
-		isWAN := mode.Mode == "router" && port.Name == wanBase && !inBridge
-		role := "unused"
-		switch {
-		case isWAN:
-			role = "wan"
-		case inBridge:
-			role = "lan"
-		}
+		role := derivePortRole(port.Name, inBridge, mode.Mode, wanBase)
+		isWAN := role == "wan"
 		e := PortRoleEntry{
 			Name:      port.Name,
 			Role:      role,
@@ -130,6 +124,21 @@ func ProbePortRoles() *PortRolesProbe {
 	}
 	sort.Slice(p.Ports, func(i, j int) bool { return p.Ports[i].Name < p.Ports[j].Name })
 	return p
+}
+
+// derivePortRole is the rule the whole card rests on, kept pure so it can be
+// checked against the real configs of the fleet: a port inside the LAN bridge
+// is LAN even if a stale WAN device still names it (router turned AP), and a
+// port outside the bridge is WAN only when it backs the active uplink of a
+// device that actually routes.
+func derivePortRole(port string, inBridge bool, deviceMode, wanBase string) string {
+	if deviceMode == "router" && port == wanBase && !inBridge {
+		return "wan"
+	}
+	if inBridge {
+		return "lan"
+	}
+	return "unused"
 }
 
 func readStringFile(path string) string {
