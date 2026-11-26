@@ -5,7 +5,6 @@ import { api } from "../api";
 import { degradedPorts, fmtMbps } from "../lib/degradedPorts";
 import { Banner } from "../components/ui/Banner";
 import { EthPortsCard } from "../components/ports/EthPortsCard";
-import { PortRolesCard } from "../components/ports/PortRolesCard";
 import { PoECard } from "../components/ports/PoECard";
 import { VLANTable } from "../components/ports/VLANTable";
 import { LagCard } from "../components/ports/LagCard";
@@ -123,8 +122,7 @@ export function Ports({ ethports }: { ethports?: EthPort[] }) {
       {active === "ports" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-[var(--card-gap)]">
           <EthPortsCard ports={ethports} index={0} />
-          <PortRolesCard index={1} />
-          <PoECard index={2} />
+          <PoECard index={1} />
         </div>
       )}
 

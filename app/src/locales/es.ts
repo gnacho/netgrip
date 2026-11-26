@@ -2381,7 +2381,8 @@ export default {
     wdSavedOff: "Watchdog desactivado",
   },
   portRoles: {
-    title: "Rol del puerto y MAC",
+    roleLabel: "Rol",
+    customMac: "propia",
     wan: "WAN",
     lan: "LAN",
     unused: "Sin rol",
