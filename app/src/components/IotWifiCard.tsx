@@ -126,10 +126,6 @@ export function IotWifiCard({ probe, mainSsid, onChange }: {
             </div>
           )}
 
-          {!probe.active && !setup && (
-            <p className="text-small text-muted text-center py-4 px-2">{t("iot.empty")}</p>
-          )}
-
           {setup && (
             <div className="mt-3 flex flex-col gap-3">
               <Input icon={Wifi} value={ssid} onChange={(e) => setSsid(e.target.value)} placeholder="SSID" maxLength={32} />

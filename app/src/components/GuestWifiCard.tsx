@@ -44,6 +44,8 @@ export function GuestWifiCard({ probe, mainSsid, onChange }: {
   const [doneMsg, setDoneMsg] = useState<string>();
   const [subnet, setSubnet] = useState("192.168.10.1");
   const [isolate, setIsolate] = useState(true);
+  // #712: la validación de la clave no se pinta hasta pulsar Activar.
+  const [triedActivate, setTriedActivate] = useState(false);
 
   const qr = useWifiQr(probe?.ssid ?? "", sessionKey, "sae-mixed", 96);
 
@@ -67,10 +69,18 @@ export function GuestWifiCard({ probe, mainSsid, onChange }: {
     if (on && !probe.ssid) {
       // Primera activación: hace falta nombre y clave
       setSsid(mainSsid ? `${mainSsid}-Invitados` : "");
+      setTriedActivate(false);
       setSetup(true);
       return;
     }
     apply(on, on ? { ssid: probe.ssid, ...(sessionKey ? { key: sessionKey } : {}) } : {});
+  };
+
+  /** #712: el botón siempre se puede pulsar; el rojo aparece tras intentarlo. */
+  const activate = () => {
+    setTriedActivate(true);
+    if (!ssid.trim() || key.length < 8 || !isValidIp(subnet)) return;
+    apply(true, { ssid, key, subnet: subnet.trim(), isolate });
   };
 
   const toggleIsolate = (value: boolean) => {
@@ -100,7 +110,7 @@ export function GuestWifiCard({ probe, mainSsid, onChange }: {
             description={t("guest.desc")}
             help={t("help.guest.body")}
             helpTitle={t("help.guest.title")}
-            checked={probe.active}
+            checked={probe.active || setup}
             busy={busy}
             disabled={!probe.gateway || readOnly}
             onChange={flip}
@@ -202,29 +212,28 @@ export function GuestWifiCard({ probe, mainSsid, onChange }: {
             </div>
           )}
 
-          {probe.gateway && !probe.active && !setup && (
-            <div className="mt-3 flex flex-col gap-3">
-              {range && (
-                <KeyValue items={[{ label: t("guest.ipRange"), value: t("guest.ipRangeValue", range), mono: true }]} />
-              )}
-              <p className="text-small text-muted text-center py-2 px-2">{t("guest.empty")}</p>
+          {probe.gateway && !probe.active && !setup && range && (
+            <div className="mt-3">
+              <KeyValue items={[{ label: t("guest.ipRange"), value: t("guest.ipRangeValue", range), mono: true }]} />
             </div>
           )}
 
           {setup && (
             <div className="mt-3 flex flex-col gap-3">
-              <Input icon={Wifi} value={ssid} onChange={(e) => setSsid(e.target.value)} placeholder="SSID" maxLength={32} />
+              <Input icon={Wifi} value={ssid} onChange={(e) => setSsid(e.target.value)} placeholder="SSID" maxLength={32}
+                error={triedActivate && !ssid.trim()} />
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <Input type="password" mono icon={KeyRound} value={key} onChange={(e) => setKey(e.target.value)}
+                  <Input type="password" mono icon={KeyRound} value={key}
+                    onChange={(e) => { setKey(e.target.value); setTriedActivate(false); }}
                     placeholder={t("wifi.keyMin")} autoComplete="new-password"
-                    error={key.length < 8} />
+                    error={triedActivate && key.length < 8} />
                 </div>
                 <Button variant="secondary" size="sm" icon={Shuffle} className="h-[var(--input-h)]" onClick={() => setKey(generate())}>
                   {t("wifi.generateKey")}
                 </Button>
               </div>
-              {key.length < 8 && (
+              {triedActivate && key.length < 8 && (
                 <p className="text-caption text-danger -mt-1">{t("guest.keyMinHint")}</p>
               )}
               <Field
@@ -243,8 +252,8 @@ export function GuestWifiCard({ probe, mainSsid, onChange }: {
                 <Toggle checked={isolate} onChange={setIsolate} label={t("guest.apIsolation")} />
               </div>
               <div className="flex gap-2">
-                <Button size="sm" loading={busy} disabled={!ssid.trim() || key.length < 8 || !isValidIp(subnet)}
-                  onClick={() => apply(true, { ssid, key, subnet: subnet.trim(), isolate })}>
+                <Button size="sm" loading={busy}
+                  onClick={activate}>
                   {t("guest.activate")}
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setSetup(false)}>
