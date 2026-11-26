@@ -367,25 +367,25 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
           )}
 
           <div className="mt-4 border-t border-border pt-3">
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1.5 text-small font-medium text-secondary">
+            <div className="flex items-center gap-3">
+              <span className="flex flex-1 min-w-0 items-center gap-1.5 text-small font-medium text-secondary">
                 {t("adguard.dohTitle")}
                 <HelpTip title={t("adguard.dohTitle")} body={t("adguard.dohHint")} />
               </span>
-              {cfg.doh_enabled ? (
-                <Pill tone="ok">{t("adguard.dohActive", { count: dohUpstreamCount })}</Pill>
-              ) : (
-                <Pill tone="muted">{t("adguard.dohInactive")}</Pill>
+              {cfg.doh_enabled && (
+                <span className="text-small text-muted">{t("adguard.dohActive", { count: dohUpstreamCount })}</span>
               )}
+              {/* #715: la misma palanca que el resto de opciones. */}
+              <Toggle
+                checked={cfg.doh_enabled}
+                busy={dohBusy}
+                disabled={busy || (!cfg.doh_enabled && !canActivate)}
+                onChange={(v) => (v ? doActivateDoH() : doDeactivateDoH())}
+                label={t("adguard.dohTitle")}
+              />
             </div>
 
-            {cfg.doh_enabled ? (
-              <div className="mt-2">
-                <Button variant="ghost" size="sm" disabled={busy || dohBusy} onClick={doDeactivateDoH}>
-                  {t("adguard.dohDeactivate")}
-                </Button>
-              </div>
-            ) : (
+            {!cfg.doh_enabled && (
               <div className="mt-2 flex flex-col gap-2">
                 <Field label={t("adguard.dohProviderLabel")}>
                   <select
@@ -407,11 +407,6 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
                     placeholder={t("adguard.dohCustomPlaceholder")}
                   />
                 )}
-                <div>
-                  <Button variant="secondary" size="sm" loading={dohBusy} disabled={busy || !canActivate} onClick={doActivateDoH}>
-                    {t("adguard.dohActivate")}
-                  </Button>
-                </div>
               </div>
             )}
 
