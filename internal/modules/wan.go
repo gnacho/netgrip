@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gnacho/netgrip/internal/executor"
@@ -138,6 +139,32 @@ var publicIPServices = []string{
 // any other traffic from the router, which is what makes the answer belong
 // to the connection currently in use.
 func CheckPublicIP() (*PublicIP, error) {
+	return CheckPublicIPFresh(false)
+}
+
+// publicIPTTL keeps the panel from asking an outside service on every visit:
+// the answer barely changes and the call is the only traffic that leaves the
+// user's network.
+const publicIPTTL = 60 * time.Second
+
+var publicIPCache struct {
+	mu  sync.Mutex
+	at  time.Time
+	res *PublicIP
+}
+
+// CheckPublicIPFresh is CheckPublicIP with an optional bypass of the cache,
+// used by the "check again" button.
+func CheckPublicIPFresh(force bool) (*PublicIP, error) {
+	now := time.Now()
+	publicIPCache.mu.Lock()
+	if !force && publicIPCache.res != nil && now.Sub(publicIPCache.at) < publicIPTTL {
+		cached := *publicIPCache.res
+		publicIPCache.mu.Unlock()
+		return &cached, nil
+	}
+	publicIPCache.mu.Unlock()
+
 	client := &http.Client{Timeout: 6 * time.Second}
 	var lastErr error
 	for _, service := range publicIPServices {
@@ -166,12 +193,17 @@ func CheckPublicIP() (*PublicIP, error) {
 		if u, err := url.Parse(service); err == nil {
 			host = u.Host
 		}
-		return &PublicIP{
+		res := &PublicIP{
 			IP:        ip,
 			Iface:     ubus.ActiveWANInterfaceName(),
 			Source:    host,
 			CheckedAt: time.Now().Unix(),
-		}, nil
+		}
+		publicIPCache.mu.Lock()
+		publicIPCache.res = res
+		publicIPCache.at = now
+		publicIPCache.mu.Unlock()
+		return res, nil
 	}
 	if lastErr == nil {
 		lastErr = fmt.Errorf("no address service answered")

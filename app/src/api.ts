@@ -118,7 +118,12 @@ const realApi = {
   system: () => request<import("./types").SystemInfo>("/api/system"),
   wan: () => request<import("./types").WanStatus>("/api/wan"),
   wanConfig: () => request<WANConfig>("/api/wan/config"),
-  checkPublicIp: () => request<PublicIP>("/api/wan/public-ip", { method: "POST" }),
+  checkPublicIp: (force = false) =>
+    request<PublicIP>("/api/wan/public-ip", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ force }),
+    }),
   setWanConfig: (cfg: WANConfig, confirm?: boolean) =>
     request<WANConfig & { confirm?: { id: string; expires: number } }>("/api/wan/config", {
       method: "POST",

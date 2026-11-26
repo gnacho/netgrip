@@ -696,8 +696,14 @@ func (s *Server) handleWanConfigGet(w http.ResponseWriter, _ *http.Request) {
 // handleWanPublicIP asks an outside service what address this router comes
 // from. A POST, not a GET: it leaves the network, and that should not
 // happen on a refresh.
-func (s *Server) handleWanPublicIP(w http.ResponseWriter, _ *http.Request) {
-	res, err := modules.CheckPublicIP()
+func (s *Server) handleWanPublicIP(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Force bool `json:"force"`
+	}
+	if r.ContentLength > 0 {
+		_ = json.NewDecoder(r.Body).Decode(&req)
+	}
+	res, err := modules.CheckPublicIPFresh(req.Force)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
