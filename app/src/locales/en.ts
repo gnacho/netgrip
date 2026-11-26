@@ -952,7 +952,7 @@ export default {
     addPeer: "Add peer",
     deletePeer: "Remove device",
     addPeerQr: "Add with QR",
-    qrHint: "Scan the code with the WireGuard app. If the app does not read it, download the configuration and import it, it is the same profile. The private key lives only here, it is not stored.",
+    qrHint: "Scan the code with the WireGuard app. If the app does not read it, download the configuration and import it, it is the same profile. The private key is stored on the router (root only) so this QR can be shown again.",
     downloadConf: "Download configuration",
     copyQrencode: "Copy qrencode command",
     qrencodeCopied: "Paste the command in the folder of the downloaded file",

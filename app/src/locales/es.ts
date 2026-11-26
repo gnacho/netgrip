@@ -951,7 +951,7 @@ export default {
     addPeer: "Añadir peer",
     deletePeer: "Borrar dispositivo",
     addPeerQr: "Añadir con QR",
-    qrHint: "Escanea el código con la app WireGuard. Si la app no lo lee, descarga la configuración e impórtala, es el mismo perfil. La clave privada solo vive aquí, no se guarda.",
+    qrHint: "Escanea el código con la app WireGuard. Si la app no lo lee, descarga la configuración e impórtala, es el mismo perfil. La clave privada se guarda en el router (solo root) para poder volver a mostrar este QR.",
     downloadConf: "Descargar configuración",
     copyQrencode: "Copiar comando qrencode",
     qrencodeCopied: "Pega el comando en la carpeta del fichero descargado",
