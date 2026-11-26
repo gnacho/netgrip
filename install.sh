@@ -115,22 +115,34 @@ if [ -z "$ASSET_BASE" ]; then
   ASSET_BASE="${RELEASES_URL}/download/${VERSION}"
 fi
 if [ "$PKGR" = apk ]; then
-  ASSET="netgrip-${VER_NUM}-r1-${PKG_ARCH}.apk"
+  # Release assets for apk carry the Go ABI (arm64, aarch64_generic) or the
+  # OpenWrt package arch (aarch64_cortex-a72), never both for the same target.
+  # Try the names that can exist, quietly, and keep the one that answers (#665).
+  ASSET_CANDIDATES="netgrip-${VER_NUM}-r1-${ASSET_ARCH}.apk netgrip-${VER_NUM}-r1-${PKG_ARCH}.apk"
 else
-  ASSET="netgrip_${VER_NUM}-1_${PKG_ARCH}.ipk"
+  ASSET_CANDIDATES="netgrip_${VER_NUM}-1_${PKG_ARCH}.ipk"
 fi
-URL="${ASSET_BASE%/}/${ASSET}"
 
 TMP=$(mktemp -d) || die 4 "mktemp failed"
 trap 'rm -rf "$TMP"' EXIT INT TERM
 
-say "downloading $URL"
-if ! fetch "$URL" "$TMP/$ASSET"; then
-  # Releases predating native APK filenames used a generic Go ABI suffix.
-  if [ "$PKGR" != apk ] || ! fetch "${ASSET_BASE%/}/netgrip-${VER_NUM}-r1-${ASSET_ARCH}.apk" "$TMP/$ASSET"; then
-    die 4 "download failed; check network/DNS/TLS and asset availability; use an HTTPS-capable wget or curl: $RELEASES_URL"
+ASSET=
+URL=
+FETCH_ERR=$TMP/fetch.err
+for candidate in $ASSET_CANDIDATES; do
+  if fetch "${ASSET_BASE%/}/$candidate" "$TMP/$candidate" 2>"$FETCH_ERR"; then
+    ASSET=$candidate
+    URL="${ASSET_BASE%/}/$candidate"
+    break
   fi
+done
+if [ -z "$ASSET" ]; then
+  if [ -s "$FETCH_ERR" ]; then
+    sed 's/^/  /' "$FETCH_ERR" >&2
+  fi
+  die 4 "download failed; check network/DNS/TLS and asset availability; use an HTTPS-capable wget or curl: $RELEASES_URL"
 fi
+say "downloading $URL"
 
 # --------------------------------------------------------------- install --
 case "$PKGR" in

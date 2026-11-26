@@ -12,11 +12,12 @@ import (
 
 func TestInstallerSelectsNativeAPK(t *testing.T) {
 	for _, tc := range []struct {
-		name, arch, asset string
-		legacy            bool
+		name, arch, exists string
 	}{
-		{"raspberry-pi", "aarch64_cortex-a72", "aarch64_cortex-a72", false},
-		{"older-release", "aarch64_cortex-a53", "arm64", true},
+		// A release that only published the OpenWrt package arch for apk.
+		{"package-arch-only", "aarch64_cortex-a72", "aarch64_cortex-a72"},
+		// A release that only published the Go ABI for apk.
+		{"go-abi-only", "aarch64_cortex-a53", "arm64"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			bin := t.TempDir()
@@ -42,7 +43,8 @@ esac
 done
 printf '%s\n' "$url" >> "$TEST_DOWNLOADS"
 case "$url" in
-  *"$TEST_ARCH.apk") [ "$TEST_LEGACY" = false ] || exit 1 ;;
+  *"$TEST_EXISTS.apk") ;;
+  *) echo "wget: server returned 404" >&2; exit 1 ;;
 esac
 printf 'package' > "$dest"
 `,
@@ -54,12 +56,8 @@ printf 'package' > "$dest"
 				}
 			}
 			cmd := exec.Command("sh", "../../install.sh")
-			legacy := "false"
-			if tc.legacy {
-				legacy = "true"
-			}
 			cmd.Env = append(os.Environ(), "PATH="+bin+":/usr/bin:/bin",
-				"TEST_ARCH="+tc.arch, "TEST_DOWNLOADS="+log, "TEST_LEGACY="+legacy,
+				"TEST_ARCH="+tc.arch, "TEST_EXISTS="+tc.exists, "TEST_DOWNLOADS="+log,
 				"NETGRIP_VERSION=v0.78.0", "NETGRIP_ASSET_BASE=https://example.test/release")
 			out, err := cmd.CombinedOutput()
 			// Stop at apk add so the test never installs a package or starts a service.
@@ -71,9 +69,13 @@ printf 'package' > "$dest"
 				t.Fatal(err)
 			}
 			urls := strings.Fields(string(downloads))
-			want := "https://example.test/release/netgrip-0.78.0-r1-" + tc.asset + ".apk"
+			want := "https://example.test/release/netgrip-0.78.0-r1-" + tc.exists + ".apk"
 			if urls[len(urls)-1] != want {
 				t.Fatalf("downloaded %v, want %s", urls, want)
+			}
+			// An asset that does not exist is probed quietly (#665).
+			if strings.Contains(string(out), "404") {
+				t.Errorf("a failed candidate leaks its error:\n%s", out)
 			}
 		})
 	}
@@ -111,6 +113,10 @@ esac
 	}
 	if !strings.Contains(string(out), "HTTPS-capable") {
 		t.Errorf("expected an HTTPS downloader hint, got:\n%s", out)
+	}
+	// The real error is kept when every candidate fails, so the user can see why.
+	if !strings.Contains(string(out), "HTTPS support not compiled in") {
+		t.Errorf("expected the downloader error to be reported, got:\n%s", out)
 	}
 	if strings.Contains(string(out), "no asset for this combination?") {
 		t.Errorf("error points to a missing asset despite the TLS failure:\n%s", out)
