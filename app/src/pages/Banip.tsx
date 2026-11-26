@@ -147,7 +147,7 @@ export function BanipPage() {
 
   const report = probe?.report;
   const dosAvailable = !!report?.parsed;
-  const enabledFeeds = useMemo(() => probe?.feeds.filter((f) => f.enabled) ?? [], [probe?.feeds]);
+  const enabledFeeds = useMemo(() => probe?.feeds?.filter((f) => f.enabled) ?? [], [probe?.feeds]);
 
   // Descartar el aviso de baja RAM: persiste el dismiss en el router (por
   // timestamp de la ejecución) y actualiza el probe sin recargar la página.
@@ -398,7 +398,7 @@ function FeedsTab({ probe, busy, onSaved, onError }: { probe: BanipProbe; busy: 
   };
 
   const countFor = (name: string) =>
-    probe.report?.sets.filter((s) => s.name === `${name}.v4` || s.name === `${name}.v6`).reduce((a, s) => a + s.elements, 0);
+    probe.report?.sets?.filter((s) => s.name === `${name}.v4` || s.name === `${name}.v6`).reduce((a, s) => a + s.elements, 0);
 
   // Catalog feeds not in the draft yet: these are the ones that can be added.
   const draftNames = new Set(draft.map((f) => f.name));
