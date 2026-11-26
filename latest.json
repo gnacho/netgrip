@@ -1,11 +1,11 @@
 {
-  "tag_name": "v0.80.1",
-  "body": "Same panel as v0.80.0, with the package feed actually published.\n\nv0.80.0 shipped its binaries and packages, but the signed APK feed and the Pages mirror failed: the run uses the tagged tree, and the feed signing key rotation landed after the tag, so the new key signed an index that was verified against the old public key.\n\nThis release carries the fresh EC P-256 key (the previous private key only existed in a temporary directory and is gone), so the feed is signed and the Pages manifest is published again. Nothing had consumed a signed feed before, so there is nothing to migrate.\n\nIf you are on v0.80.0 you do not need this one for any code reason: it is the same build.\n",
+  "tag_name": "v0.82.0",
+  "body": "**The panel now reads by job**\n\nProtection has its own page, with AdGuard Home and banIP together with its blocklists. Services is split into VPN, connection quality, home name and local services, so each entry opens only what it needs. The firewall goes by its name, and every port forwarded to a machine on your network shows up under Local services with a pencil to edit it in place, next to the router's own listeners such as WireGuard.\n\nApplication traffic now draws each app's brand icon from a set embedded in the binary: no request leaves the router. UPnP is a single card that shows the mappings and the per-client ACL only when it is on, and the dnsmasq forwarders that were quietly bypassing AdGuard are flagged with a one-click fix.\n\nTwo fixes worth naming: the Internet page no longer crashes on kernels that do not expose the conntrack table, and the update ribbon disappears by itself after applying a version instead of waiting for a manual reload.\n\nThanks to @edwardally for reporting the Internet page crash.\n\n## Issues and pull requests\n\n- #659 / #660 WireGuard client QR: port, DNS and the code the apps scan\n- #661 The Internet page no longer crashes without the conntrack table\n- #664 The Ports tab strip fits a 390 px viewport\n- #665 The installer probes apk asset names without a noisy 404\n- #667 Services grouped by job\n- #673 The dnsmasq forwarders that bypass AdGuard are flagged\n- #679 The update ribbon goes away after applying an update\n- #681 Acerca de leaves the menu; the star link moves to Identity and reboot\n- #683 The health dot leaves the Resumen item\n- #685 UPnP is one card; the forwards card says what it does\n- #687 Protection gets its own page and banIP leaves Internet\n- #689 Brand icons for the applications, from a local set\n- #691 Each Services section gets its own menu entry\n- #693 DNS over HTTPS says it belongs to AdGuard\n- #695 banIP and its lists in a single card\n- #697 Product names as VPN card titles, with a cloud warning for Tailscale\n- #699 Every port open to the Internet, including the router's listeners\n- #701 Cortafuegos by name, and forwards editable from Local services\n",
   "assets": [
     {
       "name": "netgrip-linux-amd64",
       "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-amd64",
-      "size": 4819316
+      "size": 4853304
     },
     {
       "name": "netgrip-linux-amd64.sha256",
@@ -20,7 +20,7 @@
     {
       "name": "netgrip-linux-arm64",
       "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-arm64",
-      "size": 3983520
+      "size": 4013176
     },
     {
       "name": "netgrip-linux-arm64.sha256",
@@ -35,7 +35,7 @@
     {
       "name": "netgrip-linux-armv5",
       "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-armv5",
-      "size": 4027828
+      "size": 4057052
     },
     {
       "name": "netgrip-linux-armv5.sha256",
@@ -50,7 +50,7 @@
     {
       "name": "netgrip-linux-armv6",
       "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-armv6",
-      "size": 4022168
+      "size": 4051620
     },
     {
       "name": "netgrip-linux-armv6.sha256",
@@ -65,7 +65,7 @@
     {
       "name": "netgrip-linux-armv7",
       "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-armv7",
-      "size": 4016312
+      "size": 4045784
     },
     {
       "name": "netgrip-linux-armv7.sha256",
@@ -80,7 +80,7 @@
     {
       "name": "netgrip-linux-mips",
       "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-mips",
-      "size": 3927348
+      "size": 3958572
     },
     {
       "name": "netgrip-linux-mips.sha256",
@@ -95,7 +95,7 @@
     {
       "name": "netgrip-linux-mipsle",
       "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-mipsle",
-      "size": 3992948
+      "size": 4023384
     },
     {
       "name": "netgrip-linux-mipsle.sha256",
