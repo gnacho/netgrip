@@ -401,9 +401,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
         </div>
         <div className="hidden md:block">
           <h1 className="text-h1">{t(`nav.${activePage}`)}</h1>
-          <p className="text-small text-muted mt-0.5">
-            {health.reasons.length === 0 ? t("health.allGood") : t("health.issues", { count: health.reasons.length })}
-          </p>
         </div>
       </div>
       <div className="hidden md:block"><ThemeToggle /></div>

@@ -78,17 +78,15 @@ export function SelfTestCard({ onResult }: { onResult: (r: SelfTestResult) => vo
 
   return (
     <Card title={t("diagnostics.selfTestTitle")} icon={Activity} iconTone="accent"
+      status={result && !error && (
+        <Pill tone={result.all_ok ? "ok" : "warn"}>
+          {result.all_ok ? t("diagnostics.allGood") : t("diagnostics.someFail")}
+        </Pill>
+      )}
       action={
-        <div className="flex items-center gap-2.5">
-          {result && !error && (
-            <Pill tone={result.all_ok ? "ok" : "warn"}>
-              {result.all_ok ? t("diagnostics.allGood") : t("diagnostics.someFail")}
-            </Pill>
-          )}
-          <Button size="sm" onClick={run} loading={busy}>
-            {busy ? t("diagnostics.selfTestRunning") : t("diagnostics.selfTestRun")}
-          </Button>
-        </div>
+        <Button size="sm" onClick={run} loading={busy}>
+          {busy ? t("diagnostics.selfTestRunning") : t("diagnostics.selfTestRun")}
+        </Button>
       }
     >
       <ErrBanner error={error} onRetry={run} />
