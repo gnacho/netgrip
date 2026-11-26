@@ -385,6 +385,7 @@ export const demoDns: T.DNSConfig = {
   adguard_installed: true,
   adguard_running: true,
   adguard_protection: true,
+  adguard_clients: false,
   adguard_has_backup: true,
   adguard_dns_port: 5353,
   adguard_credentials: "managed",

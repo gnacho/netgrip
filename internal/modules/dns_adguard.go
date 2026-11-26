@@ -430,6 +430,19 @@ func adGuardDisable(st dnsmasqState) (*DNSConfig, bool, error) {
 	if err := adGuardApplyDNS(target); err != nil {
 		return ProbeDNS(), true, err
 	}
+	// #671: the client redirect points at AdGuard, so it has to go before the
+	// service stops or every client is left asking a dead resolver.
+	if fw := adguardClientsFirewallShow(); fw != "" {
+		sections := parseUCIShow(fw, "firewall")
+		_, hasRedirect := sections[adguardClientsRedirect]
+		_, hasAllow := sections[adguardClientsAllow]
+		if rm := adGuardClientsOps(false, adGuardResolvedPort(), "", hasRedirect, hasAllow); len(rm) > 0 {
+			if err := executor.Apply(rm, nil); err != nil {
+				_ = adGuardApplyDNS(st)
+				return ProbeDNS(), true, err
+			}
+		}
+	}
 	ops := []executor.Op{
 		{Kind: "initd", Args: []string{"adguardhome", "stop"}},
 		{Kind: "initd", Args: []string{"adguardhome", "disable"}},

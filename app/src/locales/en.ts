@@ -2169,6 +2169,12 @@ export default {
     policyIn: "In: {{policy}}",
   },
   adguard: {
+    clientsSwitch: "Tell each device apart",
+    clientsHint: "Sends client DNS straight to AdGuard, bypassing dnsmasq. AdGuard sees each device's IP and its statistics stop counting everything as the router.",
+    clientsCaveat: "In exchange, domain-based policies (VPN and parental control) stop applying, and local LAN names (nas.lan and friends) have to be resolved by AdGuard.",
+    clientsOn: "AdGuard now receives each device's queries",
+    clientsOff: "Clients go back to asking dnsmasq",
+    clientsFailed: "Could not change the DNS redirect",
     title: "Ad blocker",
     stopped: "Stopped",
     stop: "Stop",

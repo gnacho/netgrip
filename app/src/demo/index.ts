@@ -582,6 +582,16 @@ export const demoApi: typeof api = {
     state.dns.adguard_installed = true;
     return { status: "applied" as const, rolled_back: false, state: { ...state.dns } };
   },
+  adguardClients: async (enabled: boolean) => {
+    await wait(800, 1500);
+    state.dns.adguard_clients = enabled;
+    return {
+      status: "applied" as const,
+      rolled_back: false,
+      state: { ...state.dns },
+      confirm: { id: "demo", expires: Math.floor(Date.now() / 1000) + 120 },
+    };
+  },
   adguardProtection: async (enable: boolean) => {
     await wait(1200, 2000);
     state.dns.adguard_installed = true;

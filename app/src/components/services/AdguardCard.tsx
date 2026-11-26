@@ -6,6 +6,7 @@ import type { AdGuardCredentials, DNSConfig } from "../../types";
 import { Button, Card, ConfirmDialog, Field, HelpTip, Input, Pill, SkeletonRows, Toggle, useToast } from "../ui";
 import { InstallProgress, useInstallJob } from "../wizard/common";
 import { CopyButton, TechName } from "./shared";
+import { RollbackConfirmModal, useRollbackConfirm } from "../rollback";
 
 /** Select con el mismo estilo "filled" del Input de foundations (§4). */
 const SELECT_CLS = `h-[var(--input-h)] rounded-[10px] border border-transparent bg-fill px-2 text-small
@@ -37,6 +38,9 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
   const [showPass, setShowPass] = useState(false);
   const [credBusy, setCredBusy] = useState(false);
   const [confirmRegen, setConfirmRegen] = useState(false);
+  // Clientes reales (#671): redirige el DNS de la LAN a AdGuard.
+  const [clientsBusy, setClientsBusy] = useState(false);
+  const rc = useRollbackConfirm();
 
   const load = () => api.dns().then(setCfg).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -119,6 +123,28 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
     return p ? [p.url] : [];
   };
   const canActivate = resolveUpstreams().length > 0;
+
+  // Redirige el DNS de los clientes a AdGuard (#671). Toca el cortafuegos de
+  // un router en producción: el servidor hace snapshot, verifica el DNAT en
+  // el ruleset y arma la ventana de reversión.
+  const toggleClients = async (on: boolean) => {
+    setClientsBusy(true);
+    try {
+      const res = await api.adguardClients(on);
+      if (res.error) {
+        push({ tone: "danger", text: t("adguard.clientsFailed"), detail: res.error });
+      } else {
+        if (res.state) setCfg(res.state);
+        rc.arm(res.confirm);
+        push({ tone: "ok", text: on ? t("adguard.clientsOn") : t("adguard.clientsOff") });
+      }
+    } catch (e) {
+      push({ tone: "danger", text: t("adguard.clientsFailed"), detail: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setClientsBusy(false);
+      load();
+    }
+  };
 
   const doActivateDoH = async () => {
     setDohBusy(true);
@@ -285,6 +311,22 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
             </div>
           )}
 
+          {protection && (
+            <div className="mt-4 border-t border-border pt-3">
+              <span className="flex flex-wrap items-center gap-2">
+                <Toggle
+                  checked={!!cfg.adguard_clients}
+                  busy={clientsBusy || busy}
+                  onChange={toggleClients}
+                  label={t("adguard.clientsSwitch")}
+                />
+                <span className="text-small text-secondary">{t("adguard.clientsSwitch")}</span>
+                <HelpTip title={t("adguard.clientsSwitch")} body={t("adguard.clientsHint")} />
+              </span>
+              <p className="text-caption text-muted mt-1">{t("adguard.clientsCaveat")}</p>
+            </div>
+          )}
+
           <div className="mt-4 border-t border-border pt-3">
             <div className="flex items-center gap-2">
               <span className="flex items-center gap-1.5 text-small font-medium text-secondary">
@@ -373,6 +415,7 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
         confirmLabel={t("adguard.disableConfirm")}
         busy={busy}
       />
-    </Card>
+          <RollbackConfirmModal pending={rc.pending} seconds={rc.seconds} onKeep={rc.keep} onRevert={() => { rc.revert(); load(); }} />
+</Card>
   );
 }
