@@ -42,7 +42,7 @@ var setupGroups = []SetupGroup{
 	{
 		ID:       "storage",
 		TitleKey: "wizard.setup.storage",
-		Packages: []string{"kmod-usb-storage", "kmod-fs-ext4", "kmod-fs-vfat", "kmod-fs-exfat"},
+		Packages: []string{"kmod-usb-storage", "block-mount", "kmod-fs-ext4", "kmod-fs-vfat", "kmod-fs-exfat"},
 	},
 	{
 		ID:       "extras",
