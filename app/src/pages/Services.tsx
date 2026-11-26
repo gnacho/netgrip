@@ -7,9 +7,7 @@ import { TailscaleCard } from "../components/services/TailscaleCard";
 import { DdnsCard } from "../components/services/DdnsCard";
 import { SqmCard } from "../components/services/SqmCard";
 import { NlbwmonCard } from "../components/services/NlbwmonCard";
-import { AdguardCard } from "../components/services/AdguardCard";
 import { LanServicesCard } from "../components/services/LanServicesCard";
-import { BanipCard } from "../components/services/BanipCard";
 
 /** Cabecera de grupo: eyebrow + una frase llana small muted (services.md §1). */
 function GroupHeader({ title, desc, index }: { title: string; desc: string; index: number }) {
@@ -25,7 +23,7 @@ function GroupHeader({ title, desc, index }: { title: string; desc: string; inde
  * Servicios (services.md): toggles con superpoderes agrupados por tarea.
  * Entrada escalonada por grupo (VPN inmediato, siguientes +80ms).
  */
-export function Services({ wg, onWgChange, ddns, onDdnsChange, sqm, onSqmChange, ovpn, onOvpnChange, ts, onTsChange, apMode = false, onNavigate }: {
+export function Services({ wg, onWgChange, ddns, onDdnsChange, sqm, onSqmChange, ovpn, onOvpnChange, ts, onTsChange, apMode = false }: {
   wg: WGProbe | undefined;
   onWgChange: (p: WGProbe) => void;
   ddns: DDNSProbe | undefined;
@@ -37,23 +35,12 @@ export function Services({ wg, onWgChange, ddns, onDdnsChange, sqm, onSqmChange,
   ts: TSProbe | undefined;
   onTsChange: (p: TSProbe) => void;
   apMode?: boolean;
-  onNavigate?: (p: string) => void;
 }) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-6 md:gap-8">
-      {/* Protección: lo que se bloquea. Contabilidad y bloqueo por IP solo en
-          el gateway (#500): un AP no enruta, así que nlbwmon no puede contar
-          tráfico por equipo. Los encabezados también solo en gateway: describen
-          funciones que en un AP no se pintan. */}
-      {!apMode && (
-        <section className="flex flex-col gap-[var(--card-gap)]">
-          <GroupHeader index={0} title={t("services.groupProtection")} desc={t("services.groupProtectionDesc")} />
-          <AdguardCard index={0} />
-          <BanipCard index={0} onNavigate={onNavigate} />
-        </section>
-      )}
-
+      {/* Protección vive en su propia entrada del menú (#687): AdGuard y
+          banIP con sus listas. Aquí queda el resto de Servicios. */}
       {/* Calidad: qué usa la línea y cómo se reparte. nlbwmon responde "qué
           está gastando la línea", que es la misma pregunta que resuelve SQM. */}
       {!apMode && (
