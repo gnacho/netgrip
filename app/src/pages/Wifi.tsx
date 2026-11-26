@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { copyText } from "../lib/clipboard";
 import { Ban, CloudOff, Copy, Eye, EyeOff, Pencil, QrCode as QrCodeIcon, Settings2, Wifi as WifiIcon } from "lucide-react";
 import { api } from "../api";
 import type { BlockedClient, GuestProbe, IoTProbe, WifiUI, WirelessRadio } from "../types";
@@ -211,11 +212,9 @@ function RadioCard({ iface, group, radios, index, passkey, blocked, onEdit, onRa
 
   const copyKey = async () => {
     if (!passkey) return;
-    try {
-      await navigator.clipboard.writeText(passkey);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch { /* clipboard bloqueado */ }
+    if (!(await copyText(passkey))) return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   return (
@@ -419,11 +418,9 @@ function QrModal({ iface, passkey, onClose }: {
 
   const copyKey = async () => {
     if (!passkey) return;
-    try {
-      await navigator.clipboard.writeText(passkey);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch { /* clipboard bloqueado */ }
+    if (!(await copyText(passkey))) return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   useEffect(() => { setShowKey(false); setCopied(false); }, [iface?.section]);

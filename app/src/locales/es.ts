@@ -1997,6 +1997,8 @@ export default {
     shareTitle: "Diagnóstico de red",
     share: "Copiar resumen",
     copied: "Resumen copiado",
+    copyManualTitle: "No se pudo copiar automáticamente",
+    copyManualBody: "El navegador ha denegado el acceso al portapapeles. El resumen está seleccionado abajo: Ctrl+C (o Cmd+C) lo copia.",
     copyFailed: "No se pudo copiar el resumen",
     selfTestTitle: "Autodiagnóstico",
     selfTestRun: "Ejecutar autodiagnóstico",

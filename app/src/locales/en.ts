@@ -1997,6 +1997,8 @@ export default {
     shareTitle: "Network diagnostics",
     share: "Copy summary",
     copied: "Summary copied",
+    copyManualTitle: "Could not copy automatically",
+    copyManualBody: "The browser refused access to the clipboard. The summary is selected below: Ctrl+C (or Command+C) copies it.",
     copyFailed: "Could not copy the summary",
     selfTestTitle: "Self-test",
     selfTestRun: "Run self-test",

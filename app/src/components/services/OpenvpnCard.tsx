@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { copyText } from "../../lib/clipboard";
 import { AlertTriangle, Copy, Download, Globe, Lock, Plus, Trash2 } from "lucide-react";
 import { api } from "../../api";
 import type { OVPNProbe } from "../../types";
@@ -312,14 +313,10 @@ function OvpnConfigView({ name, config }: { name: string; config: string }) {
   const toast = useToast();
   const [copied, setCopied] = useState(false);
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(config);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-      toast.push({ tone: "ok", text: t("ovpn.copyConfig") });
-    } catch {
-      // clipboard bloqueado
-    }
+    if (!(await copyText(config))) return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+    toast.push({ tone: "ok", text: t("ovpn.copyConfig") });
   };
   const download = () => downloadText(`${name}.ovpn`, config, "application/x-openvpn-profile");
   return (

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { CircleAlert, CircleCheck, Copy, Info, TriangleAlert, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { copyText } from "../../lib/clipboard";
 
 export type ToastTone = "ok" | "info" | "warn" | "danger";
 
@@ -68,7 +69,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 {toast.detail && (
                   <button type="button"
                     title={t("common.copyDetail")}
-                    onClick={() => navigator.clipboard?.writeText(toast.detail ?? "").catch(() => {})}
+                    onClick={() => { void copyText(toast.detail ?? ""); }}
                     className="shrink-0 text-muted hover:text-text ring-focus rounded-sm">
                     <Copy size={14} />
                   </button>
