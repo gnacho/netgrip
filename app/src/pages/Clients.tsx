@@ -318,10 +318,10 @@ export function ClientsPage() {
           <DevIcon size={16} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5">
+          <span className="flex flex-wrap items-center gap-1.5">
             <button type="button" onClick={() => setDetailTarget(c)}
               title={t("clients.details")} aria-label={`${t("clients.details")}: ${c.name || c.mac}`}
-              className="truncate text-body font-medium text-left ring-focus rounded-sm hover:text-accent transition-colors">
+              className="min-w-0 truncate text-body font-medium text-left ring-focus rounded-sm hover:text-accent transition-colors">
               {c.name || <span className="font-mono text-small">{c.mac}</span>}
             </button>
             {c.self && <Pill tone="accent">{t("overview.thisDevice")}</Pill>}

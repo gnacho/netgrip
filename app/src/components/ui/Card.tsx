@@ -49,9 +49,11 @@ export function Card({ eyebrow, title, status, icon, iconTone = "accent", help, 
       {(title || action || eyebrow) && (
         <header className={headerOnly ? "" : "mb-3"}>
           {eyebrow && <p className="text-eyebrow text-faint mb-1.5">{eyebrow}</p>}
-          <div className={`flex items-center gap-2.5 ${headerOnly ? "flex-wrap" : ""}`}>
+          {/* #726: si el título y la acción no caben, la acción baja a su
+              propia línea en vez de exprimir el título. */}
+          <div className="flex flex-wrap items-center gap-2.5">
             {icon && <IconTile icon={icon} tone={iconTone} />}
-            <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <div className="flex min-w-[10rem] flex-1 items-center gap-2.5">
               {title && <h2 className="text-h2 min-w-0">{title}</h2>}
               {status}
               {help && <HelpTip title={t(`help.${help}.title`)} body={t(`help.${help}.body`)} />}
