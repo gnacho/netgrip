@@ -101,8 +101,10 @@ export function Ports({ ethports }: { ethports?: EthPort[] }) {
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
       {/* self-start: sin él el contenedor flex-col estira el tablist a
-          todo el ancho (align-items: stretch blockifica el inline-flex). */}
-      <div className="self-start">
+          todo el ancho (align-items: stretch blockifica el inline-flex).
+          w-full + min-w-0: el ancho disponible es el que manda, y en móvil el
+          control scrollea en horizontal en vez de ensanchar la página (#664). */}
+      <div className="self-start w-full min-w-0">
         <SegmentedControl<PortsTab>
           ariaLabel={t("ports.tabsAria")}
           value={active}
