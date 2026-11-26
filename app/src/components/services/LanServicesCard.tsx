@@ -366,9 +366,19 @@ function ServiceRow({ s, index, onEdit, onRemove }: {
         <IconTile icon={lanServiceIcon(s.kind)} tone="accent" />
         <div className="flex-1 min-w-0">
           <h2 className="text-h2 truncate">{s.name}</h2>
-          <p className="text-caption text-muted font-mono">
-            {serviceTarget(s)}
-            {s.resolved_ip && s.resolved_ip !== s.host ? ` · ${s.resolved_ip}` : ""}
+          {/* Editar a la izquierda de la descripción, en acento (#762). */}
+          <p className="flex min-w-0 items-center gap-2 text-caption">
+            <button
+              type="button"
+              onClick={onEdit}
+              className="shrink-0 font-medium text-accent hover:text-accent-hover ring-focus rounded-sm"
+            >
+              {t("lanservices.edit")}
+            </button>
+            <span className="min-w-0 truncate font-mono text-muted">
+              {serviceTarget(s)}
+              {s.resolved_ip && s.resolved_ip !== s.host ? ` · ${s.resolved_ip}` : ""}
+            </span>
           </p>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
@@ -389,9 +399,6 @@ function ServiceRow({ s, index, onEdit, onRemove }: {
       <div className="pt-3 border-t border-border/60 flex flex-wrap items-center gap-1">
         <Button size="sm" icon={ExternalLink} onClick={open} className="max-sm:h-11">
           {t("lanservices.open")}
-        </Button>
-        <Button variant="ghost" size="sm" icon={Pencil} onClick={onEdit} className="max-sm:h-11">
-          {t("lanservices.edit")}
         </Button>
         <Button variant="ghost" size="sm" icon={Trash2} onClick={onRemove}
           aria-label={t("lanservices.removeTitle", { name: s.name })}
