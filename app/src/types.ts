@@ -1660,6 +1660,10 @@ export interface StorageProbe {
   applicable: boolean;
   /** El equipo tiene buses USB aunque no haya ningún disco conectado. */
   supported: boolean;
+  /** Hay un dispositivo USB conectado (no un hub). */
+  usb_present: boolean;
+  /** El kernel tiene el controlador de almacenamiento USB cargado. */
+  usb_storage_loaded: boolean;
   devices: StorageDevice[];
   services: StorageService[];
 }

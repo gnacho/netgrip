@@ -41,6 +41,7 @@ var optionalCatalog = []OptionalPkg{
 	{ID: "mwan3", Packages: []string{"mwan3"}, I18nKey: "wizard.packages.mwan3", Module: "multiwan"},
 	{ID: "owut", Packages: []string{"owut"}, I18nKey: "wizard.packages.owut", Module: "owut"},
 	{ID: "snmp", Packages: []string{"snmpd"}, I18nKey: "wizard.packages.snmp", Module: "snmp"},
+	{ID: "usbstorage", Packages: []string{"kmod-usb-storage", "kmod-fs-ext4", "kmod-fs-vfat", "kmod-fs-exfat"}, I18nKey: "wizard.packages.usbstorage", Module: "usbstorage"},
 }
 
 // optionalServices maps catalog modules to their init.d service, stopped and

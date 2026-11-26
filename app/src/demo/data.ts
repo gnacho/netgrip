@@ -742,6 +742,8 @@ export const demoPhysPorts: T.PhysPortsProbe = {
 export const demoStorage: T.StorageProbe = {
   applicable: true,
   supported: true,
+  usb_present: true,
+  usb_storage_loaded: true,
   devices: [{
     name: "sda1", path: "/dev/sda1", fs_type: "ext4",
     size_bytes: 120 * 1024 * MIB,
@@ -800,6 +802,7 @@ export const demoWizardSetup: T.WizardSetupProbe = {
     { id: "core", title_key: "wizard.setup.required", packages: ["rpcd-mod-file"] },
     { id: "netpulse", title_key: "wizard.setup.netpulse", packages: ["tailscale"] },
     { id: "diagnostics", title_key: "wizard.setup.diagnostics", packages: ["ethtool-full", "tcpdump-mini"] },
+    { id: "storage", title_key: "wizard.setup.storage", packages: ["kmod-usb-storage", "kmod-fs-vfat"] },
     { id: "extras", title_key: "wizard.setup.extras", packages: [] },
   ],
 };

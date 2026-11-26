@@ -2516,6 +2516,7 @@ export default {
       required: "Always required",
       netpulse: "NetPulse connection",
       diagnostics: "Diagnostics",
+      storage: "USB storage",
       extras: "Recommended extras",
       seeWhatInstalls: "See the {{count}} packages",
       seeCatalog: "See package catalog",
@@ -2622,6 +2623,10 @@ export default {
       adguard: {
         title: "AdGuard Home",
         desc: "Filters ads and trackers for the whole network.",
+      },
+      usbstorage: {
+        title: "USB storage",
+        desc: "USB disks and sticks: FAT32, exFAT and ext4.",
       },
       netifyd: {
         title: "Traffic analysis",
@@ -2806,6 +2811,8 @@ export default {
     svcInstalled: "{{name}} installed. Turn it on whenever you like.",
     svcInstall: "Install",
     svcNotInstalled: "Not installed",
+    usbNoDriver: "A USB device is plugged in, but the router has no disk driver, so it cannot show it. Install it and the disk appears right away.",
+    usbInstallDriver: "Install driver",
     service: {
       samba: {
         label: "Folder sharing (Windows/Mac)",
