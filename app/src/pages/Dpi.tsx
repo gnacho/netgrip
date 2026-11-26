@@ -99,7 +99,7 @@ export function DpiPage() {
   }, [probe]);
 
   const chartData = useMemo<MultiSeries[]>(() => {
-    if (!timeline?.buckets.length || !timeline.top.length) return [];
+    if (!timeline?.buckets?.length || !timeline.top?.length) return [];
     const palette = [
       "var(--color-chart-rx)",
       "var(--color-chart-tx)",
@@ -117,7 +117,7 @@ export function DpiPage() {
   }, [timeline]);
 
   const xLabels = useMemo(() => {
-    if (!timeline?.buckets.length) return [];
+    if (!timeline?.buckets?.length) return [];
     return timeline.buckets.map((b) => {
       const d = new Date(b.time);
       return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -140,9 +140,9 @@ export function DpiPage() {
   }, [timeline, apps, search, sort]);
 
   const maxBytes = useMemo(() => {
-    if (timeline?.top.length) return Math.max(1, ...timeline.top.map((a) => a.bytes));
+    if (timeline?.top?.length) return Math.max(1, ...timeline.top.map((a) => a.bytes));
     if (byCategory.length) return Math.max(1, ...byCategory.map((c) => c.bytes));
-    if (probe?.protocols.length) return Math.max(1, ...probe.protocols.map((p) => p.bytes));
+    if (probe?.protocols?.length) return Math.max(1, ...probe.protocols.map((p) => p.bytes));
     return 1;
   }, [timeline, byCategory, probe]);
 
@@ -150,8 +150,8 @@ export function DpiPage() {
   // La vista de netifyd y la cabecera deben contar lo mismo: el probe de
   // conntrack mide otra cosa (flujos activos ahora) y descuadraba (#615).
   const netifydView = !!showNetifyd && !!timeline;
-  const headerBytes = netifydView ? (timeline?.totals.total ?? 0) : probe?.total_bytes ?? 0;
-  const headerCount = netifydView ? (timeline?.top.length ?? 0) : probe?.total_flows ?? 0;
+  const headerBytes = netifydView ? (timeline?.totals?.total ?? 0) : probe?.total_bytes ?? 0;
+  const headerCount = netifydView ? (timeline?.top?.length ?? 0) : probe?.total_flows ?? 0;
 
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
@@ -248,7 +248,7 @@ export function DpiPage() {
               />
             ) : !probe.applicable ? (
               <EmptyState title={t("dpi.noData")} />
-            ) : probe.protocols.length === 0 ? (
+            ) : !probe.protocols?.length ? (
               <EmptyState small title={t("dpi.noData")} />
             ) : view === "category" ? (
               <ul className="flex flex-col gap-2.5">

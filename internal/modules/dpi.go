@@ -2,6 +2,7 @@ package modules
 
 import (
 	"bufio"
+	"io"
 	"os"
 	"sort"
 	"strconv"
@@ -68,18 +69,31 @@ var categoryNames = map[string]string{
 	"other":     "Other",
 }
 
+// ProbeDPI reads the kernel conntrack table. A kernel built without
+// CONFIG_NF_CONNTRACK_PROCFS does not expose it, and the panel is simply not
+// applicable there. Protocols is never nil: a nil slice serialises as null and
+// the interface reads .length from it, which took the whole Internet page down
+// (#661).
 func ProbeDPI() *DPIProbe {
 	f, err := os.Open("/proc/net/nf_conntrack")
 	if err != nil {
-		return &DPIProbe{Applicable: false}
+		return emptyDPIProbe()
 	}
 	defer f.Close()
 
+	return probeDPIFrom(f)
+}
+
+func emptyDPIProbe() *DPIProbe {
+	return &DPIProbe{Applicable: false, Protocols: []DPIProtocol{}}
+}
+
+func probeDPIFrom(r io.Reader) *DPIProbe {
 	protoMap := map[string]*DPIProtocol{}
 	var totalBytes int64
 	totalFlows := 0
 
-	scanner := bufio.NewScanner(f)
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := scanner.Text()
 		proto, dport, bytes := parseConntrackLine(line)
