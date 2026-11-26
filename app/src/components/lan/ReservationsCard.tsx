@@ -162,7 +162,7 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
           body={t("lan.resEmptyBody")}
         />
       ) : (
-        <div className="max-h-[26rem] overflow-auto">
+        <div className="max-h-[47rem] overflow-auto">
           <table className="w-full">
             <thead className="sticky top-0 bg-surface">
               <tr className="text-caption text-muted border-b border-border">
