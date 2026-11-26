@@ -1656,6 +1656,10 @@ export interface StorageService {
   enabled: boolean;
   /** El paquete está instalado. Si no, la página ofrece instalarlo. */
   installed: boolean;
+  /** El paquete existe en los repos del router. */
+  available: boolean;
+  /** Carpetas que comparte el servicio. */
+  paths: string[];
 }
 
 export interface StorageProbe {

@@ -133,7 +133,8 @@ export function StoragePage() {
         ) : (
           <div className="flex flex-col divide-y divide-border/60">
             {(probe.services ?? []).map((svc) => (
-              <ServiceRow key={svc.name} svc={svc} onChanged={refresh} />
+              <ServiceRow key={svc.name} svc={svc} onChanged={refresh}
+                mounts={(probe.devices ?? []).map((d) => d.mount_point).filter((m): m is string => !!m)} />
             ))}
           </div>
         )}
@@ -281,11 +282,15 @@ function DiskCard({ disk: d, index, onChanged }: { disk: StorageDevice; index: n
 
 /* ══════════════ Fila de servicio (SettingRow + pill de estado) ══════════════ */
 
-function ServiceRow({ svc, onChanged }: { svc: StorageService; onChanged: () => void }) {
+function ServiceRow({ svc, onChanged, mounts }: { svc: StorageService; onChanged: () => void; mounts: string[] }) {
   const { t } = useTranslation();
   const { phase, detail, busy, run, clear } = useActionCycle();
   const { begin, running: installing, job } = useInstallJob();
   const [doneText, setDoneText] = useState<string>();
+  const [folderOpen, setFolderOpen] = useState(false);
+  const [selected, setSelected] = useState<string[]>(svc.paths ?? []);
+  const [pathsBusy, setPathsBusy] = useState(false);
+  const [pathsError, setPathsError] = useState<string>();
 
   const key = serviceKey(svc.name);
   const label = key ? t(`storage.service.${key}.label`) : svc.name;
@@ -318,6 +323,25 @@ function ServiceRow({ svc, onChanged }: { svc: StorageService; onChanged: () => 
     }
   };
 
+  // #720: minidlna comparte carpetas concretas; se eligen entre los discos.
+  const canPickFolders = svc.name === "minidlna" && svc.installed;
+  const toggleFolder = (path: string) =>
+    setSelected((cur) => (cur.includes(path) ? cur.filter((p) => p !== path) : [...cur, path]));
+
+  const saveFolders = async () => {
+    setPathsBusy(true);
+    setPathsError(undefined);
+    try {
+      await api.setStoragePaths(svc.name, selected);
+      setFolderOpen(false);
+      onChanged();
+    } catch (e) {
+      setPathsError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPathsBusy(false);
+    }
+  };
+
   return (
     <div className="py-3 first:pt-0 last:pb-0">
       <div className={`flex items-start gap-3 ${busy || installing ? "opacity-70" : ""}`}>
@@ -331,6 +355,18 @@ function ServiceRow({ svc, onChanged }: { svc: StorageService; onChanged: () => 
             )}
           </div>
           <p className="text-small text-muted mt-0.5">{desc}</p>
+          {canPickFolders && (
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <span className="text-caption text-faint">
+                {svc.paths.length > 0
+                  ? t("storage.foldersNow", { list: svc.paths.join(", ") })
+                  : t("storage.foldersNone")}
+              </span>
+              <Button size="sm" variant="ghost" onClick={() => { setSelected(svc.paths ?? []); setFolderOpen(true); }}>
+                {t("storage.folders")}
+              </Button>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2.5 shrink-0 pt-1">
           {svc.installed ? (
@@ -340,6 +376,8 @@ function ServiceRow({ svc, onChanged }: { svc: StorageService; onChanged: () => 
               </Pill>
               <Toggle checked={svc.enabled} busy={busy} onChange={toggle} label={label} />
             </>
+          ) : !svc.available ? (
+            <Pill tone="muted">{t("storage.svcUnavailable")}</Pill>
           ) : (
             <>
               <Pill tone="muted">{t("storage.svcNotInstalled")}</Pill>
@@ -351,6 +389,35 @@ function ServiceRow({ svc, onChanged }: { svc: StorageService; onChanged: () => 
         </div>
       </div>
       {installing && <div className="mt-2"><InstallProgress job={job} /></div>}
+      <Modal
+        open={folderOpen}
+        onClose={() => setFolderOpen(false)}
+        title={t("storage.foldersTitle")}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setFolderOpen(false)}>{t("common.cancel")}</Button>
+            <Button loading={pathsBusy} disabled={selected.length === 0} onClick={saveFolders}>
+              {t("common.save")}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-small text-muted">{t("storage.foldersHint")}</p>
+        {mounts.length === 0 ? (
+          <p className="mt-3 text-small text-muted">{t("storage.foldersNoMounts")}</p>
+        ) : (
+          <div className="mt-3 flex flex-col gap-2">
+            {mounts.map((m) => (
+              <label key={m} className="flex items-center gap-2 text-body">
+                <input type="checkbox" className="accent-accent" checked={selected.includes(m)}
+                  onChange={() => toggleFolder(m)} />
+                <span className="font-mono text-small">{m}</span>
+              </label>
+            ))}
+          </div>
+        )}
+        {pathsError && <p className="mt-2 text-caption text-danger">{pathsError}</p>}
+      </Modal>
       {phase && (
         <div className="mt-2">
           <ActionBanner phase={phase} text={phase === "done" ? doneText : undefined} detail={detail} onDone={clear} />

@@ -351,6 +351,7 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("POST /api/storage/install", s.requireAuth(s.handleStorageInstall))
 	s.mux.HandleFunc("POST /api/storage/mount", s.requireAuth(s.handleStorageMount))
 	s.mux.HandleFunc("POST /api/storage/unmount", s.requireAuth(s.handleStorageUnmount))
+	s.mux.HandleFunc("POST /api/storage/paths", s.requireAuth(s.handleStoragePaths))
 	s.mux.HandleFunc("GET /api/mac-acl", s.requireAuth(s.handleMACACLGet))
 	s.mux.HandleFunc("POST /api/mac-acl", s.requireAuth(s.handleMACACLSet))
 	s.mux.HandleFunc("GET /api/netpulse", s.requireAuth(s.handleNetPulseGet))
@@ -3388,6 +3389,24 @@ func (s *Server) handleStorageMount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	probe, err := modules.MountStorage(req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, probe)
+}
+
+// handleStoragePaths (#720): carpetas que comparte minidlna.
+func (s *Server) handleStoragePaths(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Service string   `json:"service"`
+		Paths   []string `json:"paths"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	probe, err := modules.SetStoragePaths(req.Service, req.Paths)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return

@@ -753,9 +753,9 @@ export const demoStorage: T.StorageProbe = {
     managed: true,
   }],
   services: [
-    { name: "samba", running: true, enabled: true, installed: true },
-    { name: "nfs", running: false, enabled: false, installed: true },
-    { name: "minidlna", running: false, enabled: false, installed: false },
+    { name: "samba", running: true, enabled: true, installed: true, available: true, paths: [] },
+    { name: "nfs", running: false, enabled: false, installed: true, available: true, paths: [] },
+    { name: "minidlna", running: false, enabled: false, installed: true, available: true, paths: ["/mnt"] },
   ],
 };
 
