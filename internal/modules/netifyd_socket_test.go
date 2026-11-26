@@ -9,13 +9,13 @@ func TestNetifydTableAggregation(t *testing.T) {
 	tbl := newNetifydTable(256, 4096)
 
 	// First flow identifies the application.
-	tbl.setFlowApp("abc123", "YouTube", "HTTP/S")
+	tbl.setFlowApp("abc123", "YouTube", "HTTP/S", "")
 	// Flow stats add bytes.
 	tbl.addStats("abc123", 100, 200, 300, 10)
 	tbl.addStats("abc123", 50, 70, 120, 5)
 
 	// Another app.
-	tbl.setFlowApp("def456", "QUIC", "QUIC")
+	tbl.setFlowApp("def456", "QUIC", "QUIC", "")
 	tbl.addStats("def456", 10, 20, 30, 1)
 
 	apps := tbl.Apps()
@@ -60,11 +60,11 @@ func TestNetifydTableUnknownDigest(t *testing.T) {
 func TestNetifydTableEviction(t *testing.T) {
 	tbl := newNetifydTable(2, 2)
 	// Fill the apps table past the limit.
-	tbl.setFlowApp("a", "AppA", "")
+	tbl.setFlowApp("a", "AppA", "", "")
 	tbl.addStats("a", 100, 0, 100, 1)
-	tbl.setFlowApp("b", "AppB", "")
+	tbl.setFlowApp("b", "AppB", "", "")
 	tbl.addStats("b", 50, 0, 50, 1)
-	tbl.setFlowApp("c", "AppC", "")
+	tbl.setFlowApp("c", "AppC", "", "")
 	tbl.addStats("c", 10, 0, 10, 1)
 
 	apps := tbl.Apps()
@@ -106,9 +106,9 @@ func TestNetifydClientHandleMessage(t *testing.T) {
 
 func TestNetifydTableTimeline(t *testing.T) {
 	tbl := newNetifydTable(256, 4096)
-	tbl.setFlowApp("d1", "YouTube", "")
+	tbl.setFlowApp("d1", "YouTube", "", "")
 	tbl.addStats("d1", 100, 200, 300, 10)
-	tbl.setFlowApp("d2", "QUIC", "")
+	tbl.setFlowApp("d2", "QUIC", "", "")
 	tbl.addStats("d2", 10, 20, 30, 1)
 
 	timeline := tbl.Timeline()
@@ -136,7 +136,7 @@ func TestNetifydTableTimeline(t *testing.T) {
 func TestNetifydTableTimelineEviction(t *testing.T) {
 	tbl := newNetifydTable(256, 4096)
 	tbl.maxBuckets = 2
-	tbl.setFlowApp("d1", "YouTube", "")
+	tbl.setFlowApp("d1", "YouTube", "", "")
 
 	base := time.Now().Unix() / int64(timelineBucketDuration.Seconds()) * int64(timelineBucketDuration.Seconds())
 	// Inject buckets directly to avoid time dependency.
@@ -157,7 +157,7 @@ func TestNetifydTableTimelineEviction(t *testing.T) {
 // inflaba el trafico (#620).
 func TestNetifydTableCumulativeCountersCountOnce(t *testing.T) {
 	tbl := newNetifydTable(256, 4096)
-	tbl.setFlowApp("d1", "YouTube", "")
+	tbl.setFlowApp("d1", "YouTube", "", "")
 	tbl.addStats("d1", 400, 600, 1000, 10)
 	tbl.addStats("d1", 400, 600, 1000, 10)
 	tbl.addStats("d1", 400, 600, 1000, 10)
@@ -176,13 +176,13 @@ func TestNetifydTableCumulativeCountersCountOnce(t *testing.T) {
 func TestNetifydTableMovesPendingBytesToTheApplication(t *testing.T) {
 	tbl := newNetifydTable(256, 4096)
 
-	tbl.setFlowApp("d1", "", "HTTP/S")
+	tbl.setFlowApp("d1", "", "HTTP/S", "")
 	tbl.addStats("d1", 100, 200, 300, 5)
 	if apps := tbl.Apps(); len(apps) != 0 {
 		t.Fatalf("sin aplicacion no se contabiliza todavia: %+v", apps)
 	}
 
-	tbl.setFlowApp("d1", "youtube", "HTTP/S")
+	tbl.setFlowApp("d1", "youtube", "HTTP/S", "")
 	apps := tbl.Apps()
 	if len(apps) != 1 || apps[0].Name != "youtube" {
 		t.Fatalf("expected youtube, got %+v", apps)
@@ -202,7 +202,7 @@ func TestNetifydTableMovesPendingBytesToTheApplication(t *testing.T) {
 // quedarse invisible para siempre.
 func TestNetifydTablePendingFallsBackToTheProtocol(t *testing.T) {
 	tbl := newNetifydTable(256, 4096)
-	tbl.setFlowApp("d1", "", "SSH")
+	tbl.setFlowApp("d1", "", "SSH", "")
 	tbl.addStats("d1", 10, 20, 30, 1)
 
 	tbl.mu.Lock()
@@ -242,5 +242,37 @@ func TestNetifydClientStripsTheNamespace(t *testing.T) {
 	apps := tbl.Apps()
 	if len(apps) != 1 || apps[0].Name != "youtube" {
 		t.Fatalf("expected youtube, got %+v", apps)
+	}
+}
+
+// The category netifyd reports is kept with the application, so the interface
+// can fall back to a category icon when it has no brand icon (#687).
+func TestNetifydAppKeepsTheCategory(t *testing.T) {
+	tbl := newNetifydTable(256, 4096)
+	tbl.setFlowApp("cat1", "YouTube", "HTTP/S", "streaming")
+	tbl.addStats("cat1", 0, 1024, 1024, 4)
+
+	for _, a := range tbl.Apps() {
+		if a.Name == "YouTube" {
+			if a.Category != "streaming" {
+				t.Fatalf("App category = %q, want streaming", a.Category)
+			}
+			return
+		}
+	}
+	t.Fatal("YouTube not in the app table")
+}
+
+func TestNetifydTimelineCarriesTheCategory(t *testing.T) {
+	tbl := newNetifydTable(256, 4096)
+	tbl.setFlowApp("cat2", "GitHub", "HTTP/S", "admin")
+	tbl.addStats("cat2", 0, 2048, 2048, 8)
+
+	tl := tbl.Timeline()
+	if len(tl.Top) != 1 {
+		t.Fatalf("top = %d, want 1", len(tl.Top))
+	}
+	if tl.Top[0].Category != "admin" {
+		t.Fatalf("top category = %q, want admin", tl.Top[0].Category)
 	}
 }

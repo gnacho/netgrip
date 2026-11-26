@@ -1326,6 +1326,8 @@ export interface DPIProbe {
 
 export interface NetifydApp {
   name: string;
+  /** nDPI category ("streaming", "social", ...), when it reported one. */
+  category?: string;
   bytes: number;
   local_bytes: number;
   other_bytes: number;

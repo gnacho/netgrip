@@ -49,7 +49,7 @@ func TestSetNetifydRejectsLowEnd(t *testing.T) {
 
 func TestNetifydAppsReturnsCopy(t *testing.T) {
 	tbl := newNetifydTable(256, 4096)
-	tbl.setFlowApp("x", "Netflix", "HTTP/S")
+	tbl.setFlowApp("x", "Netflix", "HTTP/S", "")
 	tbl.addStats("x", 1, 2, 3, 1)
 
 	// Reset the package-level table and point it to our test table.
