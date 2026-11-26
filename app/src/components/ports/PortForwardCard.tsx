@@ -203,7 +203,7 @@ export function PortForwardCard({ probe, onChange }: {
 
 /* ══════════ Modal "Nueva regla" (ports.md §2) ══════════ */
 
-function NewRuleModal({ template, rule, probe, busy, onClose, onConfirm }: {
+export function NewRuleModal({ template, rule, probe, busy, onClose, onConfirm }: {
   template: FwdTemplate | undefined;
   /** Regla existente que se está editando (solo forwards propios). */
   rule?: FwdRule;

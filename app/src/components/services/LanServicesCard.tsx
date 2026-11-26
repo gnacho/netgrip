@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { AppWindow, ExternalLink, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { api } from "../../api";
-import type { FwdProbe, LanDiscoverySuggestion, LanService, LanServiceStatus, LanServicesProbe } from "../../types";
+import type { FwdProbe, FwdRule, LanDiscoverySuggestion, LanService, LanServiceStatus, LanServicesProbe } from "../../types";
 import {
   AdvancedDisclosure, Button, ConfirmDialog, EmptyState, Field, IconTile,
   Modal, Pill, SegmentedControl, Skeleton, useToast,
 } from "../ui";
 import { lanServiceIcon } from "./lanCatalog";
+import { NewRuleModal } from "../ports/PortForwardCard";
 
 /** Sufijo DNS fijo de los alias locales (coincide con el backend). */
 const LAN_ALIAS_SUFFIX = ".lan";
@@ -87,6 +88,8 @@ export function LanServicesCard() {
   // Puertos que ya están abiertos hacia un equipo de la red: son servicios
   // self-hosted aunque no se hayan añadido a mano (#699).
   const [fwd, setFwd] = useState<FwdProbe>();
+  const [editingFwd, setEditingFwd] = useState<FwdRule>();
+  const [fwdBusy, setFwdBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoadError(false);
@@ -119,6 +122,27 @@ export function LanServicesCard() {
       setToRemove(undefined);
     } catch (e) {
       toast.push({ tone: "danger", text: t("common.loadError"), detail: e instanceof Error ? e.message : String(e) });
+    }
+  };
+
+  // Editar un reenvío aquí mismo, con el mismo formulario que la tarjeta de
+  // reenvíos (#701).
+  const saveFwd = async (srcDport: string, destIP: string, destPort: string, proto: string) => {
+    if (!editingFwd) return;
+    setFwdBusy(true);
+    try {
+      const res = await api.updateFwdRule(editingFwd.section, srcDport, destIP, destPort, proto);
+      if (res.error) {
+        toast.push({ tone: "danger", text: t("lanservices.exposedEditFailed"), detail: res.error });
+      } else {
+        if (res.state) setFwd(res.state);
+        toast.push({ tone: "ok", text: t("lanservices.exposedEditOk") });
+      }
+    } catch (e) {
+      toast.push({ tone: "danger", text: t("lanservices.exposedEditFailed"), detail: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setFwdBusy(false);
+      setEditingFwd(undefined);
     }
   };
 
@@ -265,6 +289,14 @@ export function LanServicesCard() {
                     <span className="flex-1 min-w-0 truncate text-small">{r.name || t("lanservices.exposedUnnamed", { port: r.src_dport })}</span>
                     <span className="font-mono text-small text-muted">{r.dest_ip}:{r.dest_port}</span>
                     <Pill tone="warn">{t("lanservices.exposedPill", { port: r.src_dport })}</Pill>
+                    <button
+                      type="button"
+                      onClick={() => setEditingFwd(r)}
+                      aria-label={t("lanservices.exposedEdit", { name: r.name || r.src_dport })}
+                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-muted hover:text-text hover:bg-surface-2 ring-focus transition-colors duration-[var(--dur-fast)]"
+                    >
+                      <Pencil size={14} aria-hidden="true" />
+                    </button>
                   </>
                 )}
               </li>
@@ -272,6 +304,15 @@ export function LanServicesCard() {
           </ul>
         </div>
       )}
+
+      <NewRuleModal
+        template={undefined}
+        rule={editingFwd}
+        probe={fwd}
+        busy={fwdBusy}
+        onClose={() => setEditingFwd(undefined)}
+        onConfirm={saveFwd}
+      />
 
       <ServiceModal
         open={showAdd || editing !== undefined}
