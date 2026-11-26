@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Info, RotateCcw } from "lucide-react";
+import { Info, RotateCcw, Star } from "lucide-react";
 import { api, isDemo } from "../../api";
 import type { Board, SelfUpdateCheck } from "../../types";
 import { Banner, Button, Card, ConfirmDialog, KeyValue, useToast } from "../ui";
 import { WaitOverlay, useCountdown, useMeBack } from "./WaitOverlay";
+
+// El repo es lo único que la interfaz sigue enlazando tras retirar Acerca
+// de (#681).
+const STARGAZERS_URL = "https://github.com/gnacho/netgrip/stargazers";
 
 const REBOOT_SECONDS = 60;
 const MIN_ELAPSED_MS = 6000;
@@ -67,12 +71,21 @@ export function IdentityCard({ board, index = 1 }: { board: Board | undefined; i
         ]} />
       </div>
 
-      <div className="mt-4">
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
         <Button variant="secondary" icon={RotateCcw} loading={starting}
           className="text-danger border-danger/40 hover:bg-danger-soft"
           onClick={() => setConfirm(true)}>
           {t("system.reboot")}
         </Button>
+        <a
+          href={STARGAZERS_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ml-auto inline-flex items-center gap-1 text-small text-accent hover:text-accent-hover ring-focus rounded-sm"
+        >
+          <Star size={14} aria-hidden="true" />
+          {t("system.starCta")}
+        </a>
       </div>
 
       {phase === "background" && (
