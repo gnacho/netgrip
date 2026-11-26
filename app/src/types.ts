@@ -1170,6 +1170,28 @@ export interface PhysPortsProbe {
   ports: PhysPort[];
 }
 
+/** Rol de una boca ethernet (#662). Derivado de la config, no guardado. */
+export interface PortRoleEntry {
+  name: string;
+  role: "lan" | "wan" | "unused";
+  link_up: boolean;
+  speed_mbps: number;
+  mac: string;
+  factory_mac: string;
+  mac_override: string;
+  vlan_suffix?: string;
+}
+
+export interface PortRolesProbe {
+  applicable: boolean;
+  reason?: string;
+  mode: string;
+  wan_iface?: string;
+  wan_device?: string;
+  can_assign_wan: boolean;
+  ports: PortRoleEntry[];
+}
+
 export interface PhysPortEdit {
   name: string;
   autoneg?: boolean;

@@ -566,6 +566,19 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ iface, blocked }),
     }),
+  portRoles: () => request<import("./types").PortRolesProbe>("/api/ports/roles"),
+  setPortRole: (port: string, role: "lan" | "wan") =>
+    request<import("./types").ModuleResult<import("./types").PortRolesProbe>>("/api/ports/role", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ port, role, confirm: true }),
+    }),
+  setPortMac: (port: string, mac: string) =>
+    request<import("./types").ModuleResult<import("./types").PortRolesProbe>>("/api/ports/mac", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ port, mac, confirm: true }),
+    }),
   igmp: () => request<import("./types").IGMPProbe>("/api/igmp"),
   setIgmp: (enabled: boolean) =>
     request<import("./types").IGMPProbe>("/api/igmp", {

@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Cable, Lock, Pencil, Zap } from "lucide-react";
 import { api } from "../../api";
-import type { EthPort, PhysPortsProbe, SwitchPort, SwitchProbe } from "../../types";
+import type { EthPort, PhysPortsProbe, PortRolesProbe, SwitchPort, SwitchProbe } from "../../types";
 import {
   ActionBanner, Button, Card, ConfirmDialog, EmptyState, HelpTip, Input, Pill, SkeletonRows, Toggle,
 } from "../ui";
 import { IlluPlug } from "../ui/illustrations";
 import { useActionCycle } from "../wifi/action";
 import { PhysConfigSection, SfpModuleSection } from "./PhysPortDetail";
+import { PortRoleSection } from "./PortRoleSection";
 
 /** Título de tarjeta a una línea (design-rev2 §3): ellipsis + tooltip nativo. */
 function oneLine(text: string) {
@@ -44,6 +45,16 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
   // de una boca (52 ethtool tardan un par de segundos).
   const [phys, setPhys] = useState<PhysPortsProbe>();
   const physRequested = useRef(false);
+
+  // Rol y MAC (#662): el probe cuesta un ethtool -P por boca, así que se pide
+  // la primera vez que se abre un detalle y se reutiliza para el resto.
+  const [roles, setRoles] = useState<PortRolesProbe>();
+  const rolesRequested = useRef(false);
+  useEffect(() => {
+    if (!selected || rolesRequested.current) return;
+    rolesRequested.current = true;
+    api.portRoles().then(setRoles).catch(() => {});
+  }, [selected]);
 
   // Boca de gestion (#543): badge con candado en la baldosa. Se pide de
   // forma perezosa tras montar: la deteccion (gateway -> ARP -> FDB) tarda
@@ -102,6 +113,7 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
   const selectedPort = sorted.find((p) => p.name === selected);
   const selectedSw = selectedPort ? swByName.get(selectedPort.name) : undefined;
   const selectedPhys = selectedPort ? physByName.get(selectedPort.name) : undefined;
+  const selectedRole = selectedPort ? roles?.ports.find((p) => p.name === selectedPort.name) : undefined;
 
   const setAdmin = (port: SwitchPort, up: boolean) => {
     setBusyPort(port.name);
@@ -360,6 +372,15 @@ export function EthPortsCard({ ports, index = 0, className = "md:col-span-2" }: 
             </div>
           )}
         </>
+      )}
+
+      {selectedPort && (
+        <PortRoleSection
+          entry={selectedRole}
+          applicable={!!roles?.applicable}
+          canAssignWan={!!roles?.can_assign_wan}
+          onProbe={(probe) => setRoles(probe)}
+        />
       )}
 
       <ConfirmDialog
