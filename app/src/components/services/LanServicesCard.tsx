@@ -101,10 +101,11 @@ export function LanServicesCard() {
   useEffect(() => { load(); }, [load]);
 
   const services = probe?.services ?? [];
-  // Solo reglas que llevan a otro equipo: las que apuntan al propio router
-  // (redirecciones de DNS) no son un servicio de la red.
+  // Puertos abiertos a Internet: los que llevan a otro equipo y los que
+  // escucha el propio router (WireGuard, por ejemplo). Las redirecciones que
+  // apuntan al router para otro fin, como el DNS, se quedan fuera.
   const exposed = (fwd?.rules ?? []).filter(
-    (r) => r.kind !== "input" && r.dest_ip && r.dest_ip !== fwd?.router_ip,
+    (r) => r.kind === "input" || (r.dest_ip && r.dest_ip !== fwd?.router_ip),
   );
   const loading = probe === undefined && !loadError;
   const empty = !loading && !loadError && services.length === 0;
@@ -253,9 +254,19 @@ export function LanServicesCard() {
           <ul className="mt-2 divide-y divide-border/60">
             {exposed.map((r) => (
               <li key={r.section} className="flex flex-wrap items-center gap-2 py-2">
-                <span className="flex-1 min-w-0 truncate text-small">{r.name || t("lanservices.exposedUnnamed", { port: r.src_dport })}</span>
-                <span className="font-mono text-small text-muted">{r.dest_ip}:{r.dest_port}</span>
-                <Pill tone="warn">{t("lanservices.exposedPill", { port: r.src_dport })}</Pill>
+                {r.kind === "input" ? (
+                  <>
+                    <span className="flex-1 min-w-0 truncate text-small">{r.name || t("lanservices.exposedUnnamed", { port: r.src_dport })}</span>
+                    <span className="font-mono text-small text-muted">{r.proto || "tcp udp"}{r.src_dport ? ` ${r.src_dport}` : ""}</span>
+                    <Pill tone="warn">{t("lanservices.exposedOnRouter")}</Pill>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex-1 min-w-0 truncate text-small">{r.name || t("lanservices.exposedUnnamed", { port: r.src_dport })}</span>
+                    <span className="font-mono text-small text-muted">{r.dest_ip}:{r.dest_port}</span>
+                    <Pill tone="warn">{t("lanservices.exposedPill", { port: r.src_dport })}</Pill>
+                  </>
+                )}
               </li>
             ))}
           </ul>
