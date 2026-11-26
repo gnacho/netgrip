@@ -2768,6 +2768,7 @@ export default {
     tableTitle: "Estadísticas por aplicación",
     searchPlaceholder: "Ingresa el nombre de la aplicación",
     totalTraffic: "Todo el tráfico",
+    unknownApp: "Sin identificar",
     colApp: "Aplicación",
     colTotal: "Ancho de banda total",
     colBytes: "Bytes",
