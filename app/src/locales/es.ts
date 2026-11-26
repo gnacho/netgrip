@@ -2515,6 +2515,7 @@ export default {
       required: "Siempre necesarios",
       netpulse: "Conexión con NetPulse",
       diagnostics: "Diagnósticos",
+      storage: "Almacenamiento USB",
       extras: "Extras recomendados",
       seeWhatInstalls: "Ver los {{count}} paquetes",
       seeCatalog: "Ver catálogo de paquetes",
@@ -2621,6 +2622,10 @@ export default {
       adguard: {
         title: "AdGuard Home",
         desc: "Filtra anuncios y rastreadores para toda la red.",
+      },
+      usbstorage: {
+        title: "Almacenamiento USB",
+        desc: "Discos y memorias USB: FAT32, exFAT y ext4.",
       },
       netifyd: {
         title: "Análisis de tráfico",
@@ -2805,6 +2810,8 @@ export default {
     svcInstalled: "{{name}} instalado. Enciéndelo cuando quieras.",
     svcInstall: "Instalar",
     svcNotInstalled: "No instalado",
+    usbNoDriver: "Hay un dispositivo USB conectado, pero el router no tiene el controlador de discos: por eso no aparece. Instálalo y el disco se verá al momento.",
+    usbInstallDriver: "Instalar controlador",
     service: {
       samba: {
         label: "Compartir carpetas (Windows/Mac)",

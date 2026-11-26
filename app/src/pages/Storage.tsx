@@ -4,7 +4,7 @@ import { CloudOff, FolderSymlink, HardDrive } from "lucide-react";
 import { api } from "../api";
 import type { StorageDevice, StorageProbe, StorageService } from "../types";
 import {
-  ActionBanner, Button, Card, EmptyState, Gauge, HelpTip, IconTile, KeyValue, Pill,
+  ActionBanner, Banner, Button, Card, EmptyState, Gauge, HelpTip, IconTile, KeyValue, Pill,
   Skeleton, SkeletonRows, Toggle,
 } from "../components/ui";
 import { IlluDisk } from "../components/ui/illustrations";
@@ -42,6 +42,16 @@ export function StoragePage() {
     api.storage().then(setProbe).catch(() => {});
   }, []);
 
+  // #737: un USB enchufado sin controlador se explica y se arregla desde aquí.
+  const { begin, running: driverInstalling, job: driverJob } = useInstallJob();
+  const installDriver = async () => {
+    try {
+      await begin(() => api.wizardPackages(["usbstorage"]));
+    } finally {
+      refresh();
+    }
+  };
+
   // Página entera no aplica (hardware sin USB o feature off) y se entra por URL.
   if (probe && !probe.applicable) {
     return (
@@ -75,6 +85,17 @@ export function StoragePage() {
           <Pill tone="muted">{t("storage.diskCount", { count: probe.devices.length })}</Pill>
         )}
       >
+        {probe?.usb_present && !probe.usb_storage_loaded && (
+          <Banner tone="warn" className="mb-3"
+            action={
+              <Button size="sm" variant="secondary" loading={driverInstalling} onClick={installDriver}>
+                {t("storage.usbInstallDriver")}
+              </Button>
+            }>
+            {t("storage.usbNoDriver")}
+          </Banner>
+        )}
+        {driverInstalling && <div className="mb-3"><InstallProgress job={driverJob} /></div>}
         {error ? (
           errorBox
         ) : !probe ? (
@@ -83,11 +104,15 @@ export function StoragePage() {
             <Skeleton className="h-32 hidden sm:block" />
           </div>
         ) : probe.devices.length === 0 ? (
-          <EmptyState
-            illustration={<IlluDisk size={120} />}
-            title={t("storage.emptyTitle")}
-            body={t("storage.emptyBody")}
-          />
+          // Con un USB enchufado sin controlador, el aviso de arriba ya lo
+          // explica: decir "no hay nada enchufado" sería mentira (#737).
+          probe.usb_present && !probe.usb_storage_loaded ? null : (
+            <EmptyState
+              illustration={<IlluDisk size={120} />}
+              title={t("storage.emptyTitle")}
+              body={t("storage.emptyBody")}
+            />
+          )
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {(probe.devices ?? []).map((d, i) => (

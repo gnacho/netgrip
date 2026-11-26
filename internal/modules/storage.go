@@ -54,9 +54,15 @@ type StorageProbe struct {
 	// Supported: el equipo tiene buses USB, aunque no haya nada enchufado.
 	// Antes Applicable exigía un disco y la página decía "no gestionable" en
 	// un router con puerto USB, sin llegar a invitar a conectar nada (#636).
-	Supported bool             `json:"supported"`
-	Devices   []StorageDevice  `json:"devices"`
-	Services  []StorageService `json:"services"`
+	Supported bool `json:"supported"`
+	// USBPresent: hay un dispositivo USB conectado (no un hub).
+	USBPresent bool `json:"usb_present"`
+	// USBStorageLoaded: el kernel tiene el controlador de almacenamiento USB.
+	// Sin él el disco no aparece como /dev/sd*, y la página lo dice en vez de
+	// fingir que no hay nada enchufado (#737).
+	USBStorageLoaded bool             `json:"usb_storage_loaded"`
+	Devices          []StorageDevice  `json:"devices"`
+	Services         []StorageService `json:"services"`
 }
 
 // usbHostPresent reports whether the kernel registered any USB bus: un router
@@ -74,15 +80,40 @@ func usbHostPresent() bool {
 	return false
 }
 
+// usbDevicePresent reports a real USB device (not a root hub) plugged in.
+func usbDevicePresent() bool {
+	entries, err := os.ReadDir("/sys/bus/usb/devices")
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if !strings.Contains(e.Name(), "-") || strings.Contains(e.Name(), ":") {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join("/sys/bus/usb/devices", e.Name(), "idVendor")); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// usbStorageLoaded reports whether the kernel has the USB mass storage driver.
+func usbStorageLoaded() bool {
+	_, err := os.Stat("/sys/module/usb_storage")
+	return err == nil
+}
+
 func ProbeStorage() StorageProbe {
 	devices := detectUSBStorage()
 	supported := usbHostPresent()
 	if len(devices) == 0 {
 		return StorageProbe{
-			Applicable: supported, // con puerto USB la página se muestra e invita a conectar
-			Supported:  supported,
-			Devices:    []StorageDevice{},
-			Services:   []StorageService{},
+			Applicable:       supported, // con puerto USB la página se muestra e invita a conectar
+			Supported:        supported,
+			USBPresent:       usbDevicePresent(),
+			USBStorageLoaded: usbStorageLoaded(),
+			Devices:          []StorageDevice{},
+			Services:         []StorageService{},
 		}
 	}
 
@@ -92,10 +123,12 @@ func ProbeStorage() StorageProbe {
 	}
 
 	return StorageProbe{
-		Applicable: true,
-		Supported:  true,
-		Devices:    devices,
-		Services:   services,
+		Applicable:       true,
+		Supported:        true,
+		USBPresent:       true,
+		USBStorageLoaded: usbStorageLoaded(),
+		Devices:          devices,
+		Services:         services,
 	}
 }
 

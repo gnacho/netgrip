@@ -40,6 +40,11 @@ var setupGroups = []SetupGroup{
 		Packages: []string{"ethtool-full", "tcpdump-mini"},
 	},
 	{
+		ID:       "storage",
+		TitleKey: "wizard.setup.storage",
+		Packages: []string{"kmod-usb-storage", "kmod-fs-ext4", "kmod-fs-vfat", "kmod-fs-exfat"},
+	},
+	{
 		ID:       "extras",
 		TitleKey: "wizard.setup.extras",
 		Packages: []string{"sqm-scripts", "nlbwmon"},
