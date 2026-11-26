@@ -4,12 +4,12 @@ import { ExternalLink, Waypoints } from "lucide-react";
 import { api } from "../../api";
 import type { TSProbe } from "../../types";
 import {
-  ActionBanner, Banner, Button, Card, KeyValue, Pill,
-  SettingRow, SkeletonRows, Toggle,
+  ActionBanner, Banner, Button, Card, HelpTip, KeyValue, Pill,
+  SkeletonRows, Toggle,
 } from "../ui";
 import { ServiceRow } from "./ServiceRow";
 import { useActionCycle } from "../wifi/action";
-import { CopyButton, Reveal, TechName } from "./shared";
+import { CopyButton, Reveal } from "./shared";
 
 /**
  * Tailscale — "Tu red privada entre casas y móviles" (services.md §4).
@@ -49,7 +49,12 @@ export function TailscaleCard({ probe, onChange, index = 0 }: {
   };
 
   return (
-    <Card index={index}>
+    <Card index={index} title="Tailscale" icon={Waypoints} iconTone="violet">
+      {/* Depende de una nube ajena: se avisa antes de instalar, no solo después. */}
+      <Banner tone="warn">
+        {t("ts.cloudWarn")}
+      </Banner>
+
       {!probe ? (
         <SkeletonRows rows={3} />
       ) : !probe.installed ? (
@@ -61,26 +66,17 @@ export function TailscaleCard({ probe, onChange, index = 0 }: {
         />
       ) : (
         <>
-          <SettingRow
-            icon={Waypoints}
-            iconTone="violet"
-            title={t("ts.cardTitle")}
-            description={t("ts.desc")}
-            help={t("help.tailscale.body")}
-            helpTitle={t("help.tailscale.title")}
-            checked={probe.running}
-            busy={busy}
-            onChange={toggle}
-            control={
-              <span className="flex items-center gap-2">
-                <Pill className="max-w-24 sm:max-w-32" tone={connected ? "ok" : needsLogin ? "warn" : "muted"}>
-                  {connected ? t("ts.connected") : needsLogin ? t("ts.waitingLogin") : t("ts.off")}
-                </Pill>
-                <Toggle checked={probe.running} busy={busy} onChange={toggle} label={t("ts.cardTitle")} />
-              </span>
-            }
-          />
-          <TechName>Tailscale</TechName>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="flex-1 min-w-0 text-small text-muted">{t("ts.desc")}</p>
+            <span className="flex shrink-0 items-center gap-2">
+              <Pill className="max-w-24 sm:max-w-32" tone={connected ? "ok" : needsLogin ? "warn" : "muted"}>
+                {connected ? t("ts.connected") : needsLogin ? t("ts.waitingLogin") : t("ts.off")}
+              </Pill>
+              <Toggle checked={probe.running} busy={busy} onChange={toggle} label="Tailscale" />
+              <HelpTip title={t("help.tailscale.title")} body={t("help.tailscale.body")} />
+            </span>
+          </div>
+
 
           {phase && (
             <div className="mt-2">
