@@ -455,6 +455,9 @@ export interface DNSConfig {
   /** Redirect of LAN DNS straight to AdGuard (#671), so its statistics see
    *  each device instead of the router. */
   adguard_clients: boolean;
+  /** Global dnsmasq servers other than the AdGuard listener. With noresolv set
+   *  they are still used, so their queries bypass AdGuard (#673). */
+  adguard_other_forwarders?: string[];
   adguard_dns_port?: number;
   /** Credential ownership (#424): "managed" (panel can show/rotate),
    *  "external" (set up in AdGuard itself, never touched) or "none". */

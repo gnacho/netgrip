@@ -35,6 +35,11 @@ type DNSConfig struct {
 	// AdGuardClients is the #671 redirect: LAN clients hit AdGuard directly,
 	// so its statistics show each device instead of the router.
 	AdGuardClients bool `json:"adguard_clients"`
+	// AdGuardOtherForwarders lists the global dnsmasq servers that are not the
+	// local AdGuard listener. With noresolv set they are still used, so the
+	// queries that go through them bypass AdGuard filtering and statistics
+	// (#673).
+	AdGuardOtherForwarders []string `json:"adguard_other_forwarders"`
 	// AdGuardCredentials reports who owns the web credential (#424):
 	// "managed" (NetGrip provisioned it, the card can show and rotate it),
 	// "external" (users NetGrip did not write, never touched) or "none".
@@ -63,15 +68,16 @@ func ProbeDNS() *DNSConfig {
 	st := dnsmasqStateNow()
 	protection := adGuardProtected(st)
 	c := &DNSConfig{
-		Applicable:        dnsApplicable(),
-		RebindProtect:     dnsmasqBool("rebind_protection"),
-		OverrideDNS:       !dnsmasqBool("localservice"),
-		DnsVpn:            dnsmasqBool("dns_vpn_local"),
-		ForceDNS:          dhcpHasForceDNS(dhcpOptionValues(), uciGet("network.lan.ipaddr")),
-		AdGuardActive:     dnsmasqBool("adguard_active") || uciGet("dhcp.lan.dhcp_option") != "" || protection,
-		AdGuardProtection: protection,
-		AdGuardHasBackup:  loadAdGuardBackup() != nil,
-		Hosts:             parseHostsFile(hostsPath()),
+		Applicable:             dnsApplicable(),
+		RebindProtect:          dnsmasqBool("rebind_protection"),
+		OverrideDNS:            !dnsmasqBool("localservice"),
+		DnsVpn:                 dnsmasqBool("dns_vpn_local"),
+		ForceDNS:               dhcpHasForceDNS(dhcpOptionValues(), uciGet("network.lan.ipaddr")),
+		AdGuardActive:          dnsmasqBool("adguard_active") || uciGet("dhcp.lan.dhcp_option") != "" || protection,
+		AdGuardProtection:      protection,
+		AdGuardHasBackup:       loadAdGuardBackup() != nil,
+		AdGuardOtherForwarders: adGuardOtherForwarders(st.servers),
+		Hosts:                  parseHostsFile(hostsPath()),
 	}
 	c.AdGuardInstalled = pkgInstalled("adguardhome")
 	c.DohProviders = adGuardDohPresets

@@ -40,6 +40,8 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
   const [confirmRegen, setConfirmRegen] = useState(false);
   // Clientes reales (#671): redirige el DNS de la LAN a AdGuard.
   const [clientsBusy, setClientsBusy] = useState(false);
+  // Forwarders de dnsmasq que se saltan AdGuard (#673).
+  const [fwdBusy, setFwdBusy] = useState(false);
   const rc = useRollbackConfirm();
 
   const load = () => api.dns().then(setCfg).catch(() => {});
@@ -142,6 +144,25 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
       push({ tone: "danger", text: t("adguard.clientsFailed"), detail: e instanceof Error ? e.message : String(e) });
     } finally {
       setClientsBusy(false);
+      load();
+    }
+  };
+
+  // Quita los servidores globales de dnsmasq que no son AdGuard (#673).
+  const dropForwarders = async () => {
+    setFwdBusy(true);
+    try {
+      const res = await api.adguardForwarders();
+      if (res.error) {
+        push({ tone: "danger", text: t("adguard.forwardersFailed"), detail: res.error });
+      } else {
+        if (res.state) setCfg(res.state);
+        push({ tone: "ok", text: t("adguard.forwardersDropped") });
+      }
+    } catch (e) {
+      push({ tone: "danger", text: t("adguard.forwardersFailed"), detail: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setFwdBusy(false);
       load();
     }
   };
@@ -324,6 +345,24 @@ export function AdguardCard({ index = 0 }: { index?: number }) {
                 <HelpTip title={t("adguard.clientsSwitch")} body={t("adguard.clientsHint")} />
               </span>
               <p className="text-caption text-muted mt-1">{t("adguard.clientsCaveat")}</p>
+              {(cfg.adguard_other_forwarders ?? []).length > 0 && (
+                <div className="mt-3 flex flex-wrap items-center gap-2" role="status">
+                  <Pill tone="warn">{t("adguard.forwardersPill", { count: (cfg.adguard_other_forwarders ?? []).length })}</Pill>
+                  <span className="text-small text-secondary">
+                    {t("adguard.forwardersBody", { list: (cfg.adguard_other_forwarders ?? []).join(", ") })}
+                  </span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    loading={fwdBusy}
+                    disabled={busy || clientsBusy}
+                    onClick={dropForwarders}
+                  >
+                    {t("adguard.forwardersDrop")}
+                  </Button>
+                  <HelpTip title={t("adguard.forwardersTitle")} body={t("adguard.forwardersHint")} />
+                </div>
+              )}
             </div>
           )}
 
