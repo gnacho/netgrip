@@ -62,7 +62,7 @@ define Package/netgrip/description
  OpenWrt already exposes through rpcd: WireGuard, guest Wi-Fi, SQM, DNS,
  firewall, VLANs and more. Every change takes a config snapshot, is checked,
  and rolls back by itself if the service does not come up. It serves its own
- interface, so it does not need LuCI or any other runtime.
+ interface, so it does not need any other runtime.
 endef
 
 define Build/Prepare

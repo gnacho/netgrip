@@ -19,7 +19,7 @@ start_service() {
 	# change anybody's URL. netgrip.main.https and the https_cert/https_key
 	# pair are what Settings already writes when it generates a
 	# certificate; without them the binary uses the panel's pair if there
-	# is one and otherwise uhttpd's, the same one LuCI serves.
+	# is one and otherwise uhttpd's, the same one the router web UI serves.
 	local https https_cert https_key
 	https=$(uci -q get netgrip.main.https 2>/dev/null)
 	https_cert=$(uci -q get netgrip.main.https_cert 2>/dev/null)

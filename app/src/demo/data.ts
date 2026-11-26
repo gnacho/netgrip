@@ -176,7 +176,7 @@ export const demoOvpn: T.OVPNProbe = {
 };
 
 export const demoPackages: T.PkgUpgrade[] = [
-  { name: "luci-app-firewall", current: "25.118.1", available: "25.201.4" },
+  { name: "nlbwmon", current: "2024.12.1", available: "2025.03.2" },
   { name: "wpad-basic-mbedtls", current: "2025.08.26~1", available: "2025.09.12~1" },
   { name: "kmod-usb-storage", current: "6.6.89-1", available: "6.6.93-1" },
 ];

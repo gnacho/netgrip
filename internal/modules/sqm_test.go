@@ -14,7 +14,7 @@ func TestProfileSqmOpts(t *testing.T) {
 		{"balanced", map[string]string{"eqdisc_opts": "", "iqdisc_opts": ""}},
 		{"gaming", map[string]string{"eqdisc_opts": "diffserv4", "iqdisc_opts": "diffserv4"}},
 		{"streaming", map[string]string{"eqdisc_opts": "besteffort", "iqdisc_opts": "besteffort"}},
-		// custom leaves the managed options untouched (raw CAKE stays in LuCI).
+		// custom leaves the managed options untouched (raw CAKE is not touched here).
 		{"custom", nil},
 		// empty/unknown fall back to balanced (defensive; sqmOps validates first).
 		{"", map[string]string{"eqdisc_opts": "", "iqdisc_opts": ""}},

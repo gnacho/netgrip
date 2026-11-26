@@ -100,7 +100,7 @@ export function computeHealthScore({ system, wan, drift, mode, wireless, physpor
   }
 
   // Mantenimiento pendiente: updates del sistema NO cuentan (política: NetGrip
-  // no gestiona actualizaciones; esa superficie vive en LuCI/CLI).
+  // no gestiona actualizaciones; esa superficie vive en la CLI).
 
   // Todas las radios apagadas
   if (mode?.has_wifi && wireless && wireless.length > 0 && wireless.every((r) => !r.up)) {

@@ -159,7 +159,7 @@ export interface MDNSProbe {
 
 export interface SQMProbe {
   installed: boolean;
-  /** Página de ajustes de SQM en LuCI (luci-app-sqm). */
+  /** El router tiene la página de ajustes avanzados de SQM. */
   luci_app: boolean;
   has_wan: boolean;
   active: boolean;
@@ -235,7 +235,7 @@ export interface FwdRule {
    *  itself (a VPN listener, an exposed admin page). */
   kind?: "forward" | "input";
   /** Created by NetGrip, so it can be removed from here. Rules set up in
-   *  LuCI or by hand are listed read-only. */
+   *  outside NetGrip or by hand are listed read-only. */
   managed?: boolean;
 }
 
@@ -384,9 +384,9 @@ export interface PanelAccess {
   session_ttl: string;
 }
 
-export interface LuciAccess {
-  /** La aplicación web de LuCI está instalada en el router (lo pone el
-   *  servidor; el cliente no lo envía al guardar). */
+export interface WebAccess {
+  /** La interfaz web del router está instalada (lo pone el servidor; el
+   *  cliente no lo envía al guardar). */
   installed?: boolean;
   http_port: number;
   https_port: number;
@@ -401,7 +401,7 @@ export interface SSHAccess {
 
 export interface AccessProbe {
   panel: PanelAccess;
-  luci: LuciAccess;
+  luci: WebAccess;
   ssh: SSHAccess;
 }
 

@@ -36,7 +36,7 @@ type Reservation struct {
 	IP   string `json:"ip"`
 	Name string `json:"name,omitempty"`
 	// Managed: la creó NetGrip y por tanto el botón de vaciar la toca. Las
-	// que vienen de LuCI o de una migración se ven y se editan, pero no se
+	// que vienen de otro panel o de una migración se ven y se editan, pero no se
 	// borran en bloque (#621).
 	Managed bool `json:"managed"`
 }
@@ -306,7 +306,7 @@ func SetReservation(mac, ip, name string, reserved bool) (*LANConfig, bool, erro
 		_ = executor.Restore("dhcp", snap)
 		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"dnsmasq", "reload"}})
 	}
-	// Si esa MAC ya tiene reserva (en LuCI o de otra herramienta) se edita la
+	// Si esa MAC ya tiene reserva (en otro panel o herramienta) se edita la
 	// suya: crear otra dejaria dos entradas para el mismo aparato (#621).
 	section := reservationSectionForMAC(mac)
 	if section == "" {

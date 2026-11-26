@@ -162,7 +162,7 @@ type SelfUpdateScheduleStatus struct {
 
 // routerLocalHour returns the hour the router itself considers "now".
 // Go does not understand OpenWrt's busybox /tmp/TZ, so time.Now() runs in
-// UTC while date, cron and LuCI show local time: ask the system instead.
+// UTC while date and cron show local time: ask the system instead.
 func routerLocalHour() int {
 	if out, err := exec.Command("date", "+%H").Output(); err == nil {
 		if h, err := strconv.Atoi(strings.TrimSpace(string(out))); err == nil {

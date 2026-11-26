@@ -77,7 +77,7 @@ func Probe(rpcdURL string) bool {
 }
 
 // ValidatePassword checks credentials against the router's rpcd session login,
-// the same mechanism LuCI uses. Nothing is stored: a valid rpcd session for
+// the same mechanism the router uses. Nothing is stored: a valid rpcd session for
 // the given user means the password is correct.
 func ValidatePassword(rpcdURL, username, password string) (bool, error) {
 	token, err := SessionLogin(rpcdURL, username, password)

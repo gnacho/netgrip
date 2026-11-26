@@ -528,7 +528,7 @@ func hostSections() []string {
 
 // parseHostSections returns every section declared as a dhcp host, whoever
 // created it. NetGrip used to list only its own (netgrip_host_*) and a router
-// with reservations made in LuCI or by a migration showed an empty card
+// with reservations made elsewhere or by a migration showed an empty card
 // (#621).
 func parseHostSections(uciShow string) []string {
 	var sections []string

@@ -143,7 +143,7 @@ export function ReservationsCard({ cfg, onChange, index = 1 }: {
       action={
         <span className="flex items-center gap-2">
           {reservations.length > 0 && <Pill tone="accent">{t("lan.fixedCount", { count: reservations.length })}</Pill>}
-          {/* Solo si hay alguna creada aquí: las de LuCI no se borran en bloque. */}
+          {/* Solo si hay alguna creada aquí: las externas no se borran en bloque. */}
           {reservations.some((r) => r.managed) && (
             <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setConfirmClear(true)}>
               {t("lan.clearAll")}

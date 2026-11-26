@@ -1662,10 +1662,10 @@ func (s *Server) handleAccessGet(w http.ResponseWriter, _ *http.Request) {
 
 type accessSetRequest struct {
 	// Exactly one of the following targets is applied per request.
-	Target      string             `json:"target"` // luci | ssh | panel_session
-	Luci        modules.LuciAccess `json:"luci"`
-	SSH         modules.SSHAccess  `json:"ssh"`
-	SessionTtlM int                `json:"session_ttl_minutes"`
+	Target      string            `json:"target"` // web | ssh | panel_session
+	Web         modules.WebAccess `json:"luci"`   // wire name kept for older clients
+	SSH         modules.SSHAccess `json:"ssh"`
+	SessionTtlM int               `json:"session_ttl_minutes"`
 }
 
 func (s *Server) handleAccessSet(w http.ResponseWriter, r *http.Request) {
@@ -1675,8 +1675,8 @@ func (s *Server) handleAccessSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch req.Target {
-	case "luci":
-		probe, rolledBack, err := modules.SetLuciAccess(req.Luci)
+	case "web", "luci":
+		probe, rolledBack, err := modules.SetWebAccess(req.Web)
 		writeModuleResult(w, probe, rolledBack, err)
 	case "ssh":
 		probe, rolledBack, err := modules.SetSSHAccess(req.SSH)
@@ -1692,7 +1692,7 @@ func (s *Server) handleAccessSet(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, map[string]any{"status": "applied", "panel": modules.ProbeAccess().Panel})
 	default:
-		writeError(w, http.StatusBadRequest, "target must be luci, ssh or panel_session")
+		writeError(w, http.StatusBadRequest, "target must be web, ssh or panel_session")
 	}
 }
 
@@ -2723,7 +2723,7 @@ func (s *Server) handleHTTPSGet(w http.ResponseWriter, _ *http.Request) {
 type httpsRequest struct {
 	Enabled *bool `json:"enabled"`
 	// Cert: "panel" (the panel's own pair, with the router's addresses in
-	// the SAN) or "router" (uhttpd's, the same one LuCI serves). Empty
+	// the SAN) or "router" (uhttpd's, the same one the router web UI serves). Empty
 	// keeps whatever was already configured.
 	Cert string `json:"cert"`
 }

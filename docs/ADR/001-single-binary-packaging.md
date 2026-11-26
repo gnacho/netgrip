@@ -23,8 +23,8 @@ treated as a bug, not accepted as state).
 
 ## Alternatives considered
 
-- **LuCI module (Lua/ucode):** native look, but bound to LuCI's release cycle
-  and model; NetGrip wants its own product surface.
+- **A module for the stock web UI (Lua/ucode):** native look, but bound to
+  its release cycle and data model; NetGrip wants its own product surface.
 - **Node/nginx sidecar:** runtime dependency on a router is a support burden.
 - **Binary copied by hand:** dies on every sysupgrade; only previews use it,
   never releases.

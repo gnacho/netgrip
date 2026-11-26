@@ -17,10 +17,10 @@ import (
 )
 
 // AccessProbe is the read-only state of the three admin access surfaces:
-// the panel itself, LuCI (uhttpd) and SSH (dropbear).
+// the panel itself, the router's web UI (uhttpd) and SSH (dropbear).
 type AccessProbe struct {
 	Panel PanelAccess `json:"panel"`
-	LuCI  LuciAccess  `json:"luci"`
+	Web   WebAccess   `json:"luci"` // wire name kept for older clients
 	SSH   SSHAccess   `json:"ssh"`
 }
 
@@ -32,13 +32,13 @@ type PanelAccess struct {
 	SessionTtl   string `json:"session_ttl"` // human string, e.g. "12h0m0s"
 }
 
-// LuciAccess covers uhttpd, which serves LuCI.
-type LuciAccess struct {
+// WebAccess covers uhttpd, which serves the router's web UI.
+type WebAccess struct {
 	HTTPPort   int  `json:"http_port"`
 	HTTPSPort  int  `json:"https_port"`
 	ForceHTTPS bool `json:"force_https"`
 	Enabled    bool `json:"enabled"`
-	// Installed: la aplicación web de LuCI está en el router. Sin ella los
+	// Installed: la interfaz web del router está instalada. Sin ella los
 	// puertos de uhttpd no llevan a ningún panel y la tarjeta no debe
 	// ofrecerlos (#638).
 	Installed bool `json:"installed"`
@@ -54,7 +54,7 @@ type SSHAccess struct {
 func ProbeAccess() *AccessProbe {
 	return &AccessProbe{
 		Panel: probePanelAccess(),
-		LuCI:  probeLuciAccess(),
+		Web:   probeWebAccess(),
 		SSH:   probeSSHAccess(),
 	}
 }
@@ -103,10 +103,10 @@ func SetPanelSessionTTL(minutes int) error {
 	})
 }
 
-func probeLuciAccess() LuciAccess {
-	l := LuciAccess{
+func probeWebAccess() WebAccess {
+	l := WebAccess{
 		Enabled:   executor.ServiceEnabled("uhttpd"),
-		Installed: luciInstalled(),
+		Installed: webUIInstalled(),
 	}
 	l.HTTPPort = parseListenPort(uciGet("uhttpd.main.listen_http"))
 	if l.HTTPPort == 0 {
@@ -120,13 +120,13 @@ func probeLuciAccess() LuciAccess {
 	return l
 }
 
-// luciInstalled reports whether the LuCI web application is present: the
-// package is the reliable signal (a build can ship uhttpd without LuCI).
-func luciInstalled() bool {
+// webUIInstalled reports whether the router's web UI is present: the
+// package is the reliable signal (a build can ship uhttpd without a UI).
+func webUIInstalled() bool {
 	if pkgInstalled("luci-base") {
 		return true
 	}
-	if _, err := os.Stat("/www/luci-static"); err == nil {
+	if _, err := os.Stat("/www/luci-static"); err == nil { // stock web UI assets
 		return true
 	}
 	return false
@@ -154,8 +154,8 @@ func parseListenPort(v string) int {
 	return 0
 }
 
-// SetLuciAccess applies uhttpd HTTP/HTTPS ports and redirect_https.
-func SetLuciAccess(cfg LuciAccess) (*AccessProbe, bool, error) {
+// SetWebAccess applies uhttpd HTTP/HTTPS ports and redirect_https.
+func SetWebAccess(cfg WebAccess) (*AccessProbe, bool, error) {
 	if !executor.ServiceEnabled("uhttpd") {
 		if err := executor.Run(executor.Op{Kind: "initd", Args: []string{"uhttpd", "enable"}}); err != nil {
 			return ProbeAccess(), false, fmt.Errorf("uhttpd service missing: %w", err)
@@ -170,20 +170,20 @@ func SetLuciAccess(cfg LuciAccess) (*AccessProbe, bool, error) {
 		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"uhttpd", "restart"}})
 	}
 
-	if err := executor.Apply(luciOps(cfg), nil); err != nil {
+	if err := executor.Apply(webOps(cfg), nil); err != nil {
 		rollback()
 		return ProbeAccess(), true, err
 	}
 	_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"uhttpd", "restart"}})
 
-	if !luciHealth(cfg) {
+	if !webHealth(cfg) {
 		rollback()
 		return ProbeAccess(), true, fmt.Errorf("uhttpd healthcheck failed, rolled back")
 	}
 	return ProbeAccess(), false, nil
 }
 
-func luciOps(cfg LuciAccess) []executor.Op {
+func webOps(cfg WebAccess) []executor.Op {
 	var ops []executor.Op
 	set := func(key, value string) {
 		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{key, value}})
@@ -207,7 +207,7 @@ func luciOps(cfg LuciAccess) []executor.Op {
 	return ops
 }
 
-func luciHealth(cfg LuciAccess) bool {
+func webHealth(cfg WebAccess) bool {
 	// The question is whether uhttpd came back after the restart, not
 	// whether its certificate is trustworthy. Routers ship a self-signed
 	// one - CN=OpenWrt, no IP SAN - so a verifying client fails the
@@ -393,7 +393,7 @@ var (
 	certPath = sslDir + "/cert.pem"
 	keyPath  = sslDir + "/key.pem"
 
-	// uhttpd's pair, the one LuCI serves. Only the fallback: the paths come
+	// uhttpd's pair, the one the router's web UI serves. Only the fallback: the paths come
 	// from uhttpd's own configuration, see RouterCertPaths.
 	routerCertPath = "/etc/uhttpd.crt"
 	routerKeyPath  = "/etc/uhttpd.key"
@@ -543,7 +543,7 @@ func HTTPSEnabled() bool {
 // which is not what "use the router's certificate" means to anybody.
 const (
 	CertSourcePanel  = "panel"  // the panel's own pair, with the router's IPs in the SAN
-	CertSourceRouter = "router" // uhttpd's, the same one LuCI serves
+	CertSourceRouter = "router" // uhttpd's, the same one the router web UI serves
 	CertSourceCustom = "custom" // a pair configured by hand, which is left exactly as it is
 )
 

@@ -175,4 +175,4 @@ lan_ip() {
 
 say "done. netgrip $VERSION is running."
 say "open the panel: http://$(lan_ip):8090"
-say "log in with the router root password (same as LuCI); the setup wizard opens on first run."
+say "log in with the router root password; the setup wizard opens on first run."

@@ -29,7 +29,7 @@ type FwdRule struct {
 	// invisible here.
 	Kind string `json:"kind"`
 	// Managed: this rule was created by NetGrip and can be removed here.
-	// Anything set up in LuCI or by hand is listed read-only: hiding it
+	// Anything set up outside NetGrip or by hand is listed read-only: hiding it
 	// would be worse than not offering to delete it.
 	Managed bool `json:"managed"`
 }
@@ -186,7 +186,7 @@ func parseStockNames(config string) map[string]bool {
 // ProbeFwd reads what is reachable from the Internet.
 //
 // It used to list only redirects whose section name carried NetGrip's own
-// prefix, so a port forward created in LuCI did not exist as far as this
+// prefix, so a port forward created elsewhere did not exist as far as this
 // card was concerned — and it never looked at input rules at all, which is
 // how a VPN listener is opened. Both cases reported "nothing is open to the
 // Internet", the one answer a firewall page must never get wrong.
@@ -332,7 +332,7 @@ func fwdSection(srcDport, destIP string) string {
 
 // fwdUpdateOps builds the batch that writes the rule at target. A rule that
 // moves to a new section is rewritten whole; one that stays (same external
-// port and destination, or a rule created in LuCI, which keeps its name and
+// port and destination, or a rule created elsewhere, which keeps its name and
 // zones) only has its routing fields written.
 func fwdUpdateOps(section, target, srcDport, destIP, destPort, proto string) []executor.Op {
 	base := "firewall." + target
@@ -361,7 +361,7 @@ func fwdUpdateOps(section, target, srcDport, destIP, destPort, proto string) []e
 // with the same guarantees as adding one (snapshot, reload and rollback).
 //
 // Any forward the panel lists can be edited, including the ones created in
-// LuCI or by hand: refusing to touch them left an existing rule impossible to
+// outside NetGrip or by hand: refusing to touch them left an existing rule impossible to
 // change from here. Those keep their section name and zones (only the routing
 // fields are written), so nothing that points at the section breaks and no
 // part of the firewall the panel does not own is rewritten. Deleting still

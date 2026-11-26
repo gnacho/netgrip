@@ -70,7 +70,7 @@ for pkg in "$feed_dir"/*.apk; do
 	fi
 	if [ "$arch" = "noarch" ]; then
 		# noarch packages are listed by every index, the way OpenWrt keeps the
-		# LuCI packages inside each target directory.
+		# noarch packages inside each target directory.
 		noarch_pkgs="$noarch_pkgs $pkg"
 		continue
 	fi
