@@ -2,6 +2,7 @@ package modules
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,6 +24,29 @@ type StorageService struct {
 	Name    string `json:"name"`
 	Running bool   `json:"running"`
 	Enabled bool   `json:"enabled"`
+	// Installed: el paquete está puesto (existe su init script). Sin él la
+	// página ofrece instalarlo en vez de un interruptor muerto (#720).
+	Installed bool `json:"installed"`
+}
+
+// storageServicePackages maps the services the page manages to the package
+// that provides them.
+var storageServicePackages = map[string]string{
+	"samba4":   "samba4",
+	"minidlna": "minidlna",
+}
+
+// StorageServicePackages returns the packages to install for name, validating
+// it against the services the page manages.
+func StorageServicePackages(name string) ([]string, error) {
+	pkg, ok := storageServicePackages[name]
+	if !ok {
+		return nil, fmt.Errorf("unknown storage service %q", name)
+	}
+	if _, err := os.Stat("/etc/init.d/" + name); err == nil {
+		return nil, nil
+	}
+	return []string{pkg}, nil
 }
 
 type StorageProbe struct {
@@ -155,6 +179,10 @@ func detectUSBStorage() []StorageDevice {
 
 func probeStorageService(name string) StorageService {
 	svc := StorageService{Name: name}
+
+	if _, err := os.Stat("/etc/init.d/" + name); err == nil {
+		svc.Installed = true
+	}
 
 	out, err := exec.Command("/etc/init.d/"+name, "enabled").CombinedOutput()
 	if err == nil && strings.TrimSpace(string(out)) == "" {

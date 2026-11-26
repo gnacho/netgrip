@@ -1077,6 +1077,12 @@ export const demoApi: typeof api = {
     if (s) { s.enabled = s.running = action === "enable"; }
     return { status: "ok" };
   },
+  installStorageService: async (name) => {
+    await wait(1200, 1800);
+    const s = state.storage.services.find((x) => x.name === name);
+    if (s) { s.installed = true; s.enabled = false; s.running = false; }
+    return { status: "installed" };
+  },
 
   // flota
   fleet: () => get({ nodes: state.fleet }),

@@ -750,8 +750,9 @@ export const demoStorage: T.StorageProbe = {
     mount_point: "/mnt/backups",
   }],
   services: [
-    { name: "samba", running: true, enabled: true },
-    { name: "nfs", running: false, enabled: false },
+    { name: "samba", running: true, enabled: true, installed: true },
+    { name: "nfs", running: false, enabled: false, installed: true },
+    { name: "minidlna", running: false, enabled: false, installed: false },
   ],
 };
 
