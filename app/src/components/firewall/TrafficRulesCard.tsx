@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, Clock, Globe, Home, Pencil, Plus, Router, ShieldAlert, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp, ArrowUpDown, Clock, Globe, Home, Pencil, Plus, Router, ShieldAlert, Trash2 } from "lucide-react";
 import { api } from "../../api";
 import type { FirewallProbe, FWRule, FirewallRuleAdd, FWZone } from "../../types";
 import {
@@ -118,6 +118,63 @@ function ZoneDiagram({ zones }: { zones: FWZone[] }) {
   );
 }
 
+/* ── Columnas ordenables (#782) ─────────────────────────────────────── */
+
+type FwSortKey = "name" | "src" | "dest" | "proto" | "target";
+type FwSort = { key: FwSortKey; dir: 1 | -1 };
+
+/** Desktop column template shared by the header and the rows. */
+const FW_GRID =
+  "md:grid md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1.1fr)_4.5rem_6rem_7rem_auto] md:items-center md:gap-2";
+
+function fwExtra(r: FWRule, name: string): string {
+  return r.extra_options?.find((o) => o.name === name)?.value ?? "";
+}
+
+/** What a row shows in the origin/destination columns, so ordering by a
+ * column matches what is on screen (a zone rule sorts by its zone). */
+function fwSortValue(r: FWRule, key: FwSortKey): string {
+  switch (key) {
+    case "name": return (r.name || r.section).toLowerCase();
+    case "src": return (r.src_ip || fwExtra(r, "src")).toLowerCase();
+    case "dest": return (r.dest_ip || fwExtra(r, "dest") || r.dest_port || "").toLowerCase();
+    case "proto": return (r.proto || "").toLowerCase();
+    case "target": return (r.target || "").toLowerCase();
+  }
+}
+
+function fwSortLabel(key: FwSortKey, t: (k: string) => string): string {
+  switch (key) {
+    case "name": return t("trafficRules.colName");
+    case "src": return t("trafficRules.colSrc");
+    case "dest": return t("trafficRules.colDest");
+    case "proto": return t("trafficRules.colProto");
+    case "target": return t("trafficRules.colTarget");
+  }
+}
+
+function FwSortHeader({ col, sort, onSort }: {
+  col: FwSortKey;
+  sort: FwSort;
+  onSort: (k: FwSortKey) => void;
+}) {
+  const { t } = useTranslation();
+  const active = sort.key === col;
+  const Icon = !active ? ArrowUpDown : sort.dir === 1 ? ArrowUp : ArrowDown;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(col)}
+      aria-pressed={active}
+      className={`inline-flex items-center gap-1 text-eyebrow uppercase tracking-wide ring-focus rounded-sm
+        transition-colors duration-[var(--dur-fast)] ${active ? "text-text" : "text-faint hover:text-text"}`}
+    >
+      {fwSortLabel(col, t)}
+      <Icon size={12} aria-hidden="true" />
+    </button>
+  );
+}
+
 /* ── Editor de reglas de tráfico ────────────────────────────────────── */
 
 export function TrafficRulesCard() {
@@ -133,6 +190,17 @@ export function TrafficRulesCard() {
 
   const managed = probe?.rules.filter((r) => r.managed) ?? [];
   const otherRules = probe?.rules.filter((r) => !r.managed) ?? [];
+  const [sort, setSort] = useState<FwSort>({ key: "name", dir: 1 });
+
+  const toggleSort = (key: FwSortKey) => {
+    setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
+  };
+  const sortList = (list: FWRule[]) => [...list].sort((a, b) => {
+    const cmp = fwSortValue(a, sort.key).localeCompare(fwSortValue(b, sort.key), undefined, { numeric: true });
+    return cmp !== 0 ? cmp * sort.dir : 0;
+  });
+  const sortedManaged = sortList(managed);
+  const sortedOthers = sortList(otherRules);
 
   const addRule = (rule: FirewallRuleAdd) => {
     const risk = lockoutRisk(rule, probe?.mgmt_cidr);
@@ -224,21 +292,60 @@ export function TrafficRulesCard() {
                   action={<Button size="sm" icon={Plus} onClick={() => setModal(true)}>{t("trafficRules.firstRule")}</Button>}
                 />
               ) : (
-                <ul className="divide-y divide-border/50">
-                  {managed.map((r) => (
-                    <RuleRow key={r.section} r={r} onDelete={() => setToDelete(r)} onEdit={() => setEditing(r)} busy={busy} />
-                  ))}
-                  {otherRules.length > 0 && (
-                    <li className="pt-3 mt-1">
-                      <p className="text-caption text-muted">{t("trafficRules.otherRules")}</p>
-                      <ul className="divide-y divide-border/40">
-                        {otherRules.map((r) => (
-                          <RuleRow key={r.section} r={r} onDelete={() => setToDelete(r)} onEdit={() => setEditing(r)} busy={busy} />
-                        ))}
-                      </ul>
-                    </li>
+                <>
+                  {/* Phones have no room for six headers: same ordering in a
+                      compact control above the list. */}
+                  {managed.length + otherRules.length > 1 && (
+                    <div className="mb-2 flex items-center gap-2 md:hidden">
+                      <SegmentedControl
+                        size="sm"
+                        ariaLabel={t("trafficRules.sortBy")}
+                        value={sort.key}
+                        onChange={(k) => setSort((s) => ({ key: k as FwSortKey, dir: s.key === k ? s.dir : 1 }))}
+                        options={[
+                          { value: "name", label: t("trafficRules.colName") },
+                          { value: "src", label: t("trafficRules.colSrc") },
+                          { value: "dest", label: t("trafficRules.colDest") },
+                          { value: "target", label: t("trafficRules.colTarget") },
+                        ]}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setSort((s) => ({ ...s, dir: s.dir === 1 ? -1 : 1 }))}
+                        aria-label={sort.dir === 1 ? t("trafficRules.sortDesc") : t("trafficRules.sortAsc")}
+                        className="text-faint hover:text-text transition-colors duration-[var(--dur-fast)] ring-focus rounded-sm p-1"
+                      >
+                        {sort.dir === 1 ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
+                      </button>
+                    </div>
                   )}
-                </ul>
+
+                  <div className={`hidden border-b border-border/60 px-1 py-1.5 ${FW_GRID}`}>
+                    <FwSortHeader col="name" sort={sort} onSort={toggleSort} />
+                    <FwSortHeader col="src" sort={sort} onSort={toggleSort} />
+                    <FwSortHeader col="dest" sort={sort} onSort={toggleSort} />
+                    <FwSortHeader col="proto" sort={sort} onSort={toggleSort} />
+                    <FwSortHeader col="target" sort={sort} onSort={toggleSort} />
+                    <span className="text-eyebrow uppercase tracking-wide text-faint">{t("trafficRules.colSchedule")}</span>
+                    <span className="sr-only">{t("fwd.colActions")}</span>
+                  </div>
+
+                  <ul className="divide-y divide-border/50">
+                    {sortedManaged.map((r) => (
+                      <RuleRow key={r.section} r={r} onDelete={() => setToDelete(r)} onEdit={() => setEditing(r)} busy={busy} />
+                    ))}
+                    {otherRules.length > 0 && (
+                      <li className="pt-3 mt-1">
+                        <p className="text-caption text-muted">{t("trafficRules.otherRules")}</p>
+                        <ul className="divide-y divide-border/40">
+                          {sortedOthers.map((r) => (
+                            <RuleRow key={r.section} r={r} onDelete={() => setToDelete(r)} onEdit={() => setEditing(r)} busy={busy} />
+                          ))}
+                        </ul>
+                      </li>
+                    )}
+                  </ul>
+                </>
               )}
             </div>
           </>
@@ -303,57 +410,69 @@ function RuleRow({ r, onDelete, onEdit, busy }: {
   }, [r.start_time, r.stop_time, r.weekdays]);
 
   return (
-    <li className="flex items-center gap-2.5 py-2.5 flex-wrap animate-fade-up">
-      <span className="text-body font-medium min-w-0 truncate flex-1">{r.name || r.section}</span>
-      <Pill tone="muted">{t("trafficRules.from")} {src || t("trafficRules.any")}</Pill>
-      <Pill tone="muted">{t("trafficRules.to")} {dest || t("trafficRules.any")}</Pill>
-      {r.proto && <span className="font-mono text-caption text-muted uppercase">{r.proto}</span>}
-      <Pill tone={toneFor(r.target)}>{t(TARGET_LABELS[r.target] ?? "trafficRules.allow", { defaultValue: r.target })}</Pill>
+    <li className={`flex items-center gap-2.5 py-2.5 flex-wrap animate-fade-up ${FW_GRID}`}>
+      <span className="text-body font-medium min-w-0 truncate flex-1 md:col-start-1 md:row-start-1">
+        {r.name || r.section}
+      </span>
+      <Pill tone="muted" className="md:col-start-2 md:row-start-1">
+        {t("trafficRules.from")} {src || t("trafficRules.any")}
+      </Pill>
+      <Pill tone="muted" className="md:col-start-3 md:row-start-1">
+        {t("trafficRules.to")} {dest || t("trafficRules.any")}
+      </Pill>
+      {r.proto && (
+        <span className="font-mono text-caption text-muted uppercase md:col-start-4 md:row-start-1">{r.proto}</span>
+      )}
+      <Pill tone={toneFor(r.target)} className="md:col-start-5 md:row-start-1">
+        {t(TARGET_LABELS[r.target] ?? "trafficRules.allow", { defaultValue: r.target })}
+      </Pill>
       {schedule && (
-        <span className="inline-flex items-center gap-1 text-caption text-muted">
+        <span className="inline-flex items-center gap-1 text-caption text-muted md:col-start-6 md:row-start-1">
           <Clock size={12} aria-hidden="true" />{schedule}
         </span>
       )}
-      {!r.enabled && <Pill tone="muted">{t("trafficRules.disabled")}</Pill>}
-      {/* Solo en las que se pueden editar: en una de fabrica el aviso no
-          aporta nada, ya dice la pildora que es solo lectura. */}
-      {r.editable && hidden.length > 0 && (
-        <span title={t("trafficRules.extraHint", { options: hiddenHint })}>
-          <Pill tone="warn">{t("trafficRules.extraOptions")}</Pill>
-        </span>
-      )}
-      {r.editable && onEdit && (
-        <button
-          type="button"
-          onClick={onEdit}
-          disabled={busy}
-          aria-label={`${t("trafficRules.edit")} ${r.name}`}
-          className="text-faint hover:text-accent transition-colors duration-[var(--dur-fast)] ring-focus rounded-sm p-1"
-        >
-          <Pencil size={16} />
-        </button>
-      )}
-      {/* Anything the card lists can be deleted except the bootstrap
-          allowances: a rule you cannot edit (proto icmp) can still be
-          removed, and a rule created elsewhere is yours to delete. */}
-      {!r.managed && (r.stock ? (
-        <span title={t("trafficRules.factoryHint")}><Pill tone="muted">{t("trafficRules.factory")}</Pill></span>
-      ) : !r.editable ? (
-        <span title={t("trafficRules.readOnlyHint")}><Pill tone="muted">{t("trafficRules.readOnly")}</Pill></span>
-      ) : (
-        <span title={t("trafficRules.externalHint")}><Pill tone="muted">{t("trafficRules.external")}</Pill></span>
-      ))}
-      {!r.stock && onDelete && (
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={busy}
-          aria-label={`${t("trafficRules.deleteConfirm")} ${r.name}`}
-          className="text-faint hover:text-danger transition-colors duration-[var(--dur-fast)] ring-focus rounded-sm p-1"
-        >
-          <Trash2 size={16} />
-        </button>
-      )}
+      <span className="flex flex-wrap items-center gap-1.5 md:col-start-7 md:row-start-1 md:justify-end">
+        {!r.enabled && <Pill tone="muted">{t("trafficRules.disabled")}</Pill>}
+        {/* Solo en las que se pueden editar: en una de fabrica el aviso no
+            aporta nada, ya dice la pildora que es solo lectura. */}
+        {r.editable && hidden.length > 0 && (
+          <span title={t("trafficRules.extraHint", { options: hiddenHint })}>
+            <Pill tone="warn">{t("trafficRules.extraOptions")}</Pill>
+          </span>
+        )}
+        {!r.managed && (r.stock ? (
+          <span title={t("trafficRules.factoryHint")}><Pill tone="muted">{t("trafficRules.factory")}</Pill></span>
+        ) : !r.editable ? (
+          <span title={t("trafficRules.readOnlyHint")}><Pill tone="muted">{t("trafficRules.readOnly")}</Pill></span>
+        ) : (
+          <span title={t("trafficRules.externalHint")}><Pill tone="muted">{t("trafficRules.external")}</Pill></span>
+        ))}
+        {r.editable && onEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            disabled={busy}
+            aria-label={`${t("trafficRules.edit")} ${r.name}`}
+            className="text-faint hover:text-accent transition-colors duration-[var(--dur-fast)] ring-focus rounded-sm p-1"
+          >
+            <Pencil size={16} />
+          </button>
+        )}
+        {/* Anything the card lists can be deleted except the bootstrap
+            allowances: a rule you cannot edit (proto icmp) can still be
+            removed, and a rule created elsewhere is yours to delete. */}
+        {!r.stock && onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={busy}
+            aria-label={`${t("trafficRules.deleteConfirm")} ${r.name}`}
+            className="text-faint hover:text-danger transition-colors duration-[var(--dur-fast)] ring-focus rounded-sm p-1"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
+      </span>
     </li>
   );
 }

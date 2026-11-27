@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
-import { AppWindow, ExternalLink, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { AppWindow, ExternalLink, Plus, Search, Trash2, X } from "lucide-react";
 import { api } from "../../api";
-import type { FwdProbe, FwdRule, LanDiscoverySuggestion, LanService, LanServiceStatus, LanServicesProbe } from "../../types";
+import type { LanDiscoverySuggestion, LanService, LanServiceStatus, LanServicesProbe } from "../../types";
 import {
   AdvancedDisclosure, Button, ConfirmDialog, EmptyState, Field, IconTile,
   Modal, Pill, SegmentedControl, Skeleton, useToast,
 } from "../ui";
 import { lanServiceIcon } from "./lanCatalog";
-import { NewRuleModal, fwdRuleName, type FwdDraft } from "../ports/PortForwardCard";
 
 /** Sufijo DNS fijo de los alias locales (coincide con el backend). */
 const LAN_ALIAS_SUFFIX = ".lan";
@@ -85,11 +84,6 @@ export function LanServicesCard() {
   const [toRemove, setToRemove] = useState<LanServiceStatus>();
   const [suggestions, setSuggestions] = useState<LanDiscoverySuggestion[]>([]);
   const [discovering, setDiscovering] = useState(false);
-  // Puertos que ya están abiertos hacia un equipo de la red: son servicios
-  // self-hosted aunque no se hayan añadido a mano (#699).
-  const [fwd, setFwd] = useState<FwdProbe>();
-  const [editingFwd, setEditingFwd] = useState<FwdRule>();
-  const [fwdBusy, setFwdBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoadError(false);
@@ -98,18 +92,11 @@ export function LanServicesCard() {
     } catch {
       setLoadError(true);
     }
-    api.portforward().then(setFwd).catch(() => {});
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const services = probe?.services ?? [];
-  // Puertos abiertos a Internet: los que llevan a otro equipo y los que
-  // escucha el propio router (WireGuard, por ejemplo). Las redirecciones que
-  // apuntan al router para otro fin, como el DNS, se quedan fuera.
-  const exposed = (fwd?.rules ?? []).filter(
-    (r) => r.kind === "input" || (r.dest_ip && r.dest_ip !== fwd?.router_ip),
-  );
   const loading = probe === undefined && !loadError;
   const empty = !loading && !loadError && services.length === 0;
 
@@ -122,27 +109,6 @@ export function LanServicesCard() {
       setToRemove(undefined);
     } catch (e) {
       toast.push({ tone: "danger", text: t("common.loadError"), detail: e instanceof Error ? e.message : String(e) });
-    }
-  };
-
-  // Editar un reenvío aquí mismo, con el mismo formulario que la tarjeta de
-  // reenvíos (#701).
-  const saveFwd = async ({ name, srcDport, destIP, destPort, proto }: FwdDraft) => {
-    if (!editingFwd) return;
-    setFwdBusy(true);
-    try {
-      const res = await api.updateFwdRule(editingFwd.section, name, srcDport, destIP, destPort, proto);
-      if (res.error) {
-        toast.push({ tone: "danger", text: t("lanservices.exposedEditFailed"), detail: res.error });
-      } else {
-        if (res.state) setFwd(res.state);
-        toast.push({ tone: "ok", text: t("lanservices.exposedEditOk") });
-      }
-    } catch (e) {
-      toast.push({ tone: "danger", text: t("lanservices.exposedEditFailed"), detail: e instanceof Error ? e.message : String(e) });
-    } finally {
-      setFwdBusy(false);
-      setEditingFwd(undefined);
     }
   };
 
@@ -269,49 +235,6 @@ export function LanServicesCard() {
           )}
         </div>
       )}
-
-      {exposed.length > 0 && (
-        <div className="mt-4 border-t border-border pt-4">
-          <p className="text-small font-medium text-secondary">{t("lanservices.exposedTitle")}</p>
-          <p className="text-caption text-muted mt-0.5">{t("lanservices.exposedHint")}</p>
-          <ul className="mt-2 divide-y divide-border/60">
-            {exposed.map((r) => (
-              <li key={r.section} className="flex flex-wrap items-center gap-2 py-2">
-                {r.kind === "input" ? (
-                  <>
-                    <span className="flex-1 min-w-0 truncate text-small">{fwdRuleName(t, r)}</span>
-                    <span className="font-mono text-small text-muted">{r.proto || "tcp udp"}{r.src_dport ? ` ${r.src_dport}` : ""}</span>
-                    <Pill tone="warn">{t("lanservices.exposedOnRouter")}</Pill>
-                  </>
-                ) : (
-                  <>
-                    <span className="flex-1 min-w-0 truncate text-small">{fwdRuleName(t, r)}</span>
-                    <span className="font-mono text-small text-muted">{r.dest_ip}:{r.dest_port}</span>
-                    <Pill tone="warn">{t("lanservices.exposedPill", { port: r.src_dport })}</Pill>
-                    <button
-                      type="button"
-                      onClick={() => setEditingFwd(r)}
-                      aria-label={t("lanservices.exposedEdit", { name: fwdRuleName(t, r) })}
-                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-muted hover:text-text hover:bg-surface-2 ring-focus transition-colors duration-[var(--dur-fast)]"
-                    >
-                      <Pencil size={14} aria-hidden="true" />
-                    </button>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <NewRuleModal
-        template={undefined}
-        rule={editingFwd}
-        probe={fwd}
-        busy={fwdBusy}
-        onClose={() => setEditingFwd(undefined)}
-        onConfirm={saveFwd}
-      />
 
       <ServiceModal
         open={showAdd || editing !== undefined}
