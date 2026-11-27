@@ -27,6 +27,11 @@ type OptionalPkg struct {
 	I18nKey   string   `json:"i18n_key"`
 	Module    string   `json:"module"`
 	Installed bool     `json:"installed"`
+	// Available is false when the feeds this firmware subscribes to do not
+	// offer the packages at all (a snapshot can drop a package that a release
+	// still ships). Installed is false and Available false means "this router
+	// cannot install it", which is not the same as "you have not installed it".
+	Available bool `json:"available"`
 }
 
 var optionalCatalog = []OptionalPkg{
@@ -78,11 +83,67 @@ func optionalPkgInstalled(entry OptionalPkg) bool {
 	return true
 }
 
-// ListOptionalPackages returns the catalog with live installed flags.
+// apkAvailableFrom parses `apk search -x` output and reports which of the
+// requested names the configured feeds can provide. apk prints one
+// "name-version" line per match and matches variants too (snmpd answers with
+// snmpd-nossl and snmpd-ssl), so the prefix check accepts those as available.
+func apkAvailableFrom(names []string, out string) map[string]bool {
+	res := make(map[string]bool, len(names))
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		for _, name := range names {
+			if strings.HasPrefix(line, name+"-") {
+				res[name] = true
+			}
+		}
+	}
+	return res
+}
+
+// availablePackages reports which of the names the firmware feeds offer.
+func availablePackages(names []string) map[string]bool {
+	if len(names) == 0 {
+		return map[string]bool{}
+	}
+	if _, err := exec.LookPath("apk"); err == nil {
+		args := append([]string{"search", "-x"}, names...)
+		out, _ := exec.Command("apk", args...).Output()
+		return apkAvailableFrom(names, string(out))
+	}
+	res := make(map[string]bool, len(names))
+	for _, name := range names {
+		out, err := exec.Command("opkg", "list", name).Output()
+		if err == nil && strings.HasPrefix(strings.TrimSpace(string(out)), name+" ") {
+			res[name] = true
+		}
+	}
+	return res
+}
+
+func optionalPkgAvailable(entry OptionalPkg, avail map[string]bool) bool {
+	for _, p := range entry.Packages {
+		if !avail[p] {
+			return false
+		}
+	}
+	return true
+}
+
+// ListOptionalPackages returns the catalog with live installed and available
+// flags.
 func ListOptionalPackages() []OptionalPkg {
 	out := make([]OptionalPkg, 0, len(optionalCatalog))
+	var all []string
+	for _, e := range optionalCatalog {
+		all = append(all, e.Packages...)
+	}
+	avail := availablePackages(all)
 	for _, e := range optionalCatalog {
 		e.Installed = optionalPkgInstalled(e)
+		e.Available = optionalPkgAvailable(e, avail)
 		out = append(out, e)
 	}
 	return out
@@ -110,6 +171,14 @@ func ResolveOptionalPackageIDs(ids []string) ([]string, error) {
 			continue
 		}
 		pkgs = append(pkgs, entry.Packages...)
+	}
+	if len(pkgs) > 0 {
+		avail := availablePackages(pkgs)
+		for _, p := range pkgs {
+			if !avail[p] {
+				return nil, fmt.Errorf("%s is not available in this firmware's feeds", p)
+			}
+		}
 	}
 	return pkgs, nil
 }
