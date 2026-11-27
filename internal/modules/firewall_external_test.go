@@ -165,9 +165,10 @@ func TestPlanFWRuleUpdateGate(t *testing.T) {
 	}
 }
 
-// UpdateFirewallRule delega la decisión en planFWRuleUpdate, y borrar sigue
-// limitado a las reglas propias: la guarda de DeleteFirewallRule se ejecuta
-// antes de cualquier snapshot, así que se puede ejercitar sin router.
+// Borrar sigue limitado a las reglas propias: la guarda de DeleteFirewallRule
+// se ejecuta antes de cualquier snapshot, así que se puede ejercitar sin
+// router. La decision de editar vive en planFWRuleUpdate, la misma que usa
+// UpdateFirewallRule antes de tocar nada.
 func TestDeleteStillRefusesExternalRule(t *testing.T) {
 	if _, _, err := DeleteFirewallRule("impresora"); err == nil {
 		t.Fatal("una regla externa no se debe poder borrar")
