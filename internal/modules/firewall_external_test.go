@@ -25,6 +25,11 @@ firewall.@rule[1].proto='icmp'
 firewall.@rule[1].icmp_type='echo-request'
 firewall.@rule[1].family='ipv4'
 firewall.@rule[1].target='ACCEPT'
+firewall.@rule[2]=rule
+firewall.@rule[2].name='GL-WebUI PBS'
+firewall.@rule[2].src='wan'
+firewall.@rule[2].dest_port='8007'
+firewall.@rule[2].target='ACCEPT'
 firewall.impresora=rule
 firewall.impresora.name='Impresora taller'
 firewall.impresora.src='lan'
@@ -40,20 +45,8 @@ firewall.netgrip_fw_1.src_ip='192.168.1.51'
 firewall.netgrip_fw_1.target='REJECT'
 `
 
-// stockFixture is the factory config as UCI writes it: anonymous blocks, so
-// the only stable link between a listed rule and the firmware is its name.
-const stockFixture = `config rule
-	option name 'Allow-DHCP-Renew'
-	option src 'wan'
-	option dest_port '68'
-
-config rule
-	option name 'Allow-Ping'
-	option src 'wan'
-`
-
-func fwRulesWithStock() []FWRule {
-	return applyStockRules(parseFWRulesFrom(fwExternalFixture), parseStockNames(stockFixture))
+func fwRules() []FWRule {
+	return applyStockRules(parseFWRulesFrom(fwExternalFixture))
 }
 
 func TestParseFWRulesExtraOptions(t *testing.T) {
@@ -96,17 +89,22 @@ func TestApplyStockRulesMarksFactoryAndEditability(t *testing.T) {
 		stock    bool
 		editable bool
 	}{
-		// Factory, zone based: listed, never edited.
+		// Bootstrap allowance: listed, never edited.
 		{"@rule[0]", true, false},
-		// Factory with a protocol the form does not offer.
-		{"@rule[1]", true, false},
+		// Not a bootstrap name, but the form cannot express "proto icmp".
+		{"@rule[1]", false, false},
+		// The regression this test pins: a rule that ships in the factory
+		// config but is not a bootstrap allowance stays editable. On a real
+		// image the whole firewall lives in /rom, so keying off /rom hid the
+		// editor (#778).
+		{"@rule[2]", false, true},
 		// Created elsewhere, address based: editable, not deletable.
 		{"impresora", false, true},
 		// NetGrip's own: editable as before.
 		{"netgrip_fw_1", false, true},
 	}
 	got := map[string]FWRule{}
-	for _, r := range fwRulesWithStock() {
+	for _, r := range fwRules() {
 		got[r.Section] = r
 	}
 	for _, c := range rows {
@@ -130,14 +128,14 @@ func TestApplyStockRulesMarksFactoryAndEditability(t *testing.T) {
 // instead of being rewritten with ACCEPT/DROP/REJECT on save.
 func TestApplyStockRulesRefusesUnrepresentableAction(t *testing.T) {
 	parsed := parseFWRulesFrom("firewall.x=rule\nfirewall.x.name='mangle'\nfirewall.x.target='NOTRACK'\n")
-	rules := applyStockRules(parsed, map[string]bool{})
+	rules := applyStockRules(parsed)
 	if len(rules) != 1 || rules[0].Editable {
 		t.Fatalf("una regla con target NOTRACK debe quedar en solo lectura: %+v", rules)
 	}
 }
 
 func TestPlanFWRuleUpdateGate(t *testing.T) {
-	rules := fwRulesWithStock()
+	rules := fwRules()
 	edited := FirewallRuleAdd{Name: "Impresora taller", Proto: "tcp", DestIP: "192.168.1.70", DestPort: "9100", Target: "DROP"}
 
 	cases := []struct {
@@ -145,8 +143,9 @@ func TestPlanFWRuleUpdateGate(t *testing.T) {
 		section string
 		wantErr string
 	}{
-		{"stock DHCP", "@rule[0]", "firmware traffic rules are read-only"},
-		{"stock ping", "@rule[1]", "firmware traffic rules are read-only"},
+		{"bootstrap DHCP", "@rule[0]", "firmware traffic rules are read-only"},
+		{"proto que el formulario no representa", "@rule[1]", "this rule uses an action or protocol the panel cannot edit; change it in LuCI"},
+		{"regla de la imagen que no es bootstrap", "@rule[2]", ""},
 		{"externa no stock", "impresora", ""},
 		{"propia de NetGrip", "netgrip_fw_1", ""},
 		{"seccion inexistente", "no-existe", "rule not found"},
@@ -183,7 +182,7 @@ func TestDeleteStillRefusesExternalRule(t *testing.T) {
 // limite que el panel no entiende.
 func TestUpdateExternalRuleKeepsUnmodeledOptions(t *testing.T) {
 	var current FWRule
-	for _, r := range fwRulesWithStock() {
+	for _, r := range fwRules() {
 		if r.Section == "impresora" {
 			current = r
 		}
@@ -242,10 +241,9 @@ func TestUpdateExternalRuleKeepsUnmodeledOptions(t *testing.T) {
 	}
 }
 
-// Una regla de fabrica con nombre reconocible se rechaza aunque el nombre no
-// traiga el prefijo y su seccion sea anonima.
+// A bootstrap rule is refused by name even though the section is anonymous.
 func TestUpdateStockRuleRejectedByGate(t *testing.T) {
-	rules := fwRulesWithStock()
+	rules := fwRules()
 	_, err := planFWRuleUpdate(rules, "@rule[0]", FirewallRuleAdd{Name: "Allow-DHCP-Renew", Proto: "udp", Target: "ACCEPT"})
 	if err == nil || !strings.Contains(err.Error(), "read-only") {
 		t.Fatalf("err = %v, want rechazo de regla de fabrica", err)

@@ -2,7 +2,6 @@ package modules
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -206,33 +205,6 @@ func hasUplink() bool {
 	return uciSectionExists("network." + ubus.ActiveWANInterfaceName())
 }
 
-// stockRuleNames are the rules the firmware ships with, read from the
-// read-only factory config. DHCP renew, ISAKMP and the ICMP rules accept
-// traffic from the Internet on every OpenWrt install: listing them as
-// "things you opened" would bury the one rule that somebody did open.
-// Nothing is hardcoded — if /rom is not there, nothing is treated as stock.
-func stockRuleNames() map[string]bool {
-	b, err := os.ReadFile("/rom/etc/config/firewall")
-	if err != nil {
-		return map[string]bool{}
-	}
-	return parseStockNames(string(b))
-}
-
-// parseStockNames pulls the `option name` values out of a UCI config.
-func parseStockNames(config string) map[string]bool {
-	names := map[string]bool{}
-	for _, line := range strings.Split(config, "\n") {
-		f := strings.Fields(line)
-		if len(f) >= 3 && f[0] == "option" && f[1] == "name" {
-			if n := strings.Trim(f[2], "'\""); n != "" {
-				names[n] = true
-			}
-		}
-	}
-	return names
-}
-
 // ProbeFwd reads what is reachable from the Internet.
 //
 // It used to list only redirects whose section name carried NetGrip's own
@@ -248,7 +220,12 @@ func ProbeFwd() *FwdProbe {
 		RouterIP: uciGet("network.lan.ipaddr"),
 	}
 	wanZones := internetZones()
-	stock := stockRuleNames()
+	// The bootstrap allowances (DHCP renew, IGMP, IPsec, the ICMPv6
+	// baseline) are not "things somebody opened": listing them would bury
+	// the one rule that was actually opened. Same set the firewall card
+	// protects, so a rule shipped in the image but created by the person
+	// (Allow-SSH-WAN, Allow-WireGuard) is shown here.
+	stock := protectedRuleNames
 
 	// DNAT redirects: a port on the router handed to a host on the LAN.
 	// Only those coming FROM the Internet — a redirect from an internal
