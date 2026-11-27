@@ -181,6 +181,7 @@ export function FleetPage() {
         icon={Server}
         iconTone="teal"
         title={t("fleet.headerTitle")}
+        help="fleet"
         action={
           <div className="flex gap-2 shrink-0">
             <Button
@@ -196,8 +197,6 @@ export function FleetPage() {
           </div>
         }
       >
-        <p className="text-small text-muted">{t("fleet.headerIntro")}</p>
-
         {discoveryConfigLoaded && (
           <div className="mt-3 flex items-center gap-3 rounded-lg border border-border bg-surface p-3">
             <Toggle

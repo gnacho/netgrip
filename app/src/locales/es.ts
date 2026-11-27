@@ -367,6 +367,10 @@ export default {
       title: "Diagnóstico de red",
       body: "Estas pruebas se ejecutan desde el propio dispositivo. El ping mide latencia, el traceroute muestra el camino, la consulta DNS resuelve dominios y el test de puerto comprueba si un servicio responde.",
     },
+    fleet: {
+      title: "Otros equipos con NetGrip",
+      body: "Otros equipos con NetGrip de tu red.",
+    },
     firmware: {
       title: "¿Qué es el firmware?",
       body: "Es el sistema operativo del router. Actualizar arregla fallos y agujeros de seguridad. Tarda unos minutos y el router se reinicia solo; NetGrip sobrevive a la actualización.",
@@ -2914,7 +2918,6 @@ export default {
     add: "Añadir",
     cancel: "Cancelar",
     headerTitle: "Tu red NetGrip",
-    headerIntro: "Estos son los otros equipos con NetGrip de tu casa.",
     emptyTitle: "Solo vemos este router.",
     emptyBody: "Si tienes otros puntos de acceso o switches con NetGrip (o el agente de NetPulse), añádelos y salta a su panel desde aquí.",
     addFirst: "Añadir el primero",
