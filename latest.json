@@ -1,11 +1,11 @@
 {
-  "tag_name": "v0.82.0",
-  "body": "**The panel now reads by job**\n\nProtection has its own page, with AdGuard Home and banIP together with its blocklists. Services is split into VPN, connection quality, home name and local services, so each entry opens only what it needs. The firewall goes by its name, and every port forwarded to a machine on your network shows up under Local services with a pencil to edit it in place, next to the router's own listeners such as WireGuard.\n\nApplication traffic now draws each app's brand icon from a set embedded in the binary: no request leaves the router. UPnP is a single card that shows the mappings and the per-client ACL only when it is on, and the dnsmasq forwarders that were quietly bypassing AdGuard are flagged with a one-click fix.\n\nTwo fixes worth naming: the Internet page no longer crashes on kernels that do not expose the conntrack table, and the update ribbon disappears by itself after applying a version instead of waiting for a manual reload.\n\nThanks to @edwardally for reporting the Internet page crash.\n\n## Issues and pull requests\n\n- #659 / #660 WireGuard client QR: port, DNS and the code the apps scan\n- #661 The Internet page no longer crashes without the conntrack table\n- #664 The Ports tab strip fits a 390 px viewport\n- #665 The installer probes apk asset names without a noisy 404\n- #667 Services grouped by job\n- #673 The dnsmasq forwarders that bypass AdGuard are flagged\n- #679 The update ribbon goes away after applying an update\n- #681 Acerca de leaves the menu; the star link moves to Identity and reboot\n- #683 The health dot leaves the Resumen item\n- #685 UPnP is one card; the forwards card says what it does\n- #687 Protection gets its own page and banIP leaves Internet\n- #689 Brand icons for the applications, from a local set\n- #691 Each Services section gets its own menu entry\n- #693 DNS over HTTPS says it belongs to AdGuard\n- #695 banIP and its lists in a single card\n- #697 Product names as VPN card titles, with a cloud warning for Tailscale\n- #699 Every port open to the Internet, including the router's listeners\n- #701 Cortafuegos by name, and forwards editable from Local services\n",
+  "tag_name": "v0.83.0",
+  "body": "This release makes the router's disks and its WireGuard users manageable without the command line, and cleans up a lot underneath.\n\nPlug a USB disk and NetGrip now offers the missing driver, mounts it, shares it over SMB or DLNA and lets you pick the folders. WireGuard users can be renamed, their QR shown again and deleted from the edit dialog. On the traffic side, the application table finally shows real names: netifyd sends its category as an object and the parser was dropping every flow.\n\n## Storage\n\n- A USB device plugged in without the kernel storage driver is detected, explained, and the driver is installed from the page (#737, #738).\n- Mount and unmount a disk from the panel. The fstab entry goes through the allowlisted executor and the mount uses mount(2), with rollback (#739, #744).\n- `block-mount` is installed with the rest of the USB packages (#746).\n- Install DLNA and Samba from the page. Samba ships as `samba4-server`, which is what the panel looks for now (#736, #758, #759).\n- Pick the folders shared: `media_dir` for DLNA, guest `sambashare` sections for Samba, leaving hand-made shares alone (#720, #749).\n- Disk usage is read with statfs instead of `df` (#771).\n- The page reads and writes the UCI switch a service starts from, so enabling DLNA actually starts `minidlnad` (#747, #748).\n\n## WireGuard\n\n- Client private keys are stored on the router (0600) when the panel generates them, so an existing user's QR can be rebuilt (#756, #757).\n- Rename users from their card and delete them from the edit dialog, in red and behind a confirmation (#766, #767).\n- Users created before this, or with a pasted public key, offer a key rotation that produces a new QR (#756).\n- The whole flow says \"user\" instead of \"device\" (#764, #765).\n\n## Traffic\n\n- Fixed the decoder: netifyd 4.x sends `category` as an object, the parser expected a string and dropped the whole flow message, so everything was Unknown (#711, #745).\n- Flows without an application name are labelled with the domain netifyd saw (#711, #733).\n- The application chart draws bars while there is a single bucket instead of a flat colour wash, the title is always the last 24 h and it caps at eight series (#754, #755).\n\n## Internet and VPN access\n\n- The address websites see is labelled next to the connection IP and checked when the page opens, with a one minute server cache (#752, #753).\n- The access API publishes the router web UI as `web` and SQM as `web_ui_app` (#750, #751).\n\n## No stock web UI\n\n- Every reference to the stock OpenWrt web UI is gone from the copy, docs, landing and comments, and the `luci-app-netgrip` package and its build job are removed (#740, #741).\n\n## Panel\n\n- Card headers wrap their action instead of squeezing the title, and client pills no longer push the page sideways (#726, #743).\n- The banIP tables scroll inside their card on phones (#729, #742).\n- Menu names: network ports and dynamic DNS (#716, #732).\n- Coverage carries the channel analysis and stays visible with a single access point (#719, #734).\n- The config backup card is prefilled from the NetPulse agent (#721, #735).\n- Local services: three per row, Editar next to the description, SSL as a switch, quieter empty state (#717, #730, #762, #763, #768, #769, #799).\n- The fleet checks its nodes when the page opens and the intro moved into the help tip (#760, #761, #801).\n- Ports and firewall: sortable open ports, rule rename, rules created outside NetGrip are editable, delete from the edit dialog, columns aligned, only the bootstrap rules protected (#774, #775, #779, #781, #783, #784, #787, #797).\n- UPnP: not-installed state inside a card, card last on Internet, quieter copy, brand-coloured icons (#789, #791, #793, #795).\n\n**Full list:** #703, #704, #720, #721, #726, #729, #730, #731, #732, #733, #734, #735, #736, #737, #738, #739, #740, #741, #742, #743, #744, #745, #746, #747, #748, #749, #750, #751, #752, #753, #754, #755, #756, #757, #758, #759, #760, #761, #762, #763, #764, #765, #766, #767, #768, #769, #771, #774, #775, #777, #779, #781, #783, #784, #787, #789, #791, #793, #795, #797, #799, #801.\n\nDiscussions: [32-bit ARM routers](https://github.com/gnacho/netgrip/discussions/504), [NetGrip on pfSense](https://github.com/gnacho/netgrip/discussions/603).\n",
   "assets": [
     {
       "name": "netgrip-linux-amd64",
       "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-amd64",
-      "size": 4853304
+      "size": 4883368
     },
     {
       "name": "netgrip-linux-amd64.sha256",
@@ -20,7 +20,7 @@
     {
       "name": "netgrip-linux-arm64",
       "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-arm64",
-      "size": 4013176
+      "size": 4037688
     },
     {
       "name": "netgrip-linux-arm64.sha256",
@@ -35,7 +35,7 @@
     {
       "name": "netgrip-linux-armv5",
       "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-armv5",
-      "size": 4057052
+      "size": 4083320
     },
     {
       "name": "netgrip-linux-armv5.sha256",
@@ -50,7 +50,7 @@
     {
       "name": "netgrip-linux-armv6",
       "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-armv6",
-      "size": 4051620
+      "size": 4077144
     },
     {
       "name": "netgrip-linux-armv6.sha256",
@@ -65,7 +65,7 @@
     {
       "name": "netgrip-linux-armv7",
       "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-armv7",
-      "size": 4045784
+      "size": 4070488
     },
     {
       "name": "netgrip-linux-armv7.sha256",
@@ -80,7 +80,7 @@
     {
       "name": "netgrip-linux-mips",
       "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-mips",
-      "size": 3958572
+      "size": 3980500
     },
     {
       "name": "netgrip-linux-mips.sha256",
@@ -95,7 +95,7 @@
     {
       "name": "netgrip-linux-mipsle",
       "browser_download_url": "https://gnacho.github.io/netgrip/netgrip-linux-mipsle",
-      "size": 4023384
+      "size": 4047312
     },
     {
       "name": "netgrip-linux-mipsle.sha256",
