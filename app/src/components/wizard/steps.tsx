@@ -600,7 +600,8 @@ export function PackagesStep({ items, onSaved, onSkip, onBack }: {
   const { t } = useTranslation();
   const { job, running, begin } = useInstallJob();
   // Opt-in by default: never install optional packages the user did not choose.
-  const installableIds = () => items.filter((p) => !p.installed).map((p) => p.id);
+  // Entries the firmware feeds do not offer are not selectable at all.
+  const installableIds = () => items.filter((p) => !p.installed && p.available !== false).map((p) => p.id);
   const [mode, setMode] = useState<PkgMode>("demand");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [fatal, setFatal] = useState<string>();
@@ -692,12 +693,13 @@ export function PackagesStep({ items, onSaved, onSkip, onBack }: {
         <div className="space-y-2.5">
           {items.map((p) => {
             const Icon = PKG_ICONS[p.id] ?? Package;
+            const unchecked = p.installed || p.available === false;
             const checked = selected.has(p.id);
             return (
               <label
                 key={p.id}
                 className={`flex w-full cursor-pointer items-start gap-3 rounded-lg border p-4 ring-focus
-                  transition-colors duration-[var(--dur-fast)] ${p.installed
+                  transition-colors duration-[var(--dur-fast)] ${unchecked
                     ? "border-border bg-surface-2 cursor-default"
                     : checked
                       ? "border-accent bg-accent-soft"
@@ -707,13 +709,13 @@ export function PackagesStep({ items, onSaved, onSkip, onBack }: {
                   type="checkbox"
                   className="sr-only"
                   checked={checked}
-                  disabled={p.installed || running}
+                  disabled={unchecked || running}
                   onChange={() => toggle(p.id)}
                 />
                 <span
                   aria-hidden="true"
                   className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors duration-[var(--dur-fast)]
-                    ${p.installed
+                    ${unchecked
                       ? "border-border-strong bg-surface"
                       : checked
                         ? "border-accent bg-accent"
@@ -728,8 +730,14 @@ export function PackagesStep({ items, onSaved, onSkip, onBack }: {
                   </span>
                   <span className="mt-0.5 block text-small text-muted">{t(`${p.i18n_key}.desc`)}</span>
                   <span className="mt-1 block font-mono text-caption text-faint">{p.packages.join(", ")}</span>
+                  {p.available === false && (
+                    <span className="mt-1 block text-caption text-warn">{t("wizard.packages.unavailableHint")}</span>
+                  )}
                 </span>
                 {p.installed && <Pill tone="ok">{t("wizard.packages.installed")}</Pill>}
+                {!p.installed && p.available === false && (
+                  <Pill tone="warn">{t("wizard.packages.unavailable")}</Pill>
+                )}
               </label>
             );
           })}

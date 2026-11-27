@@ -213,6 +213,8 @@ export interface OptionalPackage {
   i18n_key: string;
   module: string;
   installed: boolean;
+  /** false when the firmware's feeds do not offer the package at all. */
+  available?: boolean;
 }
 
 export interface IoTProbe {

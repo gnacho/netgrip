@@ -186,6 +186,7 @@ export const demoOptionalPackages: T.OptionalPackage[] = [
   { id: "nlbwmon", packages: ["nlbwmon"], i18n_key: "wizard.packages.nlbwmon", module: "nlbwmon", installed: false },
   { id: "tailscale", packages: ["tailscale"], i18n_key: "wizard.packages.tailscale", module: "tailscale", installed: false },
   { id: "adguard", packages: ["adguardhome"], i18n_key: "wizard.packages.adguard", module: "adguard", installed: false },
+  { id: "netifyd", packages: ["netifyd"], i18n_key: "wizard.packages.netifyd", module: "netifyd", installed: false, available: false },
 ];
 
 export const demoIot: T.IoTProbe = {
