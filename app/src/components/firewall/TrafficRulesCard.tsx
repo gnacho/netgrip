@@ -132,7 +132,7 @@ export function TrafficRulesCard() {
   useEffect(() => { api.firewall().then(setProbe).catch(() => {}); }, []);
 
   const managed = probe?.rules.filter((r) => r.managed) ?? [];
-  const systemRules = probe?.rules.filter((r) => !r.managed) ?? [];
+  const otherRules = probe?.rules.filter((r) => !r.managed) ?? [];
 
   const addRule = (rule: FirewallRuleAdd) => {
     const risk = lockoutRisk(rule, probe?.mgmt_cidr);
@@ -217,7 +217,7 @@ export function TrafficRulesCard() {
 
             <div className="mt-4">
               <p className="text-eyebrow text-faint mb-2">{t("trafficRules.rulesTitle", { count: managed.length })}</p>
-              {managed.length === 0 && systemRules.length === 0 ? (
+              {managed.length === 0 && otherRules.length === 0 ? (
                 <EmptyState
                   small
                   title={t("trafficRules.empty")}
@@ -228,11 +228,13 @@ export function TrafficRulesCard() {
                   {managed.map((r) => (
                     <RuleRow key={r.section} r={r} onDelete={() => setToDelete(r)} onEdit={() => setEditing(r)} busy={busy} />
                   ))}
-                  {systemRules.length > 0 && (
+                  {otherRules.length > 0 && (
                     <li className="pt-3 mt-1">
-                      <p className="text-caption text-muted">{t("trafficRules.systemRules")}</p>
+                      <p className="text-caption text-muted">{t("trafficRules.otherRules")}</p>
                       <ul className="divide-y divide-border/40">
-                        {systemRules.map((r) => <RuleRow key={r.section} r={r} readOnly busy={busy} />)}
+                        {otherRules.map((r) => (
+                          <RuleRow key={r.section} r={r} onEdit={() => setEditing(r)} busy={busy} />
+                        ))}
                       </ul>
                     </li>
                   )}
@@ -267,16 +269,31 @@ export function TrafficRulesCard() {
   );
 }
 
-function RuleRow({ r, readOnly = false, onDelete, onEdit, busy }: {
+/* Tres estados, sin ambigüedad: la de NetGrip se edita y se borra; la creada
+   fuera se edita y no se borra; la de fábrica no se toca. Y si la regla trae
+   opciones que el panel no modela (zonas, MAC, ipset, familia, límite), se
+   dice en la propia fila en vez de fingir que la regla es solo lo que se ve. */
+function RuleRow({ r, onDelete, onEdit, busy }: {
   r: FWRule;
-  readOnly?: boolean;
   onDelete?: () => void;
   onEdit?: () => void;
   busy: boolean;
 }) {
   const { t } = useTranslation();
-  const src = r.src_ip ? r.src_ip : t("trafficRules.any");
-  const dest = r.dest_ip ? `${r.dest_ip}${r.dest_port ? `:${r.dest_port}` : ""}` : r.dest_port ? `*:${r.dest_port}` : t("trafficRules.any");
+  const extra = (name: string) => r.extra_options?.find((o) => o.name === name)?.value;
+  const srcZone = extra("src");
+  const destZone = extra("dest");
+  // Las zonas se pintan en Origen/Destino: si no, una regla limitada a lan
+  // aparecería como "Origen: cualquiera", que es mentira.
+  const srcAddr = r.src_ip || (srcZone ? `${t("trafficRules.zone")} ${srcZone}` : "");
+  const src = srcAddr ? `${srcAddr}${r.src_port ? `:${r.src_port}` : ""}` : "";
+  const destAddr = r.dest_ip || (destZone ? `${t("trafficRules.zone")} ${destZone}` : "");
+  const dest = destAddr
+    ? `${destAddr}${r.dest_port ? `:${r.dest_port}` : ""}`
+    : r.dest_port ? `*:${r.dest_port}` : "";
+  const hidden = (r.extra_options ?? []).filter(
+    (o) => !(o.name === "src" && !r.src_ip) && !(o.name === "dest" && !r.dest_ip));
+  const hiddenHint = hidden.map((o) => `${o.name}${o.value ? `=${o.value}` : ""}`).join(", ");
   const schedule = useMemo(() => {
     const parts: string[] = [];
     if (r.start_time || r.stop_time) parts.push(`${r.start_time || "00:00"}-${r.stop_time || "23:59"}`);
@@ -287,8 +304,8 @@ function RuleRow({ r, readOnly = false, onDelete, onEdit, busy }: {
   return (
     <li className="flex items-center gap-2.5 py-2.5 flex-wrap animate-fade-up">
       <span className="text-body font-medium min-w-0 truncate flex-1">{r.name || r.section}</span>
-      <Pill tone="muted">{t("trafficRules.from")} {src}</Pill>
-      <Pill tone="muted">{t("trafficRules.to")} {dest}</Pill>
+      <Pill tone="muted">{t("trafficRules.from")} {src || t("trafficRules.any")}</Pill>
+      <Pill tone="muted">{t("trafficRules.to")} {dest || t("trafficRules.any")}</Pill>
       {r.proto && <span className="font-mono text-caption text-muted uppercase">{r.proto}</span>}
       <Pill tone={toneFor(r.target)}>{t(TARGET_LABELS[r.target] ?? "trafficRules.allow", { defaultValue: r.target })}</Pill>
       {schedule && (
@@ -297,10 +314,14 @@ function RuleRow({ r, readOnly = false, onDelete, onEdit, busy }: {
         </span>
       )}
       {!r.enabled && <Pill tone="muted">{t("trafficRules.disabled")}</Pill>}
-      {readOnly ? (
-        <span title={t("trafficRules.externalHint")}><Pill tone="muted">{t("trafficRules.system")}</Pill></span>
-      ) : (
-        <>
+      {/* Solo en las que se pueden editar: en una de fabrica el aviso no
+          aporta nada, ya dice la pildora que es solo lectura. */}
+      {r.editable && hidden.length > 0 && (
+        <span title={t("trafficRules.extraHint", { options: hiddenHint })}>
+          <Pill tone="warn">{t("trafficRules.extraOptions")}</Pill>
+        </span>
+      )}
+      {r.editable && onEdit && (
         <button
           type="button"
           onClick={onEdit}
@@ -310,6 +331,9 @@ function RuleRow({ r, readOnly = false, onDelete, onEdit, busy }: {
         >
           <Pencil size={16} />
         </button>
+      )}
+      {/* Solo lo que creó NetGrip se borra; lo demás se muestra, no se toca. */}
+      {r.managed ? (
         <button
           type="button"
           onClick={onDelete}
@@ -319,7 +343,12 @@ function RuleRow({ r, readOnly = false, onDelete, onEdit, busy }: {
         >
           <Trash2 size={16} />
         </button>
-        </>
+      ) : r.stock ? (
+        <span title={t("trafficRules.factoryHint")}><Pill tone="muted">{t("trafficRules.factory")}</Pill></span>
+      ) : !r.editable ? (
+        <span title={t("trafficRules.readOnlyHint")}><Pill tone="muted">{t("trafficRules.readOnly")}</Pill></span>
+      ) : (
+        <span title={t("trafficRules.externalHint")}><Pill tone="muted">{t("trafficRules.external")}</Pill></span>
       )}
     </li>
   );
@@ -343,6 +372,7 @@ function NewTrafficRuleModal({ open, editing, mgmtCidr, busy, onClose, onConfirm
   const [target, setTarget] = useState("ACCEPT");
   const [srcMode, setSrcMode] = useState<"any" | "ip">("any");
   const [srcIp, setSrcIp] = useState("");
+  const [srcPort, setSrcPort] = useState("");
   const [destIp, setDestIp] = useState("");
   const [destPort, setDestPort] = useState("");
   const [proto, setProto] = useState("");
@@ -360,6 +390,7 @@ function NewTrafficRuleModal({ open, editing, mgmtCidr, busy, onClose, onConfirm
       setTarget(editing.target);
       setSrcMode(editing.src_ip ? "ip" : "any");
       setSrcIp(editing.src_ip ?? "");
+      setSrcPort(editing.src_port ?? "");
       setDestIp(editing.dest_ip ?? "");
       setDestPort(editing.dest_port ?? "");
       setProto(editing.proto ?? "");
@@ -369,7 +400,7 @@ function NewTrafficRuleModal({ open, editing, mgmtCidr, busy, onClose, onConfirm
       setUtc(!!editing.utc_time);
       return;
     }
-    setName(""); setTarget("ACCEPT"); setSrcMode("any"); setSrcIp("");
+    setName(""); setTarget("ACCEPT"); setSrcMode("any"); setSrcIp(""); setSrcPort("");
     setDestIp(""); setDestPort(""); setProto(""); setStartTime(""); setStopTime("");
     setDays(new Set()); setUtc(false);
   }, [open, editing]);
@@ -378,6 +409,7 @@ function NewTrafficRuleModal({ open, editing, mgmtCidr, busy, onClose, onConfirm
     name,
     proto,
     src_ip: srcMode === "any" ? "" : srcIp.trim(),
+    src_port: srcPort.trim(),
     dest_ip: destIp.trim(),
     dest_port: destPort.trim(),
     target,
@@ -388,11 +420,13 @@ function NewTrafficRuleModal({ open, editing, mgmtCidr, busy, onClose, onConfirm
   };
 
   const risk = lockoutRisk(rule, mgmtCidr);
+  const extras = editing?.extra_options ?? [];
+  const extrasHint = extras.map((o) => `${o.name}${o.value ? `=${o.value}` : ""}`).join(", ");
 
   const validName = name.trim() !== "";
   const validSrc = srcMode === "any" || srcIp.trim() !== "";
   const portOk = (p: string) => !p || /^(\d{1,5})(-\d{1,5})?$/.test(p);
-  const valid = validName && validSrc && portOk(destPort);
+  const valid = validName && validSrc && portOk(srcPort) && portOk(destPort);
 
   const toggleDay = (d: string) => {
     setDays((prev) => {
@@ -417,6 +451,9 @@ function NewTrafficRuleModal({ open, editing, mgmtCidr, busy, onClose, onConfirm
         </>
       }
     >
+      {extras.length > 0 && (
+        <Banner tone="warn" className="mb-4">{t("trafficRules.unmodeledWarning", { options: extrasHint })}</Banner>
+      )}
       {risk && (
         <Banner tone="warn" className="mb-4">{t("trafficRules.lockoutWarning")}</Banner>
       )}
@@ -463,7 +500,17 @@ function NewTrafficRuleModal({ open, editing, mgmtCidr, busy, onClose, onConfirm
         <Field mono label={t("trafficRules.destIp")} hint={t("trafficRules.destIpHint")}
           inputProps={{ value: destIp, onChange: (e) => setDestIp(e.target.value), placeholder: "10.0.0.9" }} />
         <Field mono label={t("trafficRules.destPort")} hint={t("trafficRules.destPortHint")}
+          error={destPort && !portOk(destPort) ? t("trafficRules.invalidPort") : undefined}
           inputProps={{ value: destPort, onChange: (e) => setDestPort(e.target.value), placeholder: "80-443", inputMode: "numeric" }} />
+      </div>
+
+      {/* Puerto origen: el update lo escribe y puede vaciarlo, así que si el
+          formulario no lo pinta, editar una regla ajena con puerto origen lo
+          borraría sin avisar. */}
+      <div className="mt-4">
+        <Field mono label={t("trafficRules.srcPort")} hint={t("trafficRules.srcPortHint")}
+          error={srcPort && !portOk(srcPort) ? t("trafficRules.invalidPort") : undefined}
+          inputProps={{ value: srcPort, onChange: (e) => setSrcPort(e.target.value), placeholder: "1024-65535", inputMode: "numeric" }} />
       </div>
 
       <div className="mt-4">

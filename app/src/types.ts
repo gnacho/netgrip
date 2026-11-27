@@ -1010,6 +1010,11 @@ export interface FWZone {
   masq: boolean;
 }
 
+export interface FWOption {
+  name: string;
+  value?: string;
+}
+
 export interface FWRule {
   name: string;
   section: string;
@@ -1024,7 +1029,14 @@ export interface FWRule {
   weekdays?: string;
   utc_time?: boolean;
   enabled: boolean;
+  /** Creada por NetGrip: se edita y se borra desde aquí. */
   managed: boolean;
+  /** Regla de fábrica del firmware: solo lectura. */
+  stock?: boolean;
+  /** El editor puede abrirla (falso en las de fábrica y en las que el formulario no sabe representar). */
+  editable: boolean;
+  /** Opciones que el panel no modela (zonas, MAC, ipset, familia...). Se conservan intactas. */
+  extra_options?: FWOption[];
 }
 
 export interface FirewallProbe {
