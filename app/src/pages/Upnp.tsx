@@ -77,9 +77,11 @@ export function UpnpPage() {
       <EmptyState
         illustration={<ArrowLeftRight size={120} />}
         title={t("upnp.notInstalledTitle")}
-        body={t("upnp.notInstalledBody")}
         action={<Button variant="primary" onClick={() => setConfirmInstall(true)}>{t("upnp.install")}</Button>}
       />
+      {/* The explanation goes after the action and in caption size: the card
+          should lead with the state and the button, not with a paragraph. */}
+      <p className="text-caption text-muted text-center max-w-sm mx-auto -mt-4">{t("upnp.notInstalledBody")}</p>
       <ConfirmDialog
         open={confirmInstall}
         onClose={() => setConfirmInstall(false)}
