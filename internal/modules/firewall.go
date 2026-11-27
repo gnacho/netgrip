@@ -29,12 +29,22 @@ type FWZone struct {
 	Masq    bool     `json:"masq"`
 }
 
+// FWOption is one rule option the panel does not model (a src/dest zone, a
+// source MAC, an ipset, the address family, a limit...). The editor never
+// writes nor deletes these: they are reported so the UI can say that those
+// conditions are kept as they are instead of pretending the rule is only
+// what the form shows.
+type FWOption struct {
+	Name  string `json:"name"`
+	Value string `json:"value,omitempty"`
+}
+
 // FWRule is one firewall traffic rule. It models fw4's address-based rule
 // options: a source IP/CIDR (empty = any), an optional destination IP/CIDR
 // and port range, a protocol (empty = any), the action (ACCEPT/DROP/REJECT)
 // and the schedule (start_time/stop_time/weekdays/utc_time). The zone-based
-// options (src/dest zones) are not part of this editor; system rules that use
-// them still show here read-only, with empty address fields.
+// options (src/dest zones) are not part of this editor: a rule that carries
+// them lists them in ExtraOptions and the UI warns that they are preserved.
 type FWRule struct {
 	Name      string `json:"name"`
 	Section   string `json:"section"`
@@ -49,9 +59,19 @@ type FWRule struct {
 	Weekdays  string `json:"weekdays,omitempty"`
 	UTCTime   bool   `json:"utc_time,omitempty"`
 	Enabled   bool   `json:"enabled"`
-	// Managed: this rule was created by NetGrip and can be edited/removed
-	// here. Anything set up elsewhere or shipped by the firmware is read-only.
+	// Managed: this rule was created by NetGrip. Only these can be deleted
+	// from here; rules set up elsewhere can be edited but not removed.
 	Managed bool `json:"managed"`
+	// Stock: the rule ships with the firmware (its name appears in the
+	// factory config). It is listed so the firewall state is not hidden,
+	// but never edited: losing the DHCP/ping allowance cuts the LAN.
+	Stock bool `json:"stock,omitempty"`
+	// Editable: the editor can open this rule. False for firmware rules
+	// and for the ones whose action or protocol the form cannot express.
+	Editable bool `json:"editable"`
+	// ExtraOptions: options the rule carries that this panel does not
+	// model. Kept untouched on every update.
+	ExtraOptions []FWOption `json:"extra_options,omitempty"`
 }
 
 type FirewallProbe struct {
@@ -83,9 +103,31 @@ func ProbeFirewall() *FirewallProbe {
 	return &FirewallProbe{
 		Applicable: true,
 		Zones:      parseFWZonesFrom(out),
-		Rules:      parseFWRulesFrom(out),
+		Rules:      applyStockRules(parseFWRulesFrom(out), stockRuleNames()),
 		MgmtCIDR:   mgmtCIDR(),
 	}
+}
+
+// applyStockRules flags the rules that come from the firmware and decides
+// which ones the editor may open. The link is the rule name, not the section:
+// the factory config declares anonymous sections, so their UCI name
+// ("@rule[0]") says nothing about where they came from.
+func applyStockRules(rules []FWRule, stock map[string]bool) []FWRule {
+	for i := range rules {
+		if rules[i].Name != "" && stock[rules[i].Name] {
+			rules[i].Stock = true
+		}
+		rules[i].Editable = fwRuleEditable(rules[i])
+	}
+	return rules
+}
+
+// fwRuleEditable reports whether the editor can represent this rule. The
+// firmware rules never can. So does a rule whose action or protocol the form
+// does not offer (target NOTRACK, proto icmp): opening it would rewrite those
+// fields with whatever the form has, so it stays read-only instead.
+func fwRuleEditable(r FWRule) bool {
+	return !r.Stock && validTrafficTarget(r.Target) && validTrafficProto(r.Proto)
 }
 
 type rawZone struct {
@@ -177,11 +219,14 @@ type rawRule struct {
 	weekdays  string
 	utcTime   bool
 	enabled   bool
+	// extra holds every option the panel does not model, by name.
+	extra map[string]string
 }
 
 // parseFWRulesFrom parses `uci show firewall` output for "rule" sections.
 // Section headers print as "firewall.<section>=rule". Managed is true for
-// sections named netgrip_fw_N. Never returns nil.
+// sections named netgrip_fw_N; the options the panel does not model land in
+// ExtraOptions. Never returns nil.
 func parseFWRulesFrom(out string) []FWRule {
 	rules := map[string]*rawRule{}
 	for _, line := range strings.Split(out, "\n") {
@@ -233,25 +278,40 @@ func parseFWRulesFrom(out string) []FWRule {
 			r.utcTime = val == "1"
 		case "enabled":
 			r.enabled = val != "0"
+		default:
+			if r.extra == nil {
+				r.extra = map[string]string{}
+			}
+			if list := uciListValues(line); len(list) > 0 {
+				r.extra[opt] = strings.Join(list, " ")
+			} else {
+				r.extra[opt] = val
+			}
 		}
 	}
 	result := make([]FWRule, 0, len(rules))
 	for _, r := range rules {
+		extra := make([]FWOption, 0, len(r.extra))
+		for name, value := range r.extra {
+			extra = append(extra, FWOption{Name: name, Value: value})
+		}
+		sort.Slice(extra, func(i, j int) bool { return extra[i].Name < extra[j].Name })
 		result = append(result, FWRule{
-			Name:      r.name,
-			Section:   r.section,
-			Proto:     r.proto,
-			SrcIP:     r.srcIP,
-			DestIP:    r.destIP,
-			SrcPort:   r.srcPort,
-			DestPort:  r.destPort,
-			Target:    r.target,
-			StartTime: r.startTime,
-			StopTime:  r.stopTime,
-			Weekdays:  r.weekdays,
-			UTCTime:   r.utcTime,
-			Enabled:   r.enabled,
-			Managed:   reFwRuleSection.MatchString(r.section),
+			Name:         r.name,
+			Section:      r.section,
+			Proto:        r.proto,
+			SrcIP:        r.srcIP,
+			DestIP:       r.destIP,
+			SrcPort:      r.srcPort,
+			DestPort:     r.destPort,
+			Target:       r.target,
+			StartTime:    r.startTime,
+			StopTime:     r.stopTime,
+			Weekdays:     r.weekdays,
+			UTCTime:      r.utcTime,
+			Enabled:      r.enabled,
+			Managed:      reFwRuleSection.MatchString(r.section),
+			ExtraOptions: extra,
 		})
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
@@ -572,31 +632,52 @@ func trafficRuleUpdateOps(section string, current FWRule, rule FirewallRuleAdd) 
 	)
 }
 
-// UpdateFirewallRule edits a traffic rule created by NetGrip in place, with
-// the same validation, snapshot, reload and rollback as adding one. Rules
-// from the firmware or from another panel stay read-only, like delete.
+// planFWRuleUpdate is the single gate between the handler and the write: it
+// decides whether a listed rule can be edited and builds the ops. Rules
+// created outside NetGrip (LuCI, GL.iNet, by hand) are editable, like any
+// forwarded port of the Puertos card; unlike those, deleting stays limited to
+// NetGrip's own, because a missing rule is a change nobody can undo from here.
+//
+// Two kinds stay read-only: the firmware rules, whose loss would leave the
+// router without DHCP or ping, and the rules the form cannot represent
+// (target NOTRACK, proto icmp...), which an edit would silently rewrite.
+func planFWRuleUpdate(rules []FWRule, section string, rule FirewallRuleAdd) ([]executor.Op, error) {
+	var current *FWRule
+	for i := range rules {
+		if rules[i].Section == section {
+			current = &rules[i]
+			break
+		}
+	}
+	if current == nil {
+		return nil, fmt.Errorf("rule not found")
+	}
+	if current.Stock {
+		return nil, fmt.Errorf("firmware traffic rules are read-only")
+	}
+	if !fwRuleEditable(*current) {
+		return nil, fmt.Errorf("this rule uses an action or protocol the panel cannot edit; change it in LuCI")
+	}
+	return trafficRuleUpdateOps(section, *current, rule), nil
+}
+
+// UpdateFirewallRule edits a listed traffic rule in place, with the same
+// validation, snapshot, reload and rollback as adding one. Rules created
+// elsewhere are editable; firmware rules and the ones the form cannot
+// represent are refused by planFWRuleUpdate. Delete is not part of this.
 func UpdateFirewallRule(section string, rule FirewallRuleAdd) (*FirewallProbe, bool, error) {
 	InvalidateKey("ucishow|firewall")
 	if !executor.ServiceEnabled("firewall") {
 		return ProbeFirewall(), false, fmt.Errorf("firewall not enabled")
 	}
-	if !reFwRuleSection.MatchString(section) {
-		return ProbeFirewall(), false, fmt.Errorf("only NetGrip traffic rules can be edited")
-	}
 	if err := validateTrafficRule(rule); err != nil {
 		return ProbeFirewall(), false, err
 	}
 
-	var current *FWRule
-	for _, r := range ProbeFirewall().Rules {
-		if r.Section == section {
-			got := r
-			current = &got
-			break
-		}
-	}
-	if current == nil {
-		return ProbeFirewall(), false, fmt.Errorf("rule not found")
+	probe := ProbeFirewall()
+	ops, err := planFWRuleUpdate(probe.Rules, section, rule)
+	if err != nil {
+		return probe, false, err
 	}
 
 	snap, err := executor.Snapshot("firewall")
@@ -608,7 +689,7 @@ func UpdateFirewallRule(section string, rule FirewallRuleAdd) (*FirewallProbe, b
 		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"firewall", "reload"}})
 		InvalidateKey("ucishow|firewall")
 	}
-	if err := executor.Apply(trafficRuleUpdateOps(section, *current, rule), nil); err != nil {
+	if err := executor.Apply(ops, nil); err != nil {
 		rollback()
 		return ProbeFirewall(), true, err
 	}
