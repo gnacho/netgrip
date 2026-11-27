@@ -1233,7 +1233,7 @@ export default {
   fwd: {
     thisRouter: "this router",
     external: "external",
-    externalHint: "Created outside NetGrip (by hand or another panel). You can change its ports and destination here, not delete it.",
+    externalHint: "Created outside NetGrip (by hand or another panel). You can change or delete it here.",
     title: "Port forwarding",
     noWan: "Only applies on the gateway (needs WAN and firewall)",
     empty: "No rules yet",
@@ -2155,7 +2155,7 @@ export default {
     firstRule: "Create the first rule",
     otherRules: "Other rules",
     external: "External",
-    externalHint: "Created outside NetGrip (by hand or another panel). You can edit it here, not delete it.",
+    externalHint: "Created outside NetGrip (by hand or another panel). You can edit or delete it here.",
     factory: "Factory",
     factoryHint: "Shipped with the router firmware. Read-only: removing it can leave the router without DHCP or ping.",
     readOnly: "Read-only",

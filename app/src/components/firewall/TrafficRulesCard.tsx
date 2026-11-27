@@ -233,7 +233,7 @@ export function TrafficRulesCard() {
                       <p className="text-caption text-muted">{t("trafficRules.otherRules")}</p>
                       <ul className="divide-y divide-border/40">
                         {otherRules.map((r) => (
-                          <RuleRow key={r.section} r={r} onEdit={() => setEditing(r)} busy={busy} />
+                          <RuleRow key={r.section} r={r} onDelete={() => setToDelete(r)} onEdit={() => setEditing(r)} busy={busy} />
                         ))}
                       </ul>
                     </li>
@@ -251,6 +251,7 @@ export function TrafficRulesCard() {
         mgmtCidr={probe?.mgmt_cidr}
         busy={busy}
         onClose={() => { setModal(false); setEditing(undefined); }}
+        onDelete={editing ? () => { setToDelete(editing); setEditing(undefined); } : undefined}
         onConfirm={editing ? (rule) => updateRule(editing.section, rule) : addRule}
       />
 
@@ -332,8 +333,17 @@ function RuleRow({ r, onDelete, onEdit, busy }: {
           <Pencil size={16} />
         </button>
       )}
-      {/* Solo lo que creó NetGrip se borra; lo demás se muestra, no se toca. */}
-      {r.managed ? (
+      {/* Anything the card lists can be deleted except the bootstrap
+          allowances: a rule you cannot edit (proto icmp) can still be
+          removed, and a rule created elsewhere is yours to delete. */}
+      {!r.managed && (r.stock ? (
+        <span title={t("trafficRules.factoryHint")}><Pill tone="muted">{t("trafficRules.factory")}</Pill></span>
+      ) : !r.editable ? (
+        <span title={t("trafficRules.readOnlyHint")}><Pill tone="muted">{t("trafficRules.readOnly")}</Pill></span>
+      ) : (
+        <span title={t("trafficRules.externalHint")}><Pill tone="muted">{t("trafficRules.external")}</Pill></span>
+      ))}
+      {!r.stock && onDelete && (
         <button
           type="button"
           onClick={onDelete}
@@ -343,12 +353,6 @@ function RuleRow({ r, onDelete, onEdit, busy }: {
         >
           <Trash2 size={16} />
         </button>
-      ) : r.stock ? (
-        <span title={t("trafficRules.factoryHint")}><Pill tone="muted">{t("trafficRules.factory")}</Pill></span>
-      ) : !r.editable ? (
-        <span title={t("trafficRules.readOnlyHint")}><Pill tone="muted">{t("trafficRules.readOnly")}</Pill></span>
-      ) : (
-        <span title={t("trafficRules.externalHint")}><Pill tone="muted">{t("trafficRules.external")}</Pill></span>
       )}
     </li>
   );
@@ -358,13 +362,15 @@ function RuleRow({ r, onDelete, onEdit, busy }: {
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-function NewTrafficRuleModal({ open, editing, mgmtCidr, busy, onClose, onConfirm }: {
+function NewTrafficRuleModal({ open, editing, mgmtCidr, busy, onClose, onDelete, onConfirm }: {
   open: boolean;
   /** Regla que se está editando; sin ella el modal crea una nueva. */
   editing?: FWRule;
   mgmtCidr?: string;
   busy: boolean;
   onClose: () => void;
+  /** Presente al editar: borra la regla con confirmación. */
+  onDelete?: () => void;
   onConfirm: (rule: FirewallRuleAdd) => void;
 }) {
   const { t } = useTranslation();
@@ -444,6 +450,11 @@ function NewTrafficRuleModal({ open, editing, mgmtCidr, busy, onClose, onConfirm
       wide
       footer={
         <>
+          {editing && onDelete && (
+            <Button variant="dangerGhost" icon={Trash2} className="mr-auto" onClick={onDelete} disabled={busy}>
+              {t("trafficRules.deleteConfirm")}
+            </Button>
+          )}
           <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
           <Button onClick={() => onConfirm(rule)} disabled={!valid} loading={busy}>
             {t("trafficRules.save")}

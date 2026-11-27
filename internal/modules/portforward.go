@@ -468,15 +468,34 @@ func UpdateFwdRule(section, name, srcDport, destIP, destPort, proto string) (*Fw
 	return ProbeFwd(), true, fmt.Errorf("rule not present after edit, rolled back")
 }
 
-// RemoveFwdRule deletes a redirect rule by section.
+// fwdRuleListed reports whether the probe shows that section. Pure, so the
+// guard can be tested without uci.
+func fwdRuleListed(rules []FwdRule, section string) bool {
+	for _, r := range rules {
+		if r.Section == section {
+			return true
+		}
+	}
+	return false
+}
+
+// RemoveFwdRule deletes a rule the card lists: a forward or an input rule,
+// whether NetGrip created it or somebody set it up in LuCI or by hand.
+//
+// The section has to be one the probe lists, never an arbitrary string: that
+// keeps this from turning into a generic UCI delete while still letting the
+// person who administers the router remove what the panel shows. The caller
+// asks for confirmation, and the apply keeps the snapshot + reload + rollback
+// it always had.
 func RemoveFwdRule(section string) (*FwdProbe, bool, error) {
 	InvalidateKey("ucishow|firewall")
 	InvalidateKey("portforward")
 	if err := fwdApplicable(); err != nil {
 		return ProbeFwd(), false, err
 	}
-	if !strings.HasPrefix(section, fwdPrefix) || !reFwdSection.MatchString(section) {
-		return ProbeFwd(), false, fmt.Errorf("not an netgrip rule")
+	before := ProbeFwd().Rules
+	if !fwdRuleListed(before, section) {
+		return ProbeFwd(), false, fmt.Errorf("rule not found")
 	}
 	snap, err := executor.Snapshot("firewall")
 	if err != nil {
@@ -495,11 +514,13 @@ func RemoveFwdRule(section string) (*FwdProbe, bool, error) {
 		rollback()
 		return ProbeFwd(), true, err
 	}
-	for _, r := range ProbeFwd().Rules {
-		if r.Section == section {
-			rollback()
-			return ProbeFwd(), true, fmt.Errorf("rule still present after delete, rolled back")
-		}
+	// Anonymous sections are renumbered when one is removed (@redirect[4]
+	// becomes the next rule's name), so "is that section still there" would
+	// match a different rule and roll back a delete that worked. The count
+	// is what tells the truth.
+	if after := len(ProbeFwd().Rules); after != len(before)-1 {
+		rollback()
+		return ProbeFwd(), true, fmt.Errorf("rule still present after delete, rolled back")
 	}
 	return ProbeFwd(), false, nil
 }

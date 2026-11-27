@@ -119,3 +119,25 @@ func TestFwdUpdateOpsPassTheAllowlist(t *testing.T) {
 		}
 	}
 }
+
+// The delete gate accepts any section the card lists, not just NetGrip's own:
+// the person administering the router can remove a forward or an input rule
+// created elsewhere. An arbitrary string is refused so this stays a rule
+// delete and not a generic UCI delete.
+func TestFwdRuleListed(t *testing.T) {
+	rules := []FwdRule{
+		{Section: "netgrip_fwd_443_192_168_1_10", Kind: "forward", Managed: true},
+		{Section: "@redirect[4]", Kind: "forward"},
+		{Section: "Allow-WireGuard", Kind: "input"},
+	}
+	for _, s := range []string{"netgrip_fwd_443_192_168_1_10", "@redirect[4]", "Allow-WireGuard"} {
+		if !fwdRuleListed(rules, s) {
+			t.Errorf("%q is listed and should be deletable", s)
+		}
+	}
+	for _, s := range []string{"", "network.lan", "../../etc/shadow", "otra_cosa"} {
+		if fwdRuleListed(rules, s) {
+			t.Errorf("%q is not listed and must be refused", s)
+		}
+	}
+}

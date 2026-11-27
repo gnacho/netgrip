@@ -64,7 +64,7 @@ export type FwdDraft = {
 /** Desktop column template shared by the header and the rows, so a header
  * always sits over its column. */
 const LIST_GRID =
-  "md:grid md:grid-cols-[minmax(0,1.5fr)_4.5rem_minmax(0,1fr)_4.5rem_5.5rem_2.25rem_2.25rem] md:items-center md:gap-2";
+  "md:grid md:grid-cols-[minmax(0,1.5fr)_4.5rem_minmax(0,1fr)_4.5rem_auto_2.25rem_2.25rem] md:items-center md:gap-2";
 
 function sortValue(t: TFunction, r: FwdRule, key: SortKey): string | number {
   switch (key) {
@@ -265,23 +265,25 @@ export function PortForwardCard({ probe, onChange }: {
                           <Pencil size={16} />
                         </button>
                       )}
-                      <Pill tone="ok" className="md:col-start-5 md:row-start-1">{t("fwd.active")}</Pill>
-                      {/* Only what NetGrip created is removable from here;
-                          anything set up elsewhere is shown, not touched. */}
-                      <span className="md:col-start-7 md:row-start-1" title={r.managed === false ? t("fwd.externalHint") : undefined}>
-                        {r.managed === false ? (
-                          <Pill tone="muted">{t("fwd.external")}</Pill>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setToDelete(r)}
-                            disabled={busy}
-                            aria-label={`${t("fwd.delete")} ${fwdRuleName(t, r)}`}
-                            className="text-faint hover:text-danger transition-colors duration-[var(--dur-fast)] ring-focus rounded-sm p-1"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                      <span className="flex flex-wrap items-center gap-1 md:col-start-5 md:row-start-1">
+                        <Pill tone="ok">{t("fwd.active")}</Pill>
+                        {r.managed === false && (
+                          <span title={t("fwd.externalHint")}><Pill tone="muted">{t("fwd.external")}</Pill></span>
                         )}
+                      </span>
+                      {/* Any rule the card lists can be deleted, not only
+                          NetGrip's own: the confirmation makes the person
+                          decide, and the backend keeps snapshot + rollback. */}
+                      <span className="md:col-start-7 md:row-start-1">
+                        <button
+                          type="button"
+                          onClick={() => setToDelete(r)}
+                          disabled={busy}
+                          aria-label={`${t("fwd.delete")} ${fwdRuleName(t, r)}`}
+                          className="text-faint hover:text-danger transition-colors duration-[var(--dur-fast)] ring-focus rounded-sm p-1"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </span>
                     </div>
                   ))}
@@ -309,6 +311,7 @@ export function PortForwardCard({ probe, onChange }: {
         probe={probe}
         busy={busy}
         onClose={() => { setModal(undefined); setEditing(undefined); }}
+        onDelete={editing ? () => { setToDelete(editing); setEditing(undefined); } : undefined}
         onConfirm={editing
           ? (d) => updateRule(editing.section, d)
           : (d) => addRule(d.srcDport, d.destIP, d.destPort, d.proto)}
@@ -329,13 +332,15 @@ export function PortForwardCard({ probe, onChange }: {
 
 /* ══════════ Modal "Nueva regla" (ports.md §2) ══════════ */
 
-export function NewRuleModal({ template, rule, probe, busy, onClose, onConfirm }: {
+export function NewRuleModal({ template, rule, probe, busy, onClose, onDelete, onConfirm }: {
   template: FwdTemplate | undefined;
   /** Regla existente que se está editando (solo forwards propios). */
   rule?: FwdRule;
   probe: FwdProbe | undefined;
   busy: boolean;
   onClose: () => void;
+  /** Present when an existing rule is being edited. */
+  onDelete?: () => void;
   onConfirm: (draft: FwdDraft) => void;
 }) {
   const { t } = useTranslation();
@@ -383,6 +388,11 @@ export function NewRuleModal({ template, rule, probe, busy, onClose, onConfirm }
       title={rule ? t("fwd.editTitle") : t("fwd.modalTitle")}
       footer={
         <>
+          {onDelete && (
+            <Button variant="dangerGhost" icon={Trash2} className="mr-auto" onClick={onDelete} disabled={busy}>
+              {t("fwd.delete")}
+            </Button>
+          )}
           <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
           <Button onClick={() => onConfirm({ name, srcDport, destIP, destPort, proto })} disabled={!valid} loading={busy}>
             {rule ? t("common.save") : t("fwd.open")}
