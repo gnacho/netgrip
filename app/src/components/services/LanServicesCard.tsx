@@ -203,7 +203,7 @@ export function LanServicesCard() {
           <Button icon={Plus} onClick={() => setShowAdd(true)}>{t("lanservices.addFirst")}</Button>
         </div>
       ) : (
-        <div className="flex flex-col gap-[var(--card-gap)]">
+        <div className="grid grid-cols-1 gap-[var(--card-gap)] sm:grid-cols-2 xl:grid-cols-3">
           {services.map((s, i) => (
             <ServiceRow
               key={s.id}
@@ -218,6 +218,7 @@ export function LanServicesCard() {
             onClick={() => setShowAdd(true)}
             style={{ "--i": Math.min(services.length, 7), animationDelay: `${services.length * 70}ms` } as CSSProperties}
             className="animate-fade-up rounded-lg border border-dashed border-border-strong p-4
+              sm:col-span-2 xl:col-span-3
               flex items-center justify-center gap-2 text-muted hover:text-accent hover:border-accent
               transition-colors duration-[var(--dur-fast)] ring-focus"
           >
@@ -360,12 +361,18 @@ function ServiceRow({ s, index, onEdit, onRemove }: {
   return (
     <article
       style={{ "--i": Math.min(index, 7), animationDelay: `${index * 70}ms` } as CSSProperties}
-      className="animate-fade-up rounded-lg border border-border bg-surface p-4 shadow-card flex flex-col"
+      className="animate-fade-up h-full rounded-lg border border-border bg-surface p-4 shadow-card flex flex-col"
     >
       <div className="flex items-start gap-2.5">
         <IconTile icon={lanServiceIcon(s.kind)} tone="accent" />
         <div className="flex-1 min-w-0">
-          <h2 className="text-h2 truncate">{s.name}</h2>
+          {/* En rejilla de tres la tarjeta es estrecha: el pill va con el
+              nombre y el detalle en su propia línea para no ahogar el
+              destino (#768). */}
+          <div className="flex min-w-0 items-start gap-2">
+            <h2 className="text-h2 min-w-0 flex-1 truncate">{s.name}</h2>
+            <span className="shrink-0 pt-0.5">{pill}</span>
+          </div>
           {/* Editar a la izquierda de la descripción, en acento (#762). */}
           <p className="flex min-w-0 items-center gap-2 text-caption">
             <button
@@ -375,15 +382,13 @@ function ServiceRow({ s, index, onEdit, onRemove }: {
             >
               {t("lanservices.edit")}
             </button>
-            <span className="min-w-0 truncate font-mono text-muted">
+            <span className="min-w-0 truncate font-mono text-muted"
+              title={`${serviceTarget(s)}${s.resolved_ip && s.resolved_ip !== s.host ? ` · ${s.resolved_ip}` : ""}`}>
               {serviceTarget(s)}
               {s.resolved_ip && s.resolved_ip !== s.host ? ` · ${s.resolved_ip}` : ""}
             </span>
           </p>
-        </div>
-        <div className="flex flex-col items-end gap-1 shrink-0">
-          {pill}
-          {detail && <span className="text-caption text-muted">{detail}</span>}
+          {detail && <p className="text-caption text-muted">{detail}</p>}
         </div>
       </div>
 
