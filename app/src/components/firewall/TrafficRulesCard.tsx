@@ -125,7 +125,7 @@ type FwSort = { key: FwSortKey; dir: 1 | -1 };
 
 /** Desktop column template shared by the header and the rows. */
 const FW_GRID =
-  "md:grid md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1.1fr)_4.5rem_6rem_7rem_auto] md:items-center md:gap-2";
+  "md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.2fr)_4.5rem_6rem_6rem_9rem] md:items-center md:gap-2";
 
 function fwExtra(r: FWRule, name: string): string {
   return r.extra_options?.find((o) => o.name === name)?.value ?? "";
@@ -320,7 +320,7 @@ export function TrafficRulesCard() {
                     </div>
                   )}
 
-                  <div className={`hidden border-b border-border/60 px-1 py-1.5 ${FW_GRID}`}>
+                  <div className={`hidden border-b border-border/60 py-1.5 ${FW_GRID}`}>
                     <FwSortHeader col="name" sort={sort} onSort={toggleSort} />
                     <FwSortHeader col="src" sort={sort} onSort={toggleSort} />
                     <FwSortHeader col="dest" sort={sort} onSort={toggleSort} />
@@ -414,11 +414,13 @@ function RuleRow({ r, onDelete, onEdit, busy }: {
       <span className="text-body font-medium min-w-0 truncate flex-1 md:col-start-1 md:row-start-1">
         {r.name || r.section}
       </span>
+      {/* En escritorio la cabecera ya dice ORIGEN y DESTINO: el prefijo solo
+          se pinta en movil, donde no hay cabeceras y hay que etiquetar. */}
       <Pill tone="muted" className="md:col-start-2 md:row-start-1">
-        {t("trafficRules.from")} {src || t("trafficRules.any")}
+        <span className="md:hidden">{t("trafficRules.from")} </span>{src || t("trafficRules.any")}
       </Pill>
       <Pill tone="muted" className="md:col-start-3 md:row-start-1">
-        {t("trafficRules.to")} {dest || t("trafficRules.any")}
+        <span className="md:hidden">{t("trafficRules.to")} </span>{dest || t("trafficRules.any")}
       </Pill>
       {r.proto && (
         <span className="font-mono text-caption text-muted uppercase md:col-start-4 md:row-start-1">{r.proto}</span>

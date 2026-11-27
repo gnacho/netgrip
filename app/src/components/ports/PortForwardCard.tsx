@@ -64,7 +64,7 @@ export type FwdDraft = {
 /** Desktop column template shared by the header and the rows, so a header
  * always sits over its column. */
 const LIST_GRID =
-  "md:grid md:grid-cols-[minmax(0,1.5fr)_4.5rem_minmax(0,1fr)_4.5rem_auto_2.25rem_2.25rem] md:items-center md:gap-2";
+  "md:grid md:grid-cols-[minmax(0,1.5fr)_4.5rem_minmax(0,1fr)_4.5rem_9rem_2.25rem_2.25rem] md:items-center md:gap-2";
 
 function sortValue(t: TFunction, r: FwdRule, key: SortKey): string | number {
   switch (key) {
@@ -222,7 +222,7 @@ export function PortForwardCard({ probe, onChange }: {
                   </div>
                 )}
 
-                <div className={`hidden border-b border-border/60 px-1 py-1.5 ${LIST_GRID}`}>
+                <div className={`hidden border-b border-border/60 py-1.5 ${LIST_GRID}`}>
                   <SortHeader label={t("fwd.colName")} col="name" sort={sort} onSort={toggleSort} />
                   <SortHeader label={t("fwd.colPort")} col="port" sort={sort} onSort={toggleSort} />
                   <SortHeader label={t("fwd.colDest")} col="dest" sort={sort} onSort={toggleSort} />
