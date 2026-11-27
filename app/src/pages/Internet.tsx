@@ -1,6 +1,5 @@
-import type { FwdProbe, MultiWanProbe } from "../types";
+import type { MultiWanProbe } from "../types";
 import { WanPage } from "./Wan";
-import { ForwardsPage } from "./Forwards";
 import { DpiPage } from "./Dpi";
 import { UpnpPage } from "./Upnp";
 
@@ -12,11 +11,9 @@ import { UpnpPage } from "./Upnp";
  * Las páginas se reutilizan tal cual: nada de su funcionalidad se pierde
  * (multiWAN sigue en WanPage, los labs incluidos).
  */
-export function InternetPage({ mwan, onMwanChange, fwd, onFwdChange }: {
+export function InternetPage({ mwan, onMwanChange }: {
   mwan?: MultiWanProbe;
   onMwanChange: (p: MultiWanProbe) => void;
-  fwd?: FwdProbe;
-  onFwdChange: (p: FwdProbe) => void;
 }) {
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
@@ -25,7 +22,6 @@ export function InternetPage({ mwan, onMwanChange, fwd, onFwdChange }: {
       {/* Cada bloque lleva id para que las tarjetas de otras páginas puedan
           enlazar a su sección concreta (#628). */}
       <div id="page-wan"><WanPage mwan={mwan} onMwanChange={onMwanChange} hideMode /></div>
-      <div id="page-forwards"><ForwardsPage fwd={fwd} onFwdChange={onFwdChange} /></div>
       <div id="page-upnp"><UpnpPage /></div>
       <div id="page-dpi"><DpiPage /></div>
     </div>

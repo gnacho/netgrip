@@ -1,4 +1,6 @@
-import type { DDNSProbe, OVPNProbe, SQMProbe, TSProbe, WGProbe } from "../types";
+import { useEffect, useState } from "react";
+import { api } from "../api";
+import type { DDNSProbe, FwdProbe, OVPNProbe, SQMProbe, TSProbe, WGProbe } from "../types";
 import { WireguardCard } from "../components/services/WireguardCard";
 import { OpenvpnCard } from "../components/services/OpenvpnCard";
 import { TailscaleCard } from "../components/services/TailscaleCard";
@@ -6,6 +8,7 @@ import { DdnsCard } from "../components/services/DdnsCard";
 import { SqmCard } from "../components/services/SqmCard";
 import { NlbwmonCard } from "../components/services/NlbwmonCard";
 import { LanServicesCard } from "../components/services/LanServicesCard";
+import { PortForwardCard } from "../components/ports/PortForwardCard";
 
 /**
  * Secciones de Servicios desglosadas como entradas propias del menú (#691).
@@ -54,9 +57,15 @@ export function DdnsPage({ ddns, onDdnsChange }: {
 }
 
 export function LanServicesPage() {
+  const [fwd, setFwd] = useState<FwdProbe>();
+  useEffect(() => { api.portforward().then(setFwd).catch(() => {}); }, []);
   return (
     <div className="flex flex-col gap-[var(--card-gap)]">
       <LanServicesCard />
+      {/* La tarjeta de puertos abiertos a Internet vive aquí (#782): antes
+          estaba en Internet y esta página tenía una lista resumida de lo
+          mismo, con menos funciones. Una sola tarjeta, en un solo sitio. */}
+      <div id="page-forwards"><PortForwardCard probe={fwd} onChange={setFwd} /></div>
     </div>
   );
 }

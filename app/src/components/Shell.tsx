@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
 import { Activity, ArrowLeftRight, Blocks, ChartColumn, Download, EyeOff, Forward, Gauge, Globe, HardDrive, Link2, Lock, Shield, LayoutDashboard, LogOut, Menu, Network, Radar, Server, Settings, ShieldAlert, ShieldBan, Smartphone, Wifi } from "lucide-react";
 import { api, disableDemo, isDemo } from "../api";
-import type { Board, DDNSProbe, DriftProbe, EthPort, FwdProbe, GuestProbe, IoTProbe, IPv6Probe, MultiWanProbe, OVPNProbe, PhysPortsProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
+import type { Board, DDNSProbe, DriftProbe, EthPort, GuestProbe, IoTProbe, IPv6Probe, MultiWanProbe, OVPNProbe, PhysPortsProbe, SelfUpdateCheck, SQMProbe, StorageProbe, SystemInfo, TSProbe, UsteerAP, UpdateCheck, WanStatus, WGProbe, WirelessRadio } from "../types";
 import { useHealthScore } from "../hooks/useHealthScore";
 import { useMode } from "../hooks/useMode";
 import { AnnouncementBanner } from "./AnnouncementBanner";
@@ -80,15 +80,28 @@ const NAV_GROUPS: { group: string | null; items: Page[] }[] = [
 // pegados a mano).
 const VALID_PAGES: readonly string[] = NAV_GROUPS.flatMap((g) => g.items);
 
-function pageFromHash(): Page | null {
+// Pages that are no longer menu entries and live inside another one: opening
+// them means opening their container and scrolling to the block (#628).
+// Module scope so a pasted link or F5 resolves them too, not only a click.
+const COMPOSED_PAGE: Partial<Record<Page, { page: Page; anchor?: string }>> = {
+  wan: { page: "internet", anchor: "page-wan" },
+  forwards: { page: "lanservices", anchor: "page-forwards" },
+  upnp: { page: "internet", anchor: "page-upnp" },
+  dpi: { page: "internet", anchor: "page-dpi" },
+  banip: { page: "protection", anchor: "page-banip" },
+};
+
+function pageFromHash(): { page: Page; anchor?: string } | null {
   const h = window.location.hash.replace(/^#\/?/, "").split(/[/?]/)[0];
-  return VALID_PAGES.includes(h) ? (h as Page) : null;
+  if (!VALID_PAGES.includes(h) && !(h in COMPOSED_PAGE)) return null;
+  return COMPOSED_PAGE[h as Page] ?? { page: h as Page };
 }
 
 function ShellInner({ onLogout }: { onLogout: () => void }) {
   const { t } = useTranslation();
   // #508: la página inicial sale del hash si lo hay (deep link / F5).
-  const [page, setPage] = useState<Page>(() => pageFromHash() ?? "overview");
+  const initialRoute = pageFromHash();
+  const [page, setPage] = useState<Page>(() => initialRoute?.page ?? "overview");
   const [menuOpen, setMenuOpen] = useState(false);
   const [board, setBoard] = useState<Board>();
   const [system, setSystem] = useState<SystemInfo>();
@@ -100,7 +113,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   const [sqm, setSqm] = useState<SQMProbe>();
   const [ovpn, setOvpn] = useState<OVPNProbe>();
   const [iot, setIot] = useState<IoTProbe>();
-  const [fwd, setFwd] = useState<FwdProbe>();
   const [mwan, setMwan] = useState<MultiWanProbe>();
   const [ts, setTs] = useState<TSProbe>();
   const [guest, setGuest] = useState<GuestProbe>();
@@ -158,7 +170,6 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
     api.sqm().then(setSqm).catch(() => {});
     api.openvpn().then(setOvpn).catch(() => {});
     api.iotwifi().then(setIot).catch(() => {});
-    api.portforward().then(setFwd).catch(() => {});
     api.multiwan().then(setMwan).catch(() => {});
     api.tailscale().then(setTs).catch(() => {});
     api.guestwifi().then(setGuest).catch(() => {});
@@ -241,17 +252,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   // refleja la vista y cada navegación entra en el historial). El estado se
   // actualiza aquí para respuesta inmediata; el listener hashchange cubre
   // atrás/adelante y enlaces pegados a mano.
-  // Páginas que ya no son entradas de menú y viven dentro de otra: navegar a
-  // ellas es abrir su contenedor y bajar hasta su bloque (#628). Sin esto,
-  // "Gestionar" de banIP caía en Resumen porque activePage no las conoce.
-  const COMPOSED_PAGE: Partial<Record<Page, { page: Page; anchor?: string }>> = {
-    wan: { page: "internet", anchor: "page-wan" },
-    forwards: { page: "internet", anchor: "page-forwards" },
-    upnp: { page: "internet", anchor: "page-upnp" },
-    dpi: { page: "internet", anchor: "page-dpi" },
-    banip: { page: "protection", anchor: "page-banip" },
-  };
-  const [pendingAnchor, setPendingAnchor] = useState<string>();
+  const [pendingAnchor, setPendingAnchor] = useState<string | undefined>(initialRoute?.anchor);
 
   const navigateTo = useCallback((p: Page) => {
     const composed = COMPOSED_PAGE[p];
@@ -265,19 +266,27 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
   }, []);
 
   // El bloque destino ya está en el DOM cuando corre este efecto: la página se
-  // acaba de pintar con el cambio de estado.
+  // acaba de pintar con el cambio de estado. Se repite a los 600 ms porque las
+  // tarjetas crecen cuando llegan sus datos: el primer salto se queda corto si
+  // el bloque estaba dentro de la primera pantalla con el esqueleto.
   useEffect(() => {
     if (!pendingAnchor) return;
-    const el = document.getElementById(pendingAnchor);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    setPendingAnchor(undefined);
+    const anchor = pendingAnchor;
+    document.getElementById(anchor)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const timer = setTimeout(() => {
+      document.getElementById(anchor)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setPendingAnchor(undefined);
+    }, 600);
+    return () => clearTimeout(timer);
   }, [pendingAnchor]);
 
   // Atrás/adelante del navegador y deep links escritos a mano.
   useEffect(() => {
     const onHash = () => {
       const p = pageFromHash();
-      if (p) setPage(p);
+      if (!p) return;
+      setPage(p.page);
+      if (p.anchor) setPendingAnchor(p.anchor);
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
@@ -446,7 +455,7 @@ function ShellInner({ onLogout }: { onLogout: () => void }) {
       )}
       {activePage === "clients" && (isSwitch ? <L2ClientsPage /> : <ClientsPage />)}
       {activePage === "internet" && (
-        <InternetPage mwan={mwan} onMwanChange={setMwan} fwd={fwd} onFwdChange={setFwd} />
+        <InternetPage mwan={mwan} onMwanChange={setMwan} />
       )}
       {activePage === "coverage" && <CoveragePage aps={usteerAps} error={usteerError} />}
       {activePage === "trafficrules" && <TrafficRulesPage />}
