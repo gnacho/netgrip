@@ -1,6 +1,18 @@
 {
  "announcements": [
   {
+   "id": "v0830-2026-11",
+   "urgency": "info",
+   "title": {
+    "es": "Novedades de la v0.83.0",
+    "en": "What's new in v0.83.0"
+   },
+   "body": {
+    "es": "Los discos USB y los usuarios de WireGuard se gestionan desde el panel: si falta el controlador del disco, NetGrip lo ofrece, monta el disco, elige qué carpetas se comparten por DLNA o Samba y lo desmonta. En WireGuard puedes renombrar usuarios, volver a ver su QR y borrarlos desde la edición. Tráfico por aplicación ya nombra apps y dominios reales: netifyd manda la categoría como objeto y se estaba descartando cada flujo. Además, la dirección que ven las webs junto al enlace, análisis de canales en Cobertura y fuera toda mención a la interfaz de serie de OpenWrt, que ya no se empaqueta.",
+    "en": "USB disks and WireGuard users are managed from the panel: if the disk driver is missing NetGrip offers it, mounts the disk, picks the folders shared over DLNA or Samba and unmounts it. WireGuard users can be renamed, their QR shown again and deleted from the edit dialog. Traffic by application now names real apps and domains: netifyd sends its category as an object and every flow was being dropped. Also the address websites see next to the link, channel analysis in Coverage, and every mention of the stock OpenWrt UI is gone, and it is no longer packaged."
+   }
+  },
+  {
    "id": "v0820-2026-11",
    "urgency": "info",
    "title": {
