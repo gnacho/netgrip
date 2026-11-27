@@ -82,10 +82,7 @@ export function UpnpPage() {
           className="flex flex-wrap items-center gap-3"
           style={{ minHeight: "var(--row-min-h)", paddingBlock: "var(--row-pad-y)" }}
         >
-          <div className="flex-1 min-w-0">
-            <p className="text-body font-medium">{t("upnp.notInstalledTitle")}</p>
-            <p className="text-caption text-muted mt-0.5">{t("upnp.notInstalledBody")}</p>
-          </div>
+          <p className="flex-1 min-w-0 text-body font-medium">{t("upnp.notInstalledTitle")}</p>
           <Button size="sm" onClick={() => setConfirmInstall(true)}>{t("upnp.install")}</Button>
         </div>
       </Card>
