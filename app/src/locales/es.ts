@@ -892,7 +892,6 @@ export default {
     notGatewayTitle: "UPnP solo funciona en el gateway",
     notGatewayBody: "Este router no es la puerta de salida a internet, así que no hay WAN donde abrir puertos. UPnP vive en el router que da salida a internet.",
     notInstalledTitle: "UPnP/NAT-PMP no está instalado",
-    notInstalledBody: "miniupnpd abre puertos hacia internet para tus dispositivos (UPnP y NAT-PMP) de forma controlada. Se instala desde los paquetes oficiales de OpenWrt.",
     install: "Instalar UPnP",
     installConfirmTitle: "¿Instalar miniupnpd?",
     installConfirmBody: "El paquete se descarga del repositorio oficial de OpenWrt. Queda desactivado por defecto: no abre puertos hasta que lo actives.",
