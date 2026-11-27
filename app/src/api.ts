@@ -457,11 +457,11 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ src_dport, dest_ip, dest_port, proto }),
     }),
-  updateFwdRule: (section: string, src_dport: string, dest_ip: string, dest_port: string, proto: string) =>
+  updateFwdRule: (section: string, name: string, src_dport: string, dest_ip: string, dest_port: string, proto: string) =>
     request<import("./types").ModuleResult<import("./types").FwdProbe>>("/api/portforward/update", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ section, src_dport, dest_ip, dest_port, proto }),
+      body: JSON.stringify({ section, name, src_dport, dest_ip, dest_port, proto }),
     }),
   deleteFwdRule: (section: string) =>
     request<import("./types").ModuleResult<import("./types").FwdProbe>>("/api/portforward/delete", {
