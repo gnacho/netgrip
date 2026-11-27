@@ -23,15 +23,13 @@ import { CopyButton, downloadText, qrMatrixSvg, Reveal, shortKey } from "./share
  * Ficha de un peer/usuario (#714): tarjetas en rejilla de tres en escritorio.
  * `onDelete` ausente = lista de solo lectura (túneles gestionados por GL.iNet).
  */
-function PeerCard({ peer, onDelete, onEdit, onQr, busy }: {
+function PeerCard({ peer, onEdit, onQr, busy }: {
   peer: WGPeer;
-  onDelete?: () => void;
   onEdit?: () => void;
   onQr?: () => void;
   busy?: boolean;
 }) {
   const { t } = useTranslation();
-  const canDelete = !!onDelete && !peer.admin;
   return (
     <div className="flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-surface-2 p-3">
       <div className="flex min-w-0 items-center gap-2.5">
@@ -62,13 +60,6 @@ function PeerCard({ peer, onDelete, onEdit, onQr, busy }: {
               title={t("wg.showQr")} aria-label={`${t("wg.showQr")} ${peer.name || peer.public_key}`}
               className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-muted hover:text-accent hover:bg-surface transition-colors ring-focus disabled:opacity-40">
               <QrCode size={16} aria-hidden="true" />
-            </button>
-          )}
-          {canDelete && (
-            <button type="button" onClick={onDelete} disabled={busy}
-              title={t("wg.deletePeer")} aria-label={`${t("wg.deletePeer")} ${peer.name || peer.public_key}`}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-muted hover:text-danger hover:bg-surface transition-colors ring-focus disabled:opacity-40">
-              <Trash2 size={16} aria-hidden="true" />
             </button>
           )}
         </span>
@@ -336,7 +327,6 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {probe.peers.map((p) => (
                     <PeerCard key={p.public_key} peer={p} busy={peerBusy === p.public_key}
-                      onDelete={p.admin ? undefined : () => setDelTarget(p)}
                       onEdit={() => { setRenamePeer(p); setRenameName(p.name ?? ""); }}
                       onQr={() => showPeerQr(p)} />
                   ))}
@@ -413,16 +403,29 @@ export function WireguardCard({ probe, onChange, index = 0 }: {
             onClose={() => setRenamePeer(undefined)}
             title={t("wg.renameTitle")}
             footer={
-              <>
-                <Button variant="ghost" onClick={() => setRenamePeer(undefined)}>{t("common.cancel")}</Button>
-                <Button loading={renamePeer ? peerBusy === renamePeer.public_key : false} onClick={saveRename}>
-                  {t("common.save")}
-                </Button>
-              </>
+              <span className="flex w-full flex-wrap items-center gap-2">
+                {renamePeer && !renamePeer.admin && (
+                  <button type="button"
+                    onClick={() => { const p = renamePeer; setRenamePeer(undefined); setDelTarget(p); }}
+                    className="inline-flex h-9 items-center gap-2 rounded-md px-3 text-small font-medium text-danger hover:bg-danger-soft ring-focus transition-colors">
+                    <Trash2 size={16} aria-hidden="true" />
+                    {t("wg.deletePeer")}
+                  </button>
+                )}
+                <span className="ml-auto flex items-center gap-2">
+                  <Button variant="ghost" onClick={() => setRenamePeer(undefined)}>{t("common.cancel")}</Button>
+                  <Button loading={renamePeer ? peerBusy === renamePeer.public_key : false} onClick={saveRename}>
+                    {t("common.save")}
+                  </Button>
+                </span>
+              </span>
             }
           >
             <Input value={renameName} onChange={(e) => setRenameName(e.target.value)}
               placeholder={t("wg.peerName")} maxLength={40} autoFocus />
+            {renamePeer?.admin && (
+              <p className="mt-2 text-caption text-muted">{t("wg.adminCannotDelete")}</p>
+            )}
           </Modal>
 
           <Modal
