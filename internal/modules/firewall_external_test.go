@@ -164,16 +164,34 @@ func TestPlanFWRuleUpdateGate(t *testing.T) {
 	}
 }
 
-// Borrar sigue limitado a las reglas propias: la guarda de DeleteFirewallRule
-// se ejecuta antes de cualquier snapshot, así que se puede ejercitar sin
-// router. La decision de editar vive en planFWRuleUpdate, la misma que usa
-// UpdateFirewallRule antes de tocar nada.
-func TestDeleteStillRefusesExternalRule(t *testing.T) {
-	if _, _, err := DeleteFirewallRule("impresora"); err == nil {
-		t.Fatal("una regla externa no se debe poder borrar")
+// Delete is no longer limited to NetGrip's own rules: anything the probe lists
+// can go except the bootstrap allowances. The gate runs before any snapshot,
+// so it can be exercised without a router.
+func TestPlanFWRuleDelete(t *testing.T) {
+	rules := fwRules()
+	cases := []struct {
+		name    string
+		section string
+		wantErr string
+	}{
+		{"propia de NetGrip", "netgrip_fw_1", ""},
+		{"creada fuera", "impresora", ""},
+		{"regla de la imagen que no es bootstrap", "@rule[2]", ""},
+		{"proto no representable, pero borrable", "@rule[1]", ""},
+		{"bootstrap DHCP", "@rule[0]", "bootstrap traffic rules are read-only"},
+		{"seccion inexistente", "no-existe", "rule not found"},
 	}
-	if _, _, err := DeleteFirewallRule("@rule[0]"); err == nil {
-		t.Fatal("una regla de fabrica no se debe poder borrar")
+	for _, c := range cases {
+		err := planFWRuleDelete(rules, c.section)
+		if c.wantErr == "" {
+			if err != nil {
+				t.Errorf("%s: no deberia fallar: %v", c.name, err)
+			}
+			continue
+		}
+		if err == nil || err.Error() != c.wantErr {
+			t.Errorf("%s: err = %v, want %q", c.name, err, c.wantErr)
+		}
 	}
 }
 

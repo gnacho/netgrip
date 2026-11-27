@@ -1232,7 +1232,7 @@ export default {
   fwd: {
     thisRouter: "este router",
     external: "externa",
-    externalHint: "Creada fuera de NetGrip (a mano o por otro panel). Aquí puedes cambiar sus puertos y su destino; borrarla, no.",
+    externalHint: "Creada fuera de NetGrip (a mano o por otro panel). Aquí puedes cambiarla o borrarla.",
     title: "Reenvío de puertos",
     noWan: "Solo aplica en el gateway (requiere WAN y firewall)",
     empty: "Sin reglas todavía",
@@ -2154,7 +2154,7 @@ export default {
     firstRule: "Crear la primera regla",
     otherRules: "Otras reglas",
     external: "Externa",
-    externalHint: "Creada fuera de NetGrip (a mano u otro panel). Puedes editarla aquí, no borrarla.",
+    externalHint: "Creada fuera de NetGrip (a mano u otro panel). Puedes editarla o borrarla aquí.",
     factory: "Fábrica",
     factoryHint: "Viene con el firmware del router. Solo lectura: quitarla puede dejar el router sin DHCP o sin ping.",
     readOnly: "Solo lectura",

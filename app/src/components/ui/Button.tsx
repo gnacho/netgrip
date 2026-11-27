@@ -1,13 +1,15 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "dangerGhost";
 
 const VARIANTS: Record<Variant, string> = {
   primary: "bg-accent text-on-accent hover:bg-accent-hover",
   secondary: "bg-surface border border-border hover:bg-surface-2 text-text",
   ghost: "text-muted hover:text-text hover:bg-surface-2",
   danger: "bg-danger text-white hover:opacity-90",
+  /** Red text on no background: delete inside a dialog footer. */
+  dangerGhost: "text-danger hover:bg-danger-soft",
 };
 
 /** Button §6.22. `loading` reemplaza al icono por un spinner. */

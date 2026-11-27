@@ -723,11 +723,33 @@ func UpdateFirewallRule(section string, rule FirewallRuleAdd) (*FirewallProbe, b
 	return ProbeFirewall(), true, fmt.Errorf("rule not updated after reload, rolled back")
 }
 
-// DeleteFirewallRule deletes one managed traffic rule by section.
+// planFWRuleDelete is the gate in front of the delete: the section has to be
+// one the probe lists, and the bootstrap allowances stay. Deleting a rule
+// removes the whole section, so the unrepresentable-action guard that blocks
+// edits does not apply: there is nothing to rewrite.
+func planFWRuleDelete(rules []FWRule, section string) error {
+	for i := range rules {
+		if rules[i].Section != section {
+			continue
+		}
+		if rules[i].Stock {
+			return fmt.Errorf("bootstrap traffic rules are read-only")
+		}
+		return nil
+	}
+	return fmt.Errorf("rule not found")
+}
+
+// DeleteFirewallRule deletes a listed traffic rule by section: NetGrip's own
+// and the ones created elsewhere. The bootstrap allowances (DHCP renew, IGMP,
+// IPsec, the ICMPv6 baseline) are refused by planFWRuleDelete.
 func DeleteFirewallRule(section string) (*FirewallProbe, bool, error) {
 	InvalidateKey("ucishow|firewall")
-	if !reFwRuleSection.MatchString(section) {
-		return ProbeFirewall(), false, fmt.Errorf("only NetGrip traffic rules can be deleted")
+	if !executor.ServiceEnabled("firewall") {
+		return ProbeFirewall(), false, fmt.Errorf("firewall not enabled")
+	}
+	if err := planFWRuleDelete(ProbeFirewall().Rules, section); err != nil {
+		return ProbeFirewall(), false, err
 	}
 	snap, err := executor.Snapshot("firewall")
 	if err != nil {

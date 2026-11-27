@@ -468,15 +468,33 @@ func UpdateFwdRule(section, name, srcDport, destIP, destPort, proto string) (*Fw
 	return ProbeFwd(), true, fmt.Errorf("rule not present after edit, rolled back")
 }
 
-// RemoveFwdRule deletes a redirect rule by section.
+// fwdRuleListed reports whether the probe shows that section. Pure, so the
+// guard can be tested without uci.
+func fwdRuleListed(rules []FwdRule, section string) bool {
+	for _, r := range rules {
+		if r.Section == section {
+			return true
+		}
+	}
+	return false
+}
+
+// RemoveFwdRule deletes a rule the card lists: a forward or an input rule,
+// whether NetGrip created it or somebody set it up in LuCI or by hand.
+//
+// The section has to be one the probe lists, never an arbitrary string: that
+// keeps this from turning into a generic UCI delete while still letting the
+// person who administers the router remove what the panel shows. The caller
+// asks for confirmation, and the apply keeps the snapshot + reload + rollback
+// it always had.
 func RemoveFwdRule(section string) (*FwdProbe, bool, error) {
 	InvalidateKey("ucishow|firewall")
 	InvalidateKey("portforward")
 	if err := fwdApplicable(); err != nil {
 		return ProbeFwd(), false, err
 	}
-	if !strings.HasPrefix(section, fwdPrefix) || !reFwdSection.MatchString(section) {
-		return ProbeFwd(), false, fmt.Errorf("not an netgrip rule")
+	if !fwdRuleListed(ProbeFwd().Rules, section) {
+		return ProbeFwd(), false, fmt.Errorf("rule not found")
 	}
 	snap, err := executor.Snapshot("firewall")
 	if err != nil {
