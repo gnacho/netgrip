@@ -2977,13 +2977,6 @@ export default {
     pushFailed: "Fallo el envio",
   },
   lanservices: {
-    exposedTitle: "Abiertos a Internet",
-    exposedHint: "Puertos abiertos a Internet: los que van a un equipo de tu red y los que escucha el propio router. Se editan en Internet y en Servicios.",
-    exposedOnRouter: "en el router",
-    exposedEdit: "Editar el puerto {{name}}",
-    exposedEditOk: "Puerto actualizado",
-    exposedEditFailed: "No se pudo actualizar el puerto",
-    exposedPill: "externo {{port}}",
     add: "Añadir servicio",
     addFirst: "Añadir tu primer servicio",
     discover: "Buscar servicios",

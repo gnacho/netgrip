@@ -2978,13 +2978,6 @@ export default {
     pushFailed: "Push failed",
   },
   lanservices: {
-    exposedTitle: "Open to the Internet",
-    exposedHint: "Ports open to the Internet: those that reach a machine on your network and those the router itself listens on. They are edited in Internet and Services.",
-    exposedOnRouter: "on the router",
-    exposedEdit: "Edit port {{name}}",
-    exposedEditOk: "Port updated",
-    exposedEditFailed: "Could not update the port",
-    exposedPill: "external {{port}}",
     add: "Add service",
     addFirst: "Add your first service",
     discover: "Discover services",
