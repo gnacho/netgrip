@@ -40,7 +40,7 @@ const TEMPLATES: FwdTemplate[] = [
  * the automatic name follows the port. */
 const AUTO_NAME = /^netgrip-fwd-\d+$/;
 
-function ruleName(t: TFunction, r: FwdRule): string {
+export function fwdRuleName(t: TFunction, r: FwdRule): string {
   if (!r.name || AUTO_NAME.test(r.name)) return t("fwd.unnamed", { port: r.src_dport });
   return r.name;
 }
@@ -69,7 +69,7 @@ const LIST_GRID =
 function sortValue(t: TFunction, r: FwdRule, key: SortKey): string | number {
   switch (key) {
     case "name":
-      return ruleName(t, r).toLowerCase();
+      return fwdRuleName(t, r).toLowerCase();
     case "port":
       return Number(r.src_dport) || 0;
     case "dest":
@@ -234,8 +234,8 @@ export function PortForwardCard({ probe, onChange }: {
                 <div className="divide-y divide-border/50">
                   {sorted.map((r) => (
                     <div key={r.section} className={`flex flex-wrap items-center gap-2.5 py-2.5 animate-fade-up ${LIST_GRID}`}>
-                      <span title={ruleName(t, r)} className="text-body font-medium min-w-0 truncate md:col-start-1 md:row-start-1">
-                        {ruleName(t, r)}
+                      <span title={fwdRuleName(t, r)} className="text-body font-medium min-w-0 truncate md:col-start-1 md:row-start-1">
+                        {fwdRuleName(t, r)}
                       </span>
                       <span className="font-mono text-caption bg-surface-2 border border-border rounded-sm px-1.5 py-0.5 md:col-start-2 md:row-start-1">
                         :{r.src_dport}
@@ -259,7 +259,7 @@ export function PortForwardCard({ probe, onChange }: {
                           type="button"
                           onClick={() => setEditing(r)}
                           disabled={busy}
-                          aria-label={`${t("fwd.edit")} ${ruleName(t, r)}`}
+                          aria-label={`${t("fwd.edit")} ${fwdRuleName(t, r)}`}
                           className="text-faint hover:text-accent transition-colors duration-[var(--dur-fast)] ring-focus rounded-sm p-1 md:col-start-6 md:row-start-1"
                         >
                           <Pencil size={16} />
@@ -276,7 +276,7 @@ export function PortForwardCard({ probe, onChange }: {
                             type="button"
                             onClick={() => setToDelete(r)}
                             disabled={busy}
-                            aria-label={`${t("fwd.delete")} ${ruleName(t, r)}`}
+                            aria-label={`${t("fwd.delete")} ${fwdRuleName(t, r)}`}
                             className="text-faint hover:text-danger transition-colors duration-[var(--dur-fast)] ring-focus rounded-sm p-1"
                           >
                             <Trash2 size={16} />
@@ -318,8 +318,8 @@ export function PortForwardCard({ probe, onChange }: {
         open={!!toDelete}
         onClose={() => setToDelete(undefined)}
         onConfirm={() => { const r = toDelete; setToDelete(undefined); if (r) deleteRule(r); }}
-        title={t("fwd.deleteTitle", { name: toDelete ? ruleName(t, toDelete) : "" })}
-        consequence={t("fwd.deleteConsequence", { name: toDelete ? ruleName(t, toDelete) : "" })}
+        title={t("fwd.deleteTitle", { name: toDelete ? fwdRuleName(t, toDelete) : "" })}
+        consequence={t("fwd.deleteConsequence", { name: toDelete ? fwdRuleName(t, toDelete) : "" })}
         confirmLabel={t("fwd.deleteConfirm")}
         busy={busy}
       />

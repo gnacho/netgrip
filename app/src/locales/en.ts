@@ -2957,7 +2957,6 @@ export default {
   lanservices: {
     exposedTitle: "Open to the Internet",
     exposedHint: "Ports open to the Internet: those that reach a machine on your network and those the router itself listens on. They are edited in Internet and Services.",
-    exposedUnnamed: "Port {{port}}",
     exposedOnRouter: "on the router",
     exposedEdit: "Edit port {{name}}",
     exposedEditOk: "Port updated",
