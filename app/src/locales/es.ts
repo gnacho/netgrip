@@ -3014,7 +3014,7 @@ export default {
     hostPlaceholder: "nas",
     aliasLabel: "Nombre local (alias DNS)",
     aliasHint: "Opcional. Sufijo .lan fijo: jellyfin → jellyfin.lan.",
-    schemeLabel: "Esquema",
+    sslLabel: "SSL (HTTPS)",
     portLabel: "Puerto",
     pathLabel: "Ruta",
     pathHint: "Opcional. Por ejemplo /web para Plex.",
