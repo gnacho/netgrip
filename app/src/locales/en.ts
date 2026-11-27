@@ -368,6 +368,10 @@ export default {
       title: "Network diagnostics",
       body: "These tests run from the device itself. Ping measures latency, traceroute shows the path, DNS lookup resolves names, and the port test checks whether a service responds.",
     },
+    fleet: {
+      title: "Other NetGrip devices",
+      body: "Other NetGrip devices on your network.",
+    },
     firmware: {
       title: "What is firmware?",
       body: "The router's operating system. Updating fixes bugs and security holes. Takes a few minutes; the router reboots itself and NetGrip survives.",
@@ -2915,7 +2919,6 @@ export default {
     add: "Add",
     cancel: "Cancel",
     headerTitle: "Your NetGrip network",
-    headerIntro: "These are the other NetGrip devices in your home.",
     emptyTitle: "We only see this router.",
     emptyBody: "If you have other access points or switches running NetGrip (or the NetPulse agent), add them and jump to their panels from here.",
     addFirst: "Add the first one",
