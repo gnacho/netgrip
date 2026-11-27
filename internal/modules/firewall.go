@@ -748,7 +748,8 @@ func DeleteFirewallRule(section string) (*FirewallProbe, bool, error) {
 	if !executor.ServiceEnabled("firewall") {
 		return ProbeFirewall(), false, fmt.Errorf("firewall not enabled")
 	}
-	if err := planFWRuleDelete(ProbeFirewall().Rules, section); err != nil {
+	before := ProbeFirewall().Rules
+	if err := planFWRuleDelete(before, section); err != nil {
 		return ProbeFirewall(), false, err
 	}
 	snap, err := executor.Snapshot("firewall")
@@ -770,12 +771,13 @@ func DeleteFirewallRule(section string) (*FirewallProbe, bool, error) {
 	}
 	// Sin invalidar, la verificacion leeria la cache previa al borrado y
 	// daria la seccion por aun presente (#444).
+	//
+	// Anonymous sections (@rule[4]) are renumbered when one goes away, so the
+	// section name alone proves nothing: the count does.
 	InvalidateKey("ucishow|firewall")
-	for _, r := range ProbeFirewall().Rules {
-		if r.Section == section {
-			rollback()
-			return ProbeFirewall(), true, fmt.Errorf("rule still present after delete, rolled back")
-		}
+	if after := len(ProbeFirewall().Rules); after != len(before)-1 {
+		rollback()
+		return ProbeFirewall(), true, fmt.Errorf("rule still present after delete, rolled back")
 	}
 	return ProbeFirewall(), false, nil
 }

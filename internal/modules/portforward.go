@@ -493,7 +493,8 @@ func RemoveFwdRule(section string) (*FwdProbe, bool, error) {
 	if err := fwdApplicable(); err != nil {
 		return ProbeFwd(), false, err
 	}
-	if !fwdRuleListed(ProbeFwd().Rules, section) {
+	before := ProbeFwd().Rules
+	if !fwdRuleListed(before, section) {
 		return ProbeFwd(), false, fmt.Errorf("rule not found")
 	}
 	snap, err := executor.Snapshot("firewall")
@@ -513,11 +514,13 @@ func RemoveFwdRule(section string) (*FwdProbe, bool, error) {
 		rollback()
 		return ProbeFwd(), true, err
 	}
-	for _, r := range ProbeFwd().Rules {
-		if r.Section == section {
-			rollback()
-			return ProbeFwd(), true, fmt.Errorf("rule still present after delete, rolled back")
-		}
+	// Anonymous sections are renumbered when one is removed (@redirect[4]
+	// becomes the next rule's name), so "is that section still there" would
+	// match a different rule and roll back a delete that worked. The count
+	// is what tells the truth.
+	if after := len(ProbeFwd().Rules); after != len(before)-1 {
+		rollback()
+		return ProbeFwd(), true, fmt.Errorf("rule still present after delete, rolled back")
 	}
 	return ProbeFwd(), false, nil
 }
