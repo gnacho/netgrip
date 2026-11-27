@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Bell, Radio, Webhook } from "lucide-react";
+import { Bell, Bot, Radio, Webhook } from "lucide-react";
 import { Card, Pill } from "../ui";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { TelegramSettings } from "./TelegramSettings";
 import { NtfySettings } from "./NtfySettings";
 import { MQTTSettings } from "./MQTTSettings";
+import { MCPSettings } from "./MCPSettings";
 
 type Channel = boolean | undefined;
 
@@ -22,6 +23,7 @@ export function IntegrationsCard({ index = 0 }: { index?: number }) {
   const [ntfy, setNtfy] = useState<Channel>();
   const [mqtt, setMqtt] = useState<{ enabled: Channel; connected: Channel }>({ enabled: undefined, connected: undefined });
   const [mqttOpen, setMqttOpen] = useState(false);
+  const [mcp, setMcp] = useState<Channel>();
 
   const pill = (on: Channel, extra?: { tone: "ok" | "warn" | "muted"; label: string }) =>
     on === undefined ? undefined : extra && on
@@ -46,6 +48,9 @@ export function IntegrationsCard({ index = 0 }: { index?: number }) {
         <CollapsibleSection icon={Radio} title={t("mqtt.title")} status={mqttPill}
           onOpenChange={setMqttOpen}>
           <MQTTSettings active={mqttOpen} onStatus={(enabled, connected) => setMqtt({ enabled, connected })} />
+        </CollapsibleSection>
+        <CollapsibleSection icon={Bot} title={t("mcp.title")} status={pill(mcp)}>
+          <MCPSettings onStatus={setMcp} />
         </CollapsibleSection>
       </div>
     </Card>

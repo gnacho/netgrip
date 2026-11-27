@@ -1060,6 +1060,16 @@ const realApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg),
     }),
+  mcp: () =>
+    request<import("./types").MCPSettings>("/api/mcp"),
+  setMcp: (cfg: import("./types").MCPSet) =>
+    request<import("./types").MCPSettings>("/api/mcp", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfg),
+    }),
+  newMcpToken: () =>
+    request<{ token: string }>("/api/mcp/token", { method: "POST" }),
   nftqos: () =>
     request<import("./types").NftQoSProbe>("/api/nftqos"),
   setNftqos: (limit: Partial<import("./types").NftQoSLimit>) =>

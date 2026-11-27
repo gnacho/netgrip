@@ -76,6 +76,11 @@ const state = {
     tls: false,
     tls_insecure: false,
   },
+  mcp: {
+    enabled: true,
+    token: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    rate_per_min: 60,
+  },
   nftqos: {
     applicable: true,
     limits: {
@@ -996,6 +1001,22 @@ export const demoApi: typeof api = {
     if (!cfg.host) return { ok: false, error: "host is required" };
     if (cfg.host.includes("fail")) return { ok: false, error: "connection refused" };
     return { ok: true };
+  },
+  mcp: () => get({ ...state.mcp, tools: 10, url: `${window.location.origin}/mcp` }),
+  setMcp: async (cfg) => {
+    await wait(400, 800);
+    const token = cfg.token.trim();
+    if (cfg.enabled && token.length < 16) throw new Error("a token of at least 16 characters is required to enable the endpoint");
+    state.mcp = {
+      enabled: cfg.enabled,
+      token: token || state.mcp.token,
+      rate_per_min: cfg.rate_per_min || state.mcp.rate_per_min,
+    };
+    return { ...state.mcp, tools: 10, url: `${window.location.origin}/mcp` };
+  },
+  newMcpToken: async () => {
+    await wait(200, 500);
+    return { token: Array.from(crypto.getRandomValues(new Uint8Array(32))).map((b) => b.toString(16).padStart(2, "0")).join("") };
   },
   nftqos: () => get({ ...state.nftqos }),
   setNftqos: async (limit) => {
