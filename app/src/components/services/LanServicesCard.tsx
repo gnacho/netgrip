@@ -5,7 +5,7 @@ import { api } from "../../api";
 import type { LanDiscoverySuggestion, LanService, LanServiceStatus, LanServicesProbe } from "../../types";
 import {
   AdvancedDisclosure, Button, ConfirmDialog, EmptyState, Field, IconTile,
-  Modal, Pill, SegmentedControl, Skeleton, useToast,
+  Modal, Pill, SegmentedControl, Skeleton, Toggle, useToast,
 } from "../ui";
 import { lanServiceIcon } from "./lanCatalog";
 
@@ -508,13 +508,19 @@ function ServiceModal({ open, service, catalog, hosts, onClose, onSaved }: {
               }}
             />
             <div className="grid grid-cols-2 gap-3">
-              <Field
-                label={t("lanservices.schemeLabel")}
-                inputProps={{
-                  value: form.scheme,
-                  onChange: (e) => set({ scheme: e.target.value }),
-                }}
-              />
+              {/* SSL en lugar del esquema a mano (#798): apagado es http,
+                  encendido https. Al lado se ve el que se va a usar. */}
+              <div>
+                <p className="text-caption font-medium text-muted mb-1.5">{t("lanservices.sslLabel")}</p>
+                <div className="flex h-[var(--input-h)] items-center gap-2">
+                  <Toggle
+                    checked={form.scheme === "https"}
+                    onChange={(v) => set({ scheme: v ? "https" : "http" })}
+                    label={t("lanservices.sslLabel")}
+                  />
+                  <span className="text-small text-muted font-mono">{form.scheme === "https" ? "https" : "http"}</span>
+                </div>
+              </div>
               <Field
                 label={t("lanservices.portLabel")}
                 mono
