@@ -9,10 +9,37 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gnacho/netgrip/internal/executor"
 )
+
+// diskUsage reads the usage of a mount point with statfs.
+//
+// The probe used to shell out to `df -B1`, and busybox df has no -B option:
+// on every OpenWrt image the call failed and each mounted disk came back with
+// its size and a zero usage. statfs needs no external binary.
+func diskUsage(mountPoint string) (size, used, free uint64, err error) {
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(mountPoint, &stat); err != nil {
+		return 0, 0, 0, err
+	}
+	return usageFromStat(stat.Blocks, stat.Bfree, stat.Bavail, uint64(stat.Bsize))
+}
+
+// usageFromStat turns statfs counters into the bytes df prints: the size is the
+// whole filesystem, the usage is what is taken and the free space is what a
+// normal user can still write.
+func usageFromStat(blocks, bfree, bavail, blockSize uint64) (size, used, free uint64, err error) {
+	if blockSize == 0 {
+		return 0, 0, 0, fmt.Errorf("block size is zero")
+	}
+	if bfree > blocks {
+		bfree = blocks
+	}
+	return blocks * blockSize, (blocks - bfree) * blockSize, bavail * blockSize, nil
+}
 
 type StorageDevice struct {
 	Name       string `json:"name"`
@@ -399,24 +426,10 @@ func detectUSBStorage() []StorageDevice {
 
 		if dev.MountPoint != "" {
 			dev.Managed = storageMountManaged(dev.MountPoint)
-			cmd := exec.Command("df", "-B1", dev.MountPoint)
-			out, err := cmd.Output()
-			if err == nil {
-				lines := strings.Split(string(out), "\n")
-				if len(lines) >= 2 {
-					fields := strings.Fields(lines[1])
-					if len(fields) >= 4 {
-						if v, err := strconv.ParseUint(fields[1], 10, 64); err == nil {
-							dev.SizeBytes = v
-						}
-						if v, err := strconv.ParseUint(fields[2], 10, 64); err == nil {
-							dev.UsedBytes = v
-						}
-						if v, err := strconv.ParseUint(fields[3], 10, 64); err == nil {
-							dev.FreeBytes = v
-						}
-					}
-				}
+			if size, used, free, err := diskUsage(dev.MountPoint); err == nil {
+				dev.SizeBytes = size
+				dev.UsedBytes = used
+				dev.FreeBytes = free
 			}
 		}
 
