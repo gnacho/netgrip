@@ -97,16 +97,22 @@ export function UpdateCard({ board, update, onChange }: {
     : update ? `OpenWrt ${update.version_from}` : "…";
 
   const blocked = update ? !update.safe_to_proceed && !update.safe_with_reinstall : false;
-  // Firmware upgrade only (#155): the packages branch (same_version) is
-  // intentionally hidden - package management belongs to the CLI.
+  // A new core version: the plain firmware upgrade.
   const showUpgrade = update !== undefined && update.available && !update.same_version;
+  // Same release, packages out of date (#776). Hiding this (#155) left the
+  // attended sysupgrade unreachable from the panel in the most common state.
+  // owut rebuilds the image for the same version with the current package set
+  // and flashes it: same action, only the wording changes.
+  const showRebuild = update !== undefined && update.available && update.same_version;
+  const showAction = showUpgrade || showRebuild;
 
   return (
     <Card index={0} title={t("update.title")} icon={Download}
-      iconTone={showUpgrade ? "warn" : "ok"} help="firmware"
+      iconTone={showAction ? "warn" : "ok"} help="firmware"
       status={update === undefined ? undefined
         : update.owut_present === false ? <Pill tone="warn">{t("update.pillNoOwut")}</Pill>
         : showUpgrade ? <Pill tone="warn">{t("update.pillNew")}</Pill>
+        : showRebuild ? <Pill tone="warn">{t("update.outOfDate", { count: update.out_of_date_packages })}</Pill>
         : <Pill tone="ok">{t("update.upToDate")}</Pill>}>
       {update === undefined ? (
         <SkeletonRows rows={1} />
@@ -131,9 +137,9 @@ export function UpdateCard({ board, update, onChange }: {
                   <Download size={14} aria-hidden="true" /> {t("update.installOwut")}
                 </Button>
               ) : (
-                showUpgrade && (
+                showAction && (
                   <Button onClick={() => setConfirm(true)} disabled={blocked || phase !== "idle"}>
-                    {t("update.updateNow")}
+                    {showRebuild ? t("update.rebuildNow") : t("update.updateNow")}
                   </Button>
                 )
               )}
@@ -196,14 +202,18 @@ export function UpdateCard({ board, update, onChange }: {
           {installing && <p className="mt-3 text-small text-muted">{t("update.installingOwut")}</p>}
           <InstallProgress job={installing ? job : null} />
 
-          {showUpgrade && update.warnings.length > 0 && (
+          {showRebuild && (
+            <p className="mt-3 text-small text-muted">{t("update.rebuildHint", { version: update.version_from })}</p>
+          )}
+
+          {showAction && update.warnings.length > 0 && (
             <ul className="mt-3 flex flex-col gap-1">
               {update.warnings.map((w) => (
                 <li key={w} className="text-small text-muted">· {plainWarning(w, t)}</li>
               ))}
             </ul>
           )}
-          {showUpgrade && !update.safe_to_proceed && (
+          {showAction && !update.safe_to_proceed && (
             <Banner tone="warn" className="mt-3">
               {update.missing_packages.length > 0
                 ? t("update.missingPkgs", { list: update.missing_packages.join(", ") })
@@ -223,8 +233,10 @@ export function UpdateCard({ board, update, onChange }: {
         onClose={() => setConfirm(false)}
         onConfirm={start}
         title={t("update.confirmTitle")}
-        consequence={t("update.confirmConsequence")}
-        confirmLabel={t("update.updateNow")}
+        consequence={showRebuild
+          ? t("update.confirmRebuild", { version: update?.version_from ?? "" })
+          : t("update.confirmConsequence")}
+        confirmLabel={showRebuild ? t("update.rebuildNow") : t("update.updateNow")}
       />
 
       <WaitOverlay
