@@ -2157,6 +2157,7 @@ export default {
     colDest: "Destination",
     colProto: "Protocol",
     colTarget: "Action",
+    colType: "Type",
     colSchedule: "Schedule",
     sortBy: "Sort by",
     sortAsc: "Sort ascending",
