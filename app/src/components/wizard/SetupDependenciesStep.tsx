@@ -24,6 +24,7 @@ export function SetupDependenciesStep({ probe, onDone, onBack, onSkip }: {
 }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<InstallMode>("minimal");
+  const [customIDs, setCustomIDs] = useState<string[]>(["core"]);
   const [showDetails, setShowDetails] = useState(false);
   const [installError, setInstallError] = useState<string | null>(null);
   const { job, running, begin } = useInstallJob();
@@ -33,8 +34,11 @@ export function SetupDependenciesStep({ probe, onDone, onBack, onSkip }: {
     ? ["core"]
     : mode === "full"
       ? probe.groups.map((g) => g.id)
-      : [];
+      : probe.groups.filter((g) => customIDs.includes(g.id)).map((g) => g.id);
   const selectedPkgs = selectedGroupIDs.flatMap((id) => groupByID(id)?.packages ?? []);
+
+  const toggleGroup = (id: string) =>
+    setCustomIDs((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
 
   const modes: { id: InstallMode; icon: typeof Package; title: string; desc: string; pill?: string }[] = [
     {
@@ -70,11 +74,7 @@ export function SetupDependenciesStep({ probe, onDone, onBack, onSkip }: {
   };
 
   const allInstalled = selectedPkgs.length === 0;
-  const nextLabel = mode === "custom"
-    ? t("wizard.setup.customize")
-    : allInstalled
-      ? t("wizard.continue")
-      : t("wizard.setup.installNow");
+  const nextLabel = allInstalled ? t("wizard.continue") : t("wizard.setup.installNow");
 
   return (
     <StepShell
@@ -88,7 +88,6 @@ export function SetupDependenciesStep({ probe, onDone, onBack, onSkip }: {
             onBack={onBack}
             onNext={install}
             busy={running}
-            nextDisabled={mode === "custom"}
             nextLabel={nextLabel}
             onSkip={onSkip}
           />
@@ -144,7 +143,36 @@ export function SetupDependenciesStep({ probe, onDone, onBack, onSkip }: {
           })}
         </div>
 
-        {mode !== "custom" && (
+        {mode === "custom" ? (
+          <div className="space-y-2" role="group" aria-label={t("wizard.setup.customTitle")}>
+            {probe.groups.map((g) => {
+              const required = g.id === "core";
+              const checked = selectedGroupIDs.includes(g.id);
+              return (
+                <label
+                  key={g.id}
+                  className={`flex items-start gap-3 rounded-lg border p-3 transition-colors
+                    ${checked ? "border-accent/60 bg-accent-soft" : "border-border bg-surface hover:bg-surface-2"}
+                    ${required ? "cursor-default" : "cursor-pointer"}`}
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
+                    checked={checked}
+                    disabled={required || g.packages.length === 0 || running}
+                    onChange={() => toggleGroup(g.id)}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-small font-medium text-text">{t(g.title_key)}</span>
+                    <span className="mt-0.5 block font-mono text-caption text-faint break-all">
+                      {g.packages.length === 0 ? t("wizard.packages.installed") : g.packages.join(" ")}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        ) : (
           <button
             type="button"
             onClick={() => setShowDetails((s) => !s)}
@@ -160,7 +188,7 @@ export function SetupDependenciesStep({ probe, onDone, onBack, onSkip }: {
           </button>
         )}
 
-        <Reveal open={showDetails}>
+        <Reveal open={showDetails && mode !== "custom"}>
           <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
             {selectedGroupIDs.map((id) => {
               const g = groupByID(id);
