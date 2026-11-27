@@ -52,6 +52,7 @@ type Server struct {
 	version    string
 	started    time.Time
 	ratePerMin int
+	tools      int
 	http       *server.StreamableHTTPServer
 }
 
@@ -96,47 +97,55 @@ func tool(name, description string, opts ...mcp.ToolOption) mcp.Tool {
 	return mcp.NewTool(name, all...)
 }
 
-// addTools registers the seven read-only tools.
+// ToolCount reports how many tools the endpoint exposes, so the panel can
+// say it without duplicating the list (#807).
+func (s *Server) ToolCount() int { return s.tools }
+
+// addTools registers the read-only tools.
 func (s *Server) addTools(mcpServer *server.MCPServer) {
-	mcpServer.AddTool(tool("server_status",
+	add := func(t mcp.Tool, fn toolFunc) {
+		mcpServer.AddTool(t, s.run(t.Name, fn))
+		s.tools++
+	}
+	add(tool("server_status",
 		"NetGrip service status: version, uptime, system info (load, memory, board), client counts by link type and Wi-Fi band, and uplink health. Read-only.",
-	), s.run("server_status", s.toolServerStatus))
+	), s.toolServerStatus)
 
-	mcpServer.AddTool(tool("list_clients",
+	add(tool("list_clients",
 		"Clients seen by the router (DHCP, ARP and wireless association), with IP, MAC, hostname, vendor guess, signal and band when wireless, traffic counters when known, and whether each client is blocked. Read-only.",
-	), s.run("list_clients", s.toolListClients))
+	), s.toolListClients)
 
-	mcpServer.AddTool(tool("wireless_status",
+	add(tool("wireless_status",
 		"Wi-Fi radios and their SSIDs with channel, bandwidth, transmit power and associated stations. Read-only.",
-	), s.run("wireless_status", s.toolWirelessStatus))
+	), s.toolWirelessStatus)
 
-	mcpServer.AddTool(tool("wan_status",
+	add(tool("wan_status",
 		"Status of the primary WAN uplink: protocol, IPv4/IPv6 addresses, gateway, DNS, uptime and errors. Read-only.",
-	), s.run("wan_status", s.toolWanStatus))
+	), s.toolWanStatus)
 
-	mcpServer.AddTool(tool("multiwan_status",
+	add(tool("multiwan_status",
 		"Internet uplinks and, when mwan3 is installed, what it is doing with them: per-interface online/tracking state, active policy and interface shares. Read-only.",
-	), s.run("multiwan_status", s.toolMultiWanStatus))
+	), s.toolMultiWanStatus)
 
-	mcpServer.AddTool(tool("list_leases",
+	add(tool("list_leases",
 		"Active DHCP leases with MAC, IP, hostname and expiry. Read-only.",
-	), s.run("list_leases", s.toolListLeases))
+	), s.toolListLeases)
 
-	mcpServer.AddTool(tool("list_devices",
+	add(tool("list_devices",
 		"Network devices and their traffic counters (netdev view), plus the Ethernet switch ports with link state and speed when the switch exposes them. Read-only.",
-	), s.run("list_devices", s.toolListDevices))
+	), s.toolListDevices)
 
-	mcpServer.AddTool(tool("channel_recommendation",
+	add(tool("channel_recommendation",
 		"Wi-Fi channel recommendation per radio from live RF data (survey utilization and neighboring BSSs): current channel, utilization, neighbor count, and a deterministic suggestion with reason and confidence. Read-only; it never applies anything.",
-	), s.run("channel_recommendation", s.toolChannelRecommendation))
+	), s.toolChannelRecommendation)
 
-	mcpServer.AddTool(tool("wifi_schedule_status",
+	add(tool("wifi_schedule_status",
 		"Per-SSID weekly off-schedule state: configured windows, whether each SSID is off by schedule right now, and manual pause state. Read-only.",
-	), s.run("wifi_schedule_status", s.toolWifiScheduleStatus))
+	), s.toolWifiScheduleStatus)
 
-	mcpServer.AddTool(tool("snmp_status",
+	add(tool("snmp_status",
 		"SNMP agent state: package installed, daemon running/enabled, managed-vs-external config, location/contact/listen and the configured communities. Never returns community values unless they are configured in UCI; read-only.",
-	), s.run("snmp_status", s.toolSNMPStatus))
+	), s.toolSNMPStatus)
 }
 
 func (s *Server) toolChannelRecommendation(_ context.Context, _ mcp.CallToolRequest) (any, error) {

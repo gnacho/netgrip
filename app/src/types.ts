@@ -1852,3 +1852,20 @@ export interface SNMPProbe {
   community_ro?: string;
   community_rw?: string;
 }
+
+/** Endpoint MCP (#807): los ajustes que el panel guarda en UCI más la URL y
+ *  el número de herramientas que reporta el servidor. Las herramientas son
+ *  de solo lectura. */
+export interface MCPSettings {
+  enabled: boolean;
+  token: string;
+  rate_per_min: number;
+  tools: number;
+  url: string;
+}
+
+export interface MCPSet {
+  enabled: boolean;
+  token: string;
+  rate_per_min: number;
+}

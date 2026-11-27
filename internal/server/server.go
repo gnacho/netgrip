@@ -84,6 +84,9 @@ type Server struct {
 	revoked map[string]bool
 	// started feeds the MCP server_status uptime. Set once at construction.
 	started time.Time
+	// mcpTools is how many tools the MCP endpoint exposes, set once at
+	// construction from the server it built (#807).
+	mcpTools int
 	// logins slows password guessing. The panel's login takes the
 	// router's root password and had no rate limit at all.
 	logins *loginThrottle
@@ -107,6 +110,7 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 		started:     time.Now(),
 	}
 	mcpServer := mcp.New(mcp.Deps{Version: version, Started: s.started})
+	s.mcpTools = mcpServer.ToolCount()
 	s.mux.Handle("/mcp", mcpServer.Handler())
 	s.mux.HandleFunc("/", s.handleSPA)
 	s.mux.HandleFunc("POST /api/login", s.handleLogin)
@@ -362,6 +366,9 @@ func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s.mux.HandleFunc("POST /api/netpulse", s.requireAuth(s.handleNetPulseSet))
 	s.mux.HandleFunc("GET /api/mqtt", s.requireAuth(s.handleMQTTGet))
 	s.mux.HandleFunc("PUT /api/mqtt", s.requireAuth(s.handleMQTTSet))
+	s.mux.HandleFunc("GET /api/mcp", s.requireAuth(s.handleMCPGet))
+	s.mux.HandleFunc("PUT /api/mcp", s.requireAuth(s.handleMCPSet))
+	s.mux.HandleFunc("POST /api/mcp/token", s.requireAuth(s.handleMCPNewToken))
 	s.mux.HandleFunc("POST /api/mqtt/test", s.requireAuth(s.handleMQTTTest))
 	s.mux.HandleFunc("POST /api/reboot", s.requireAuth(s.handleReboot))
 	s.mux.HandleFunc("GET /api/nftqos", s.requireAuth(s.handleNftQoSGet))
