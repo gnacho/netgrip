@@ -22,8 +22,10 @@ export function InternetPage({ mwan, onMwanChange }: {
       {/* Cada bloque lleva id para que las tarjetas de otras páginas puedan
           enlazar a su sección concreta (#628). */}
       <div id="page-wan"><WanPage mwan={mwan} onMwanChange={onMwanChange} hideMode /></div>
-      <div id="page-upnp"><UpnpPage /></div>
       <div id="page-dpi"><DpiPage /></div>
+      {/* UPnP goes last (#790): it is the least used block of the page and,
+          when miniupnpd is missing, all it shows is an install prompt. */}
+      <div id="page-upnp"><UpnpPage /></div>
     </div>
   );
 }
