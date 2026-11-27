@@ -39,6 +39,53 @@ export const BRAND_PATHS: Record<string, string> = {
   "zoom": "M5.033 14.649H.743a.74.74 0 0 1-.686-.458.74.74 0 0 1 .16-.808L3.19 10.41H1.06A1.06 1.06 0 0 1 0 9.35h3.957c.301 0 .57.18.686.458a.74.74 0 0 1-.161.808L1.51 13.59h2.464c.585 0 1.06.475 1.06 1.06zM24 11.338c0-1.14-.927-2.066-2.066-2.066-.61 0-1.158.265-1.537.686a2.061 2.061 0 0 0-1.536-.686c-1.14 0-2.066.926-2.066 2.066v3.311a1.06 1.06 0 0 0 1.06-1.06v-2.251a1.004 1.004 0 0 1 2.013 0v2.251c0 .586.474 1.06 1.06 1.06v-3.311a1.004 1.004 0 0 1 2.012 0v2.251c0 .586.475 1.06 1.06 1.06zM16.265 12a2.728 2.728 0 1 1-5.457 0 2.728 2.728 0 0 1 5.457 0zm-1.06 0a1.669 1.669 0 1 0-3.338 0 1.669 1.669 0 0 0 3.338 0zm-4.82 0a2.728 2.728 0 1 1-5.458 0 2.728 2.728 0 0 1 5.457 0zm-1.06 0a1.669 1.669 0 1 0-3.338 0 1.669 1.669 0 0 0 3.338 0z",
 };
 
+// Official brand colour per slug, from the same simple-icons data as the
+// paths (CC0). Anything missing keeps the text colour.
+export const BRAND_COLORS: Record<string, string> = {
+  apple: "#000000",
+  appletv: "#000000",
+  cloudflare: "#F38020",
+  discord: "#5865F2",
+  dropbox: "#0061FF",
+  epicgames: "#313131",
+  facebook: "#0866FF",
+  github: "#181717",
+  google: "#4285F4",
+  hbomax: "#000000",
+  instagram: "#FF0069",
+  max: "#525252",
+  netflix: "#E50914",
+  pinterest: "#BD081C",
+  playstation: "#0070D1",
+  reddit: "#FF4500",
+  roblox: "#000000",
+  signal: "#3B45FD",
+  snapchat: "#FFFC00",
+  spotify: "#1ED760",
+  steam: "#000000",
+  telegram: "#26A5E4",
+  tiktok: "#000000",
+  twitch: "#9146FF",
+  whatsapp: "#25D366",
+  x: "#000000",
+  youtube: "#FF0000",
+  zoom: "#0B5CFF",
+};
+
+/** Near-black marks are drawn with the text colour instead: a black logo on
+ * the dark theme would disappear. Relative luminance, sRGB. */
+function tooDark(hex: string): boolean {
+  const n = parseInt(hex.slice(1), 16);
+  const linear = (c: number) => {
+    const s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  const lum = 0.2126 * linear((n >> 16) & 255)
+    + 0.7152 * linear((n >> 8) & 255)
+    + 0.0722 * linear(n & 255);
+  return lum < 0.04;
+}
+
 // Netifyd labels are stable but not slugs: "Twitter" became "x", "HBO" is one
 // word, and catalogues carry a few spellings. Anything not listed here is
 // matched after normalisation, then it falls back to the category icon.
@@ -95,19 +142,20 @@ export function categoryIcon(category: string) {
 
 /**
  * Brand icon for an application, or the category icon when the brand is not
- * in the local set. Monochrome and inherits the current text colour, so it
- * reads in both themes.
+ * in the local set. Uses the official brand colour when it is legible on both
+ * themes; near-black marks inherit the text colour.
  */
 export function AppIcon({ name, category, size = 16 }: { name: string; category?: string; size?: number }) {
   const slug = brandSlug(name);
   const path = slug ? BRAND_PATHS[slug] : "";
   if (path) {
+    const brand = BRAND_COLORS[slug];
     return (
       <svg
         width={size}
         height={size}
         viewBox="0 0 24 24"
-        fill="currentColor"
+        fill={brand && !tooDark(brand) ? brand : "currentColor"}
         aria-hidden="true"
         className="shrink-0"
       >
