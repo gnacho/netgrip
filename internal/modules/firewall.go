@@ -103,20 +103,38 @@ func ProbeFirewall() *FirewallProbe {
 	return &FirewallProbe{
 		Applicable: true,
 		Zones:      parseFWZonesFrom(out),
-		Rules:      applyStockRules(parseFWRulesFrom(out), stockRuleNames()),
+		Rules:      applyStockRules(parseFWRulesFrom(out)),
 		MgmtCIDR:   mgmtCIDR(),
 	}
 }
 
-// applyStockRules flags the rules that come from the firmware and decides
-// which ones the editor may open. The link is the rule name, not the section:
-// the factory config declares anonymous sections, so their UCI name
-// ("@rule[0]") says nothing about where they came from.
-func applyStockRules(rules []FWRule, stock map[string]bool) []FWRule {
+// protectedRuleNames are the bootstrap allowances every OpenWrt image ships
+// and whose loss breaks the LAN: DHCP renew, IGMP/MLD, the IPsec helpers and
+// the ICMPv6 baseline. They are listed so the firewall state is not hidden,
+// but never edited.
+//
+// Why not "whatever is in /rom": on real images the factory config can carry
+// the whole firewall. Verified on a GL-MT6000 running 25.12.6: /rom held every
+// GL-* rule and Allow-SSH-WAN, so treating the factory file as the source of
+// truth turned the user's own rules read-only and hid the editor. This set is
+// small, stable and the only one whose removal takes DHCP or ping away.
+var protectedRuleNames = map[string]bool{
+	"Allow-DHCP-Renew":     true,
+	"Allow-DHCPv6":         true,
+	"Allow-IGMP":           true,
+	"Allow-MLD":            true,
+	"Allow-IPSec-ESP":      true,
+	"Allow-ISAKMP":         true,
+	"Allow-ICMPv6-Input":   true,
+	"Allow-ICMPv6-Forward": true,
+	"Allow-ICMPv6-Output":  true,
+}
+
+// applyStockRules flags the bootstrap rules and decides which ones the editor
+// may open.
+func applyStockRules(rules []FWRule) []FWRule {
 	for i := range rules {
-		if rules[i].Name != "" && stock[rules[i].Name] {
-			rules[i].Stock = true
-		}
+		rules[i].Stock = rules[i].Name != "" && protectedRuleNames[rules[i].Name]
 		rules[i].Editable = fwRuleEditable(rules[i])
 	}
 	return rules
