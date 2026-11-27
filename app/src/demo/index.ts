@@ -727,9 +727,9 @@ export const demoApi: typeof api = {
     state.fwd.rules.push({ section: `fwd_${state.fwd.rules.length}`, name: "", src_dport, dest_ip, dest_port, proto });
     return write(state.fwd);
   },
-  updateFwdRule: async (section, src_dport, dest_ip, dest_port, proto) => {
+  updateFwdRule: async (section, name, src_dport, dest_ip, dest_port, proto) => {
     state.fwd.rules = state.fwd.rules.map((r) =>
-      r.section === section ? { ...r, src_dport, dest_ip, dest_port, proto } : r);
+      r.section === section ? { ...r, name, src_dport, dest_ip, dest_port, proto } : r);
     return write(state.fwd);
   },
   deleteFwdRule: async (section) => {

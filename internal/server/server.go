@@ -1586,7 +1586,10 @@ func (s *Server) handleFwdAdd(w http.ResponseWriter, r *http.Request) {
 }
 
 type fwdUpdateRequest struct {
-	Section  string `json:"section"`
+	Section string `json:"section"`
+	// Name empty means "keep the automatic name" (NetGrip's rules) or "leave
+	// the current one" (rules created elsewhere).
+	Name     string `json:"name"`
 	SrcDport string `json:"src_dport"`
 	DestIP   string `json:"dest_ip"`
 	DestPort string `json:"dest_port"`
@@ -1599,7 +1602,7 @@ func (s *Server) handleFwdUpdate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	probe, rolledBack, err := modules.UpdateFwdRule(req.Section, req.SrcDport, req.DestIP, req.DestPort, req.Proto)
+	probe, rolledBack, err := modules.UpdateFwdRule(req.Section, req.Name, req.SrcDport, req.DestIP, req.DestPort, req.Proto)
 	writeModuleResult(w, probe, rolledBack, err)
 }
 

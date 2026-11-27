@@ -47,7 +47,57 @@ type FwdProbe struct {
 var (
 	reIPv4       = regexp.MustCompile(`^(\d{1,3}\.){3}\d{1,3}$`)
 	reFwdSection = regexp.MustCompile(`^` + fwdPrefix + `[a-z0-9_]+$`)
+	// reAutoFwdName matches the descriptive name NetGrip writes on the
+	// redirects it creates. It is not shown as-is: the card prints "Puerto
+	// <n>" for it, and an edit that keeps it has to follow the new port.
+	reAutoFwdName = regexp.MustCompile(`^netgrip-fwd-\d+$`)
 )
+
+// maxFwdNameLen is the longest descriptive name accepted. It is a label for
+// humans in the firewall config, not an identifier, so the limit is generous
+// but bounded: an unbounded string would end up in every `uci show`.
+const maxFwdNameLen = 64
+
+// validFwdName accepts the empty string (meaning "use the automatic name")
+// and any printable label up to maxFwdNameLen runes. The executor already
+// rejects `;`, newlines and backticks; control characters are rejected here
+// so a name cannot smuggle terminal escapes into the config.
+func validFwdName(name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return true
+	}
+	if len([]rune(name)) > maxFwdNameLen {
+		return false
+	}
+	for _, r := range name {
+		if r < 0x20 || r == 0x7f {
+			return false
+		}
+	}
+	return true
+}
+
+// resolveFwdName turns the name sent by the client into the one to write.
+//
+// Empty means "automatic": a rule NetGrip owns gets its generated name back,
+// and a rule created elsewhere keeps the name it already had (writing an
+// empty option over somebody else's rule would erase their label). An
+// automatic name that arrives stale, because the external port changed in
+// the same edit, is regenerated so it does not lie about the port.
+func resolveFwdName(requested, current string, managed bool, srcDport string) string {
+	name := strings.TrimSpace(requested)
+	if reAutoFwdName.MatchString(name) {
+		return "netgrip-fwd-" + srcDport
+	}
+	if name != "" {
+		return name
+	}
+	if managed {
+		return "netgrip-fwd-" + srcDport
+	}
+	return current
+}
 
 // firewallSections lists the UCI section names of a firewall type
 // ("redirect", "rule", "zone"). The show is memoized 2s (#356): it is
@@ -332,19 +382,26 @@ func fwdSection(srcDport, destIP string) string {
 
 // fwdUpdateOps builds the batch that writes the rule at target. A rule that
 // moves to a new section is rewritten whole; one that stays (same external
-// port and destination, or a rule created elsewhere, which keeps its name and
-// zones) only has its routing fields written.
-func fwdUpdateOps(section, target, srcDport, destIP, destPort, proto string) []executor.Op {
+// port and destination, or a rule created elsewhere, which keeps its zones)
+// only has its routing fields written.
+//
+// The name is written only when it changes, or when the rule moves and the
+// new section therefore needs one: a rule set up elsewhere keeps its label
+// untouched unless the person editing it asked for a new one.
+func fwdUpdateOps(section, target, name, currentName, srcDport, destIP, destPort, proto string) []executor.Op {
 	base := "firewall." + target
 	ops := []executor.Op{}
-	if target != section {
+	moved := target != section
+	if moved {
 		ops = append(ops,
 			executor.Op{Kind: "uci_delete", Args: []string{"firewall." + section}},
 			executor.Op{Kind: "uci_set", Args: []string{base, "redirect"}},
-			executor.Op{Kind: "uci_set", Args: []string{base + ".name", "netgrip-fwd-" + srcDport}},
 			executor.Op{Kind: "uci_set", Args: []string{base + ".src", internetZone()}},
 			executor.Op{Kind: "uci_set", Args: []string{base + ".dest", "lan"}},
 		)
+	}
+	if name != "" && (moved || name != currentName) {
+		ops = append(ops, executor.Op{Kind: "uci_set", Args: []string{base + ".name", name}})
 	}
 	ops = append(ops,
 		executor.Op{Kind: "uci_set", Args: []string{base + ".src_dport", srcDport}},
@@ -357,16 +414,18 @@ func fwdUpdateOps(section, target, srcDport, destIP, destPort, proto string) []e
 	return ops
 }
 
-// UpdateFwdRule edits a forward: new external port, destination or protocol,
-// with the same guarantees as adding one (snapshot, reload and rollback).
+// UpdateFwdRule edits a forward: new external port, destination, protocol or
+// descriptive name, with the same guarantees as adding one (snapshot, reload
+// and rollback).
 //
-// Any forward the panel lists can be edited, including the ones created in
-// outside NetGrip or by hand: refusing to touch them left an existing rule impossible to
-// change from here. Those keep their section name and zones (only the routing
-// fields are written), so nothing that points at the section breaks and no
-// part of the firewall the panel does not own is rewritten. Deleting still
-// stays limited to NetGrip's own rules.
-func UpdateFwdRule(section, srcDport, destIP, destPort, proto string) (*FwdProbe, bool, error) {
+// Any forward the panel lists can be edited, including the ones created
+// outside NetGrip or by hand: refusing to touch them left an existing rule
+// impossible to change from here. Those keep their section name and zones
+// (only the routing fields are written, plus the name when it changed), so
+// nothing that points at the section breaks and no part of the firewall the
+// panel does not own is rewritten. Deleting still stays limited to NetGrip's
+// own rules.
+func UpdateFwdRule(section, name, srcDport, destIP, destPort, proto string) (*FwdProbe, bool, error) {
 	InvalidateKey("ucishow|firewall")
 	InvalidateKey("portforward")
 	if err := fwdApplicable(); err != nil {
@@ -374,6 +433,9 @@ func UpdateFwdRule(section, srcDport, destIP, destPort, proto string) (*FwdProbe
 	}
 	if !validPort(srcDport) || !validPort(destPort) || !reIPv4.MatchString(destIP) || !validProto(proto) {
 		return ProbeFwd(), false, fmt.Errorf("invalid rule data (ports 1-65535, IPv4 dest, proto tcp/udp)")
+	}
+	if !validFwdName(name) {
+		return ProbeFwd(), false, fmt.Errorf("invalid rule name (printable, up to %d characters)", maxFwdNameLen)
 	}
 
 	var current *FwdRule
@@ -408,17 +470,20 @@ func UpdateFwdRule(section, srcDport, destIP, destPort, proto string) (*FwdProbe
 		_ = executor.Run(executor.Op{Kind: "initd", Args: []string{"firewall", "reload"}})
 	}
 
+	managed := reFwdSection.MatchString(section)
+	resolved := resolveFwdName(name, current.Name, managed, srcDport)
 	target := section
-	if reFwdSection.MatchString(section) {
+	if managed {
 		target = fwdSection(srcDport, destIP)
 	}
-	ops := fwdUpdateOps(section, target, srcDport, destIP, destPort, strings.ReplaceAll(proto, "tcpudp", "tcp udp"))
+	ops := fwdUpdateOps(section, target, resolved, current.Name, srcDport, destIP, destPort, strings.ReplaceAll(proto, "tcpudp", "tcp udp"))
 	if err := executor.Apply(ops, nil); err != nil {
 		rollback()
 		return ProbeFwd(), true, err
 	}
 	for _, r := range ProbeFwd().Rules {
-		if r.Section == target && r.SrcDport == srcDport && r.DestIP == destIP && r.DestPort == destPort {
+		if r.Section == target && r.SrcDport == srcDport && r.DestIP == destIP && r.DestPort == destPort &&
+			(resolved == "" || r.Name == resolved) {
 			return ProbeFwd(), false, nil
 		}
 	}

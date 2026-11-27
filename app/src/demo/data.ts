@@ -201,7 +201,10 @@ export const demoFwd: T.FwdProbe = {
   has_wan: true,
   firewall: true,
   rules: [
-    { section: "fwd_https_nas", name: "HTTPS al NAS", src_dport: "443", dest_ip: "192.168.8.10", dest_port: "443", proto: "tcp" },
+    { section: "fwd_https_nas", name: "HTTPS al NAS", src_dport: "443", dest_ip: "192.168.8.10", dest_port: "443", proto: "tcp", kind: "forward" },
+    { section: "fwd_jellyfin", name: "Jellyfin", src_dport: "8096", dest_ip: "192.168.8.20", dest_port: "8096", proto: "tcp", kind: "forward" },
+    { section: "fwd_camera", name: "Cámara", src_dport: "554", dest_ip: "192.168.8.30", dest_port: "554", proto: "tcpudp", kind: "forward", managed: false },
+    { section: "fwd_minecraft", name: "", src_dport: "25565", dest_ip: "192.168.8.40", dest_port: "25565", proto: "tcp", kind: "forward" },
   ],
 };
 
