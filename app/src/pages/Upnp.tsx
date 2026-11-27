@@ -74,15 +74,16 @@ export function UpnpPage() {
 
   const notInstalledView = (
     <>
-      <EmptyState
-        small
-        illustration={<ArrowLeftRight size={72} />}
-        title={t("upnp.notInstalledTitle")}
-        action={<Button size="sm" onClick={() => setConfirmInstall(true)}>{t("upnp.install")}</Button>}
-      />
-      {/* The explanation goes after the action and in caption size: the card
-          should lead with the state and the button, not with a paragraph. */}
-      <p className="text-caption text-muted text-center max-w-sm mx-auto -mt-2">{t("upnp.notInstalledBody")}</p>
+      {/* Inside a card like the rest of the page, with the stack centred: the
+          card header carries the icon, so the empty state does not repeat it. */}
+      <Card index={0} icon={ArrowLeftRight} iconTone="accent" title={t("upnp.enableTitle")} help="upnp">
+        <EmptyState
+          small
+          title={t("upnp.notInstalledTitle")}
+          action={<Button size="sm" onClick={() => setConfirmInstall(true)}>{t("upnp.install")}</Button>}
+        />
+        <p className="text-caption text-muted text-center max-w-sm mx-auto -mt-2">{t("upnp.notInstalledBody")}</p>
+      </Card>
       <ConfirmDialog
         open={confirmInstall}
         onClose={() => setConfirmInstall(false)}
