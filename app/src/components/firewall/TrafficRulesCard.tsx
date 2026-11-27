@@ -125,7 +125,7 @@ type FwSort = { key: FwSortKey; dir: 1 | -1 };
 
 /** Desktop column template shared by the header and the rows. */
 const FW_GRID =
-  "md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.2fr)_4.5rem_6rem_6rem_9rem] md:items-center md:gap-2";
+  "md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.2fr)_4.5rem_6rem_5.5rem_6rem_4rem] md:items-center md:gap-2";
 
 function fwExtra(r: FWRule, name: string): string {
   return r.extra_options?.find((o) => o.name === name)?.value ?? "";
@@ -327,6 +327,7 @@ export function TrafficRulesCard() {
                     <FwSortHeader col="proto" sort={sort} onSort={toggleSort} />
                     <FwSortHeader col="target" sort={sort} onSort={toggleSort} />
                     <span className="text-eyebrow uppercase tracking-wide text-faint">{t("trafficRules.colSchedule")}</span>
+                    <span className="text-eyebrow uppercase tracking-wide text-faint">{t("trafficRules.colType")}</span>
                     <span className="sr-only">{t("fwd.colActions")}</span>
                   </div>
 
@@ -429,19 +430,18 @@ function RuleRow({ r, onDelete, onEdit, busy }: {
         {t(TARGET_LABELS[r.target] ?? "trafficRules.allow", { defaultValue: r.target })}
       </Pill>
       {schedule && (
-        <span className="inline-flex items-center gap-1 text-caption text-muted md:col-start-6 md:row-start-1">
+        <span
+          title={schedule}
+          className="inline-flex items-center gap-1 text-caption text-muted md:col-start-6 md:row-start-1"
+        >
           <Clock size={12} aria-hidden="true" />{schedule}
         </span>
       )}
-      <span className="flex flex-wrap items-center gap-1.5 md:col-start-7 md:row-start-1 md:justify-end">
+      {/* Tipo: su propia columna, alineada a la izquierda con las demas filas.
+          Antes compartia celda con las acciones y cada pildora caia donde
+          cabia. */}
+      <span className="flex flex-wrap items-center gap-1 md:col-start-7 md:row-start-1">
         {!r.enabled && <Pill tone="muted">{t("trafficRules.disabled")}</Pill>}
-        {/* Solo en las que se pueden editar: en una de fabrica el aviso no
-            aporta nada, ya dice la pildora que es solo lectura. */}
-        {r.editable && hidden.length > 0 && (
-          <span title={t("trafficRules.extraHint", { options: hiddenHint })}>
-            <Pill tone="warn">{t("trafficRules.extraOptions")}</Pill>
-          </span>
-        )}
         {!r.managed && (r.stock ? (
           <span title={t("trafficRules.factoryHint")}><Pill tone="muted">{t("trafficRules.factory")}</Pill></span>
         ) : !r.editable ? (
@@ -449,7 +449,18 @@ function RuleRow({ r, onDelete, onEdit, busy }: {
         ) : (
           <span title={t("trafficRules.externalHint")}><Pill tone="muted">{t("trafficRules.external")}</Pill></span>
         ))}
-        {r.editable && onEdit && (
+        {/* Solo en las que se pueden editar: en una de fabrica el aviso no
+            aporta nada, ya dice la pildora que es solo lectura. */}
+        {r.editable && hidden.length > 0 && (
+          <span title={t("trafficRules.extraHint", { options: hiddenHint })}>
+            <Pill tone="warn">{t("trafficRules.extraOptions")}</Pill>
+          </span>
+        )}
+      </span>
+      {/* Acciones: dos huecos fijos, para que el lapiz y la papelera caigan
+          siempre en el mismo sitio aunque falte uno de los dos. */}
+      <span className="flex items-center gap-1 md:col-start-8 md:row-start-1 md:justify-start">
+        {r.editable && onEdit ? (
           <button
             type="button"
             onClick={onEdit}
@@ -459,11 +470,10 @@ function RuleRow({ r, onDelete, onEdit, busy }: {
           >
             <Pencil size={16} />
           </button>
+        ) : (
+          <span className="h-6 w-6" aria-hidden="true" />
         )}
-        {/* Anything the card lists can be deleted except the bootstrap
-            allowances: a rule you cannot edit (proto icmp) can still be
-            removed, and a rule created elsewhere is yours to delete. */}
-        {!r.stock && onDelete && (
+        {!r.stock && onDelete ? (
           <button
             type="button"
             onClick={onDelete}
@@ -473,6 +483,8 @@ function RuleRow({ r, onDelete, onEdit, busy }: {
           >
             <Trash2 size={16} />
           </button>
+        ) : (
+          <span className="h-6 w-6" aria-hidden="true" />
         )}
       </span>
     </li>
