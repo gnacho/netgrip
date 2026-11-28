@@ -168,6 +168,12 @@ func TestAPKReleaseNames(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(dir, "gh"), []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
 				t.Fatal(err)
 			}
+			// The upload step signs each package with deploy/sign-release.go;
+			// the fake go writes the sidecars the upload then globs.
+			fakeGo := "#!/bin/sh\nfor last; do :; done\necho digest > \"$last.sha256\"\necho sig > \"$last.sha256.sig\"\n"
+			if err := os.WriteFile(filepath.Join(dir, "go"), []byte(fakeGo), 0755); err != nil {
+				t.Fatal(err)
+			}
 			script := upload
 			for key, value := range row {
 				script = strings.ReplaceAll(script, "${{ matrix."+key+" }}", value)
