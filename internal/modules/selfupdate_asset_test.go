@@ -79,6 +79,11 @@ func withAPI(t *testing.T, body string) *httptest.Server {
 	orig := githubAPIURL
 	githubAPIURL = srv.URL
 	t.Cleanup(func() { githubAPIURL = orig })
+	// The package architecture comes from the host's apk in real builds;
+	// keep the release tests independent of what is installed in the runner.
+	origArch := apkPrintArch
+	apkPrintArch = func() string { return "" }
+	t.Cleanup(func() { apkPrintArch = origArch })
 	return srv
 }
 

@@ -213,6 +213,10 @@ jobs:
             format: apk
             binary: linux-arm64
             pkgarch: aarch64_cortex-a53
+            asset-suffix: aarch64_cortex-a53
+            # Older heal scripts and self-update checks look for the generic
+            # Go ABI suffix on this leg (#809).
+            legacy-suffix: arm64
           - sdk-version: 25.12.5
             sdk-target: bcm27xx/bcm2711
             format: apk
@@ -354,6 +358,27 @@ jobs:
             echo "Renamed: $newname"
           done
           gh release upload "$TAG" dist/packages/*.${{ matrix.format }} --clobber
+
+      # The native asset name is the package architecture. Keep the old
+      # generic ABI name as an alias so devices running an older heal script
+      # can still resolve the asset (#809).
+      - name: Upload legacy arch alias
+        if: matrix.format == 'apk' && matrix.legacy-suffix != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.create-release.outputs.tag }}
+        run: |
+          set -eu
+          native_n="${{ matrix.asset-suffix }}"
+          legacy_n="${{ matrix.legacy-suffix }}"
+          for apk in dist/packages/*-"$native_n".apk; do
+            [ -f "$apk" ] || continue
+            base="$(basename "$apk" .apk)"
+            alias_name="$(basename "$base" -"${native_n}")-${legacy_n}.apk"
+            cp "$apk" "dist/packages/$alias_name"
+            echo "Alias: $alias_name"
+          done
+          gh release upload "$TAG" dist/packages/*-"$legacy_n".apk --clobber
 
   apk-feed:
     needs: package
