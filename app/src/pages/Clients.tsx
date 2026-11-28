@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown, Ban, MoreVertical, Pencil, Pin, Search, Wifi, Cable, Eye, Clock, Pause, Play, Gauge } from "lucide-react";
 import { api } from "../api";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import { usePolling } from "../hooks/usePolling";
 import type { BlockedClient, Client, DeviceType, NftQoSProbe, ParentalProbe, ParentalRule, Quota, QuotaProbe, QuotaUsage } from "../types";
 import { Banner, Button, Card, ConfirmDialog, EmptyState, Field, Input, Modal, Pill, SegmentedControl, SkeletonRows, Toggle } from "../components/ui";
 import { DEVICE_TYPES, DEVICE_TYPE_KEYS, deviceTypeIcon } from "../components/clients/catalog";
@@ -153,6 +155,10 @@ export function ClientsPage() {
   const [qos, setQos] = useState<NftQoSProbe>();
   const [parental, setParental] = useState<ParentalProbe>();
   const [quota, setQuota] = useState<QuotaProbe>();
+  // One list for the current viewport instead of both: below md the table
+  // was built, committed and diffed for nothing, and it was more than half
+  // of the page's nodes on a phone (#815).
+  const desktop = useMediaQuery("(min-width: 768px)");
 
   const lastSnap = useRef<Record<string, { rx: number; tx: number; ts: number }>>({});
 
@@ -193,7 +199,6 @@ export function ClientsPage() {
     setError(false);
     try {
       const c = await api.clients();
-      setBands(c.bands ?? []);
       const now = Date.now();
       const newRates: Record<string, { rx: number; tx: number }> = {};
       for (const cl of c.clients) {
@@ -207,14 +212,24 @@ export function ClientsPage() {
         }
         lastSnap.current[cl.mac] = { rx: cl.rx_bytes, tx: cl.tx_bytes, ts: now };
       }
-      setRates((r) => ({ ...r, ...newRates }));
-      setClients(c.clients);
+      // The poll re-renders the whole list. Marking it as a transition lets
+      // React interrupt that work while the finger is scrolling, so the
+      // numbers land a frame later instead of freezing the page every 5 s
+      // (#815, measured: 3 dropped frames per scroll on a throttled phone).
+      startTransition(() => {
+        setBands(c.bands ?? []);
+        setRates((r) => ({ ...r, ...newRates }));
+        setClients(c.clients);
+      });
     } catch {
       setError(true);
     }
   }, []);
 
-  useEffect(() => { load(); loadBlocked(); loadQos(); loadParental(); loadQuota(); const id = setInterval(load, 5000); const qid = setInterval(loadQuota, 30000); return () => { clearInterval(id); clearInterval(qid); }; }, [load, loadBlocked, loadQos, loadParental, loadQuota]);
+  // Polls stop while the tab is hidden and resume on the way back (#815).
+  useEffect(() => { loadBlocked(); loadQos(); loadParental(); }, [loadBlocked, loadQos, loadParental]);
+  usePolling(load, 5000);
+  usePolling(loadQuota, 30000);
 
   useEffect(() => {
     if (detailTarget) { loadQos(); loadQuota(); }
@@ -423,7 +438,8 @@ export function ClientsPage() {
           <EmptyState illustration={<IlluDevices size={120} />} title={t("overview.devicesEmpty")} body={t("overview.devicesEmptyBody")} />
         ) : (
           <>
-            <table className="hidden md:table w-full text-small">
+            {desktop ? (
+            <table className="w-full text-small">
               <thead>
                 <tr className="text-caption border-b border-border/60">
                   <SortTh label={t("clients.name")} k="name" className="w-auto" />
@@ -467,7 +483,8 @@ export function ClientsPage() {
                 })}
               </tbody>
             </table>
-            <div className="md:hidden space-y-2 flex flex-col">
+            ) : (
+            <div className="space-y-2 flex flex-col">
               {sorted.map((c) => (
                 <div key={c.mac} className="rounded-md border border-border/60 p-2.5">
                   <div className="flex items-center gap-3">
@@ -484,6 +501,7 @@ export function ClientsPage() {
                 </div>
               ))}
             </div>
+            )}
           </>
         )}
         {actionError && <Banner tone="danger" className="mt-3">{actionError}</Banner>}
