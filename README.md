@@ -198,7 +198,9 @@ Requirements: a supported amd64, ARM64, ARMv5/6/7, little-endian MIPS or
 big-endian MIPS target running OpenWrt 24.10 or 25.12. The installer asks the
 package manager for the router's exact package architecture, then selects the
 matching package and generic Go ABI binary. The panel listens on port 8090 and
-logs in with the router's root password.
+logs in with the router's root password, asked of rpcd over the ubus socket,
+the same daemon the router's own tools use. No web UI and no web server in
+front of it are needed.
 
 SSH into the router and run:
 
@@ -294,7 +296,7 @@ Flags (defaults are what most routers want):
 | --- | --- | --- |
 | `-listen` | `0.0.0.0` | Address to bind. |
 | `-port` | `8090` | Port to listen on. GL.iNet firmware serves its own web UI on 8080, hence the default. |
-| `-rpcd-url` | `http://127.0.0.1/ubus` | rpcd JSON-RPC endpoint for login validation. |
+| `-rpcd-url` | `http://127.0.0.1/ubus` | Fallback rpcd endpoint for login validation. The panel asks rpcd over the ubus socket first. |
 
 The session timeout changes from the UI's Access card
 (`options.main.session_timeout` in UCI). The service runs from procd:

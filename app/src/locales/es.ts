@@ -11,6 +11,8 @@ export default {
     submitting: "Comprobando…",
     error: "Contraseña incorrecta. Prueba otra vez.",
     errorNetwork: "No pudimos hablar con el router. ¿Está encendido y enchufado?",
+    errorRpcd:
+      "El panel está en marcha, pero el servicio RPC del router (rpcd) no respondió. Comprueba que está instalado y corriendo.",
     errorThrottled: "Demasiados intentos. Vuelve a probar en {{seconds}} segundos.",
     demoCta: "Explorar el modo demo",
     demoDivider: "¿Sin router a mano?",

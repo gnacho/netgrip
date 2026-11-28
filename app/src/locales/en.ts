@@ -11,6 +11,8 @@ export default {
     submitting: "Checking…",
     error: "Wrong password. Try again.",
     errorNetwork: "We couldn't reach the router. Is it on and connected?",
+    errorRpcd:
+      "The panel is up, but the router's RPC service (rpcd) did not answer. Check that it is installed and running.",
     errorThrottled: "Too many attempts. Try again in {{seconds}} seconds.",
     demoCta: "Explore demo mode",
     demoDivider: "No router at hand?",

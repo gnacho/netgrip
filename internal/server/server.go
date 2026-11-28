@@ -63,7 +63,10 @@ const (
 )
 
 type Server struct {
-	rpcdURL string
+	// rpcd validates the router's password and is what the panel asks to
+	// change it. It tries the ubus socket first, so a router without a web
+	// server in front of rpcd can still log in (#813).
+	rpcd auth.Backend
 	version string
 	// servingCert: the path of the pair this process actually opened, empty
 	// when it is not serving TLS. Configured and served need not agree -
@@ -100,7 +103,7 @@ type Server struct {
 // servingCert is the pair that was opened for it.
 func New(rpcdURL, version string, secure bool, servingCert string) *Server {
 	s := &Server{
-		rpcdURL:     rpcdURL,
+		rpcd:        auth.Backend{URL: rpcdURL},
 		version:     version,
 		servingCert: servingCert,
 		logins:      newLoginThrottle(),
@@ -499,7 +502,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if req.Username == "" {
 		req.Username = "root"
 	}
-	ok, err := auth.ValidatePassword(s.rpcdURL, req.Username, req.Password)
+	ok, err := s.rpcd.ValidatePassword(req.Username, req.Password)
 	if err != nil {
 		log.Printf("login: rpcd validation error: %v", err)
 		writeError(w, http.StatusBadGateway, "rpcd unreachable")
@@ -857,7 +860,7 @@ func (s *Server) handlePasswordSet(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	if err := modules.ChangePassword(s.rpcdURL, req.Current, req.Next); err != nil {
+	if err := modules.ChangePassword(s.rpcd, req.Current, req.Next); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}

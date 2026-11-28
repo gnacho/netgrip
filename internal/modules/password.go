@@ -13,18 +13,19 @@ import (
 // MinPasswordLength is the minimum accepted length for a new root password.
 const MinPasswordLength = 8
 
-// ChangePassword validates the current password via rpcd and then sets the
-// new one with `ubus call rpc-sys password_set` (the method the router uses).
+// ChangePassword validates the current password against rpcd and then sets
+// the new one with `ubus call rpc-sys password_set` (the method the router
+// uses).
 // Note: the rpcd HTTP endpoint denies password_set even for root sessions
 // (verified on OpenWrt 25.12.5), while the CLI as root is allowed. The new
 // password appears briefly in the exec arguments; on OpenWrt only root can
 // read the process table, and the window is milliseconds. The alternative
 // (writing /etc/shadow from Go) is riskier and was discarded.
-func ChangePassword(rpcdURL, current, next string) error {
+func ChangePassword(rpcd auth.Backend, current, next string) error {
 	if len(next) < MinPasswordLength {
 		return fmt.Errorf("new password too short (min %d)", MinPasswordLength)
 	}
-	ok, err := auth.ValidatePassword(rpcdURL, "root", current)
+	ok, err := rpcd.ValidatePassword("root", current)
 	if err != nil {
 		return fmt.Errorf("rpcd login: %w", err)
 	}
