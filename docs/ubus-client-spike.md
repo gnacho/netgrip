@@ -175,8 +175,11 @@ Suggested rollout, in order:
 4. Event subscription (SUBSCRIBE/NOTIFY) is explicitly out of scope; the
    current synchronous client does not need it and adding it later is a
    separate decision.
-5. Write paths (uci set equivalents, rpc session login for rpcd) are not
-   covered by this spike; evaluate separately if needed.
+5. Write paths (uci set equivalents) are not covered by this spike; evaluate
+   separately if needed. `session.login` did land on this client later, in #814:
+   the panel now asks rpcd for the router password over the socket instead of
+   the HTTP endpoint, which only a router with a web server in front of rpcd
+   had.
 
 Risks: ubusd with ACLs requires the sessionless AUTH exchange (one extra
 INVOKE on object "ubus" at connect); detect the status code and implement it
