@@ -84,20 +84,46 @@ var apkPrintArch = func() string {
 	return strings.TrimSpace(string(out))
 }
 
-// apkAssetName is the release asset that carries the package for a package
-// architecture. Assets are named after the package architecture since #809,
-// so the self-update can find the exact package instead of guessing a Go ABI.
-func apkAssetName(release *ghRelease, arch string) (url string, size int64) {
+// apkAsset is the release package for a package architecture, with the signed
+// digest the self-update verifies before installing it.
+type apkAsset struct {
+	URL    string
+	Size   int64
+	Digest string
+	Sig    string
+}
+
+// apkAssetForRelease finds the package for a package architecture. Assets are
+// named after the package architecture since #809, so the self-update can pick
+// the exact package instead of guessing a Go ABI.
+func apkAssetForRelease(release *ghRelease, arch string) apkAsset {
 	if arch == "" {
-		return "", 0
+		return apkAsset{}
 	}
 	suffix := "-" + arch + ".apk"
+	byName := make(map[string]ghAsset, len(release.Assets))
 	for _, a := range release.Assets {
-		if strings.HasPrefix(a.Name, "netgrip-") && strings.HasSuffix(a.Name, suffix) {
-			return a.BrowserDownloadURL, a.Size
+		byName[a.Name] = a
+	}
+	for _, a := range release.Assets {
+		if !strings.HasPrefix(a.Name, "netgrip-") || !strings.HasSuffix(a.Name, suffix) {
+			continue
+		}
+		digest, okDigest := byName[a.Name+".sha256"]
+		sig, okSig := byName[a.Name+".sha256.sig"]
+		if !okDigest || !okSig {
+			// A package we cannot verify is not one we install: fall back to
+			// the signed binary.
+			return apkAsset{}
+		}
+		return apkAsset{
+			URL:    a.BrowserDownloadURL,
+			Size:   a.Size,
+			Digest: digest.BrowserDownloadURL,
+			Sig:    sig.BrowserDownloadURL,
 		}
 	}
-	return "", 0
+	return apkAsset{}
 }
 
 // Overridable in tests.
@@ -138,19 +164,25 @@ type SelfUpdateCheck struct {
 	// ApkURL points at the release package for this device's package
 	// architecture, empty when apk is not in use or the release has none.
 	// Installing it keeps the apk database in sync with the binary (#809).
-	ApkURL  string `json:"apk_url,omitempty"`
-	ApkSize int64  `json:"apk_size,omitempty"`
+	// The package is verified against its own signed digest (ApkDigestURL
+	// and ApkSigURL) before it is handed to apk.
+	ApkURL       string `json:"apk_url,omitempty"`
+	ApkSize      int64  `json:"apk_size,omitempty"`
+	ApkDigestURL string `json:"apk_digest_url,omitempty"`
+	ApkSigURL    string `json:"apk_sig_url,omitempty"`
 }
 
 // selfUpdateTarget is everything runSelfUpdate needs to fetch and verify a
 // release binary: the asset itself plus its signed digest.
 type selfUpdateTarget struct {
-	AssetURL  string
-	AssetSize int64
-	DigestURL string
-	SigURL    string
-	ApkURL    string
-	ApkSize   int64
+	AssetURL     string
+	AssetSize    int64
+	DigestURL    string
+	SigURL       string
+	ApkURL       string
+	ApkSize      int64
+	ApkDigestURL string
+	ApkSigURL    string
 }
 
 type SelfUpdateStatus struct {
@@ -282,7 +314,12 @@ func CheckSelfUpdate(currentVersion string) *SelfUpdateCheck {
 	// Prefer the package manager when apk is in use: installing the release
 	// package keeps the database in sync, which the raw binary replace never
 	// did (#809).
-	result.ApkURL, result.ApkSize = apkAssetName(release, apkPrintArch())
+	if pkg := apkAssetForRelease(release, apkPrintArch()); pkg.URL != "" {
+		result.ApkURL = pkg.URL
+		result.ApkSize = pkg.Size
+		result.ApkDigestURL = pkg.Digest
+		result.ApkSigURL = pkg.Sig
+	}
 
 	// Only advertise an update once the binary and its signature are
 	// actually downloadable: the CI attaches release assets a few minutes
@@ -321,12 +358,14 @@ func StartSelfUpdate(currentVersion string) error {
 	}
 
 	go runSelfUpdateF(selfUpdateTarget{
-		AssetURL:  ck.AssetURL,
-		AssetSize: ck.AssetSize,
-		DigestURL: ck.DigestURL,
-		SigURL:    ck.SigURL,
-		ApkURL:    ck.ApkURL,
-		ApkSize:   ck.ApkSize,
+		AssetURL:     ck.AssetURL,
+		AssetSize:    ck.AssetSize,
+		DigestURL:    ck.DigestURL,
+		SigURL:       ck.SigURL,
+		ApkURL:       ck.ApkURL,
+		ApkSize:      ck.ApkSize,
+		ApkDigestURL: ck.ApkDigestURL,
+		ApkSigURL:    ck.ApkSigURL,
 	}, currentVersion)
 	return nil
 }
@@ -436,8 +475,8 @@ func runSelfUpdate(target selfUpdateTarget, currentVersion string) {
 	// drifting behind a raw binary replace (#809). The raw replace stays as
 	// the fallback for opkg devices and for releases without a package.
 	installed := false
-	if target.ApkURL != "" {
-		if err := installViaApk(target.ApkURL, digestContent, sig, currentBin); err != nil {
+	if target.ApkURL != "" && target.ApkDigestURL != "" && target.ApkSigURL != "" {
+		if err := installViaApk(target, currentBin); err != nil {
 			log.Printf("netgrip: self-update: apk install failed: %v (falling back to binary replace)", err)
 		} else {
 			installed = true
@@ -528,46 +567,41 @@ var apkAddInstall = func(apkPath string) ([]byte, error) {
 	return exec.Command("apk", "add", "--no-scripts", "--allow-untrusted", "--force-overwrite", apkPath).CombinedOutput()
 }
 
-// verifyInstalledRelease checks the file apk just installed against the signed
-// release digest. A var so tests can inject a key or a failure.
-var verifyInstalledRelease = verifyReleaseDigest
+// verifyPackageRelease checks a downloaded release asset against its signed
+// digest. A var so tests can inject a failure.
+var verifyPackageRelease = verifyReleaseDigest
 
 // installViaApk records the release in the apk database, so the package
 // version reported by apk matches the binary actually running (#809).
 //
 // Packages are not signed by apk itself (the OpenWrt SDK cannot sign them,
 // #296), so the install goes in with --allow-untrusted and trust comes from
-// the release digest instead: the installed binary is checked against the
-// signed sha256 and the previous binary is restored on any mismatch.
+// the release digest instead: the .apk is checked against its own signed
+// sha256 before apk sees it. The packaged binary is not byte-identical to the
+// release binary (the SDK packs it separately), which is why the package, not
+// the unpacked file, is what gets verified.
+//
 // --no-scripts keeps the package post-install from restarting the service in
 // the middle of the update, which would kill the progress/outcome hooks; the
 // init script is refreshed and the service restarted by the caller.
-func installViaApk(apkURL string, digestContent, sig []byte, currentBin string) error {
-	client := &http.Client{Timeout: 120 * time.Second}
-	resp, err := client.Get(apkURL)
-	if err != nil {
-		return fmt.Errorf("download: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("download: HTTP %d", resp.StatusCode)
-	}
-
+func installViaApk(target selfUpdateTarget, currentBin string) error {
 	apkPath := tmpPath + ".apk"
-	f, err := os.Create(apkPath)
-	if err != nil {
-		return fmt.Errorf("create: %w", err)
-	}
-	if _, err := io.Copy(f, resp.Body); err != nil {
-		f.Close()
-		os.Remove(apkPath)
-		return fmt.Errorf("write: %w", err)
-	}
-	if err := f.Close(); err != nil {
-		os.Remove(apkPath)
-		return fmt.Errorf("write: %w", err)
+	if err := downloadToFile(target.ApkURL, apkPath); err != nil {
+		return fmt.Errorf("download apk: %w", err)
 	}
 	defer os.Remove(apkPath)
+
+	digestContent, err := downloadBytes(target.ApkDigestURL)
+	if err != nil {
+		return fmt.Errorf("download apk .sha256: %w", err)
+	}
+	sig, err := downloadBytes(target.ApkSigURL)
+	if err != nil {
+		return fmt.Errorf("download apk .sha256.sig: %w", err)
+	}
+	if err := verifyPackageRelease(apkPath, digestContent, sig); err != nil {
+		return fmt.Errorf("verify apk: %w", err)
+	}
 
 	if err := copyFile(currentBin, prevBinaryPath); err != nil {
 		log.Printf("netgrip: self-update: rescue copy to %s: %v (continuing)", prevBinaryPath, err)
@@ -575,13 +609,6 @@ func installViaApk(apkURL string, digestContent, sig []byte, currentBin string) 
 
 	if out, err := apkAddInstall(apkPath); err != nil {
 		return fmt.Errorf("apk add: %w: %s", err, strings.TrimSpace(string(out)))
-	}
-
-	if err := verifyInstalledRelease(currentBin, digestContent, sig); err != nil {
-		if rerr := copyFile(prevBinaryPath, currentBin); rerr != nil {
-			log.Printf("netgrip: self-update: restore previous binary: %v", rerr)
-		}
-		return fmt.Errorf("installed binary does not match the signed digest: %w", err)
 	}
 	return nil
 }
@@ -709,6 +736,29 @@ func parseSemver(v string) (out [3]int, ok bool) {
 		return out, false
 	}
 	return [3]int{a, b, c}, true
+}
+
+// downloadToFile streams a release asset to path.
+func downloadToFile(url, path string) error {
+	client := &http.Client{Timeout: 120 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		f.Close()
+		os.Remove(path)
+		return err
+	}
+	return f.Close()
 }
 
 // downloadBytes fetches a small release asset (digest/signature) into memory.

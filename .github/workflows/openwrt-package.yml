@@ -324,6 +324,10 @@ jobs:
         with:
           name: netgrip-binary-${{ matrix.binary }}
           path: /tmp/netgrip-binary
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: true
 
       - name: Package ${{ matrix.format }} (SDK ${{ matrix.sdk-version }})
         env:
@@ -343,6 +347,7 @@ jobs:
       - name: Upload to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NETGRIP_RELEASE_KEY: ${{ secrets.NETGRIP_RELEASE_KEY }}
           TAG: ${{ needs.create-release.outputs.tag }}
         run: |
           echo "Packages generated:"
@@ -357,7 +362,14 @@ jobs:
             mv "$apk" "dist/packages/$newname"
             echo "Renamed: $newname"
           done
+          # Sign every package with the release key: the self-update verifies
+          # the .apk against this digest before handing it to apk (#809).
+          for apk in dist/packages/*.apk; do
+            [ -f "$apk" ] || continue
+            go run deploy/sign-release.go "$apk"
+          done
           gh release upload "$TAG" dist/packages/*.${{ matrix.format }} --clobber
+          gh release upload "$TAG" dist/packages/*.apk.sha256 dist/packages/*.apk.sha256.sig --clobber
 
       # The native asset name is the package architecture. Keep the old
       # generic ABI name as an alias so devices running an older heal script
@@ -376,9 +388,13 @@ jobs:
             base="$(basename "$apk" .apk)"
             alias_name="$(basename "$base" -"${native_n}")-${legacy_n}.apk"
             cp "$apk" "dist/packages/$alias_name"
+            cp "$apk.sha256" "dist/packages/$alias_name.sha256"
+            cp "$apk.sha256.sig" "dist/packages/$alias_name.sha256.sig"
             echo "Alias: $alias_name"
           done
-          gh release upload "$TAG" dist/packages/*-"$legacy_n".apk --clobber
+          gh release upload "$TAG" dist/packages/*-"$legacy_n".apk \
+            dist/packages/*-"$legacy_n".apk.sha256 \
+            dist/packages/*-"$legacy_n".apk.sha256.sig --clobber
 
   apk-feed:
     needs: package
