@@ -76,10 +76,12 @@ func Probe(rpcdURL string) bool {
 	return err == nil
 }
 
-// ValidatePassword checks credentials against the router's rpcd session login,
-// the same mechanism the router uses. Nothing is stored: a valid rpcd session for
-// the given user means the password is correct.
-func ValidatePassword(rpcdURL, username, password string) (bool, error) {
+// validatePasswordHTTP checks credentials against the router's rpcd session
+// login over HTTP, the route a browser-facing endpoint offers. Nothing is
+// stored: a valid rpcd session for the given user means the password is
+// correct. Kept as the fallback of Backend.ValidatePassword, which prefers the
+// ubus socket (#813).
+func validatePasswordHTTP(rpcdURL, username, password string) (bool, error) {
 	token, err := SessionLogin(rpcdURL, username, password)
 	if err != nil {
 		return false, err

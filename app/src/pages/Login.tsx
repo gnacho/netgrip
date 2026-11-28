@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight, Lock } from "lucide-react";
-import { api, enableDemo, RateLimitedError, UnauthorizedError } from "../api";
+import { api, enableDemo, HttpError, RateLimitedError, UnauthorizedError } from "../api";
 import { Banner, Button, Card, Field, HelpTip, LangToggle, ThemeToggle } from "../components/ui";
 import { Logo } from "../components/ui/illustrations";
 
@@ -12,7 +12,7 @@ import { Logo } from "../components/ui/illustrations";
 export function Login({ onSuccess }: { onSuccess: () => void }) {
   const { t } = useTranslation();
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<"credentials" | "network" | "throttled">();
+  const [error, setError] = useState<"credentials" | "network" | "rpcd" | "throttled">();
   const [retryAfter, setRetryAfter] = useState(0);
   const [busy, setBusy] = useState(false);
   const [backendDown, setBackendDown] = useState(false);
@@ -44,9 +44,17 @@ export function Login({ onSuccess }: { onSuccess: () => void }) {
         setTimeout(() => setShake(false), 260);
         return;
       }
-      const kind = err instanceof UnauthorizedError ? "credentials" : "network";
+      // 502 is the panel telling us rpcd did not answer. Blaming the
+      // network for that sends people to check a router that is up: the
+      // router is fine, the service that checks passwords is not (#813).
+      const kind =
+        err instanceof UnauthorizedError
+          ? "credentials"
+          : err instanceof HttpError && err.status === 502
+            ? "rpcd"
+            : "network";
       setError(kind);
-      if (kind === "network") setBackendDown(true);
+      if (kind !== "credentials") setBackendDown(true);
       if (kind === "credentials") {
         setShake(true);
         setTimeout(() => setShake(false), 260);
@@ -99,7 +107,9 @@ export function Login({ onSuccess }: { onSuccess: () => void }) {
                     ? t("login.error")
                     : error === "throttled"
                       ? t("login.errorThrottled", { seconds: retryAfter })
-                      : t("login.errorNetwork")}
+                      : error === "rpcd"
+                        ? t("login.errorRpcd")
+                        : t("login.errorNetwork")}
                 </Banner>
               )}
               <Button type="submit" loading={busy} disabled={!password} className="w-full mt-4">

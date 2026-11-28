@@ -148,7 +148,7 @@ func (c *Client) Lookup(name string) (uint32, error) {
 			}
 		case msgStatus:
 			if code := statusCode(body); code != 0 {
-				return 0, fmt.Errorf("ubusconn: lookup %q: status %d", name, code)
+				return 0, &StatusError{Op: "lookup", Object: name, Code: code}
 			}
 			if !found {
 				return 0, fmt.Errorf("ubusconn: object %q not found", name)
@@ -200,7 +200,7 @@ func (c *Client) Call(object, method string, args map[string]any) (map[string]an
 			}
 		case msgStatus:
 			if code := statusCode(body); code != 0 {
-				return nil, fmt.Errorf("ubusconn: call %s.%s: status %d", object, method, code)
+				return nil, &StatusError{Op: "call", Object: object, Method: method, Code: code}
 			}
 			if result == nil {
 				result = map[string]any{}

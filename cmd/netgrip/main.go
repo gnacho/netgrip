@@ -60,7 +60,10 @@ func main() {
 	}
 	resolvedRPCd := auth.DetectRPCdEndpoint(explicit)
 	if resolvedRPCd == "" {
-		log.Printf("no rpcd endpoint answered among the known candidates; falling back to %s", *rpcdURL)
+		// Normal on a router with no web server in front of rpcd: login
+		// goes over the ubus socket, and this HTTP endpoint is the
+		// fallback (#813).
+		log.Printf("no rpcd HTTP endpoint answered; login uses the ubus socket, %s stays as the fallback", *rpcdURL)
 		resolvedRPCd = *rpcdURL
 	}
 

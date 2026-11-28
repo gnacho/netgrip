@@ -9,6 +9,15 @@ export class RateLimitedError extends Error {
   }
 }
 
+/** Respuesta del panel con un status que no es 401 ni 429. Se conserva el
+ *  código porque hay fallos que el usuario arregla de forma distinta: un 502
+ *  en el login es rpcd sin responder, no un panel caído (#813). */
+export class HttpError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+  }
+}
+
 /** Callback instalado por App: cualquier 401 autenticado manda la app al
  *  login (sesión muerta en caliente tras un reinicio/sysupgrade). */
 let onUnauthorized: (() => void) | null = null;
@@ -97,7 +106,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string }).error || `HTTP ${res.status}`);
+    throw new HttpError(res.status, (body as { error?: string }).error || `HTTP ${res.status}`);
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
