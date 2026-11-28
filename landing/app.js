@@ -35,9 +35,9 @@ const I18N = {
     "nav.star": "Star",
 
     "hero.eyebrow": "Software libre · AGPL · Hecho por la comunidad",
-    "hero.title": "3,9 MB en el router. Todo esto dentro.",
+    "hero.title": "4 MB en el router. Todo esto dentro.",
     "hero.sub": "Un solo binario estático para OpenWrt: WireGuard, WiFi de invitados, QoS, DNS, cortafuegos visual, Home Assistant y agente de flota. Sin PHP, sin Python, sin contenedor y sin caja aparte.",
-    "hero.fact": "3,9 MB el binario instalado · cero runtimes · dos paquetes extra en OpenWrt",
+    "hero.fact": "4 MB el binario instalado · cero runtimes · dos paquetes extra en OpenWrt",
     "hero.ctaDemo": "Probar la demo",
     "hero.ctaGithub": "Ver en GitHub",
     "hero.micro": "La demo es de juguete: datos de ejemplo, nada se aplica de verdad.",
@@ -65,13 +65,13 @@ const I18N = {
     "what.li3": "Gráficos en vez de tablas",
     "what.li4": "Asistente de primer arranque",
     "what.netpulse": "También hace de agente de <a href=\"{NETPULSE_URL}\" target=\"_blank\" rel=\"noopener\">NetPulse</a>: el mismo router reporta métricas, eventos WiFi y clientes sin instalar nada más.",
-    "what.footprint": "Ligero y comprobable: el binario instalado ocupa 3,9 MB. La release publica también el mismo binario sin empaquetar (13,4 MB), por si prefieres inspeccionarlo.",
+    "what.footprint": "Ligero y comprobable: el binario instalado ocupa 4 MB. La release publica también el mismo binario sin empaquetar (13,9 MB), por si prefieres inspeccionarlo.",
 
     "weight.eyebrow": "Peso y funciones",
     "weight.title": "Lo que ocupa, y todo lo que hace.",
-    "weight.sub": "El binario instalado ocupa 3,9 MB. Esto es lo que cuesta tenerlo y lo que llevas dentro, sin letra pequeña.",
+    "weight.sub": "El binario instalado ocupa 4 MB. Esto es lo que cuesta tenerlo y lo que llevas dentro, sin letra pequeña.",
     "weight.costTitle": "Lo que cuesta",
-    "weight.number": "3,9 MB",
+    "weight.number": "4 MB",
     "weight.numberNote": "el binario instalado, interfaz incluida",
     "weight.cost2t": "Cero runtimes",
     "weight.cost2d": "sin PHP, sin Python, sin Node, sin contenedor",
@@ -92,7 +92,7 @@ const I18N = {
     "weight.chip10": "Firmware con owut/ASU",
     "weight.chip11": "Autoactualización con rollback",
     "weight.chip12": "Agente de NetPulse",
-    "weight.note": "La release publica también el mismo binario sin empaquetar (13,4 MB), por si quieres inspeccionarlo. Las cifras salen de medir el binario que se instala.",
+    "weight.note": "La release publica también el mismo binario sin empaquetar (13,9 MB), por si quieres inspeccionarlo. Las cifras salen de medir el binario que se instala.",
 
     "feat.eyebrow": "Funcionalidades",
     "feat.title": "Todo lo que tu router ya hace, en amable.",
@@ -166,8 +166,8 @@ const I18N = {
     "footer.tag": "NetGrip es software libre (AGPL) hecho por su comunidad.",
     "footer.disclaimer": "OpenWrt es una marca de su proyecto; NetGrip no está afiliado oficialmente.",
 
-    "meta.title": "NetGrip - el panel de 3,9 MB para OpenWrt",
-    "meta.description": "Panel de software libre (AGPL) para OpenWrt: WireGuard, WiFi de invitados, QoS, DNS, cortafuegos visual y Home Assistant en un solo binario estático de 3,9 MB. Sin PHP, sin Python, sin contenedor."
+    "meta.title": "NetGrip - el panel de 4 MB para OpenWrt",
+    "meta.description": "Panel de software libre (AGPL) para OpenWrt: WireGuard, WiFi de invitados, QoS, DNS, cortafuegos visual y Home Assistant en un solo binario estático de 4 MB. Sin PHP, sin Python, sin contenedor."
   },
 
   en: {
@@ -189,9 +189,9 @@ const I18N = {
     "nav.star": "Star",
 
     "hero.eyebrow": "Free software · AGPL · Built by the community",
-    "hero.title": "3.9 MB on the router. All of this inside.",
+    "hero.title": "4 MB on the router. All of this inside.",
     "hero.sub": "One static binary for OpenWrt: WireGuard, guest Wi-Fi, QoS, DNS, a visual firewall, Home Assistant and a fleet agent. No PHP, no Python, no container, no extra box.",
-    "hero.fact": "3.9 MB installed binary · zero runtimes · two extra OpenWrt packages",
+    "hero.fact": "4 MB installed binary · zero runtimes · two extra OpenWrt packages",
     "hero.ctaDemo": "Try the demo",
     "hero.ctaGithub": "View on GitHub",
     "hero.micro": "The demo is a playground: sample data, nothing is applied for real.",
@@ -219,13 +219,13 @@ const I18N = {
     "what.li3": "Charts instead of tables",
     "what.li4": "First-run setup wizard",
     "what.netpulse": "It doubles as a <a href=\"{NETPULSE_URL}\" target=\"_blank\" rel=\"noopener\">NetPulse</a> agent: the same router reports metrics, WiFi events and clients, with nothing extra to install.",
-    "what.footprint": "Light and checkable: the installed binary takes 3.9 MB. The release also publishes the same binary unpacked (13.4 MB), in case you want to inspect it.",
+    "what.footprint": "Light and checkable: the installed binary takes 4 MB. The release also publishes the same binary unpacked (13.9 MB), in case you want to inspect it.",
 
     "weight.eyebrow": "Weight and features",
     "weight.title": "What it takes, and everything it does.",
-    "weight.sub": "The installed binary takes 3.9 MB. This is what it costs to keep it around and what you get inside, with no fine print.",
+    "weight.sub": "The installed binary takes 4 MB. This is what it costs to keep it around and what you get inside, with no fine print.",
     "weight.costTitle": "What it costs",
-    "weight.number": "3.9 MB",
+    "weight.number": "4 MB",
     "weight.numberNote": "the installed binary, interface included",
     "weight.cost2t": "Zero runtimes",
     "weight.cost2d": "no PHP, no Python, no Node, no container",
@@ -246,7 +246,7 @@ const I18N = {
     "weight.chip10": "Firmware with owut/ASU",
     "weight.chip11": "Self-update with rollback",
     "weight.chip12": "NetPulse agent",
-    "weight.note": "The release also publishes the same binary unpacked (13.4 MB), in case you want to inspect it. The numbers come from measuring the binary that gets installed.",
+    "weight.note": "The release also publishes the same binary unpacked (13.9 MB), in case you want to inspect it. The numbers come from measuring the binary that gets installed.",
 
     "feat.eyebrow": "Features",
     "feat.title": "Everything your router already does, made friendly.",
@@ -320,8 +320,8 @@ const I18N = {
     "footer.tag": "NetGrip is free software (AGPL) made by its community.",
     "footer.disclaimer": "OpenWrt is a trademark of its project; NetGrip is not officially affiliated.",
 
-    "meta.title": "NetGrip - the 3.9 MB panel for OpenWrt",
-    "meta.description": "Free software (AGPL) panel for OpenWrt: WireGuard, guest Wi-Fi, QoS, DNS, a visual firewall and Home Assistant in one static 3.9 MB binary. No PHP, no Python, no container."
+    "meta.title": "NetGrip - the 4 MB panel for OpenWrt",
+    "meta.description": "Free software (AGPL) panel for OpenWrt: WireGuard, guest Wi-Fi, QoS, DNS, a visual firewall and Home Assistant in one static 4 MB binary. No PHP, no Python, no container."
   }
 };
 

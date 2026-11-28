@@ -19,7 +19,7 @@
   NetGrip es un panel independiente que corre en el propio router:
   WireGuard, WiFi de invitados, QoS, DNS y más, un clic cada uno, con
   snapshot, comprobación de salud y rollback automático si algo sale mal.<br>
-  <strong>Un solo binario estático, 3,9 MB instalado, interfaz incluida.</strong>
+  <strong>Un solo binario estático, 4 MB instalado, interfaz incluida.</strong>
 </p>
 
 <p align="center">
@@ -58,7 +58,7 @@ se deshace solo si no fue así.
 Cuatro reglas lo dan forma:
 
 - **Vive en el router.** Un único binario Go estático con la UI embebida,
-  **3,9 MB instalado** (la release lo publica empaquetado con UPX y también
+  **4 MB instalado** (la release lo publica empaquetado con UPX y también
   sin empaquetar), empaquetado como `.apk`/`.ipk` real de OpenWrt que
   sobrevive al sysupgrade. Sin contenedores, sin caja extra, sin Node en un
   router, sin PHP ni Python en ningún sitio, y sin otra pila web: sirve su
@@ -73,10 +73,10 @@ Cuatro reglas lo dan forma:
   gestionado reciben cada uno las pantallas que tienen sentido, y lo que
   necesita algo que esa caja no tiene (una radio, un uplink, un paquete)
   simplemente se aparta.
-- **Sin cuentas nuevas.** El login se valida contra rpcd, la misma sesión
-  sesión de administración del propio router; un admin por router, nada
-  extra que administrar. AGPL-3.0,
-  sin premium de ningún tipo.
+- **Sin cuentas nuevas.** El login se valida contra rpcd por el socket de
+  ubus, la misma sesión de administración del propio router, así que no hay
+  que instalar ningún panel web ni servidor web; un admin por router, nada
+  extra que administrar. AGPL-3.0, sin premium de ningún tipo.
 
 ## Qué te llevas
 
@@ -121,18 +121,20 @@ capturas a tamaño real.
 
 **Agente de NetPulse integrado.** El mismo binario reporta métricas, eventos
 WiFi y clientes a [NetPulse](https://netpulse.cloudless.club): el router
-aparece etiquetado como NetGrip en su flota sin instalar nada más. Es una
-capacidad adicional, no un requisito: si no usas NetPulse, nada cambia.
+aparece etiquetado como NetGrip en su flota sin instalar nada más. También
+informa paso a paso del avance de una auto-actualización pedida desde NetPulse.
+Es una capacidad adicional, no un requisito: si no usas NetPulse, nada cambia.
 
 **MQTT y Home Assistant, si los quieres.** Opcional y desactivado por defecto:
 apúntalo a un broker MQTT y Home Assistant descubre el router solo. Publica el
 estado en `netgrip/<router>/state` y crea **23 entidades**: 17 sensores (CPU,
 núcleo más cargado, temperatura, memoria, uptime, modo, versión, clientes
-totales/WiFi/cable/débil, señal WiFi mínima y media, y tráfico de entrada y
-salida de la red local), 4 interruptores (WiFi de invitados, banIP, IPv6 y SQM)
-y 2 botones (recargar los feeds de banIP y reiniciar). Los interruptores y
-botones actúan: Home Assistant manda la orden por `netgrip/<router>/command/...`
-y el router contesta en `netgrip/<router>/result`.
+totales/WiFi/cable/débil, señal WiFi mínima y media, tasa de entrada y salida y
+totales recibidos y enviados de la red local), 4 interruptores (WiFi de
+invitados, banIP, IPv6 y SQM) y 2 botones (recargar los feeds de banIP y
+reiniciar). Los interruptores y botones actúan: Home Assistant manda la orden
+por `netgrip/<router>/command/...` y el router contesta en
+`netgrip/<router>/result`.
 
 Se configura desde la tarjeta MQTT de la página Sistema, o escribiendo
 `/etc/netgrip/mqtt.env` (permisos 600). La tarjeta prueba la conexión antes
@@ -145,8 +147,7 @@ publica nada hasta que lo actives.
 **Asistentes de IA (MCP), si los quieres.** NetGrip puede exponer un
 endpoint local de [MCP](https://modelcontextprotocol.io/) para que un
 asistente de IA consulte el estado del router en su propio vocabulario.
-Está desactivado por defecto y la primera tanda de tools es de solo
-lectura:
+Está desactivado por defecto y todas las tools son de solo lectura:
 
 1. Actívalo y pon un token:
    `uci set netgrip.mcp='mcp'; uci set netgrip.mcp.enabled=1; uci set netgrip.mcp.token=<aleatorio largo>; uci commit netgrip`
@@ -157,10 +158,12 @@ lectura:
 
 El endpoint nunca acepta la cookie de sesión del navegador, responde 404
 mientras está desactivado y tiene rate limit por IP (60 peticiones/minuto
-por defecto, ajustable con `uci set netgrip.mcp.rate_per_min=<n>`). Los
-tools (`server_status`, `list_clients`, `wireless_status`, `wan_status`,
-`multiwan_status`, `list_leases`, `list_devices`) leen las mismas sondas y
-cachés que el panel, y cada llamada queda en el log.
+por defecto, ajustable con `uci set netgrip.mcp.rate_per_min=<n>`). Las
+diez tools leen las mismas sondas y cachés que el panel y cada llamada queda en
+el log: `server_status`, `list_clients`, `wireless_status`, `wan_status`,
+`multiwan_status`, `list_leases`, `list_devices`, `channel_recommendation`
+(sugerencia determinista de canal por radio, nunca aplica nada),
+`wifi_schedule_status` y `snmp_status`.
 
 ## Lista de funcionalidades
 
@@ -168,6 +171,7 @@ cachés que el panel, y cada llamada queda en el log.
 | --- | --- |
 | Resumen | Salud del sistema, estado WAN, gráfica de tráfico en vivo, chasis ethernet por puerto, detección de switch no gestionado |
 | Clientes | Velocidad y señal por estación, IPs reservadas, bloqueo, límite de ancho de banda por dispositivo |
+| Puertos de red | Admin, notas y PoE por boca, VLANs, LAG, STP, SFP, espejo, storm control y límites de tasa |
 | LAN y DHCP | Reservas, rango, tiempo de concesión |
 | IPv6 | Servidor / relay, DNS anunciado |
 | Dual WAN | Políticas y reparto de mwan3 |
@@ -186,12 +190,15 @@ cachés que el panel, y cada llamada queda en el log.
 | Tráfico | Análisis por aplicación (netifyd), línea de 24 h |
 | Historial de uso | Totales diarios y mensuales (vnstat + nlbwmon) |
 | Protección | Feeds de banIP y detección de AdGuard Home |
-| Almacenamiento USB | SMB (ksmbd o samba) + DLNA |
+| Almacenamiento USB | Montar y desmontar discos, compartición SMB (ksmbd o samba), DLNA |
 | Asistente inicial | Configuración guiada |
 | Auto-actualización | Actualización en sitio con firma del binario verificada |
 | Firmware | Reconstrucción owut/ASU con tus paquetes dentro |
 | Seguridad | Snapshots de config, rollback automático, temporizador de confirmación anti-bloqueo |
 | Copia de seguridad | Descargar y restaurar la config |
+| Diagnóstico | Autodiagnóstico, ping, traceroute, DNS y TCP, test de cable |
+| Flota | Comprobar, adoptar y actualizar en lote los demás routers NetGrip de la red |
+| Servicios locales | Atajos a los servicios self-hosted que corren en tu LAN |
 | Administración | Acceso, sesión, seguridad, contraseña, reinicio programado |
 | Software | Lista de paquetes vía apk/opkg |
 | Logs | Log del sistema |
@@ -207,8 +214,9 @@ big-endian compatible, con OpenWrt 24.10 o 25.12. El instalador consulta al
 gestor de paquetes la arquitectura exacta del router y elige el paquete y ABI
 Go genérico correspondientes. El panel escucha en el puerto 8090 y entra con
 la contraseña de root del router, que se le pregunta a rpcd por el socket de
-ubus, el mismo demonio que usan las herramientas del router. No hace falta
-ningún panel web ni ningún servidor web delante.
+ubus, el demonio que hay detrás de las herramientas del propio router. No hace
+falta ningún panel web ni ningún servidor web delante, y rpcd viene con el
+paquete.
 
 SSH al router y ejecuta:
 
@@ -284,7 +292,7 @@ cat netgrip-linux-arm64 | ssh root@<ip-del-router> "cat > /usr/sbin/netgrip && c
 /usr/sbin/netgrip -listen 0.0.0.0 -port 8090
 ```
 
-Compilar desde fuente requiere Go 1.24+ y Node 22+:
+Compilar desde fuente requiere Go 1.26+ y Node 24+:
 
 ```sh
 git clone https://github.com/gnacho/netgrip.git
@@ -320,27 +328,27 @@ logread -e netgrip -f
 ```
 
 Detrás de cada tarjeta hay una API JSON, la misma que usa el frontend:
-lecturas por `GET /api/board`, `/api/system`, `/api/wan`, `/api/wifi`,
-`/api/lan`, `/api/dns`, `/api/usteer`, `/api/clients`, `/api/netifyd`,
-`/api/dpi/apps`, `/api/dpi/timeline` y `/api/nftqos`; escrituras por los
-`POST` correspondientes (`/api/wireguard`, `/api/openvpn`, `/api/sqm`,
-`/api/guestwifi`, `/api/iotwifi`, `/api/portforward`, `/api/netifyd`,
-`/api/nftqos`) con forma
+`GET /api/<área>` para las lecturas (`board`, `system`, `wan`, `wifi`, `lan`,
+`clients`, `dpi`, `nftqos`, `storage`, `fleet`, `banip`, `ddns`, `mcp`...) y el
+`POST` o `PUT` correspondiente para cambiar algo, la mayoría con forma
 `{ "state": ..., "rolled_back": ..., "status": "applied|rolled_back|failed" }`.
-Toda escritura exige cookie de sesión.
+Toda escritura exige cookie de sesión, y el endpoint MCP es el único que usa
+token Bearer.
 
 </details>
 
 ## Qué viene
 
-Reciente: integración con Home Assistant sobre MQTT (estado, sensores e
-interruptores/botones que actúan, descubiertos automáticamente), siete ABI
-Go genéricos por release de amd64 a MIPS, e interfaz bilingüe cuyo idioma
-del documento sigue al idioma activo. Lo siguiente: mantener la demo
-pública al día del panel y resolver la confianza del índice del feed para
-que owut/ASU conserve NetGrip dentro de tu imagen de firmware
-([#296](https://github.com/gnacho/netgrip/issues/582)). Las ideas y reportes en los
-[issues](https://github.com/gnacho/netgrip/issues) dirigen qué se construye.
+Reciente: login por el socket de ubus, así que el panel funciona en un router
+sin panel web ni servidor web instalado, las listas de dispositivos ya no van a
+tirones al deslizar en el móvil, el apk se nombra por la arquitectura del
+paquete y se auto-actualiza con `apk`, y el endpoint MCP tiene su propia tarjeta
+con diez tools de solo lectura. Lo siguiente: mantener la demo pública al día
+del panel y resolver la confianza del índice del feed para que owut/ASU
+conserve NetGrip dentro de tu imagen de firmware
+([#582](https://github.com/gnacho/netgrip/issues/582)). Las ideas y reportes en
+los [issues](https://github.com/gnacho/netgrip/issues) dirigen qué se
+construye.
 
 ## Desarrollo
 
@@ -361,19 +369,19 @@ de la release muestra el tamaño de cada binario y del frontend comprimido.
 
 Tamaño del binario (assets de release, con la UI embebida):
 
-| Arquitectura | Tamaño (aprox) |
-| --- | ---: |
-| arm64 | 12,7 MB |
-| amd64 | 13,8 MB |
-| armv5 / armv6 | 13,4 MB |
-| armv7 | 13,3 MB |
-| mips / mipsle | 15,1 MB |
+| Arquitectura | Sin empaquetar | Asset de release (UPX) |
+| --- | ---: | ---: |
+| arm64 | 13,9 MB | 4,0 MB |
+| amd64 | 15,1 MB | 4,9 MB |
+| armv5 / armv6 | 14,5 MB | 4,1 MB |
+| armv7 | 14,5 MB | 4,1 MB |
+| mips / mipsle | 16,4 MB | 4,0 MB |
 
-Esos son los tamaños sin empaquetar. Los assets de release salen **comprimidos con UPX al 29-33 % de esa cifra** (arm64: de 13,4 MB a 3,9 MB), así que lo que ocupa en el router es un tercio de la tabla. UPX comprime el ejecutable y su stub lo descomprime en memoria al arrancar. El binario sin empaquetar se publica junto al comprimido con sufijo `.raw`, sin firmar y solo para depurar, porque `gdb` ve el stub y no el programa. Para descomprimir in situ: `upx -d /usr/sbin/netgrip`.
+Esos son los assets de `v0.83.0`. Los assets de release salen **comprimidos con UPX al 24-32 % del tamaño sin empaquetar** (arm64: de 13,9 MB a 4,0 MB), así que lo que ocupa en el router es más o menos un cuarto de la tabla. UPX comprime el ejecutable y su stub lo descomprime en memoria al arrancar. El binario sin empaquetar se publica junto al comprimido con sufijo `.raw`, sin firmar y solo para depurar, porque `gdb` ve el stub y no el programa. Para descomprimir in situ: `upx -d /usr/sbin/netgrip`.
 
 El binario sin empaquetar es el daemon autónomo entero, no la UI: el runtime
 de Go más el backend (cliente ubus/rpcd, sondas, MQTT, el agente de NetPulse,
-self-update) más el frontend embebido. El frontend en sí son ~344 KB gzip;
+self-update) más el frontend embebido. El frontend en sí son ~355 KB gzip;
 el resto es lo que hace que NetGrip corra autónomo donde una capa solo-UI
 pesa unos cientos de KB sobre servicios que OpenWrt ya trae.
 

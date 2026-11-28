@@ -11,7 +11,7 @@ not work".
 | rt3 router | not recorded | arm64 | not recorded | untested | untested | untested | yes (19 HA entities) | yes | untested | full NetGrip + MQTT verified live |
 | rt-lab router | not recorded | mipsle | 25.12.5 (apk) | untested | untested | untested | yes | yes | yes (perf fix verified) | apk only, no opkg; no curl, use wget |
 | Flint2 / rt2 / rt4 | not recorded | not recorded | not recorded | untested | untested | untested | untested | standalone agent only | untested | run the NetPulse agent, not full NetGrip |
-| Raspberry Pi 4 | bcm27xx/bcm2711 / Cortex-A72 | aarch64_cortex-a72 | 25.12.6 (apk) | untested | untested | untested | untested | untested | untested | Reported in [#570](https://github.com/gnacho/netgrip/pull/570): generic arm64 APK rejected; password RPC absent without rpcd-mod-rpcsys. Corrected APK metadata verified locally; installation of the corrected package is untested. |
+| Raspberry Pi 4 | bcm27xx/bcm2711 / Cortex-A72 | aarch64_cortex-a72 | 25.12.6 (apk) | untested | untested | untested | untested | untested | untested | Reported in [#570](https://github.com/gnacho/netgrip/pull/570): generic arm64 APK rejected; password RPC absent without rpcd-mod-rpcsys. The package depends on it since, and since #814 the login asks rpcd over the ubus socket, so neither a web server nor that module is needed to sign in. Corrected APK metadata verified locally; installation of the corrected package is untested. |
 
 ## Feature meanings
 
