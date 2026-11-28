@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Network, Search } from "lucide-react";
 import { api } from "../api";
 import type { L2Client, L2Probe } from "../types";
 import { Card, EmptyState, Input, Pill, Skeleton } from "../components/ui";
+import { usePolling } from "../hooks/usePolling";
 import { IlluDevices } from "../components/ui/illustrations";
 
 /**
@@ -38,14 +39,19 @@ export function L2ClientsPage() {
 
   const load = useCallback(async () => {
     try {
-      setProbe(await api.l2clients());
+      const next = await api.l2clients();
+      // La FDB cambia despacio: casi todos los sondeos devuelven el mismo
+      // inventario, y repintar 119 filas para nada es lo que hacía que la
+      // página fuera a tirones al deslizar (#815).
+      setProbe((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
     } catch {
       // Error de red: se conserva el último inventario y el poller reintenta.
     }
   }, []);
 
-  // Mismo refresco que la vista de router: la FDB aprende y caduca sola.
-  useEffect(() => { load(); const id = setInterval(load, 5000); return () => clearInterval(id); }, [load]);
+  // Mismo refresco que la vista de router: la FDB aprende y caduca sola, y
+  // se para mientras la pestaña está oculta.
+  usePolling(load, 5000);
 
   const clients = useMemo(() => {
     const list = probe?.clients ?? [];
